@@ -1,0 +1,420 @@
+import { Resend } from "resend";
+import { wrapEmailWithBranding, emailButton, type EmailBranding } from "@/lib/email-template";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = "Ghost Roastery <noreply@ghostroasting.co.uk>";
+
+export { type EmailBranding } from "@/lib/email-template";
+
+export async function sendWelcomeEmail(
+  email: string,
+  contactName: string,
+  businessName: string,
+  branding?: EmailBranding | null
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Welcome to Ghost Roastery</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale and Partner Portal</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Your wholesale portal for <strong>${businessName}</strong> is ready. You can now:
+    </p>
+    <ul style="color:#334155;font-size:16px;line-height:1.8;text-align:left;padding-left:20px;">
+      <li>Add your coffee products with pricing</li>
+      <li>Share your portal link with wholesale customers</li>
+      <li>Manage incoming orders</li>
+    </ul>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/dashboard`, label: "Go to Dashboard", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email &mdash; we&rsquo;re here to help.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Welcome to Ghost Roastery, ${businessName}!`,
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+  });
+}
+
+export async function sendWholesaleApplicationReceived(
+  email: string,
+  contactName: string,
+  roasterName: string,
+  branding?: EmailBranding | null
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Application Received</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Thanks for applying for a wholesale account with <strong>${roasterName}</strong>. Your application is now being reviewed.
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We&rsquo;ll be in touch once your application has been processed. This usually takes 1&ndash;2 business days.
+    </p>
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Wholesale application received — ${roasterName}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendWholesaleApplicationNotification(
+  roasterEmail: string,
+  roasterName: string,
+  businessName: string,
+  portalUrl: string,
+  branding?: EmailBranding | null
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New Wholesale Application</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">${roasterName}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      <strong>${businessName}</strong> has applied for a wholesale trade account.
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Log in to your portal to review the application and approve or reject it.
+    </p>
+
+    ${emailButton({ href: `${portalUrl}/wholesale-buyers`, label: "Review Application", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: roasterEmail,
+    subject: `New wholesale application from ${businessName}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendWholesaleApproved(
+  email: string,
+  contactName: string,
+  roasterName: string,
+  priceTier: string,
+  paymentTerms: string,
+  branding?: EmailBranding | null
+) {
+  const tierLabels: Record<string, string> = {
+    standard: "Standard",
+    preferred: "Preferred",
+    vip: "VIP",
+  };
+  const termsLabels: Record<string, string> = {
+    prepay: "Prepay",
+    net7: "Net 7 days",
+    net14: "Net 14 days",
+    net30: "Net 30 days",
+  };
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;re Approved!</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Great news &mdash; your wholesale application with <strong>${roasterName}</strong> has been approved. You can now browse the wholesale catalogue and place orders.
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Price Tier:</strong> ${tierLabels[priceTier] || priceTier}</p>
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Payment Terms:</strong> ${termsLabels[paymentTerms] || paymentTerms}</p>
+    </div>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/wholesale`, label: "Browse Catalogue", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Wholesale account approved — ${roasterName}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendWholesaleRejected(
+  email: string,
+  contactName: string,
+  roasterName: string,
+  reason: string,
+  branding?: EmailBranding | null
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Application Update</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Unfortunately, your wholesale application with <strong>${roasterName}</strong> was not approved at this time.
+    </p>
+    ${reason ? `
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Reason:</strong> ${reason}</p>
+    </div>
+    ` : ""}
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      If you believe this was in error or would like to discuss further, please get in touch with the roaster directly.
+    </p>
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Wholesale application update — ${roasterName}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendPasswordResetEmail(
+  email: string,
+  resetUrl: string,
+  contactName: string
+) {
+  // Password reset always uses Ghost Roastery branding (platform-level)
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Reset Your Password</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ghost Roastery Partner Portal</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We received a request to reset your password. Click the button below to choose a new one:
+    </p>
+
+    ${emailButton({ href: resetUrl, label: "Reset Password" })}
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      This link expires in 1 hour. If you didn&rsquo;t request this, you can safely ignore this email.
+    </p>
+
+    <p style="color:#94a3b8;font-size:12px;margin-top:32px;word-break:break-all;text-align:left;">
+      If the button doesn&rsquo;t work, copy and paste this link:<br/>
+      <a href="${resetUrl}" style="color:#0083dc;">${resetUrl}</a>
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: "Reset your Ghost Roastery password",
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+  });
+}
+
+function formatCurrency(amount: number, currency: string): string {
+  const symbols: Record<string, string> = {
+    GBP: "\u00a3",
+    USD: "$",
+    EUR: "\u20ac",
+  };
+  const symbol = symbols[currency.toUpperCase()] || currency + " ";
+  return `${symbol}${amount.toFixed(2)}`;
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export async function sendInvoiceEmail(params: {
+  to: string;
+  customerName: string;
+  ownerName: string;
+  invoiceNumber: string;
+  total: number;
+  currency: string;
+  dueDate: string | null;
+  accessToken: string;
+  stripePaymentLinkUrl?: string | null;
+  lineItems: {
+    description: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }[];
+  branding?: EmailBranding | null;
+}) {
+  const {
+    to,
+    customerName,
+    ownerName,
+    invoiceNumber,
+    total,
+    currency,
+    dueDate,
+    accessToken,
+    stripePaymentLinkUrl,
+    lineItems,
+    branding,
+  } = params;
+
+  const formattedTotal = formatCurrency(total, currency);
+  const invoiceUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${accessToken}`;
+  const ctaUrl = stripePaymentLinkUrl || invoiceUrl;
+  const ctaLabel = stripePaymentLinkUrl ? "Pay Now" : "View Invoice";
+
+  const lineItemsHtml = lineItems
+    .map(
+      (item) => `
+      <tr>
+        <td style="padding:8px 0;color:#334155;font-size:14px;border-bottom:1px solid #f1f5f9;">${item.description}</td>
+        <td style="padding:8px 0;color:#334155;font-size:14px;text-align:right;border-bottom:1px solid #f1f5f9;">${formatCurrency(item.total, currency)}</td>
+      </tr>`
+    )
+    .join("");
+
+  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Invoice ${invoiceNumber}</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">From ${ownerName}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Please find your invoice details below.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead>
+        <tr>
+          <th style="padding:8px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;border-bottom:2px solid #e2e8f0;">Description</th>
+          <th style="padding:8px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e2e8f0;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lineItemsHtml}
+      </tbody>
+    </table>
+
+    <div style="text-align:right;margin:16px 0 24px;">
+      <p style="color:#64748b;font-size:14px;margin:0 0 4px;">Subtotal: ${formatCurrency(subtotal, currency)}</p>
+      <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: ${formattedTotal}</strong></p>
+    </div>
+
+    ${dueDate ? `<div style="background:#f8fafc;border-radius:8px;padding:12px 16px;margin:0 0 24px;text-align:center;">
+      <p style="color:#334155;font-size:14px;margin:0;">Payment due by <strong>${formatDate(dueDate)}</strong></p>
+    </div>` : ""}
+
+    ${emailButton({ href: ctaUrl, label: ctaLabel, branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions about this invoice, please get in touch.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Invoice ${invoiceNumber} from ${ownerName}`,
+    html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
+  });
+}
+
+export async function sendInvoiceReminderEmail(params: {
+  to: string;
+  customerName: string;
+  ownerName: string;
+  invoiceNumber: string;
+  total: number;
+  amountDue: number;
+  currency: string;
+  dueDate: string | null;
+  accessToken: string;
+  stripePaymentLinkUrl?: string | null;
+  branding?: EmailBranding | null;
+}) {
+  const {
+    to,
+    customerName,
+    ownerName,
+    invoiceNumber,
+    total,
+    amountDue,
+    currency,
+    dueDate,
+    accessToken,
+    stripePaymentLinkUrl,
+    branding,
+  } = params;
+
+  const formattedTotal = formatCurrency(total, currency);
+  const formattedAmountDue = formatCurrency(amountDue, currency);
+  const invoiceUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${accessToken}`;
+  const ctaUrl = stripePaymentLinkUrl || invoiceUrl;
+  const ctaLabel = stripePaymentLinkUrl ? "Pay Now" : "View Invoice";
+
+  const isOverdue = dueDate ? new Date(dueDate) < new Date() : false;
+  const dueDateText = dueDate
+    ? isOverdue
+      ? `This invoice was due on <strong>${formatDate(dueDate)}</strong> and is now overdue.`
+      : `Payment is due by <strong>${formatDate(dueDate)}</strong>.`
+    : "";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Payment Reminder</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Invoice ${invoiceNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      This is a friendly reminder regarding invoice <strong>${invoiceNumber}</strong> from <strong>${ownerName}</strong>.
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Invoice Total:</strong> ${formattedTotal}</p>
+      <p style="color:#0f172a;font-size:16px;font-weight:700;margin:0 0 8px;"><strong>Amount Due:</strong> ${formattedAmountDue}</p>
+      ${dueDateText ? `<p style="color:${isOverdue ? "#dc2626" : "#334155"};font-size:14px;margin:0;">${dueDateText}</p>` : ""}
+    </div>
+
+    ${emailButton({ href: ctaUrl, label: ctaLabel, branding })}
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      If you&rsquo;ve already made this payment, please disregard this reminder.
+    </p>
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions about this invoice, please get in touch.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Payment reminder: Invoice ${invoiceNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
+  });
+}

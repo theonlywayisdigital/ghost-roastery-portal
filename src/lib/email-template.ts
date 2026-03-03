@@ -1,0 +1,103 @@
+/**
+ * Shared email template wrapper — applies owner branding (logo, colours, fonts)
+ * to all transactional emails. Produces a self-contained HTML email with inline
+ * CSS (no external stylesheets except Google Fonts).
+ */
+
+import { resolveFontFamily, buildGoogleFontsUrl } from "@/lib/fonts";
+
+export interface EmailBranding {
+  logoUrl?: string | null;
+  primaryColour?: string;
+  accentColour?: string;
+  headingFont?: string;
+  bodyFont?: string;
+  businessName?: string;
+  tagline?: string;
+}
+
+const DEFAULT_BRANDING: Required<Omit<EmailBranding, "logoUrl" | "tagline" | "businessName">> = {
+  primaryColour: "#0f172a",
+  accentColour: "#0083dc",
+  headingFont: "inter",
+  bodyFont: "inter",
+};
+
+/**
+ * Wraps email body content in a branded template with:
+ * - Coloured header strip with logo or business name
+ * - Google Fonts loaded for heading/body
+ * - Branded CTA button colour
+ * - Footer with optional tagline
+ */
+export function wrapEmailWithBranding(options: {
+  /** The inner HTML content (everything inside the white card) */
+  body: string;
+  /** Who the email is from (for footer) */
+  businessName: string;
+  /** Branding settings — pass null/undefined for Ghost Roastery defaults */
+  branding?: EmailBranding | null;
+}): string {
+  const { body, businessName, branding } = options;
+
+  const primary = branding?.primaryColour || DEFAULT_BRANDING.primaryColour;
+  const accent = branding?.accentColour || DEFAULT_BRANDING.accentColour;
+  const headingFamily = resolveFontFamily(branding?.headingFont || DEFAULT_BRANDING.headingFont);
+  const bodyFamily = resolveFontFamily(branding?.bodyFont || DEFAULT_BRANDING.bodyFont);
+  const logoUrl = branding?.logoUrl || null;
+  const tagline = branding?.tagline || null;
+
+  const fontsToLoad = Array.from(new Set([headingFamily, bodyFamily]));
+  const googleFontsUrl = buildGoogleFontsUrl(fontsToLoad);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  ${googleFontsUrl ? `<link rel="stylesheet" href="${googleFontsUrl}">` : ""}
+</head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:'${bodyFamily}',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:40px 20px;">
+    <!-- Header strip -->
+    <div style="background-color:${primary};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
+      ${logoUrl
+        ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:40px;max-width:200px;object-fit:contain;" />`
+        : `<p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;opacity:0.95;">${businessName}</p>`
+      }
+    </div>
+
+    <!-- Body card -->
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:40px;">
+      ${body}
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:24px 0;">
+      <p style="color:#94a3b8;font-size:12px;margin:0;font-family:'${bodyFamily}',sans-serif;">
+        ${businessName}${tagline ? ` · ${tagline}` : ""}
+      </p>
+    </div>
+  </div>
+</body>
+</html>`.trim();
+}
+
+/**
+ * Helper to generate a branded CTA button HTML string.
+ */
+export function emailButton(options: {
+  href: string;
+  label: string;
+  branding?: EmailBranding | null;
+}): string {
+  const accent = options.branding?.accentColour || DEFAULT_BRANDING.accentColour;
+  const headingFamily = resolveFontFamily(options.branding?.headingFont || DEFAULT_BRANDING.headingFont);
+
+  return `<div style="text-align:center;margin:24px 0;">
+  <a href="${options.href}"
+     style="display:inline-block;padding:12px 32px;background-color:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;font-family:'${headingFamily}',sans-serif;">
+    ${options.label}
+  </a>
+</div>`;
+}

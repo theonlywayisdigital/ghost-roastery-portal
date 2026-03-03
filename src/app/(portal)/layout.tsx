@@ -1,0 +1,34 @@
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { Sidebar } from "@/components/Sidebar";
+
+export default async function PortalLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Sidebar
+        user={{
+          email: user.email,
+          fullName: user.fullName,
+          roles: user.roles,
+          businessName: user.roaster?.business_name || null,
+          isGhostRoaster: user.roaster?.is_ghost_roaster || false,
+        }}
+      />
+
+      {/* Main content area */}
+      <div className="lg:pl-64">
+        <main className="p-6 lg:p-8 pt-16 lg:pt-8">{children}</main>
+      </div>
+    </div>
+  );
+}

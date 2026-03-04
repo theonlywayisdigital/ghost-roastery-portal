@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Info,
+  RotateCcw,
 } from "lucide-react";
 import type { FinanceOverview, LedgerEntry } from "@/types/finance";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -84,12 +85,18 @@ export function FinanceOverviewTab() {
       icon: FileText,
       color: "text-red-600 bg-red-50",
     },
+    {
+      label: "Total Refunded",
+      value: formatCurrency(data.totalRefunded),
+      icon: RotateCcw,
+      color: "text-slate-600 bg-slate-100",
+    },
   ];
 
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (

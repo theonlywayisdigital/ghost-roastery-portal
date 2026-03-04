@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { createNotification } from "@/lib/notifications";
+import { sendPartnerAllocationEmail } from "@/lib/email";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -69,10 +71,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     status: "pending",
   });
 
-  // Log activity
+  // Log activity + fetch partner details for notifications
   const { data: roaster } = await supabase
     .from("partner_roasters")
-    .select("business_name")
+    .select("business_name, email, contact_name, user_id")
     .eq("id", partnerId)
     .single();
 
@@ -84,6 +86,45 @@ export async function POST(request: Request, { params }: RouteParams) {
     actor_id: user.id,
     actor_name: user.email,
   });
+
+  // Fetch order number for notifications
+  const { data: orderData } = await supabase
+    .from("orders")
+    .select("order_number")
+    .eq("id", id)
+    .single();
+
+  const orderNumber = orderData?.order_number || id.slice(0, 8).toUpperCase();
+
+  // Send partner allocation email
+  if (roaster?.email) {
+    sendPartnerAllocationEmail({
+      to: roaster.email,
+      partnerName: roaster.contact_name || roaster.business_name || "Partner",
+      orderNumber,
+    }).then(() => {
+      supabase.from("order_communications").insert({
+        order_id: id,
+        order_type: "ghost",
+        template_key: "partner_allocation",
+        subject: `New order allocated — #${orderNumber}`,
+        body: `Automated partner allocation notification sent to ${roaster.email}`,
+        recipient_email: roaster.email,
+      }).then(({ error }) => { if (error) console.error("Failed to log partner allocation email:", error); });
+    }).catch((err) => console.error("Failed to send partner allocation email:", err));
+  }
+
+  // Send in-app notification to partner
+  if (roaster?.user_id) {
+    createNotification({
+      userId: roaster.user_id,
+      type: "new_order",
+      title: "New order allocated",
+      body: `Ghost Roastery order #${orderNumber} has been allocated to you for fulfilment.`,
+      link: "/orders",
+      metadata: { order_id: id },
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ success: true, partnerId });
 }

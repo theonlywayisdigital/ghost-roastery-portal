@@ -1,6 +1,6 @@
 "use client";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -115,6 +115,20 @@ const colorMap: Record<string, Record<string, string>> = {
     delivered: "bg-green-50 text-green-700",
     cancelled: "bg-red-50 text-red-700",
   },
+  refundStatus: {
+    pending: "bg-yellow-50 text-yellow-700",
+    processing: "bg-blue-50 text-blue-700",
+    completed: "bg-green-50 text-green-700",
+    failed: "bg-red-50 text-red-700",
+    none: "bg-slate-100 text-slate-500",
+    partial: "bg-orange-50 text-orange-700",
+    full: "bg-red-50 text-red-700",
+  },
+  refundType: {
+    full: "bg-red-50 text-red-700",
+    partial: "bg-orange-50 text-orange-700",
+    store_credit: "bg-purple-50 text-purple-700",
+  },
 };
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -208,6 +222,20 @@ const labelMap: Record<string, Record<string, string>> = {
     dispatched: "Dispatched",
     delivered: "Delivered",
     cancelled: "Cancelled",
+  },
+  refundStatus: {
+    pending: "Pending",
+    processing: "Processing",
+    completed: "Completed",
+    failed: "Failed",
+    none: "None",
+    partial: "Partial Refund",
+    full: "Full Refund",
+  },
+  refundType: {
+    full: "Full Refund",
+    partial: "Partial Refund",
+    store_credit: "Store Credit",
   },
 };
 

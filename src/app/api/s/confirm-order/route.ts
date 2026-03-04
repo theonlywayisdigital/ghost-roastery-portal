@@ -4,6 +4,12 @@ import { stripe } from "@/lib/stripe";
 import { createNotification } from "@/lib/notifications";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
 import { findOrCreatePerson } from "@/lib/people";
+import {
+  sendStorefrontOrderConfirmation,
+  sendWholesaleOrderConfirmation,
+  sendAdminNewOrderNotification,
+} from "@/lib/email";
+import type { EmailBranding } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -255,6 +261,79 @@ export async function POST(request: Request) {
         link: "/orders",
         metadata: { order_id: order.id },
       });
+    }
+
+    // Send order confirmation emails (idempotent via order_communications)
+    if (order && customerEmail) {
+      const orderNumber = order.id.slice(0, 8).toUpperCase();
+
+      // Check if confirmation email already sent
+      const { data: existingEmail } = await supabase
+        .from("order_communications")
+        .select("id")
+        .eq("order_id", order.id)
+        .eq("template_key", "order_confirmation")
+        .maybeSingle();
+
+      if (!existingEmail) {
+        // Fetch roaster branding
+        const { data: roasterBranding } = await supabase
+          .from("partner_roasters")
+          .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, business_name")
+          .eq("id", roasterId)
+          .single();
+
+        const branding: EmailBranding | undefined = roasterBranding ? {
+          logoUrl: roasterBranding.brand_logo_url,
+          primaryColour: roasterBranding.brand_primary_colour || undefined,
+          accentColour: roasterBranding.brand_accent_colour || undefined,
+          headingFont: roasterBranding.brand_heading_font || undefined,
+          bodyFont: roasterBranding.brand_body_font || undefined,
+          tagline: roasterBranding.brand_tagline || undefined,
+        } : undefined;
+
+        const roasterName = roasterBranding?.business_name || "Your Roaster";
+        const emailItems = items.map((item: { name?: string; productName?: string; quantity: number; price?: number; unitPrice?: number }) => ({
+          name: item.name || item.productName || "Item",
+          quantity: item.quantity,
+          price: ((item.price || item.unitPrice || 0) * item.quantity),
+        }));
+
+        const sendFn = isWholesaleChannel ? sendWholesaleOrderConfirmation : sendStorefrontOrderConfirmation;
+        sendFn({
+          to: customerEmail,
+          customerName: customerName || "",
+          orderNumber,
+          items: emailItems,
+          total: effectiveSubtotalPence / 100,
+          roasterName,
+          branding,
+        }).then(() => {
+          // Log to order_communications
+          supabase.from("order_communications").insert({
+            order_id: order.id,
+            order_type: isWholesaleChannel ? "wholesale" : "storefront",
+            template_key: "order_confirmation",
+            subject: `Order confirmed — #${orderNumber}`,
+            body: `Automated order confirmation sent to ${customerEmail}`,
+            recipient_email: customerEmail,
+          }).then(({ error }) => { if (error) console.error("Failed to log order confirmation email:", error); });
+        }).catch((err) => console.error("Failed to send order confirmation email:", err));
+
+        // Admin notification
+        const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+        if (adminEmail) {
+          sendAdminNewOrderNotification({
+            to: adminEmail,
+            customerName: customerName || "",
+            customerEmail,
+            orderNumber,
+            total: effectiveSubtotalPence / 100,
+            orderChannel: isWholesaleChannel ? "wholesale" : "storefront",
+            roasterName,
+          }).catch((err) => console.error("Failed to send admin notification:", err));
+        }
+      }
     }
 
     // Fire automation triggers for order placed

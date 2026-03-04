@@ -230,6 +230,374 @@ export async function sendPasswordResetEmail(
   });
 }
 
+// ─── Order Cancellation Emails ───
+
+export async function sendOrderCancellationEmail(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  reason: string;
+  wasPaid: boolean;
+  branding?: EmailBranding | null;
+}) {
+  const { to, customerName, orderNumber, reason, wasPaid, branding } = params;
+
+  const refundNote = wasPaid
+    ? `<p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+        If you paid for this order, a refund will be processed to your original payment method within 5&ndash;10 business days.
+      </p>`
+    : "";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Order Cancelled</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName || "there"},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We&rsquo;re sorry to let you know that your order <strong>#${orderNumber}</strong> has been cancelled.
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Reason:</strong> ${reason}</p>
+    </div>
+
+    ${refundNote}
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_SITE_URL || "https://ghostroasting.co.uk"}/build`, label: "Place a New Order", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email &mdash; we&rsquo;re here to help.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Your order #${orderNumber} has been cancelled`,
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+  });
+}
+
+export async function sendOrderCancelledPartnerNotification(params: {
+  to: string;
+  partnerName: string;
+  orderNumber: string;
+  cancelledBy: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, partnerName, orderNumber, cancelledBy, branding } = params;
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Order Cancelled</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${partnerName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Order <strong>#${orderNumber}</strong> has been cancelled by ${cancelledBy} and removed from your fulfilment queue.
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      No further action is required on your end.
+    </p>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/orders`, label: "View Orders", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Order #${orderNumber} has been cancelled`,
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+  });
+}
+
+// ─── Storefront / Wholesale Order Confirmation ───
+
+export async function sendStorefrontOrderConfirmation(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  items: { name: string; quantity: number; price: number }[];
+  total: number;
+  roasterName: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
+
+  const itemsHtml = items
+    .map(
+      (item) =>
+        `<tr>
+          <td style="padding:6px 0;color:#334155;font-size:14px;border-bottom:1px solid #f1f5f9;">${item.name} &times; ${item.quantity}</td>
+          <td style="padding:6px 0;color:#334155;font-size:14px;text-align:right;border-bottom:1px solid #f1f5f9;">&pound;${item.price.toFixed(2)}</td>
+        </tr>`
+    )
+    .join("");
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Order Confirmed</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName || "there"},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Thanks for your order with <strong>${roasterName}</strong>. We&rsquo;ve received your payment and your order is now being processed.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead>
+        <tr>
+          <th style="padding:6px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;border-bottom:2px solid #e2e8f0;">Item</th>
+          <th style="padding:6px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e2e8f0;">Price</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+
+    <div style="text-align:right;margin:8px 0 24px;">
+      <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: &pound;${total.toFixed(2)}</strong></p>
+    </div>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      We&rsquo;ll send you another email when your order is dispatched.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Order confirmed — #${orderNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendWholesaleOrderConfirmation(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  items: { name: string; quantity: number; price: number }[];
+  total: number;
+  roasterName: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
+
+  const itemsHtml = items
+    .map(
+      (item) =>
+        `<tr>
+          <td style="padding:6px 0;color:#334155;font-size:14px;border-bottom:1px solid #f1f5f9;">${item.name} &times; ${item.quantity}</td>
+          <td style="padding:6px 0;color:#334155;font-size:14px;text-align:right;border-bottom:1px solid #f1f5f9;">&pound;${item.price.toFixed(2)}</td>
+        </tr>`
+    )
+    .join("");
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Wholesale Order Confirmed</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName || "there"},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Thanks for your wholesale order with <strong>${roasterName}</strong>. We&rsquo;ve received your payment and your order is now being processed.
+    </p>
+
+    <table style="width:100%;border-collapse:collapse;margin:24px 0;">
+      <thead>
+        <tr>
+          <th style="padding:6px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:left;border-bottom:2px solid #e2e8f0;">Item</th>
+          <th style="padding:6px 0;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;text-align:right;border-bottom:2px solid #e2e8f0;">Price</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+
+    <div style="text-align:right;margin:8px 0 24px;">
+      <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: &pound;${total.toFixed(2)}</strong></p>
+    </div>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      We&rsquo;ll send you another email when your order is dispatched.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Wholesale order confirmed — #${orderNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+// ─── Dispatch / Delivery Notifications ───
+
+export async function sendOrderDispatchedEmail(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  trackingNumber?: string | null;
+  trackingCarrier?: string | null;
+  roasterName: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, customerName, orderNumber, trackingNumber, trackingCarrier, roasterName, branding } = params;
+
+  const trackingHtml = trackingNumber
+    ? `<div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+        <p style="color:#334155;font-size:14px;margin:0 0 4px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
+        ${trackingCarrier ? `<p style="color:#334155;font-size:14px;margin:0;"><strong>Carrier:</strong> ${trackingCarrier}</p>` : ""}
+      </div>`
+    : "";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Your Order Has Been Dispatched</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName || "there"},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Great news &mdash; your order <strong>#${orderNumber}</strong> from <strong>${roasterName}</strong> has been dispatched and is on its way to you.
+    </p>
+
+    ${trackingHtml}
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "Track Your Order", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions about your delivery, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Your order #${orderNumber} has been dispatched`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendOrderDeliveredEmail(params: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  roasterName: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, customerName, orderNumber, roasterName, branding } = params;
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Your Order Has Been Delivered</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName || "there"},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Your order <strong>#${orderNumber}</strong> from <strong>${roasterName}</strong> has been marked as delivered. We hope you enjoy your coffee!
+    </p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      If there are any issues with your delivery, please don&rsquo;t hesitate to get in touch.
+    </p>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Orders", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      Thank you for your order.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `Your order #${orderNumber} has been delivered`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+// ─── Partner Allocation Notification ───
+
+export async function sendPartnerAllocationEmail(params: {
+  to: string;
+  partnerName: string;
+  orderNumber: string;
+  branding?: EmailBranding | null;
+}) {
+  const { to, partnerName, orderNumber, branding } = params;
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New Order Allocated</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${partnerName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      A new Ghost Roastery order <strong>#${orderNumber}</strong> has been allocated to you for fulfilment. Please log in to your portal to review the order details and accept it.
+    </p>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/orders`, label: "View Order", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `New order allocated — #${orderNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+  });
+}
+
+// ─── Admin Notification for Storefront/Wholesale Orders ───
+
+export async function sendAdminNewOrderNotification(params: {
+  to: string;
+  customerName: string;
+  customerEmail: string;
+  orderNumber: string;
+  total: number;
+  orderChannel: string;
+  roasterName: string;
+}) {
+  const { to, customerName, customerEmail, orderNumber, total, orderChannel, roasterName } = params;
+
+  const channelLabel = orderChannel === "wholesale" ? "Wholesale" : "Storefront";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New ${channelLabel} Order</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">${roasterName}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      A new ${channelLabel.toLowerCase()} order has been placed:
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Order:</strong> #${orderNumber}</p>
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Customer:</strong> ${customerName || "Unknown"} (${customerEmail})</p>
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Total:</strong> &pound;${total.toFixed(2)}</p>
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Roaster:</strong> ${roasterName}</p>
+    </div>
+
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/admin/orders`, label: "View in Admin" })}`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `New ${channelLabel.toLowerCase()} order #${orderNumber} — £${total.toFixed(2)}`,
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+  });
+}
+
 function formatCurrency(amount: number, currency: string): string {
   const symbols: Record<string, string> = {
     GBP: "\u00a3",

@@ -218,6 +218,51 @@ export interface FinanceOverview {
   platformFees: number;
   outstandingPayouts: number;
   outstandingInvoices: number;
+  totalRefunded: number;
   recentLedgerEntries: LedgerEntry[];
   monthlyRevenue: { month: string; revenue: number; fees: number }[];
+}
+
+// ─── Refunds ───
+
+export type RefundType = "full" | "partial" | "store_credit";
+export type RefundStatus = "pending" | "processing" | "completed" | "failed";
+export type RefundReasonCategory = "customer_request" | "order_error" | "quality_issue" | "delivery_issue" | "duplicate_order" | "other";
+
+export interface Refund {
+  id: string;
+  order_type: string;
+  order_id: string;
+  refund_type: RefundType;
+  amount: number;
+  currency: string;
+  reason: string;
+  reason_category: RefundReasonCategory | null;
+  status: RefundStatus;
+  stripe_refund_id: string | null;
+  stripe_payment_intent_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  completed_at: string | null;
+  failed_reason: string | null;
+  // Joined
+  order_number?: string;
+  customer_name?: string;
+  customer_email?: string;
+  created_by_name?: string;
+}
+
+export interface RefundListResponse {
+  data: Refund[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface RefundSummary {
+  totalRefundedThisMonth: number;
+  totalRefundedAllTime: number;
+  refundCountThisMonth: number;
+  averageRefundAmount: number;
 }

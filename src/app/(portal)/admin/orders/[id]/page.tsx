@@ -35,7 +35,7 @@ export default async function OrderDetailPage({
       );
     }
 
-    const [roasterRes, roasterOrderRes, labelRes, activitiesRes, commsRes] =
+    const [roasterRes, roasterOrderRes, labelRes, activitiesRes, commsRes, refundsRes] =
       await Promise.all([
         order.roaster_id
           ? supabase.from("partner_roasters").select("*").eq("id", order.roaster_id).single()
@@ -46,6 +46,7 @@ export default async function OrderDetailPage({
           : { data: null },
         supabase.from("order_activity_log").select("*").eq("order_id", id).order("created_at", { ascending: false }),
         supabase.from("order_communications").select("*").eq("order_id", id).order("created_at", { ascending: false }),
+        supabase.from("refunds").select("*").eq("order_id", id).eq("order_type", "ghost_roastery").order("created_at", { ascending: false }),
       ]);
 
     return (
@@ -57,6 +58,7 @@ export default async function OrderDetailPage({
         label={labelRes.data}
         activities={activitiesRes.data || []}
         communications={commsRes.data || []}
+        refunds={refundsRes.data || []}
       />
     );
   }
@@ -74,13 +76,14 @@ export default async function OrderDetailPage({
     );
   }
 
-  const [roasterRes, activitiesRes, commsRes, invoiceRes] = await Promise.all([
+  const [roasterRes, activitiesRes, commsRes, invoiceRes, refundsRes] = await Promise.all([
     supabase.from("partner_roasters").select("*").eq("id", order.roaster_id).single(),
     supabase.from("order_activity_log").select("*").eq("order_id", id).order("created_at", { ascending: false }),
     supabase.from("order_communications").select("*").eq("order_id", id).order("created_at", { ascending: false }),
     order.invoice_id
       ? supabase.from("invoices").select("*").eq("id", order.invoice_id).single()
       : { data: null },
+    supabase.from("refunds").select("*").eq("order_id", id).eq("order_type", orderType).order("created_at", { ascending: false }),
   ]);
 
   return (
@@ -91,6 +94,7 @@ export default async function OrderDetailPage({
       invoice={invoiceRes.data}
       activities={activitiesRes.data || []}
       communications={commsRes.data || []}
+      refunds={refundsRes.data || []}
     />
   );
 }

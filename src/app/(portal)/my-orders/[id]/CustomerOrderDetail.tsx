@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, XCircle } from "lucide-react";
 import { StatusBadge } from "@/components/admin";
 import {
   FulfilmentStepper,
   GHOST_STEPS,
   WHOLESALE_STEPS,
+  CancellationDialog,
   OrderSummaryCard,
   DeliveryAddressCard,
   TrackingCard,
@@ -23,8 +25,11 @@ interface CustomerOrderDetailProps {
 }
 
 export function CustomerOrderDetail({ orderId, orderType: initialType }: CustomerOrderDetailProps) {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     fetch(`/api/my-orders/${orderId}?type=${initialType}`)
@@ -53,6 +58,29 @@ export function CustomerOrderDetail({ orderId, orderType: initialType }: Custome
   const totalPrice = isGhost ? order.total_price : order.subtotal;
   const isCancelled = status === "cancelled" || status === "Cancelled";
 
+  // Customer can only cancel Pending orders
+  const canCancel = isGhost ? status === "Pending" : status === "pending";
+
+  async function handleCancel({ reason, reasonCategory }: { reason: string; reasonCategory: string }) {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/my-orders/${orderId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderType, reason, reasonCategory }),
+      });
+      if (res.ok) {
+        router.push("/my-orders");
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to cancel order");
+      }
+    } finally {
+      setCancelling(false);
+      setShowCancelDialog(false);
+    }
+  }
+
   // Tracking info
   const trackingNumber = isGhost ? roasterOrder?.tracking_number : order.tracking_number;
   const trackingCarrier = isGhost ? roasterOrder?.tracking_carrier : order.tracking_carrier;
@@ -76,6 +104,11 @@ export function CustomerOrderDetail({ orderId, orderType: initialType }: Custome
           <p className="text-sm text-slate-500">
             {`Placed ${formatDateTime(order.created_at)} · ${formatPrice(totalPrice)}`}
           </p>
+          {isCancelled && order.cancellation_reason && (
+            <p className="text-sm text-red-600 mt-1">
+              {`Reason: ${order.cancellation_reason}`}
+            </p>
+          )}
         </div>
       </div>
 
@@ -172,6 +205,19 @@ export function CustomerOrderDetail({ orderId, orderType: initialType }: Custome
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Help */}
+          {/* Actions */}
+          {canCancel && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Actions</h3>
+              <button
+                onClick={() => setShowCancelDialog(true)}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+              >
+                <XCircle className="w-4 h-4" /> Cancel Order
+              </button>
+            </div>
+          )}
+
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Need Help?</h3>
             <div className="space-y-2">
@@ -193,6 +239,15 @@ export function CustomerOrderDetail({ orderId, orderType: initialType }: Custome
           </div>
         </div>
       </div>
+
+      {showCancelDialog && (
+        <CancellationDialog
+          orderNumber={orderNumber}
+          onConfirm={handleCancel}
+          onCancel={() => setShowCancelDialog(false)}
+          isLoading={cancelling}
+        />
+      )}
     </div>
   );
 }

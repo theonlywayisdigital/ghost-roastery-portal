@@ -11,6 +11,7 @@ import {
   WHOLESALE_STEPS,
   VALID_TRANSITIONS,
   DispatchModal,
+  CancellationDialog,
   OrderSummaryCard,
   DeliveryAddressCard,
   CustomerDetailsCard,
@@ -35,6 +36,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}?type=${initialType}`)
@@ -77,6 +79,21 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
     await refreshData();
   }
 
+  async function handleCancel({ reason, reasonCategory }: { reason: string; reasonCategory: string }) {
+    setUpdatingStatus(true);
+    try {
+      await fetch(`/api/orders/${orderId}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, reasonCategory }),
+      });
+      setShowCancelDialog(false);
+      await refreshData();
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -117,6 +134,11 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
           <p className="text-sm text-slate-500">
             {`${formatDateTime(order.created_at)} · ${customerName || "Unknown"} · ${customerEmail} · ${formatPrice(totalPrice)}`}
           </p>
+          {isCancelled && order.cancellation_reason && (
+            <p className="text-sm text-red-600 mt-1">
+              {`Cancellation reason: ${order.cancellation_reason}`}
+            </p>
+          )}
         </div>
       </div>
 
@@ -207,7 +229,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
                 <div>
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-2">Update Status</p>
                   <div className="flex flex-wrap gap-2">
-                    {transitions.map((s) => (
+                    {transitions.filter((s) => s !== "cancelled").map((s) => (
                       <button
                         key={s}
                         onClick={() => {
@@ -218,15 +240,20 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
                           }
                         }}
                         disabled={updatingStatus}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                          s === "cancelled"
-                            ? "border border-red-200 text-red-600 hover:bg-red-50"
-                            : "bg-brand-600 text-white hover:bg-brand-700"
-                        }`}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 bg-brand-600 text-white hover:bg-brand-700"
                       >
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </button>
                     ))}
+                    {!isGhost && transitions.includes("cancelled") && (
+                      <button
+                        onClick={() => setShowCancelDialog(true)}
+                        disabled={updatingStatus}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 border border-red-200 text-red-600 hover:bg-red-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -266,6 +293,15 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
         <DispatchModal
           onConfirm={handleDispatch}
           onClose={() => setShowDispatchModal(false)}
+          isLoading={updatingStatus}
+        />
+      )}
+
+      {showCancelDialog && (
+        <CancellationDialog
+          orderNumber={orderNumber}
+          onConfirm={handleCancel}
+          onCancel={() => setShowCancelDialog(false)}
           isLoading={updatingStatus}
         />
       )}

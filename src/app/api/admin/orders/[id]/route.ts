@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import {
+  sendOrderDispatchedEmail,
+  sendOrderDeliveredEmail,
+} from "@/lib/email";
+import type { EmailBranding } from "@/lib/email";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -131,6 +136,134 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       actor_id: user.id,
       actor_name: user.email,
     });
+  }
+
+  // Send dispatch/delivery emails
+  if (status === "dispatched" || status === "Dispatched" || status === "delivered" || status === "Delivered") {
+    const templateKey = status === "dispatched" || status === "Dispatched" ? "order_dispatched" : "order_delivered";
+
+    // Check idempotency
+    const { data: existingEmail } = await supabase
+      .from("order_communications")
+      .select("id")
+      .eq("order_id", id)
+      .eq("template_key", templateKey)
+      .maybeSingle();
+
+    if (!existingEmail) {
+      // Fetch order details for email — separate queries for type safety
+      let emailTo = "";
+      let emailCustomerName = "";
+      let emailOrderNumber = "";
+      let roasterIdForBranding: string | null = null;
+      let emailTrackingNum: string | null = null;
+      let emailTrackingCar: string | null = null;
+
+      if (isGhost) {
+        const { data: ghostOrder } = await supabase
+          .from("orders")
+          .select("customer_email, customer_name, order_number, partner_roaster_id")
+          .eq("id", id)
+          .single();
+        if (ghostOrder) {
+          emailTo = ghostOrder.customer_email || "";
+          emailCustomerName = ghostOrder.customer_name || "";
+          emailOrderNumber = ghostOrder.order_number || id.slice(0, 8).toUpperCase();
+          roasterIdForBranding = ghostOrder.partner_roaster_id;
+        }
+      } else {
+        const { data: wsOrder } = await supabase
+          .from("wholesale_orders")
+          .select("customer_email, customer_name, roaster_id, tracking_number, tracking_carrier")
+          .eq("id", id)
+          .single();
+        if (wsOrder) {
+          emailTo = wsOrder.customer_email || "";
+          emailCustomerName = wsOrder.customer_name || "";
+          emailOrderNumber = id.slice(0, 8).toUpperCase();
+          roasterIdForBranding = wsOrder.roaster_id;
+          emailTrackingNum = wsOrder.tracking_number;
+          emailTrackingCar = wsOrder.tracking_carrier;
+        }
+      }
+
+      if (emailTo) {
+        let branding: EmailBranding | undefined;
+        let roasterName = "Ghost Roastery";
+
+        if (isGhost) {
+          // Ghost orders use platform branding
+          const { data: settings } = await supabase
+            .from("platform_settings")
+            .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+            .limit(1)
+            .single();
+
+          if (settings) {
+            branding = {
+              logoUrl: settings.brand_logo_url,
+              primaryColour: settings.brand_primary_colour || undefined,
+              accentColour: settings.brand_accent_colour || undefined,
+              headingFont: settings.brand_heading_font || undefined,
+              bodyFont: settings.brand_body_font || undefined,
+              tagline: settings.brand_tagline || undefined,
+            };
+          }
+        } else if (roasterIdForBranding) {
+          // Storefront/wholesale use roaster branding
+          const { data: roasterData } = await supabase
+            .from("partner_roasters")
+            .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, business_name")
+            .eq("id", roasterIdForBranding)
+            .single();
+
+          if (roasterData) {
+            roasterName = roasterData.business_name || "Your Roaster";
+            branding = {
+              logoUrl: roasterData.brand_logo_url,
+              primaryColour: roasterData.brand_primary_colour || undefined,
+              accentColour: roasterData.brand_accent_colour || undefined,
+              headingFont: roasterData.brand_heading_font || undefined,
+              bodyFont: roasterData.brand_body_font || undefined,
+              tagline: roasterData.brand_tagline || undefined,
+            };
+          }
+        }
+
+        const finalTrackingNumber = trackingNumber || emailTrackingNum || null;
+        const finalTrackingCarrier = trackingCarrier || emailTrackingCar || null;
+
+        const sendFn = status === "dispatched" || status === "Dispatched"
+          ? () => sendOrderDispatchedEmail({
+              to: emailTo,
+              customerName: emailCustomerName,
+              orderNumber: emailOrderNumber,
+              trackingNumber: finalTrackingNumber,
+              trackingCarrier: finalTrackingCarrier,
+              roasterName,
+              branding,
+            })
+          : () => sendOrderDeliveredEmail({
+              to: emailTo,
+              customerName: emailCustomerName,
+              orderNumber: emailOrderNumber,
+              roasterName,
+              branding,
+            });
+
+        sendFn().then(() => {
+          supabase.from("order_communications").insert({
+            order_id: id,
+            order_type: orderType || "ghost",
+            template_key: templateKey,
+            subject: `Order ${templateKey === "order_dispatched" ? "dispatched" : "delivered"} — #${emailOrderNumber}`,
+            body: `Automated ${templateKey === "order_dispatched" ? "dispatch" : "delivery"} notification sent to ${emailTo}`,
+            recipient_email: emailTo,
+            sent_by: user.id,
+          }).then(({ error }) => { if (error) console.error(`Failed to log ${templateKey} email:`, error); });
+        }).catch((err) => console.error(`Failed to send ${templateKey} email:`, err));
+      }
+    }
   }
 
   return NextResponse.json({ success: true });

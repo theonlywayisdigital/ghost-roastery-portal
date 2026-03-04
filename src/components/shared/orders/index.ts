@@ -10,4 +10,6 @@ export { ActivityTimeline } from "./ActivityTimeline";
 export { EmailDialog } from "./EmailDialog";
 export { ArtworkCard } from "./ArtworkCard";
 export { PartnerAllocationCard } from "./PartnerAllocationCard";
+export { RefundModal } from "./RefundModal";
+export { CancellationDialog } from "./CancellationDialog";
 export { formatDate, formatDateTime, formatPrice, formatRelativeTime, formatAddress } from "./format";

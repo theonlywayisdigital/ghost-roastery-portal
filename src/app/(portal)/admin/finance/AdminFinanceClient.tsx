@@ -12,7 +12,7 @@ import { FinanceOverviewTab } from "./overview/FinanceOverviewTab";
 import { PayoutsTab } from "./payouts/PayoutsTab";
 import { InvoicesTab } from "./invoices/InvoicesTab";
 import { LedgerTab } from "./ledger/LedgerTab";
-import { ComingSoon } from "@/components/ComingSoon";
+import { RefundsTab } from "./refunds/RefundsTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -75,11 +75,7 @@ export function AdminFinanceClient() {
       </div>
 
       <div className={activeTab === "refunds" ? "" : "hidden"}>
-        <ComingSoon
-          title="Refunds"
-          description="Refund processing and management. Coming soon."
-          icon={RotateCcw}
-        />
+        <RefundsTab />
       </div>
     </div>
   );

@@ -73,6 +73,17 @@ export async function GET() {
       0
     );
 
+    // Total refunded
+    const { data: completedRefunds } = await supabase
+      .from("refunds")
+      .select("amount")
+      .eq("status", "completed");
+
+    const totalRefunded = (completedRefunds || []).reduce(
+      (sum, r) => sum + (r.amount || 0),
+      0
+    );
+
     // Recent ledger entries
     const { data: recentLedger } = await supabase
       .from("platform_fee_ledger")
@@ -120,6 +131,7 @@ export async function GET() {
       platformFees,
       outstandingPayouts,
       outstandingInvoices,
+      totalRefunded,
       recentLedgerEntries,
       monthlyRevenue,
     });

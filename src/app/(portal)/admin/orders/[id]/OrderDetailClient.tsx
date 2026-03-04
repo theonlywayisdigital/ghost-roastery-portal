@@ -10,6 +10,7 @@ import {
   MessageSquare,
   XCircle,
   ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import { StatusBadge } from "@/components/admin";
 import {
@@ -27,6 +28,8 @@ import {
   ActivityTimeline,
   EmailDialog,
   DispatchModal,
+  RefundModal,
+  CancellationDialog,
   formatDateTime,
   formatPrice,
 } from "@/components/shared/orders";
@@ -43,6 +46,7 @@ interface OrderDetailClientProps {
   invoice?: any;
   activities: any[];
   communications: any[];
+  refunds?: any[];
 }
 
 export function OrderDetailClient({
@@ -54,11 +58,14 @@ export function OrderDetailClient({
   invoice,
   activities,
   communications,
+  refunds = [],
 }: OrderDetailClientProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const isGhost = orderType === "ghost";
   const orderNumber = isGhost ? order.order_number : order.id.slice(0, 8).toUpperCase();
@@ -143,6 +150,21 @@ export function OrderDetailClient({
     router.refresh();
   }
 
+  async function handleCancel({ reason, reasonCategory }: { reason: string; reasonCategory: string }) {
+    setIsSaving(true);
+    try {
+      await fetch(`/api/admin/orders/${order.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderType, reason, reasonCategory }),
+      });
+      setShowCancelDialog(false);
+      router.refresh();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div>
       {/* Back link */}
@@ -161,6 +183,9 @@ export function OrderDetailClient({
             <h1 className="text-2xl font-bold text-slate-900">{orderNumber}</h1>
             <StatusBadge status={orderType} type="orderType" />
             <StatusBadge status={status} type="order" />
+            {order.refund_status && order.refund_status !== "none" && (
+              <StatusBadge status={order.refund_status} type="refundStatus" />
+            )}
           </div>
           <p className="text-sm text-slate-500">
             {`${formatDateTime(order.created_at)} · ${customerName || "Unknown"} · ${customerEmail} · ${formatPrice(totalPrice)}`}
@@ -168,6 +193,11 @@ export function OrderDetailClient({
           {roaster && (
             <p className="text-sm text-slate-400 mt-0.5">
               {`Roaster: ${roaster.business_name}${roasterOrder?.status ? ` (${roasterOrder.status})` : ""}`}
+            </p>
+          )}
+          {isCancelled && order.cancellation_reason && (
+            <p className="text-sm text-red-600 mt-1">
+              {`Cancellation reason: ${order.cancellation_reason}`}
             </p>
           )}
         </div>
@@ -257,6 +287,34 @@ export function OrderDetailClient({
             />
           )}
 
+          {/* Refund History */}
+          {refunds.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Refund History</h3>
+              <div className="space-y-3">
+                {refunds.map((refund: any) => (
+                  <div key={refund.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">{formatPrice(refund.amount)}</span>
+                        <StatusBadge status={refund.refund_type} type="refundType" />
+                        <StatusBadge status={refund.status} type="refundStatus" />
+                      </div>
+                      <span className="text-xs text-slate-400">{formatDateTime(refund.created_at)}</span>
+                    </div>
+                    <p className="text-sm text-slate-600">{refund.reason}</p>
+                    {refund.stripe_refund_id && (
+                      <p className="text-xs text-slate-400 mt-1">{`Stripe: ${refund.stripe_refund_id}`}</p>
+                    )}
+                    {refund.failed_reason && (
+                      <p className="text-xs text-red-600 mt-1">{`Failed: ${refund.failed_reason}`}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Communications */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <h3 className="text-sm font-semibold text-slate-900 mb-4">Communications</h3>
@@ -324,6 +382,14 @@ export function OrderDetailClient({
                   external
                 />
               )}
+              {order.refund_status !== "full" && (
+                <SidebarAction
+                  label="Issue Refund"
+                  icon={<RotateCcw className="w-4 h-4" />}
+                  danger
+                  onClick={() => setShowRefundModal(true)}
+                />
+              )}
               <SidebarAction
                 label="Contact Customer"
                 icon={<MessageSquare className="w-4 h-4" />}
@@ -338,16 +404,14 @@ export function OrderDetailClient({
                       onClick={() => setShowDispatchModal(true)}
                     />
                   )}
-                  <SidebarAction
-                    label="Cancel Order"
-                    icon={<XCircle className="w-4 h-4" />}
-                    danger
-                    onClick={() => {
-                      if (confirm("Are you sure you want to cancel this order?")) {
-                        handleStatusChange(isGhost ? "Cancelled" : "cancelled");
-                      }
-                    }}
-                  />
+                  {status !== "Delivered" && status !== "delivered" && (
+                    <SidebarAction
+                      label="Cancel Order"
+                      icon={<XCircle className="w-4 h-4" />}
+                      danger
+                      onClick={() => setShowCancelDialog(true)}
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -377,6 +441,27 @@ export function OrderDetailClient({
           onConfirm={handleDispatch}
           onClose={() => setShowDispatchModal(false)}
           isLoading={isSaving}
+        />
+      )}
+
+      {showCancelDialog && (
+        <CancellationDialog
+          orderNumber={orderNumber}
+          onConfirm={handleCancel}
+          onCancel={() => setShowCancelDialog(false)}
+          isLoading={isSaving}
+        />
+      )}
+
+      {showRefundModal && (
+        <RefundModal
+          orderId={order.id}
+          orderType={isGhost ? "ghost_roastery" : orderType}
+          orderTotal={totalPrice}
+          existingRefundTotal={order.refund_total || 0}
+          hasStripePayment={!!order.stripe_payment_id}
+          onClose={() => setShowRefundModal(false)}
+          onRefunded={() => { setShowRefundModal(false); router.refresh(); }}
         />
       )}
     </div>

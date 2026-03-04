@@ -3,6 +3,11 @@ import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
+import {
+  sendOrderDispatchedEmail,
+  sendOrderDeliveredEmail,
+} from "@/lib/email";
+import type { EmailBranding } from "@/lib/email";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
@@ -106,6 +111,77 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         link: "/my-orders",
         metadata: { order_id: id, new_status: newStatus },
       });
+    }
+
+    // Send dispatch/delivery emails
+    if (newStatus === "dispatched" || newStatus === "delivered") {
+      const templateKey = newStatus === "dispatched" ? "order_dispatched" : "order_delivered";
+
+      // Check idempotency
+      const { data: existingEmail } = await supabase
+        .from("order_communications")
+        .select("id")
+        .eq("order_id", id)
+        .eq("template_key", templateKey)
+        .maybeSingle();
+
+      if (!existingEmail) {
+        const { data: orderForEmail } = await supabase
+          .from("wholesale_orders")
+          .select("customer_email, customer_name, tracking_number, tracking_carrier, order_channel")
+          .eq("id", id)
+          .single();
+
+        if (orderForEmail?.customer_email) {
+          // Fetch roaster branding
+          const { data: roasterBranding } = await supabase
+            .from("partner_roasters")
+            .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, business_name")
+            .eq("id", roaster.id)
+            .single();
+
+          const branding: EmailBranding | undefined = roasterBranding ? {
+            logoUrl: roasterBranding.brand_logo_url,
+            primaryColour: roasterBranding.brand_primary_colour || undefined,
+            accentColour: roasterBranding.brand_accent_colour || undefined,
+            headingFont: roasterBranding.brand_heading_font || undefined,
+            bodyFont: roasterBranding.brand_body_font || undefined,
+            tagline: roasterBranding.brand_tagline || undefined,
+          } : undefined;
+
+          const roasterName = roasterBranding?.business_name || roaster.business_name || "Your Roaster";
+          const orderNumber = id.slice(0, 8).toUpperCase();
+
+          const sendFn = newStatus === "dispatched"
+            ? () => sendOrderDispatchedEmail({
+                to: orderForEmail.customer_email,
+                customerName: orderForEmail.customer_name || "",
+                orderNumber,
+                trackingNumber: trackingNumber || orderForEmail.tracking_number || null,
+                trackingCarrier: trackingCarrier || orderForEmail.tracking_carrier || null,
+                roasterName,
+                branding,
+              })
+            : () => sendOrderDeliveredEmail({
+                to: orderForEmail.customer_email,
+                customerName: orderForEmail.customer_name || "",
+                orderNumber,
+                roasterName,
+                branding,
+              });
+
+          sendFn().then(() => {
+            supabase.from("order_communications").insert({
+              order_id: id,
+              order_type: orderForEmail.order_channel === "wholesale" ? "wholesale" : "storefront",
+              template_key: templateKey,
+              subject: `Order ${newStatus} — #${orderNumber}`,
+              body: `Automated ${newStatus} notification sent to ${orderForEmail.customer_email}`,
+              recipient_email: orderForEmail.customer_email,
+            }).then(({ error }) => { if (error) console.error(`Failed to log ${templateKey} email:`, error); });
+          }).catch((err) => console.error(`Failed to send ${templateKey} email:`, err));
+        }
+      }
     }
 
     // Fire automation trigger for order status change

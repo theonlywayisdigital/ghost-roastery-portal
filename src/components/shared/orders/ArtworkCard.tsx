@@ -21,28 +21,38 @@ export function ArtworkCard({ order, label, showActions, onArtworkAction, isLoad
     <div className="bg-white border border-slate-200 rounded-xl p-5">
       <h3 className="text-sm font-semibold text-slate-900 mb-4">Artwork & Label</h3>
       <div className="space-y-4">
-        {(label?.thumbnail_url || order.mockup_image_url) && (
-          <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4">
+          {(label?.thumbnail_url || order.mockup_image_url) && (
             <img
               src={label?.thumbnail_url || order.mockup_image_url}
               alt="Label preview"
               className="w-24 h-24 object-contain rounded-lg bg-slate-50 border border-slate-200"
             />
-            <div className="space-y-2">
-              {(label?.pdf_url || order.label_file_url) && (
-                <a
-                  href={label?.pdf_url || order.label_file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Label File
-                </a>
-              )}
-            </div>
+          )}
+          <div className="space-y-2">
+            {label?.print_url && (
+              <a
+                href={label.print_url}
+                download="label-print-300dpi.png"
+                className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700"
+              >
+                <Printer className="w-4 h-4" />
+                Download Print PNG (300 DPI)
+              </a>
+            )}
+            {(label?.pdf_url || order.label_file_url) && (
+              <a
+                href={label?.pdf_url || order.label_file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700"
+              >
+                <Download className="w-4 h-4" />
+                Download Print-Ready PDF
+              </a>
+            )}
           </div>
-        )}
+        </div>
 
         {order.artwork_status && (
           <div className="flex items-center gap-2">

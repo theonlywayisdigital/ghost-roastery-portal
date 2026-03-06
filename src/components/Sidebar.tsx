@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -30,8 +30,28 @@ import {
   PoundSterling,
   Receipt,
   Palette,
+  Sparkles,
+  Lock,
+  ChevronRight,
+  ChevronDown,
+  CalendarDays,
+  Send,
+  Share2,
+  Zap,
+  Ticket,
+  FileText,
+  Globe,
+  Link2,
+  Eye,
 } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
+import {
+  getEffectiveFeatures,
+  getEffectiveLimits,
+  type TierLevel,
+  type FeatureKey,
+  type LimitKey,
+} from "@/lib/tier-config";
 
 interface SidebarUser {
   email: string;
@@ -39,12 +59,17 @@ interface SidebarUser {
   roles: string[];
   businessName: string | null;
   isGhostRoaster: boolean;
+  salesTier?: string;
+  marketingTier?: string;
+  subscriptionStatus?: string | null;
+  websiteSubscriptionActive?: boolean;
 }
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  requiredFeature?: FeatureKey;
 }
 
 interface NavSection {
@@ -52,14 +77,141 @@ interface NavSection {
   items: NavItem[];
 }
 
+interface SuiteItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+  requiredFeature?: FeatureKey;
+  requiredMinLimit?: LimitKey;
+  requiredRole?: string;
+}
+
+interface SuiteConfig {
+  key: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: SuiteItem[];
+  activePrefixes: string[];
+}
+
 export function Sidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openSuite, setOpenSuite] = useState<string | null>(null);
+  const [expandedSuite, setExpandedSuite] = useState<string | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isRoaster = user.roles.includes("roaster");
   const isAdmin = user.roles.includes("admin");
 
-  // Build nav sections based on roles
+  // Compute feature access for gated nav items
+  const features = isRoaster && user.salesTier && user.marketingTier
+    ? getEffectiveFeatures(user.salesTier as TierLevel, user.marketingTier as TierLevel)
+    : null;
+
+  // Compute limits for limit-gated nav items
+  const limits = isRoaster && user.salesTier && user.marketingTier
+    ? getEffectiveLimits(user.salesTier as TierLevel, user.marketingTier as TierLevel)
+    : null;
+
+  // ── Hover delay logic (150ms) ──
+  const handleSuiteMouseEnter = useCallback((key: string) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setOpenSuite(key);
+  }, []);
+
+  const handleSuiteMouseLeave = useCallback(() => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setOpenSuite(null);
+    }, 150);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ── Suite configs ──
+  const salesSuiteConfig: SuiteConfig = {
+    key: "sales",
+    label: "Sales Suite",
+    icon: ShoppingCart,
+    items: [
+      { label: "Products", href: "/products", icon: Package },
+      { label: "Orders", href: "/orders", icon: ShoppingCart },
+      { label: "Storefront", href: "/storefront", icon: Store },
+      { label: "Wholesale", href: "/wholesale", icon: Store, requiredRole: "wholesale_buyer" },
+      { label: "Contacts", href: "/contacts", icon: Contact },
+      { label: "Businesses", href: "/businesses", icon: Building2 },
+      { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
+    ],
+    activePrefixes: ["/products", "/orders", "/storefront", "/wholesale", "/contacts", "/businesses", "/invoices"],
+  };
+
+  const marketingSuiteConfig: SuiteConfig = {
+    key: "marketing",
+    label: "Marketing Suite",
+    icon: Megaphone,
+    items: [
+      { label: "Campaigns", href: "/marketing/campaigns", icon: Send },
+      { label: "Content Calendar", href: "/marketing", icon: CalendarDays, requiredFeature: "contentCalendar", exact: true },
+      { label: "Social", href: "/marketing/social", icon: Share2, requiredFeature: "socialScheduling" },
+      { label: "Automations", href: "/marketing/automations", icon: Zap, requiredFeature: "automations" },
+      { label: "Discount Codes", href: "/marketing/discount-codes", icon: Ticket },
+      { label: "Forms", href: "/marketing/forms", icon: FileText },
+      { label: "Blog", href: "/marketing/blog", icon: BookOpen },
+      { label: "AI Studio", href: "/marketing/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" },
+    ],
+    activePrefixes: ["/marketing"],
+  };
+
+  const websiteSuiteConfig: SuiteConfig = {
+    key: "website",
+    label: "Website",
+    icon: Globe,
+    items: [
+      { label: "Pages", href: "/website/pages", icon: FileText },
+      { label: "Menus", href: "/website/menus", icon: Menu },
+      { label: "Design", href: "/website/design", icon: Palette },
+      { label: "Preview", href: "/website/preview", icon: Eye },
+      { label: "Domain", href: "/website/domain", icon: Link2 },
+      { label: "Settings", href: "/website/settings", icon: Settings },
+    ],
+    activePrefixes: ["/website"],
+  };
+
+  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(user.websiteSubscriptionActive ? [websiteSuiteConfig] : [])];
+
+  function isSuiteActive(suite: SuiteConfig): boolean {
+    return suite.activePrefixes.some(
+      (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+    );
+  }
+
+  function isSuiteItemLocked(item: SuiteItem): boolean {
+    if (item.requiredFeature && features && !features[item.requiredFeature]) return true;
+    if (item.requiredMinLimit && limits && limits[item.requiredMinLimit] === 0) return true;
+    return false;
+  }
+
+  function isSuiteItemVisible(item: SuiteItem): boolean {
+    if (item.requiredRole && !user.roles.includes(item.requiredRole)) return false;
+    return true;
+  }
+
+  function isSuiteItemActive(item: SuiteItem): boolean {
+    if (item.exact) return pathname === item.href;
+    return pathname === item.href || pathname.startsWith(item.href + "/");
+  }
+
+  // Build nav sections based on roles (admin + customer — roaster uses suites now)
   const sections: NavSection[] = [];
 
   // ── Admin Portal ──
@@ -108,52 +260,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     });
   }
 
-  // ── Roaster Portal ──
-  if (isRoaster) {
-    if (!isAdmin) {
-      sections.push({
-        title: null,
-        items: [
-          { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        ],
-      });
-    }
-    sections.push({
-      title: "Roaster",
-      items: [
-        { label: "Products", href: "/products", icon: Package },
-        { label: "Orders", href: "/orders", icon: ShoppingCart },
-        { label: "My Storefront", href: "/storefront", icon: Store },
-        { label: "Businesses", href: "/businesses", icon: Building2 },
-        { label: "Contacts", href: "/contacts", icon: Contact },
-        { label: "Marketing", href: "/marketing", icon: Megaphone },
-        { label: "Invoices", href: "/invoices", icon: Receipt },
-        { label: "Analytics", href: "/analytics", icon: BarChart3 },
-      ],
-    });
-  }
-
-  // ── Roaster Support ──
-  if (isRoaster) {
-    sections.push({
-      title: "Support",
-      items: [
-        { label: "Support", href: "/support", icon: LifeBuoy },
-        { label: "Help Centre", href: "/help", icon: BookOpen },
-      ],
-    });
-  }
-
-  // ── Wholesale Buyer ──
-  if (user.roles.includes("wholesale_buyer")) {
-    sections.push({
-      title: "Wholesale",
-      items: [
-        { label: "My Suppliers", href: "/wholesale", icon: Store },
-      ],
-    });
-  }
-
   // ── Customer Portal (non-roaster, non-admin) ──
   if (!isRoaster && !isAdmin) {
     sections.push({
@@ -164,13 +270,14 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     });
   }
 
-  // My Account section — shown for customers and roasters (not in admin-only view)
-  if (!isAdmin || isRoaster) {
+  // My Account section — shown for customers only (roasters now use Settings)
+  if (!isAdmin && !isRoaster) {
     sections.push({
       title: "My Account",
       items: [
         { label: "My Orders", href: "/my-orders", icon: ClipboardList },
         { label: "My Invoices", href: "/my-invoices", icon: Receipt },
+        { label: "Wholesale", href: "/wholesale", icon: Building2 },
         { label: "My Brands", href: "/my-brands", icon: Tag },
         { label: "Addresses", href: "/addresses", icon: MapPin },
       ],
@@ -197,24 +304,179 @@ export function Sidebar({ user }: { user: SidebarUser }) {
 
   const displayName = user.businessName || user.fullName || user.email;
 
+  // ── Render a single suite trigger (desktop + mobile) ──
+  function renderSuiteTrigger(suite: SuiteConfig) {
+    const SuiteIcon = suite.icon;
+    const active = isSuiteActive(suite);
+    const isOpen = openSuite === suite.key;
+    const isExpanded = expandedSuite === suite.key;
+
+    return (
+      <div key={suite.key}>
+        {/* Desktop trigger */}
+        <div
+          className="hidden lg:block"
+          onMouseEnter={() => handleSuiteMouseEnter(suite.key)}
+          onMouseLeave={handleSuiteMouseLeave}
+        >
+          <button
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors w-full ${
+              active
+                ? "bg-brand-50 text-brand-700 font-medium"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <SuiteIcon className="w-5 h-5 flex-shrink-0" />
+            <span className="flex-1 text-left">{suite.label}</span>
+            <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "text-brand-600" : "text-slate-400"}`} />
+          </button>
+        </div>
+
+        {/* Mobile trigger */}
+        <div className="lg:hidden">
+          <button
+            onClick={() => setExpandedSuite(isExpanded ? null : suite.key)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors w-full ${
+              active
+                ? "bg-brand-50 text-brand-700 font-medium"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <SuiteIcon className="w-5 h-5 flex-shrink-0" />
+            <span className="flex-1 text-left">{suite.label}</span>
+            <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""} text-slate-400`} />
+          </button>
+
+          {/* Mobile accordion items */}
+          {isExpanded && (
+            <div className="pl-4 mt-1 space-y-1">
+              {suite.items.filter(isSuiteItemVisible).map((item) => {
+                const ItemIcon = item.icon;
+                const locked = isSuiteItemLocked(item);
+                const itemActive = isSuiteItemActive(item);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setExpandedSuite(null);
+                    }}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                      locked
+                        ? "text-slate-400 hover:bg-slate-50"
+                        : itemActive
+                          ? "bg-brand-50 text-brand-700 font-medium"
+                          : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <ItemIcon className="w-5 h-5 flex-shrink-0" />
+                    <span className="flex-1">{item.label}</span>
+                    {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render a flat nav link for roaster top-level items ──
+  function renderNavLink(label: string, href: string, Icon: React.ComponentType<{ className?: string }>) {
+    const active = isActive(href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        onClick={() => setMobileOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+          active
+            ? "bg-brand-50 text-brand-700 font-medium"
+            : "text-slate-600 hover:bg-slate-100"
+        }`}
+      >
+        <Icon className="w-5 h-5 flex-shrink-0" />
+        <span className="flex-1">{label}</span>
+      </Link>
+    );
+  }
+
+  // ── Desktop flyout panel ──
+  function renderDesktopFlyout() {
+    if (!openSuite) return null;
+    const suite = suiteConfigs.find((s) => s.key === openSuite);
+    if (!suite) return null;
+
+    return (
+      <div
+        className="hidden lg:block fixed top-0 bottom-0 left-64 w-56 z-50 bg-white border-r border-slate-200 shadow-lg overflow-y-auto"
+        onMouseEnter={() => handleSuiteMouseEnter(suite.key)}
+        onMouseLeave={handleSuiteMouseLeave}
+      >
+        <div className="px-4 pt-6 pb-3">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            {suite.label}
+          </p>
+        </div>
+        <div className="px-3 pb-4 space-y-1">
+          {suite.items.filter(isSuiteItemVisible).map((item) => {
+            const ItemIcon = item.icon;
+            const locked = isSuiteItemLocked(item);
+            const itemActive = isSuiteItemActive(item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpenSuite(null)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  locked
+                    ? "text-slate-400 hover:bg-slate-50"
+                    : itemActive
+                      ? "bg-brand-50 text-brand-700 font-medium"
+                      : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <ItemIcon className="w-5 h-5 flex-shrink-0" />
+                <span className="flex-1">{item.label}</span>
+                {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo area */}
-      <div className="p-6 border-b border-slate-200">
+      <div className="px-4 py-4 border-b border-slate-200">
         <Link href={isAdmin ? "/admin/dashboard" : "/dashboard"} className="block">
-          <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-            GHOST ROASTERY
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isAdmin ? "Admin Portal" : "Partner Portal"}
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png"
+            alt="Ghost Roastery Platform"
+            className="h-12 w-auto"
+          />
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {/* Roaster nav — suites + flat items */}
+        {isRoaster && (
+          <>
+            {!isAdmin && renderNavLink("Dashboard", "/dashboard", LayoutDashboard)}
+            {suiteConfigs.map((suite) => renderSuiteTrigger(suite))}
+            {renderNavLink("Analytics", "/analytics", BarChart3)}
+          </>
+        )}
+
+        {/* Admin + customer sections (unchanged) */}
         {sections.map((section, sectionIdx) => (
-          <div key={sectionIdx}>
+          <div key={sectionIdx} className={section.title ? "pt-3" : ""}>
             {section.title && (
               <p className="px-3 mb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 {section.title}
@@ -224,19 +486,23 @@ export function Sidebar({ user }: { user: SidebarUser }) {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const locked = item.requiredFeature && features && !features[item.requiredFeature];
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                      active
-                        ? "bg-brand-50 text-brand-700 font-medium"
-                        : "text-slate-600 hover:bg-slate-100"
+                      locked
+                        ? "text-slate-400 hover:bg-slate-50"
+                        : active
+                          ? "bg-brand-50 text-brand-700 font-medium"
+                          : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
                   </Link>
                 );
               })}
@@ -245,9 +511,57 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         ))}
       </nav>
 
+      {/* Upgrade CTA for free-tier roasters */}
+      {isRoaster && !isAdmin && user.salesTier === "free" && user.marketingTier === "free" && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/settings/billing?tab=subscription"
+            onClick={() => setMobileOpen(false)}
+            className="block p-3 bg-gradient-to-br from-brand-50 to-brand-100 rounded-lg border border-brand-200 hover:border-brand-300 transition-colors"
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles className="w-4 h-4 text-brand-600" />
+              <span className="text-sm font-semibold text-brand-900">Upgrade your plan</span>
+            </div>
+            <p className="text-xs text-brand-700">
+              Unlock more products, contacts, email sends, and advanced features.
+            </p>
+          </Link>
+        </div>
+      )}
+
       {/* Bottom section */}
-      <div className="p-4 border-t border-slate-200 space-y-2">
-        {/* Settings link in bottom for non-admin users (admin has it in System section) */}
+      <div className="p-4 border-t border-slate-200 space-y-1">
+        {/* Support & Help Centre for roasters */}
+        {isRoaster && (
+          <>
+            <Link
+              href="/support"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive("/support")
+                  ? "bg-brand-50 text-brand-700 font-medium"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <LifeBuoy className="w-5 h-5 flex-shrink-0" />
+              Support
+            </Link>
+            <Link
+              href="/help"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                isActive("/help")
+                  ? "bg-brand-50 text-brand-700 font-medium"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <BookOpen className="w-5 h-5 flex-shrink-0" />
+              Help Centre
+            </Link>
+          </>
+        )}
+        {/* Settings link for non-admin users (admin has it in System section) */}
         {!isAdmin && (
           <Link
             href={settingsHref}
@@ -321,6 +635,9 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-slate-200">
         {sidebarContent}
       </aside>
+
+      {/* Desktop flyout */}
+      {renderDesktopFlyout()}
     </>
   );
 }

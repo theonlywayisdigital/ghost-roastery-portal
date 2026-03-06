@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
+import { PastDueBanner } from "@/components/PastDueBanner";
 
 export default async function PortalLayout({
   children,
@@ -13,8 +14,12 @@ export default async function PortalLayout({
     redirect("/login");
   }
 
+  const subscriptionStatus = (user.roaster?.subscription_status as string) || null;
+
   return (
     <div className="min-h-screen bg-slate-50">
+      {subscriptionStatus === "past_due" && <PastDueBanner />}
+
       <Sidebar
         user={{
           email: user.email,
@@ -22,6 +27,10 @@ export default async function PortalLayout({
           roles: user.roles,
           businessName: user.roaster?.business_name || null,
           isGhostRoaster: user.roaster?.is_ghost_roaster || false,
+          salesTier: (user.roaster?.sales_tier as string) || "free",
+          marketingTier: (user.roaster?.marketing_tier as string) || "free",
+          subscriptionStatus,
+          websiteSubscriptionActive: (user.roaster?.website_subscription_active as boolean) ?? false,
         }}
       />
 

@@ -34,6 +34,18 @@ export default async function BillingSettingsRoute() {
         auto_send_invoices: (user.roaster.auto_send_invoices as boolean) ?? false,
         invoice_reminder_enabled: (user.roaster.invoice_reminder_enabled as boolean) ?? false,
         reminder_days_before_due: (user.roaster.reminder_days_before_due as number) ?? 7,
+        sales_tier: (user.roaster.sales_tier as string) || "free",
+        marketing_tier: (user.roaster.marketing_tier as string) || "free",
+        sales_billing_cycle: (user.roaster.sales_billing_cycle as string) || null,
+        marketing_billing_cycle: (user.roaster.marketing_billing_cycle as string) || null,
+        subscription_status: (user.roaster.subscription_status as string) || null,
+        stripe_customer_id: (user.roaster.stripe_customer_id as string) || null,
+        stripe_sales_subscription_id: (user.roaster.stripe_sales_subscription_id as string) || null,
+        stripe_marketing_subscription_id: (user.roaster.stripe_marketing_subscription_id as string) || null,
+        tier_override_by: (user.roaster.tier_override_by as string) || null,
+        website_subscription_active: (user.roaster.website_subscription_active as boolean) ?? false,
+        website_billing_cycle: (user.roaster.website_billing_cycle as string) || null,
+        stripe_website_subscription_id: (user.roaster.stripe_website_subscription_id as string) || null,
       }}
     />
   );

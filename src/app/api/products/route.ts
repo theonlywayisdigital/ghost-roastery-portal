@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkLimit } from "@/lib/feature-gates";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -34,6 +35,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Check product limit
+    const limitCheck = await checkLimit(roaster.id as string, "products", 1);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: limitCheck.message, upgrade_required: true },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       name, description, price, unit, image_url, is_active, sort_order,

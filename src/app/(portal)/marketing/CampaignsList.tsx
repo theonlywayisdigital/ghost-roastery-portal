@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import type { Campaign, CampaignsListResponse } from "@/types/marketing";
 import { useMarketingContext } from "@/lib/marketing-context";
+import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
+import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 
 const STATUS_TABS = [
   { id: "all", label: "All" },
@@ -54,6 +56,7 @@ export function CampaignsList() {
   const [activeTab, setActiveTab] = useState<StatusTab>("all");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [counts, setCounts] = useState({ all: 0, draft: 0, scheduled: 0, sent: 0 });
+  const banner = useUpgradeBanner("emailSendsPerMonth");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -202,6 +205,17 @@ export function CampaignsList() {
           {creating ? "Creating..." : "New Campaign"}
         </button>
       </div>
+
+      {banner.show && (
+        <div className="mb-4">
+          <UpgradeBanner
+            type={banner.type}
+            message={banner.message}
+            upgradeTier={banner.upgradeTier}
+            productType={banner.productType}
+          />
+        </div>
+      )}
 
       {/* Error */}
       {error && (

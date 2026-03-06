@@ -11,7 +11,6 @@ import { ReviewsSection } from "./_components/ReviewsSection";
 import { InstagramSection } from "./_components/InstagramSection";
 import { Footer } from "./_components/Footer";
 import { EnquiryForm } from "./EnquiryForm";
-import { WholesaleApplyForm } from "./WholesaleApplyForm";
 import type { Product } from "./_components/types";
 
 export function StorefrontPage({ products }: { products: Product[] }) {
@@ -37,12 +36,10 @@ export function StorefrontPage({ products }: { products: Product[] }) {
             className="text-2xl md:text-3xl font-bold mb-2 text-center"
             style={{ color: primary }}
           >
-            {showWholesale ? "Place an Order" : "Get in Touch"}
+            Get in Touch
           </h2>
           <p className="text-slate-500 text-center mb-8">
-            {showWholesale
-              ? "Interested in wholesale? Send us your enquiry and we\u2019ll get back to you."
-              : "Have a question? Drop us a message and we\u2019ll get back to you."}
+            {`Have a question? Drop us a message and we\u2019ll get back to you.`}
           </p>
           <EnquiryForm
             roasterId={roaster.id}
@@ -53,30 +50,6 @@ export function StorefrontPage({ products }: { products: Product[] }) {
           />
         </div>
       </section>
-
-      {/* Wholesale Application */}
-      {showWholesale && (
-        <section id="trade-apply" className="py-16 md:py-24">
-          <div className="max-w-2xl mx-auto px-6">
-            <h2
-              className="text-2xl md:text-3xl font-bold mb-2 text-center"
-              style={{ color: primary }}
-            >
-              Apply for Wholesale Access
-            </h2>
-            <p className="text-slate-500 text-center mb-8">
-              Are you a caf&eacute;, restaurant, or retailer? Apply for trade
-              pricing.
-            </p>
-            <WholesaleApplyForm
-              roasterId={roaster.id}
-              slug={slug}
-              accentColour={accent}
-              accentText={accentText}
-            />
-          </div>
-        </section>
-      )}
 
       <TradeSection />
       <ReviewsSection />

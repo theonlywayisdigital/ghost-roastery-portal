@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import type { RoasterBranding } from "./types";
 import { isLightColour } from "./utils";
 
@@ -12,6 +13,7 @@ interface StorefrontContextValue {
   accentText: string;
   retailEnabled: boolean;
   showWholesale: boolean;
+  embedded: boolean;
 }
 
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
@@ -25,6 +27,26 @@ export function StorefrontProvider({
   slug: string;
   children: ReactNode;
 }) {
+  return (
+    <Suspense fallback={null}>
+      <StorefrontProviderInner roaster={roaster} slug={slug}>
+        {children}
+      </StorefrontProviderInner>
+    </Suspense>
+  );
+}
+
+function StorefrontProviderInner({
+  roaster,
+  slug,
+  children,
+}: {
+  roaster: RoasterBranding;
+  slug: string;
+  children: ReactNode;
+}) {
+  const searchParams = useSearchParams();
+  const embedded = searchParams.get("embedded") === "true";
   const primary = roaster.brand_primary_colour || "#1e293b";
   const accent = roaster.brand_accent_colour || "#0083dc";
   const accentText = isLightColour(accent) ? "#1e293b" : "#ffffff";
@@ -44,6 +66,7 @@ export function StorefrontProvider({
         accentText,
         retailEnabled,
         showWholesale,
+        embedded,
       }}
     >
       {children}

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const user = await getCurrentUser();
   if (!user?.roles.includes("admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       "nextval_payout_batch_seq"
     );
 
+    let seqVal: number | undefined;
     if (seqError) {
       // Fallback: use raw SQL via rpc if the wrapper doesn't exist
       const { data: rawSeq, error: rawSeqError } = await supabase
@@ -84,9 +85,9 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      var seqVal = rawSeq?.nextval;
+      seqVal = rawSeq?.nextval;
     } else {
-      var seqVal = seqResult;
+      seqVal = seqResult;
     }
 
     const batchNumber = `PB-${new Date().getFullYear()}-${String(seqVal).padStart(3, "0")}`;

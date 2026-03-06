@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentRoaster, getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkFeature } from "@/lib/feature-gates";
 
 export async function GET(request: NextRequest) {
   const roaster = await getCurrentRoaster();
@@ -83,6 +84,15 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Check social scheduling feature gate
+    const featureCheck = await checkFeature(roaster.id as string, "socialScheduling");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        { error: featureCheck.message, upgrade_required: true },
+        { status: 403 }
+      );
+    }
+
     const user = await getCurrentUser();
     const body = await request.json();
     const supabase = createServerClient();

@@ -101,16 +101,12 @@ export function HeroSection() {
               Shop Now
             </Link>
             {showWholesale && (
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("trade-apply")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+              <a
+                href="/wholesale"
                 className="px-7 py-3.5 rounded-lg font-semibold text-sm bg-white/15 text-white hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
               >
                 Trade Enquiry
-              </button>
+              </a>
             )}
           </motion.div>
         </motion.div>

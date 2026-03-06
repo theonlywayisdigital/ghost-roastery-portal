@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { findOrCreatePerson } from "@/lib/people";
 import { Resend } from "resend";
 import { wrapEmailWithBranding, emailButton, EmailBranding } from "@/lib/email-template";
+import { checkLimit } from "@/lib/feature-gates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = "Ghost Roastery <noreply@ghostroasting.co.uk>";
@@ -48,6 +49,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "An invite has already been sent to this email" },
         { status: 400 }
+      );
+    }
+
+    // Check team member limit
+    const limitCheck = await checkLimit(roaster.id as string, "teamMembers", 1);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: limitCheck.message, upgrade_required: true },
+        { status: 403 }
       );
     }
 

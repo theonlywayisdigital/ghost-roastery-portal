@@ -12,7 +12,6 @@ import {
   Bell,
   ExternalLink,
   Plus,
-  FileText,
 } from "lucide-react";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { InvoiceFull, InvoiceLineItem, InvoicePayment } from "@/types/finance";
@@ -38,7 +37,6 @@ interface InvoiceDetailProps {
 
 export function InvoiceDetail({
   invoiceId,
-  ownerType,
   backHref,
   readOnly = false,
 }: InvoiceDetailProps) {

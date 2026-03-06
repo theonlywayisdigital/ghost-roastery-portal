@@ -9,7 +9,9 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/auth",
   "/s",
+  "/w",
   "/api/s",
+  "/api/w",
   "/api/auth",
   "/api/social/google/callback",
   "/api/social/meta/callback",
@@ -17,6 +19,16 @@ const PUBLIC_PATHS = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host") || "";
+  const portalHost = process.env.NEXT_PUBLIC_PORTAL_HOST || "localhost:3001";
+
+  // Custom domain rewriting — if the hostname is not the portal host,
+  // treat it as a custom website domain and rewrite to /w/[hostname]/[path]
+  if (hostname !== portalHost && !hostname.endsWith(`.${portalHost}`) && !hostname.includes("localhost") && !hostname.includes("vercel.app")) {
+    const rewriteUrl = new URL(`/w/${hostname}${pathname}`, request.url);
+    rewriteUrl.search = request.nextUrl.search;
+    return NextResponse.rewrite(rewriteUrl);
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {

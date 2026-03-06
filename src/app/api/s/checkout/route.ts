@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { stripe } from "@/lib/stripe";
+import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 
 interface CheckoutItem {
   productId: string;
@@ -20,7 +21,8 @@ export async function POST(request: Request) {
       discountCodeId,
       discountCode,
       discountType,
-      discountAmountPence,
+      // discountAmountPence sent by client but re-validated server-side
+      embedded,
     } = body as {
       roasterId: string;
       items: CheckoutItem[];
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
       discountCode?: string;
       discountType?: string;
       discountAmountPence?: number;
+      embedded?: boolean;
     };
 
     const isWholesale = !!wholesaleAccessId;
@@ -98,7 +101,7 @@ export async function POST(request: Request) {
     // Verify roaster exists and has Stripe connected
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, stripe_account_id, platform_fee_percent, business_name")
+      .select("id, stripe_account_id, platform_fee_percent, business_name, sales_tier")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -233,7 +236,7 @@ export async function POST(request: Request) {
 
     // Calculate platform fee on discounted subtotal
     const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
-    const platformFeePercent = (roaster.platform_fee_percent as number) || 4;
+    const platformFeePercent = getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free");
     const platformFeePence = Math.round(
       effectiveSubtotalPence * (platformFeePercent / 100)
     );
@@ -246,6 +249,7 @@ export async function POST(request: Request) {
     const cancelPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}` : `/s/${encodeURIComponent(body.slug || "")}`;
 
     // Build session options
+    const embeddedSuffix = embedded ? "&embedded=true" : "";
     const sessionOptions: Record<string, unknown> = {
       mode: "payment",
       customer_email: effectiveEmail,
@@ -291,9 +295,16 @@ export async function POST(request: Request) {
             }
           : {}),
       },
-      success_url: `${baseUrl}${successPath}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}${cancelPath}`,
     };
+
+    // Embedded mode uses Stripe Embedded Checkout (inline, no redirect)
+    if (embedded) {
+      (sessionOptions as Record<string, unknown>).ui_mode = "embedded";
+      (sessionOptions as Record<string, unknown>).return_url = `${baseUrl}${successPath}?session_id={CHECKOUT_SESSION_ID}${embeddedSuffix}`;
+    } else {
+      (sessionOptions as Record<string, unknown>).success_url = `${baseUrl}${successPath}?session_id={CHECKOUT_SESSION_ID}`;
+      (sessionOptions as Record<string, unknown>).cancel_url = `${baseUrl}${cancelPath}`;
+    }
 
     // Create ephemeral Stripe coupon if there's a discount
     // Always use amount_off (not percent_off) to enforce our server-side
@@ -312,6 +323,9 @@ export async function POST(request: Request) {
       sessionOptions as Parameters<typeof stripe.checkout.sessions.create>[0]
     );
 
+    if (embedded) {
+      return NextResponse.json({ clientSecret: session.client_secret });
+    }
     return NextResponse.json({ sessionUrl: session.url });
   } catch (error) {
     console.error("Checkout error:", error);

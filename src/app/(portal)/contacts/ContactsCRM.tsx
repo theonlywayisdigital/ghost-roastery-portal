@@ -18,6 +18,8 @@ import {
   X,
   Download,
 } from "lucide-react";
+import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
+import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 
 interface Contact {
   id: string;
@@ -94,6 +96,7 @@ export function ContactsCRM({ buyers, autoApprove, roasterId }: ContactsCRMProps
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [counts, setCounts] = useState<Counts>({ all: 0, wholesale: 0, customer: 0, supplier: 0, lead: 0 });
   const [loading, setLoading] = useState(true);
+  const banner = useUpgradeBanner("crmContacts");
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
   const [total, setTotal] = useState(0);
@@ -292,6 +295,17 @@ export function ContactsCRM({ buyers, autoApprove, roasterId }: ContactsCRMProps
           Add Contact
         </button>
       </div>
+
+      {banner.show && (
+        <div className="mb-6">
+          <UpgradeBanner
+            type={banner.type}
+            message={banner.message}
+            upgradeTier={banner.upgradeTier}
+            productType={banner.productType}
+          />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-slate-200">

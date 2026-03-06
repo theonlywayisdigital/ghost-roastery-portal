@@ -34,8 +34,7 @@ export async function POST(request: Request) {
       wholesaleAccessId,
       discountCodeId,
       discountCode,
-      discountType,
-      discountAmountPence,
+      // discountType and discountAmountPence sent by client but re-validated server-side
     } = body as {
       roasterId: string;
       items: CheckoutItem[];
@@ -222,8 +221,6 @@ export async function POST(request: Request) {
     let validatedDiscountPence = 0;
     let validatedDiscountCodeId = discountCodeId;
     let validatedDiscountCode = discountCode;
-    let validatedDiscountType = discountType;
-
     if (discountCodeId && discountCode) {
       const { data: dc } = await supabase
         .from("discount_codes")
@@ -254,12 +251,10 @@ export async function POST(request: Request) {
 
         validatedDiscountCodeId = dc.id;
         validatedDiscountCode = dc.code;
-        validatedDiscountType = dc.discount_type;
       } else {
         // Discount code is no longer valid, proceed without it
         validatedDiscountCodeId = undefined;
         validatedDiscountCode = undefined;
-        validatedDiscountType = undefined;
       }
     }
 

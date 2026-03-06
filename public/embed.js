@@ -19,7 +19,7 @@
     var path;
     switch (type) {
       case "shop":
-        path = "/s/" + encodeURIComponent(roaster) + "/embed/shop";
+        path = "/s/" + encodeURIComponent(roaster) + "/shop?embedded=true";
         break;
       case "wholesale-apply":
         path = "/s/" + encodeURIComponent(roaster) + "/embed/wholesale-apply";
@@ -47,7 +47,7 @@
     iframe.style.overflow = "hidden";
     iframe.style.minHeight = "400px";
     iframe.style.backgroundColor = "transparent";
-    iframe.setAttribute("scrolling", "no");
+    iframe.setAttribute("scrolling", "auto");
     iframe.setAttribute("allowtransparency", "true");
     iframe.setAttribute(
       "allow",

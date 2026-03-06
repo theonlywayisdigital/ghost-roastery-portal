@@ -21,17 +21,13 @@ export function TradeSection() {
           Are you a caf&eacute;, restaurant, hotel, or retailer? Apply for a
           wholesale account to access trade pricing and dedicated support.
         </p>
-        <button
-          onClick={() =>
-            document
-              .getElementById("trade-apply")
-              ?.scrollIntoView({ behavior: "smooth" })
-          }
-          className="px-8 py-3.5 rounded-lg font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
+        <a
+          href="/wholesale"
+          className="inline-block px-8 py-3.5 rounded-lg font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
           style={{ color: primary }}
         >
           Apply for Trade Account
-        </button>
+        </a>
       </div>
     </MotionSection>
   );

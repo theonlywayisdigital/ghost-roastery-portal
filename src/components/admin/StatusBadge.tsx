@@ -1,6 +1,6 @@
 "use client";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -129,6 +129,13 @@ const colorMap: Record<string, Record<string, string>> = {
     partial: "bg-orange-50 text-orange-700",
     store_credit: "bg-purple-50 text-purple-700",
   },
+  subscriptionTier: {
+    free: "bg-slate-100 text-slate-600",
+    starter: "bg-blue-50 text-blue-700",
+    growth: "bg-purple-50 text-purple-700",
+    pro: "bg-amber-50 text-amber-700",
+    scale: "bg-green-50 text-green-700",
+  },
 };
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -236,6 +243,13 @@ const labelMap: Record<string, Record<string, string>> = {
     full: "Full Refund",
     partial: "Partial Refund",
     store_credit: "Store Credit",
+  },
+  subscriptionTier: {
+    free: "Free",
+    starter: "Starter",
+    growth: "Growth",
+    pro: "Pro",
+    scale: "Scale",
   },
 };
 

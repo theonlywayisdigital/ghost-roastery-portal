@@ -12,7 +12,7 @@ import type { Product } from "../_components/types";
 type SortOption = "featured" | "price-asc" | "price-desc" | "newest";
 
 export function ShopPage({ products }: { products: Product[] }) {
-  const { slug, primary, accent, accentText } = useStorefront();
+  const { slug, primary, accent, accentText, embedded } = useStorefront();
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
   const [sort, setSort] = useState<SortOption>("featured");
 
@@ -63,13 +63,13 @@ export function ShopPage({ products }: { products: Product[] }) {
       <Cart />
 
       {/* Spacer for fixed header */}
-      <div className="h-16 md:h-20" />
+      {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
           <Link
-            href={`/s/${slug}`}
+            href={`/s/${slug}${embedded ? "?embedded=true" : ""}`}
             className="hover:text-slate-600 transition-colors"
           >
             Home
@@ -89,7 +89,7 @@ export function ShopPage({ products }: { products: Product[] }) {
         </p>
 
         {/* Filters */}
-        <div className="sticky top-16 md:top-20 z-30 bg-white border-b border-slate-100 -mx-6 px-6 py-3 mb-8 flex flex-wrap items-center gap-3">
+        <div className={`sticky ${embedded ? "top-0" : "top-16 md:top-20"} z-30 bg-white border-b border-slate-100 -mx-6 px-6 py-3 mb-8 flex flex-wrap items-center gap-3`}>
           {/* Unit chips */}
           <div className="flex flex-wrap items-center gap-2">
             <button

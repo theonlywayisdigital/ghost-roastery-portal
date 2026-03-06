@@ -33,7 +33,21 @@ import {
   UserPlus,
   Check,
   XCircle,
+  Crown,
+  Sparkles,
+  Zap,
 } from "lucide-react";
+import { UsageBar } from "@/components/shared/UsageBar";
+import { StatusBadge as TierBadge } from "@/components/admin/StatusBadge";
+import {
+  type TierLevel,
+  type LimitKey,
+  TIER_NAMES,
+  LIMIT_LABELS,
+  getEffectivePlatformFee,
+  getSalesPricing,
+  getMarketingPricing,
+} from "@/lib/tier-config";
 
 // ─── Types ───
 
@@ -71,6 +85,16 @@ interface Roaster {
   brand_logo_url: string | null;
   brand_primary_colour: string | null;
   brand_accent_colour: string | null;
+  sales_tier: string;
+  marketing_tier: string;
+  tier_override_by: string | null;
+  tier_override_reason: string | null;
+  tier_changed_at: string | null;
+  sales_discount_percent: number;
+  marketing_discount_percent: number;
+  discount_note: string | null;
+  website_subscription_active: boolean;
+  website_discount_percent: number;
 }
 
 interface RoasterStats {
@@ -127,6 +151,7 @@ type TabId =
   | "account"
   | "team"
   | "partner"
+  | "subscription"
   | "orders"
   | "products"
   | "storefront"
@@ -138,6 +163,7 @@ const TABS: { id: TabId; label: string; icon: typeof Activity }[] = [
   { id: "account", label: "Account", icon: Building2 },
   { id: "team", label: "Team", icon: Users },
   { id: "partner", label: "Partner", icon: Handshake },
+  { id: "subscription", label: "Subscription", icon: Crown },
   { id: "orders", label: "Orders", icon: ShoppingBag },
   { id: "products", label: "Products", icon: Package },
   { id: "storefront", label: "Storefront", icon: Store },
@@ -218,6 +244,34 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
   const [inviteForm, setInviteForm] = useState({ email: "", role: "member" });
   const [inviting, setInviting] = useState(false);
 
+  // Subscription tab
+  const [subSalesTier, setSubSalesTier] = useState<TierLevel>("free");
+  const [subMarketingTier, setSubMarketingTier] = useState<TierLevel>("free");
+  const [subOverrideReason, setSubOverrideReason] = useState("");
+  const [subSalesDiscount, setSubSalesDiscount] = useState(0);
+  const [subMarketingDiscount, setSubMarketingDiscount] = useState(0);
+  const [subDiscountNote, setSubDiscountNote] = useState("");
+  const [subWebsiteActive, setSubWebsiteActive] = useState(false);
+  const [subWebsiteDiscount, setSubWebsiteDiscount] = useState(0);
+  const [savingTier, setSavingTier] = useState(false);
+  const [savedTier, setSavedTier] = useState(false);
+  const [usageData, setUsageData] = useState<Record<string, { current: number; limit: number; percentUsed: number }> | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
+  // AI Credits
+  const [aiCreditsData, setAiCreditsData] = useState<{
+    monthlyAllocation: number;
+    monthlyUsed: number;
+    topupBalance: number;
+    ledger: { id: string; credits_used: number; action_type: string; source: string; reason: string | null; created_at: string; metadata: Record<string, unknown> }[];
+  } | null>(null);
+  const [loadingAiCredits, setLoadingAiCredits] = useState(false);
+  const [topupAmount, setTopupAmount] = useState(50);
+  const [topupReason, setTopupReason] = useState("");
+  const [grantingCredits, setGrantingCredits] = useState(false);
+  const [subscriptionEvents, setSubscriptionEvents] = useState<{ id: string; event_type: string; previous_tier: string; new_tier: string; product_type: string; created_at: string; metadata: Record<string, unknown> }[]>([]);
+  const [loadingSubEvents, setLoadingSubEvents] = useState(false);
+
   // Partner tab
   const [feeValue, setFeeValue] = useState("");
   const [savingFee, setSavingFee] = useState(false);
@@ -252,6 +306,14 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
       const data = await res.json();
       setRoaster(data.roaster);
       setStats(data.stats);
+      if (data.usage) setUsageData(data.usage);
+      setSubSalesTier((data.roaster.sales_tier as TierLevel) || "free");
+      setSubMarketingTier((data.roaster.marketing_tier as TierLevel) || "free");
+      setSubSalesDiscount(Number(data.roaster.sales_discount_percent) || 0);
+      setSubMarketingDiscount(Number(data.roaster.marketing_discount_percent) || 0);
+      setSubDiscountNote(data.roaster.discount_note || "");
+      setSubWebsiteActive(data.roaster.website_subscription_active || false);
+      setSubWebsiteDiscount(Number(data.roaster.website_discount_percent) || 0);
       setEditForm({
         business_name: data.roaster.business_name || "",
         contact_name: data.roaster.contact_name || "",
@@ -1154,6 +1216,493 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
               <p className="text-xs text-slate-400 mt-2">
                 {`Current fee: ${roaster.platform_fee_percent}%`}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Tab */}
+      {activeTab === "subscription" && (
+        <div className="space-y-6">
+          {/* Current Tiers */}
+          <div className="bg-white rounded-xl border border-slate-200">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <Crown className="w-4 h-4 text-slate-400" />
+                Subscription Tiers
+              </h3>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Sales Suite Tier
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={subSalesTier}
+                      onChange={(e) => setSubSalesTier(e.target.value as TierLevel)}
+                      className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    >
+                      {(["free", "starter", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                        <option key={t} value={t}>{TIER_NAMES[t]}</option>
+                      ))}
+                    </select>
+                    <TierBadge status={subSalesTier} type="subscriptionTier" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Marketing Suite Tier
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={subMarketingTier}
+                      onChange={(e) => setSubMarketingTier(e.target.value as TierLevel)}
+                      className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+                    >
+                      {(["free", "starter", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                        <option key={t} value={t}>{TIER_NAMES[t]}</option>
+                      ))}
+                    </select>
+                    <TierBadge status={subMarketingTier} type="subscriptionTier" />
+                  </div>
+                </div>
+              </div>
+              {/* Website Add-on */}
+              <div className="pt-3 border-t border-slate-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Website Add-on
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSubWebsiteActive(!subWebsiteActive)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          subWebsiteActive ? "bg-brand-600" : "bg-slate-200"
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            subWebsiteActive ? "translate-x-6" : "translate-x-1"
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-sm font-medium ${subWebsiteActive ? "text-green-700" : "text-slate-400"}`}>
+                        {subWebsiteActive ? "Active" : "Inactive"}
+                      </span>
+                      <span className="text-xs text-slate-400">£19/mo</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Website Discount %
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={subWebsiteDiscount}
+                        onChange={(e) => setSubWebsiteDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        disabled={!subWebsiteActive}
+                      />
+                      <span className="text-sm text-slate-500">%</span>
+                      {subWebsiteActive && (
+                        <span className="text-xs text-slate-400">
+                          {(() => {
+                            const base = 1900;
+                            const discounted = Math.round(base * (1 - subWebsiteDiscount / 100));
+                            return subWebsiteDiscount > 0
+                              ? `£${(base / 100).toFixed(2)} → £${(discounted / 100).toFixed(2)}/mo`
+                              : `£${(base / 100).toFixed(2)}/mo`;
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Discount */}
+              <div className="pt-3 border-t border-slate-100">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Admin Discount</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Sales Discount %
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={subSalesDiscount}
+                        onChange={(e) => setSubSalesDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <span className="text-sm text-slate-500">%</span>
+                      {subSalesTier !== "free" && (
+                        <span className="text-xs text-slate-400">
+                          {(() => {
+                            const p = getSalesPricing(subSalesTier);
+                            const base = p.monthly;
+                            const discounted = Math.round(base * (1 - subSalesDiscount / 100));
+                            return subSalesDiscount > 0
+                              ? `£${(base / 100).toFixed(2)} → £${(discounted / 100).toFixed(2)}/mo`
+                              : `£${(base / 100).toFixed(2)}/mo`;
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Marketing Discount %
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={subMarketingDiscount}
+                        onChange={(e) => setSubMarketingDiscount(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                        className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                      <span className="text-sm text-slate-500">%</span>
+                      {subMarketingTier !== "free" && (
+                        <span className="text-xs text-slate-400">
+                          {(() => {
+                            const p = getMarketingPricing(subMarketingTier);
+                            const base = p.monthly;
+                            const discounted = Math.round(base * (1 - subMarketingDiscount / 100));
+                            return subMarketingDiscount > 0
+                              ? `£${(base / 100).toFixed(2)} → £${(discounted / 100).toFixed(2)}/mo`
+                              : `£${(base / 100).toFixed(2)}/mo`;
+                          })()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Discount Note
+                  </label>
+                  <input
+                    type="text"
+                    value={subDiscountNote}
+                    onChange={(e) => setSubDiscountNote(e.target.value)}
+                    placeholder="e.g. Early adopter discount, partner deal..."
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={async () => {
+                    setSavingTier(true);
+                    setSavedTier(false);
+                    try {
+                      const res = await fetch(`/api/admin/roasters/${roasterId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          sales_tier: subSalesTier,
+                          marketing_tier: subMarketingTier,
+                          tier_override_reason: subOverrideReason || null,
+                          sales_discount_percent: subSalesDiscount,
+                          marketing_discount_percent: subMarketingDiscount,
+                          discount_note: subDiscountNote || null,
+                          website_subscription_active: subWebsiteActive,
+                          website_discount_percent: subWebsiteDiscount,
+                        }),
+                      });
+                      if (res.ok) {
+                        setSavedTier(true);
+                        setTimeout(() => setSavedTier(false), 3000);
+                        const reloadRes = await fetch(`/api/admin/roasters/${roasterId}`);
+                        if (reloadRes.ok) {
+                          const data = await reloadRes.json();
+                          setRoaster(data.roaster);
+                          setStats(data.stats);
+                        }
+                        setUsageData(null);
+                      }
+                    } catch (err) {
+                      console.error("Failed to save tiers:", err);
+                    }
+                    setSavingTier(false);
+                  }}
+                  disabled={savingTier}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingTier ? "Saving..." : "Save Tiers"}
+                </button>
+                {savedTier && (
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <Check className="w-4 h-4" />
+                    Saved
+                  </span>
+                )}
+              </div>
+              {roaster?.tier_changed_at && (
+                <p className="text-xs text-slate-400">
+                  {`Last changed: ${formatDateTime(roaster.tier_changed_at)}`}
+                  {roaster.discount_note && ` \u2014 ${roaster.discount_note}`}
+                </p>
+              )}
+              <div className="pt-2 border-t border-slate-100">
+                <p className="text-xs text-slate-500">
+                  {`Platform fee: ${getEffectivePlatformFee(subSalesTier)}% (derived from Sales tier)`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Credit Top-up */}
+          <div className="bg-white rounded-xl border border-slate-200">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-slate-400" />
+                AI Credits
+              </h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {!aiCreditsData && !loadingAiCredits ? (
+                <button
+                  onClick={async () => {
+                    setLoadingAiCredits(true);
+                    try {
+                      const res = await fetch(`/api/admin/roasters/${roasterId}/ai-credits`);
+                      if (res.ok) setAiCreditsData(await res.json());
+                    } catch (err) {
+                      console.error(err);
+                    }
+                    setLoadingAiCredits(false);
+                  }}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  Load AI credit details
+                </button>
+              ) : loadingAiCredits ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                </div>
+              ) : aiCreditsData ? (
+                <>
+                  {/* Summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-slate-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-slate-500">Monthly Allocation</p>
+                      <p className="text-lg font-semibold text-slate-900">{aiCreditsData.monthlyAllocation === Infinity ? "∞" : aiCreditsData.monthlyAllocation}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-slate-500">Used This Month</p>
+                      <p className="text-lg font-semibold text-slate-900">{aiCreditsData.monthlyUsed}</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-amber-600">Top-up Balance</p>
+                      <p className="text-lg font-semibold text-amber-700">{aiCreditsData.topupBalance}</p>
+                    </div>
+                  </div>
+
+                  {/* Grant Credits */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <h4 className="text-sm font-medium text-slate-700 mb-2">Grant Top-up Credits</h4>
+                    <div className="flex items-end gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Credits</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={10000}
+                          value={topupAmount}
+                          onChange={(e) => setTopupAmount(Math.max(1, Number(e.target.value) || 0))}
+                          className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-slate-500 mb-1">Reason</label>
+                        <input
+                          type="text"
+                          value={topupReason}
+                          onChange={(e) => setTopupReason(e.target.value)}
+                          placeholder="e.g. Compensation, testing, promo..."
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setGrantingCredits(true);
+                          try {
+                            const res = await fetch(`/api/admin/roasters/${roasterId}/ai-credits`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ credits: topupAmount, reason: topupReason || null }),
+                            });
+                            if (res.ok) {
+                              const data = await res.json();
+                              setAiCreditsData((prev) => prev ? { ...prev, topupBalance: data.newBalance } : prev);
+                              setTopupReason("");
+                              // Reload ledger
+                              const ledgerRes = await fetch(`/api/admin/roasters/${roasterId}/ai-credits`);
+                              if (ledgerRes.ok) setAiCreditsData(await ledgerRes.json());
+                            }
+                          } catch (err) {
+                            console.error(err);
+                          }
+                          setGrantingCredits(false);
+                        }}
+                        disabled={grantingCredits || topupAmount < 1}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        {grantingCredits ? "Granting..." : "Grant"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Ledger */}
+                  {aiCreditsData.ledger.length > 0 && (
+                    <div className="border-t border-slate-100 pt-3">
+                      <h4 className="text-sm font-medium text-slate-700 mb-2">Recent Activity</h4>
+                      <div className="max-h-48 overflow-y-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 bg-slate-50">
+                              <th className="text-left text-xs font-medium text-slate-500 uppercase px-3 py-1.5">Type</th>
+                              <th className="text-right text-xs font-medium text-slate-500 uppercase px-3 py-1.5">Credits</th>
+                              <th className="text-left text-xs font-medium text-slate-500 uppercase px-3 py-1.5">Reason</th>
+                              <th className="text-left text-xs font-medium text-slate-500 uppercase px-3 py-1.5">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {aiCreditsData.ledger.map((entry) => (
+                              <tr key={entry.id}>
+                                <td className="px-3 py-1.5 text-slate-700">
+                                  {entry.source === "topup_admin" ? "Admin Grant" : entry.source === "topup_purchase" ? "Purchase" : entry.action_type}
+                                </td>
+                                <td className={`px-3 py-1.5 text-right font-medium ${entry.credits_used < 0 ? "text-green-600" : "text-slate-700"}`}>
+                                  {entry.credits_used < 0 ? `+${Math.abs(entry.credits_used)}` : `-${entry.credits_used}`}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-500 truncate max-w-[200px]">{entry.reason || "—"}</td>
+                                <td className="px-3 py-1.5 text-slate-400 whitespace-nowrap">{formatDateTime(entry.created_at)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Usage Stats */}
+          <div className="bg-white rounded-xl border border-slate-200">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-slate-400" />
+                Usage Stats
+              </h3>
+            </div>
+            <div className="p-4">
+              {loadingUsage ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                </div>
+              ) : usageData ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(Object.entries(usageData) as [string, { current: number; limit: number }][]).map(([key, data]) => (
+                    <UsageBar
+                      key={key}
+                      label={LIMIT_LABELS[key as LimitKey] || key}
+                      current={data.current}
+                      limit={data.limit}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No usage data available.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Subscription Events */}
+          <div className="bg-white rounded-xl border border-slate-200">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-slate-400" />
+                Subscription Events
+              </h3>
+            </div>
+            <div className="p-4">
+              {!subscriptionEvents.length && !loadingSubEvents ? (
+                <button
+                  onClick={async () => {
+                    setLoadingSubEvents(true);
+                    try {
+                      const res = await fetch(`/api/admin/roasters/${roasterId}/subscription-events`);
+                      if (res.ok) {
+                        const data = await res.json();
+                        setSubscriptionEvents(data.events || []);
+                      }
+                    } catch (err) {
+                      console.error(err);
+                    }
+                    setLoadingSubEvents(false);
+                  }}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  Load subscription events
+                </button>
+              ) : loadingSubEvents ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+                </div>
+              ) : subscriptionEvents.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-6">No subscription events yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2">Event</th>
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2">Product</th>
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2">Change</th>
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {subscriptionEvents.map((evt) => (
+                        <tr key={evt.id}>
+                          <td className="px-4 py-2 text-sm text-slate-700">{evt.event_type}</td>
+                          <td className="px-4 py-2 text-sm text-slate-600">{evt.product_type || "\u2014"}</td>
+                          <td className="px-4 py-2 text-sm">
+                            {evt.previous_tier && evt.new_tier ? (
+                              <span className="flex items-center gap-1.5">
+                                <TierBadge status={evt.previous_tier} type="subscriptionTier" />
+                                <ChevronRight className="w-3 h-3 text-slate-400" />
+                                <TierBadge status={evt.new_tier} type="subscriptionTier" />
+                              </span>
+                            ) : (
+                              "\u2014"
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-slate-500">{formatDate(evt.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

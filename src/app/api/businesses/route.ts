@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   // Get primary contact for each business
   const businessIds = (businesses || []).map((b) => b.id);
-  let contactsByBusiness: Record<string, { first_name: string; last_name: string; email: string | null }> = {};
+  const contactsByBusiness: Record<string, { first_name: string; last_name: string; email: string | null }> = {};
 
   if (businessIds.length > 0) {
     const { data: contacts } = await supabase

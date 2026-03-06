@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkFeature } from "@/lib/feature-gates";
 
 export async function GET(request: NextRequest) {
   const owner = await getMarketingOwner(request);
@@ -39,6 +40,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Check automations feature gate
+    if (owner.owner_id) {
+      const featureCheck = await checkFeature(owner.owner_id, "automations");
+      if (!featureCheck.allowed) {
+        return NextResponse.json(
+          { error: featureCheck.message, upgrade_required: true },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const supabase = createServerClient();
 

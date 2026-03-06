@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest) {
 
   // Fetch roaster_orders for fulfilment status
   const orderIds = (orders || []).map((o) => o.id);
-  let roasterOrderMap = new Map<string, any>();
+  let roasterOrderMap = new Map<string, Record<string, unknown>>();
   if (orderIds.length > 0) {
     const { data: roasterOrders } = await supabase
       .from("roaster_orders")

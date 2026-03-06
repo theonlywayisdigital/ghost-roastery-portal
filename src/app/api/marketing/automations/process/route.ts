@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   let processed = 0;
   let sent = 0;
-  let triggerEnrolled = 0;
+  const triggerEnrolled = 0;
 
   try {
     // ── Process time-based triggers (no_activity, date_based) ──

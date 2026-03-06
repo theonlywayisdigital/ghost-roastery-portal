@@ -1,9 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  EmbeddedCheckoutProvider,
+  EmbeddedCheckout,
+} from "@stripe/react-stripe-js";
 import { useCart } from "../_components/CartProvider";
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 interface AppliedDiscount {
   discountCodeId: string;
@@ -14,9 +23,26 @@ interface AppliedDiscount {
 }
 
 export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-slate-500">Loading...</p>
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const slug = params.slug as string;
+  const embedded = searchParams.get("embedded") === "true";
+  const qs = embedded ? "?embedded=true" : "";
   const { items, subtotal, clearCart } = useCart();
 
   const [roasterId, setRoasterId] = useState<string | null>(null);
@@ -28,6 +54,7 @@ export default function CheckoutPage() {
   const [postcode, setPostcode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
 
   // Discount state
   const [discountInput, setDiscountInput] = useState("");
@@ -69,9 +96,9 @@ export default function CheckoutPage() {
   // Redirect if cart is empty
   useEffect(() => {
     if (items.length === 0) {
-      router.push(`/s/${slug}/shop`);
+      router.push(`/s/${slug}/shop${qs}`);
     }
-  }, [items.length, slug, router]);
+  }, [items.length, slug, router, qs]);
 
   const subtotalPence = Math.round(subtotal * 100);
 
@@ -161,6 +188,7 @@ export default function CheckoutPage() {
             country: "GB",
           },
           slug,
+          embedded,
           // Discount fields
           ...(appliedDiscount
             ? {
@@ -181,9 +209,15 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Clear cart and redirect to Stripe
       clearCart();
-      window.location.href = data.sessionUrl;
+
+      if (embedded && data.clientSecret) {
+        // Show Stripe Embedded Checkout inline
+        setStripeClientSecret(data.clientSecret);
+      } else {
+        // Redirect to Stripe hosted checkout
+        window.location.href = data.sessionUrl;
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setIsSubmitting(false);
@@ -193,11 +227,28 @@ export default function CheckoutPage() {
   const inputClassName =
     "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent";
 
+  // Embedded Stripe Checkout — show inline payment form
+  if (stripeClientSecret) {
+    return (
+      <div className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--sf-font)" }}>
+        <div className="max-w-3xl mx-auto px-6 py-12">
+          <h1 className="text-2xl font-bold text-slate-900 mb-8">Payment</h1>
+          <EmbeddedCheckoutProvider
+            stripe={stripePromise}
+            options={{ clientSecret: stripeClientSecret }}
+          >
+            <EmbeddedCheckout />
+          </EmbeddedCheckoutProvider>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--sf-font)" }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Link
-          href={`/s/${slug}/shop`}
+          href={`/s/${slug}/shop${qs}`}
           className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-6"
         >
           <svg

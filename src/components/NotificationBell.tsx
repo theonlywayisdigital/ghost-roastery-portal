@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  Check,
   CheckCheck,
   ShoppingCart,
   FileText,
@@ -15,7 +14,6 @@ import {
   Megaphone,
   Star,
   UserPlus,
-  X,
 } from "lucide-react";
 
 interface Notification {

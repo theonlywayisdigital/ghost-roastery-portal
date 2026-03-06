@@ -17,8 +17,26 @@ import {
   Send,
   Bell,
   Save,
+  Crown,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { SettingsHeader } from "@/components/SettingsHeader";
+import { UsageBar } from "@/components/shared/UsageBar";
+import { PlanSelector } from "@/components/shared/PlanSelector";
+import { StatusBadge as TierBadge } from "@/components/admin/StatusBadge";
+import {
+  type TierLevel,
+  type LimitKey,
+  type BillingCycle,
+  TIER_NAMES,
+  LIMIT_LABELS,
+  CREDIT_PACKS,
+  getEffectivePlatformFee,
+  getSalesPricing,
+  getMarketingPricing,
+  WEBSITE_PRICING,
+} from "@/lib/tier-config";
 
 interface RoasterData {
   id: string;
@@ -46,6 +64,20 @@ interface RoasterData {
   auto_send_invoices: boolean;
   invoice_reminder_enabled: boolean;
   reminder_days_before_due: number;
+  sales_tier: string;
+  marketing_tier: string;
+  // Subscription fields
+  sales_billing_cycle: string | null;
+  marketing_billing_cycle: string | null;
+  subscription_status: string | null;
+  stripe_customer_id: string | null;
+  stripe_sales_subscription_id: string | null;
+  stripe_marketing_subscription_id: string | null;
+  tier_override_by: string | null;
+  // Website subscription
+  website_subscription_active: boolean;
+  website_billing_cycle: string | null;
+  stripe_website_subscription_id: string | null;
 }
 
 interface StripeStatus {
@@ -84,7 +116,7 @@ interface Invoice {
   notes: string | null;
 }
 
-type Tab = "my-billing" | "customer-billing";
+type Tab = "subscription" | "my-billing" | "customer-billing";
 
 const CURRENCY_OPTIONS = [
   { value: "GBP", label: "GBP (£)" },
@@ -108,8 +140,19 @@ const REMINDER_DAYS_OPTIONS = [
   { value: 14, label: "14 days before" },
 ];
 
+interface UsageData {
+  tiers: { sales: TierLevel; marketing: TierLevel };
+  limits: Record<LimitKey, { current: number; limit: number; percentUsed: number; warning: boolean }>;
+  features: Record<string, boolean>;
+  platformFeePercent: number;
+}
+
 export function BillingPage({ roaster }: { roaster: RoasterData }) {
-  const [activeTab, setActiveTab] = useState<Tab>("my-billing");
+  // Check URL for ?tab=subscription
+  const initialTab = typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("tab") as Tab) || "subscription"
+    : "subscription";
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -121,6 +164,10 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
   const [billingEmail, setBillingEmail] = useState(roaster.billing_email);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Subscription usage data
+  const [usageData, setUsageData] = useState<UsageData | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
 
   // Customer Billing settings form
   const [invoicePrefix, setInvoicePrefix] = useState(roaster.invoice_prefix);
@@ -160,6 +207,18 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Load usage data when subscription tab is active
+  useEffect(() => {
+    if (activeTab === "subscription" && !usageData && !loadingUsage) {
+      setLoadingUsage(true);
+      fetch("/api/usage")
+        .then((res) => res.json())
+        .then((data) => setUsageData(data))
+        .catch(console.error)
+        .finally(() => setLoadingUsage(false));
+    }
+  }, [activeTab, usageData, loadingUsage]);
 
   async function handleConnect() {
     setConnecting(true);
@@ -270,6 +329,16 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
       <div className="border-b border-slate-200 mb-6">
         <nav className="flex gap-6" aria-label="Billing tabs">
           <button
+            onClick={() => setActiveTab("subscription")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "subscription"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Subscription
+          </button>
+          <button
             onClick={() => setActiveTab("my-billing")}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "my-billing"
@@ -292,7 +361,13 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
         </nav>
       </div>
 
-      {loading ? (
+      {activeTab === "subscription" ? (
+        <SubscriptionTab
+          roaster={roaster}
+          usageData={usageData}
+          loading={loadingUsage}
+        />
+      ) : loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
         </div>
@@ -348,6 +423,740 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
         />
       )}
     </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Subscription Tab
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function SubscriptionTab({
+  roaster,
+  usageData,
+  loading,
+}: {
+  roaster: RoasterData;
+  usageData: UsageData | null;
+  loading: boolean;
+}) {
+  const salesTier = (roaster.sales_tier as TierLevel) || "free";
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
+  const salesPricing = getSalesPricing(salesTier);
+  const marketingPricing = getMarketingPricing(marketingTier);
+  const platformFee = getEffectivePlatformFee(salesTier);
+
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [pendingTier, setPendingTier] = useState<{ product: "sales" | "marketing"; tier: TierLevel } | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState<"sales" | "marketing" | "website" | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  // Handle checkout URL params
+  const [checkoutResult, setCheckoutResult] = useState<"success" | "cancel" | null>(null);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const result = params.get("checkout") as "success" | "cancel" | null;
+      if (result) {
+        setCheckoutResult(result);
+        // Clean URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete("checkout");
+        window.history.replaceState({}, "", url.toString());
+        if (result === "success") {
+          setTimeout(() => setCheckoutResult(null), 5000);
+        }
+      }
+    }
+  }, []);
+
+  const subscriptionStatus = roaster.subscription_status;
+  const isAdminOverride = !!roaster.tier_override_by;
+
+  async function handleSelectPlan(productType: "sales" | "marketing", tier: TierLevel) {
+    if (tier === "free") {
+      setShowCancelModal(productType);
+      return;
+    }
+
+    setCheckoutLoading(true);
+    setPendingTier({ product: productType, tier });
+
+    try {
+      const res = await fetch("/api/billing/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productType, tier, billingCycle }),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      if (data.action === "updated") {
+        // Mid-cycle change — reload page
+        window.location.reload();
+        return;
+      }
+
+      if (data.error) {
+        console.error("Checkout error:", data.error);
+      }
+    } catch (error) {
+      console.error("Failed to start checkout:", error);
+    }
+
+    setCheckoutLoading(false);
+    setPendingTier(null);
+  }
+
+  async function handleWebsiteSubscribe() {
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/billing/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productType: "website", tier: "starter", billingCycle }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      if (data.error) {
+        console.error("Checkout error:", data.error);
+      }
+    } catch (error) {
+      console.error("Failed to start checkout:", error);
+    }
+    setCheckoutLoading(false);
+  }
+
+  async function handleCancelSubscription(productType: "sales" | "marketing" | "website") {
+    setCancelLoading(true);
+    try {
+      const res = await fetch("/api/billing/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productType }),
+      });
+
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Failed to cancel:", error);
+    }
+    setCancelLoading(false);
+    setShowCancelModal(null);
+  }
+
+  async function handleOpenPortal() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/billing/create-portal-session", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to open portal:", error);
+    }
+    setPortalLoading(false);
+  }
+
+  const SALES_LIMIT_KEYS: LimitKey[] = ["products", "wholesaleOrdersPerMonth", "wholesaleAccounts", "crmContacts", "teamMembers"];
+  const MARKETING_LIMIT_KEYS: LimitKey[] = ["emailSendsPerMonth", "embeddedForms", "aiCreditsPerMonth"];
+
+  return (
+    <div className="space-y-6">
+      {/* Checkout result banner */}
+      {checkoutResult === "success" && (
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-green-800">
+            Your subscription has been activated. Welcome to your new plan!
+          </p>
+        </div>
+      )}
+
+      {checkoutResult === "cancel" && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <p className="text-sm text-amber-800">
+            Checkout was cancelled. No changes were made.
+          </p>
+        </div>
+      )}
+
+      {/* Subscription status badge */}
+      {subscriptionStatus && subscriptionStatus !== "inactive" && (
+        <div className={`p-4 rounded-lg border flex items-center gap-3 ${
+          subscriptionStatus === "active"
+            ? "bg-green-50 border-green-200"
+            : subscriptionStatus === "past_due"
+            ? "bg-red-50 border-red-200"
+            : subscriptionStatus === "cancelling"
+            ? "bg-amber-50 border-amber-200"
+            : "bg-slate-50 border-slate-200"
+        }`}>
+          {subscriptionStatus === "active" && (
+            <>
+              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-green-800">Subscription active</p>
+            </>
+          )}
+          {subscriptionStatus === "past_due" && (
+            <>
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Payment past due</p>
+                <p className="text-xs text-red-700 mt-0.5">
+                  Your subscription payment failed. Update your payment method to avoid service interruption.
+                </p>
+              </div>
+            </>
+          )}
+          {subscriptionStatus === "cancelling" && (
+            <>
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-amber-800">
+                Your subscription will cancel at the end of the current billing period.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Admin override notice */}
+      {isAdminOverride && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
+          <Crown className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          <p className="text-sm text-blue-800">
+            Your plan was set by the Ghost Roastery admin team.
+          </p>
+        </div>
+      )}
+
+      {/* Current Plan Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Sales Suite */}
+        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-slate-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Sales Suite</h2>
+              </div>
+              <TierBadge status={salesTier} type="subscriptionTier" />
+            </div>
+          </div>
+          <div className="p-6">
+            {salesPricing.monthly === 0 ? (
+              <p className="text-2xl font-bold text-slate-900">Free</p>
+            ) : (
+              <p className="text-2xl font-bold text-slate-900">
+                {`\u00A3${(salesPricing.monthly / 100).toFixed(0)}`}
+                <span className="text-sm font-normal text-slate-500">/mo</span>
+              </p>
+            )}
+            <p className="text-sm text-slate-500 mt-1">
+              {`Platform fee: ${platformFee}%`}
+            </p>
+            {roaster.sales_billing_cycle && (
+              <p className="text-xs text-slate-400 mt-1">
+                {`Billed ${roaster.sales_billing_cycle}`}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* Marketing Suite */}
+        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-slate-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Marketing Suite</h2>
+              </div>
+              <TierBadge status={marketingTier} type="subscriptionTier" />
+            </div>
+          </div>
+          <div className="p-6">
+            {marketingPricing.monthly === 0 ? (
+              <p className="text-2xl font-bold text-slate-900">Free</p>
+            ) : (
+              <p className="text-2xl font-bold text-slate-900">
+                {`\u00A3${(marketingPricing.monthly / 100).toFixed(0)}`}
+                <span className="text-sm font-normal text-slate-500">/mo</span>
+              </p>
+            )}
+            {roaster.marketing_billing_cycle && (
+              <p className="text-xs text-slate-400 mt-1">
+                {`Billed ${roaster.marketing_billing_cycle}`}
+              </p>
+            )}
+          </div>
+        </section>
+
+        {/* Website */}
+        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-slate-600" />
+                <h2 className="text-lg font-semibold text-slate-900">Website</h2>
+              </div>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                roaster.website_subscription_active
+                  ? "bg-green-50 text-green-700"
+                  : "bg-slate-100 text-slate-600"
+              }`}>
+                {roaster.website_subscription_active ? "Active" : "Inactive"}
+              </span>
+            </div>
+          </div>
+          <div className="p-6">
+            {roaster.website_subscription_active ? (
+              <>
+                <p className="text-2xl font-bold text-slate-900">
+                  {`\u00A3${(WEBSITE_PRICING[roaster.website_billing_cycle === "annual" ? "annual" : "monthly"] / 100).toFixed(0)}`}
+                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                </p>
+                {roaster.website_billing_cycle && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    {`Billed ${roaster.website_billing_cycle}`}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold text-slate-900">
+                  {`\u00A3${(WEBSITE_PRICING.monthly / 100).toFixed(0)}`}
+                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                </p>
+                <p className="text-sm text-slate-500 mt-1">Add-on</p>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* Manage Payment Method */}
+      {roaster.stripe_customer_id && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleOpenPortal}
+            disabled={portalLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            {portalLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CreditCard className="w-4 h-4" />
+            )}
+            Manage Payment Method & Invoices
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+        </div>
+      )}
+
+      {/* Usage Dashboard */}
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">Usage</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Your current usage against plan limits.
+          </p>
+        </div>
+        <div className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+            </div>
+          ) : usageData ? (
+            <div className="space-y-8">
+              {/* Sales limits */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Sales Suite</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {SALES_LIMIT_KEYS.map((key) => {
+                    const data = usageData.limits[key];
+                    if (!data) return null;
+                    return (
+                      <UsageBar
+                        key={key}
+                        label={LIMIT_LABELS[key]}
+                        current={data.current}
+                        limit={data.limit}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Marketing limits */}
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-4">Marketing Suite</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {MARKETING_LIMIT_KEYS.map((key) => {
+                    const data = usageData.limits[key];
+                    if (!data) return null;
+                    return (
+                      <UsageBar
+                        key={key}
+                        label={LIMIT_LABELS[key]}
+                        current={data.current}
+                        limit={data.limit}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500 text-center py-6">
+              Unable to load usage data.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* AI Credits */}
+      <AiCreditsSection roasterId={roaster.id} />
+
+      {/* Billing Cycle Toggle */}
+      <div className="flex items-center justify-center gap-2 py-2">
+        <button
+          onClick={() => setBillingCycle("monthly")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            billingCycle === "monthly"
+              ? "bg-brand-600 text-white"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Monthly
+        </button>
+        <button
+          onClick={() => setBillingCycle("annual")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            billingCycle === "annual"
+              ? "bg-brand-600 text-white"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          Annual
+          <span className="ml-1.5 text-xs opacity-75">Save ~17%</span>
+        </button>
+      </div>
+
+      {/* Plan Comparison — Sales */}
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">Sales Suite Plans</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Compare plans and find the right fit for your business.
+          </p>
+        </div>
+        <div className="p-6 overflow-x-auto">
+          <PlanSelector
+            productType="sales"
+            currentTier={salesTier}
+            billingCycle={billingCycle}
+            loading={checkoutLoading}
+            pendingTier={pendingTier?.product === "sales" ? pendingTier.tier : null}
+            onSelect={(tier) => handleSelectPlan("sales", tier)}
+          />
+        </div>
+      </section>
+
+      {/* Plan Comparison — Marketing */}
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">Marketing Suite Plans</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Email marketing, social scheduling, and automation tools.
+          </p>
+        </div>
+        <div className="p-6 overflow-x-auto">
+          <PlanSelector
+            productType="marketing"
+            currentTier={marketingTier}
+            billingCycle={billingCycle}
+            loading={checkoutLoading}
+            pendingTier={pendingTier?.product === "marketing" ? pendingTier.tier : null}
+            onSelect={(tier) => handleSelectPlan("marketing", tier)}
+          />
+        </div>
+      </section>
+
+      {/* Website Add-on */}
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold text-slate-900">Website</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Build and publish a full website for your roastery with a custom domain.
+          </p>
+        </div>
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-slate-900">
+                {billingCycle === "annual"
+                  ? `\u00A3${(WEBSITE_PRICING.annual / 100).toFixed(0)}`
+                  : `\u00A3${(WEBSITE_PRICING.monthly / 100).toFixed(0)}`}
+                <span className="text-sm font-normal text-slate-500">/mo</span>
+              </p>
+              {billingCycle === "annual" && (
+                <p className="text-xs text-green-600 mt-1">
+                  {`Save \u00A3${((WEBSITE_PRICING.monthly - WEBSITE_PRICING.annual) * 12 / 100).toFixed(0)}/year`}
+                </p>
+              )}
+              <ul className="mt-3 space-y-1 text-sm text-slate-600">
+                <li>Multi-page website builder</li>
+                <li>Blog with built-in editor</li>
+                <li>Custom domain support</li>
+                <li>Shop page (embedded storefront)</li>
+              </ul>
+            </div>
+            <div>
+              {roaster.website_subscription_active ? (
+                <button
+                  onClick={() => setShowCancelModal("website")}
+                  className="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleWebsiteSubscribe()}
+                  disabled={checkoutLoading}
+                  className="px-5 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  {checkoutLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Subscribe"
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Cancel Subscription Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Downgrade to Free
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">
+              {`Your ${showCancelModal === "sales" ? "Sales Suite" : showCancelModal === "website" ? "Website" : "Marketing Suite"} subscription will be cancelled at the end of your current billing period. You'll keep access until then.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(null)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Keep Plan
+              </button>
+              <button
+                onClick={() => handleCancelSubscription(showCancelModal)}
+                disabled={cancelLoading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {cancelLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  "Cancel Subscription"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI Credits Section
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function AiCreditsSection({ roasterId }: { roasterId: string }) {
+  const [data, setData] = useState<{
+    monthlyAllocation: number;
+    monthlyUsed: number;
+    topupBalance: number;
+    ledger: { id: string; credits_used: number; action_type: string; source: string; reason: string | null; created_at: string }[];
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [buyingPack, setBuyingPack] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/billing/credits")
+      .then((res) => res.json())
+      .then((d) => setData(d))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleBuyPack(packId: string) {
+    setBuyingPack(packId);
+    try {
+      const res = await fetch("/api/billing/buy-credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId }),
+      });
+      const result = await res.json();
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      if (result.error) {
+        console.error("Buy credits error:", result.error);
+      }
+    } catch (error) {
+      console.error("Failed to buy credits:", error);
+    }
+    setBuyingPack(null);
+  }
+
+  function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return (
+    <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-slate-600" />
+          <h2 className="text-lg font-semibold text-slate-900">AI Credits</h2>
+        </div>
+        <p className="text-sm text-slate-500 mt-1">
+          Your monthly allocation resets each billing period. Top-up credits are used when your monthly credits run out.
+        </p>
+      </div>
+      <div className="p-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+          </div>
+        ) : data ? (
+          <div className="space-y-6">
+            {/* Balance Summary */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-slate-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-slate-500 mb-1">Monthly Allocation</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {data.monthlyAllocation === Infinity ? "Unlimited" : data.monthlyAllocation}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {`${data.monthlyUsed} used`}
+                </p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-amber-600 mb-1">Top-up Balance</p>
+                <p className="text-2xl font-bold text-amber-700">{data.topupBalance}</p>
+                <p className="text-xs text-amber-500 mt-1">Never expires</p>
+              </div>
+              <div className="bg-brand-50 rounded-lg p-4 text-center">
+                <p className="text-xs text-brand-600 mb-1">Total Available</p>
+                <p className="text-2xl font-bold text-brand-700">
+                  {data.monthlyAllocation === Infinity
+                    ? "Unlimited"
+                    : Math.max(0, data.monthlyAllocation - data.monthlyUsed) + data.topupBalance}
+                </p>
+              </div>
+            </div>
+
+            {/* Buy Credit Packs */}
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Buy Credit Packs</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {CREDIT_PACKS.map((pack) => (
+                  <button
+                    key={pack.id}
+                    onClick={() => handleBuyPack(pack.id)}
+                    disabled={buyingPack !== null}
+                    className="relative bg-white border-2 border-slate-200 rounded-xl p-4 text-center hover:border-brand-400 hover:shadow-sm transition-all disabled:opacity-50"
+                  >
+                    <Zap className="w-5 h-5 text-amber-500 mx-auto mb-2" />
+                    <p className="text-lg font-bold text-slate-900">{pack.credits}</p>
+                    <p className="text-xs text-slate-500 mb-2">credits</p>
+                    <p className="text-sm font-semibold text-brand-600">
+                      {`\u00A3${(pack.pricePence / 100).toFixed(2)}`}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {`${(pack.pricePence / pack.credits).toFixed(1)}p each`}
+                    </p>
+                    {buyingPack === pack.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl">
+                        <Loader2 className="w-5 h-5 text-brand-600 animate-spin" />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Usage History */}
+            {data.ledger.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">Recent Usage</h3>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50">
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase px-4 py-2">Type</th>
+                        <th className="text-right text-xs font-medium text-slate-500 uppercase px-4 py-2">Credits</th>
+                        <th className="text-left text-xs font-medium text-slate-500 uppercase px-4 py-2">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {data.ledger.map((entry) => (
+                        <tr key={entry.id}>
+                          <td className="px-4 py-2 text-slate-700">
+                            {entry.source === "topup_purchase"
+                              ? "Purchase"
+                              : entry.source === "topup_admin"
+                              ? "Admin Grant"
+                              : entry.action_type}
+                          </td>
+                          <td className={`px-4 py-2 text-right font-medium ${entry.credits_used < 0 ? "text-green-600" : "text-slate-700"}`}>
+                            {entry.credits_used < 0 ? `+${Math.abs(entry.credits_used)}` : `-${entry.credits_used}`}
+                          </td>
+                          <td className="px-4 py-2 text-slate-400 whitespace-nowrap">{formatDate(entry.created_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500 text-center py-6">Unable to load credit data.</p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -559,7 +1368,10 @@ function MyBillingTab({
                   </p>
                 </div>
                 <span className="text-lg font-semibold text-slate-900">
-                  {`${roaster.platform_fee_percent}%`}
+                  {`${getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free")}%`}
+                  <span className="text-xs font-normal text-slate-400 ml-1">
+                    {`(${TIER_NAMES[(roaster.sales_tier as TierLevel) || "free"]} plan)`}
+                  </span>
                 </span>
               </div>
               <div className="flex items-center justify-between py-3">

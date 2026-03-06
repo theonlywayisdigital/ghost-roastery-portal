@@ -243,6 +243,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     }
   }
 
+  // Increment monthly wholesale order counter for tier tracking
+  if (roasterId && order) {
+    await supabase.rpc("increment_monthly_wholesale_orders", { p_roaster_id: roasterId, p_count: 1 })
+      .then(({ error }) => { if (error) console.error("Failed to increment wholesale order count:", error); });
+  }
+
   // Notify the roaster about the new order
   if (roasterId && order) {
     const { data: roasterData } = await supabase

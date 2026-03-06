@@ -8,7 +8,7 @@ import { useCart } from "./CartProvider";
 import { MobileMenu } from "./MobileMenu";
 
 export function Header() {
-  const { roaster, slug, primary, accent, accentText, showWholesale } =
+  const { roaster, slug, primary, accent, accentText, showWholesale, embedded } =
     useStorefront();
   const { itemCount, openCart } = useCart();
   const [scrolled, setScrolled] = useState(false);
@@ -27,10 +27,12 @@ export function Header() {
     return () => observer.disconnect();
   }, []);
 
+  if (embedded) return null;
+
   const navLinks = [
     { label: "Shop", href: `/s/${slug}/shop` },
     ...(showWholesale
-      ? [{ label: "Trade", href: `#trade-apply` }]
+      ? [{ label: "Trade", href: `/wholesale` }]
       : []),
     ...(roaster.brand_about ? [{ label: "About", href: `#about` }] : []),
     { label: "Contact", href: `#enquiry` },

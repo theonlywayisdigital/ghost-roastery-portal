@@ -9,6 +9,7 @@ import {
   Truck,
   Users,
   Bell,
+  Crown,
 } from "lucide-react";
 
 const settingsItems = [
@@ -17,6 +18,13 @@ const settingsItems = [
     label: "Profile",
     description: "Your account details and login information.",
     icon: UserCircle,
+  },
+  {
+    href: "/settings/billing?tab=subscription",
+    label: "Subscription",
+    description: "Manage your plan and view usage limits.",
+    icon: Crown,
+    roasterOnly: true,
   },
   {
     href: "/settings/business",

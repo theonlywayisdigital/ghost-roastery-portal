@@ -1,33 +1,23 @@
 import Image from "next/image";
-import { sanityClient, urlFor, siteSettingsQuery } from "@/lib/sanity";
+
+const PLATFORM_LOGO_URL =
+  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png";
 
 interface LogoProps {
   height?: number;
   className?: string;
 }
 
-export async function Logo({ height = 60, className }: LogoProps) {
-  const settings = await sanityClient.fetch(siteSettingsQuery);
-  const logoUrl = settings?.logo
-    ? urlFor(settings.logo).height(height * 2).url()
-    : null;
-
-  if (logoUrl) {
-    return (
-      <Image
-        src={logoUrl}
-        alt="Ghost Roastery"
-        width={height * 3}
-        height={height}
-        className={`${className || `h-[${height}px] w-auto`} invert`}
-        priority
-      />
-    );
-  }
-
+export function Logo({ height = 60, className }: LogoProps) {
   return (
-    <span className="text-xl font-black tracking-tight text-slate-900">
-      GHOST ROASTERY
-    </span>
+    <Image
+      src={PLATFORM_LOGO_URL}
+      alt="Ghost Roastery Platform"
+      width={Math.round(height * 1.6)}
+      height={height}
+      className={className || undefined}
+      style={{ height, width: "auto" }}
+      priority
+    />
   );
 }

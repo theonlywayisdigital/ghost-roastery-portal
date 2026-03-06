@@ -3,10 +3,10 @@ import { createHmac } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailBlock } from "@/types/marketing";
 import { renderEmailHtml } from "@/lib/render-email-html";
+import { type TierLevel, getEffectiveLimits } from "@/lib/tier-config";
 
 const FROM_DOMAIN = "ghostroasting.co.uk";
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.RESEND_API_KEY || "fallback-secret";
-const MONTHLY_EMAIL_LIMIT = 5000; // Free tier limit
 const BATCH_SIZE = 50;
 
 // ─── Email Rendering ───
@@ -64,11 +64,16 @@ export async function checkEmailLimits(
 ): Promise<{ allowed: boolean; message?: string }> {
   const { data: roaster } = await supabase
     .from("partner_roasters")
-    .select("monthly_emails_sent, monthly_email_reset_at")
+    .select("monthly_emails_sent, monthly_email_reset_at, marketing_tier")
     .eq("id", roasterId)
     .single();
 
   if (!roaster) return { allowed: false, message: "Roaster not found" };
+
+  // Get tier-based email limit
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
+  const limits = getEffectiveLimits("free", marketingTier);
+  const emailLimit = limits.emailSendsPerMonth;
 
   let currentCount = (roaster.monthly_emails_sent as number) || 0;
   const resetAt = roaster.monthly_email_reset_at as string | null;
@@ -92,10 +97,11 @@ export async function checkEmailLimits(
       .eq("id", roasterId);
   }
 
-  if (currentCount + recipientCount > MONTHLY_EMAIL_LIMIT) {
+  if (emailLimit !== Infinity && currentCount + recipientCount > emailLimit) {
+    const remaining = Math.max(0, emailLimit - currentCount);
     return {
       allowed: false,
-      message: `Monthly email limit reached (${currentCount}/${MONTHLY_EMAIL_LIMIT}). You can send ${Math.max(0, MONTHLY_EMAIL_LIMIT - currentCount)} more emails this month.`,
+      message: `Monthly email limit reached (${currentCount}/${emailLimit === Infinity ? "Unlimited" : emailLimit}). You can send ${remaining} more emails this month. Upgrade your Marketing Suite plan for a higher limit.`,
     };
   }
 

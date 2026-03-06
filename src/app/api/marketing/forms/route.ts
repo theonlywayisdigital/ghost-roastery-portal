@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkLimit } from "@/lib/feature-gates";
 
 export async function GET(request: NextRequest) {
   const owner = await getMarketingOwner(request);
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Check embedded forms limit
+    if (owner.owner_id) {
+      const limitCheck = await checkLimit(owner.owner_id, "embeddedForms", 1);
+      if (!limitCheck.allowed) {
+        return NextResponse.json(
+          { error: limitCheck.message, upgrade_required: true },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await request.json();
     const supabase = createServerClient();
 

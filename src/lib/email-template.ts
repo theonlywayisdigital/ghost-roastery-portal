@@ -16,7 +16,11 @@ export interface EmailBranding {
   tagline?: string;
 }
 
-const DEFAULT_BRANDING: Required<Omit<EmailBranding, "logoUrl" | "tagline" | "businessName">> = {
+const PLATFORM_LOGO_URL =
+  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png";
+
+const DEFAULT_BRANDING: Required<Omit<EmailBranding, "tagline" | "businessName">> = {
+  logoUrl: PLATFORM_LOGO_URL,
   primaryColour: "#0f172a",
   accentColour: "#0083dc",
   headingFont: "inter",
@@ -43,8 +47,12 @@ export function wrapEmailWithBranding(options: {
   const primary = branding?.primaryColour || DEFAULT_BRANDING.primaryColour;
   const headingFamily = resolveFontFamily(branding?.headingFont || DEFAULT_BRANDING.headingFont);
   const bodyFamily = resolveFontFamily(branding?.bodyFont || DEFAULT_BRANDING.bodyFont);
-  const logoUrl = branding?.logoUrl || null;
-  const tagline = branding?.tagline || null;
+  // Use platform logo only when no branding object is provided (platform emails).
+  // When a branding object exists but has no logo, show the text fallback.
+  const logoUrl = branding === undefined || branding === null
+    ? DEFAULT_BRANDING.logoUrl
+    : branding.logoUrl || null;
+  const tagline = branding?.tagline ?? (branding ? null : "Sell, market & manage — built for roasters");
 
   const fontsToLoad = Array.from(new Set([headingFamily, bodyFamily]));
   const googleFontsUrl = buildGoogleFontsUrl(fontsToLoad);

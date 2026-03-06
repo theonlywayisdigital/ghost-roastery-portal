@@ -341,24 +341,24 @@ export type TieredProductType = Exclude<ProductType, "website">;
 
 export const STRIPE_PRICE_IDS: Record<TieredProductType, Record<PaidTierLevel, Record<BillingCycle, string>>> = {
   sales: {
-    starter: { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    growth:  { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    pro:     { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    scale:   { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
+    starter: { monthly: "price_1T7yovQuDE0YnEyUbOGoHG7l", annual: "price_1T7yovQuDE0YnEyUBTGoFadD" },
+    growth:  { monthly: "price_1T7yowQuDE0YnEyUma5FnPOu", annual: "price_1T7yowQuDE0YnEyU8jRgrly7" },
+    pro:     { monthly: "price_1T7yoxQuDE0YnEyU6qVo7USH", annual: "price_1T7yoxQuDE0YnEyU5mwQHyck" },
+    scale:   { monthly: "price_1T7yoyQuDE0YnEyUJSPII91G", annual: "price_1T7yoyQuDE0YnEyUiZj6XoKK" },
   },
   marketing: {
-    starter: { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    growth:  { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    pro:     { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
-    scale:   { monthly: "REPLACE_ME", annual: "REPLACE_ME" },
+    starter: { monthly: "price_1T7yovQuDE0YnEyUo8FCHMXK", annual: "price_1T7yowQuDE0YnEyUC5et4T4M" },
+    growth:  { monthly: "price_1T7yoxQuDE0YnEyUTM4EeoFR", annual: "price_1T7yoxQuDE0YnEyURtbazQ8a" },
+    pro:     { monthly: "price_1T7yoyQuDE0YnEyUK1ywejko", annual: "price_1T7yoyQuDE0YnEyUjrgBIY8N" },
+    scale:   { monthly: "price_1T7yozQuDE0YnEyU3HN7dSjY", annual: "price_1T7yozQuDE0YnEyUUEVm2pLW" },
   },
 };
 
 // ─── Website Stripe Price IDs (single product, no tiers) ───
 
 export const STRIPE_WEBSITE_PRICE_IDS: Record<BillingCycle, string> = {
-  monthly: "REPLACE_ME",
-  annual: "REPLACE_ME",
+  monthly: "price_1T7ypLQuDE0YnEyUPH30doHA",
+  annual: "price_1T7ypLQuDE0YnEyUlJv6VmgJ",
 };
 
 export function getWebsitePriceId(billingCycle: BillingCycle): string {
@@ -403,9 +403,9 @@ export interface CreditPack {
 }
 
 export const CREDIT_PACKS: CreditPack[] = [
-  { id: "pack_50",  credits: 50,  pricePence: 490,  label: "50 Credits",  stripePriceId: "REPLACE_ME" },
-  { id: "pack_100", credits: 100, pricePence: 890,  label: "100 Credits", stripePriceId: "REPLACE_ME" },
-  { id: "pack_250", credits: 250, pricePence: 1990, label: "250 Credits", stripePriceId: "REPLACE_ME" },
+  { id: "pack_50",  credits: 50,  pricePence: 490,  label: "50 Credits",  stripePriceId: "price_1T7ypyQuDE0YnEyU9aD9iFp4" },
+  { id: "pack_100", credits: 100, pricePence: 890,  label: "100 Credits", stripePriceId: "price_1T7ypzQuDE0YnEyUuHfLBXSg" },
+  { id: "pack_250", credits: 250, pricePence: 1990, label: "250 Credits", stripePriceId: "price_1T7ypzQuDE0YnEyUpxhudMTO" },
 ];
 
 export function getCreditPackByPriceId(priceId: string): CreditPack | null {

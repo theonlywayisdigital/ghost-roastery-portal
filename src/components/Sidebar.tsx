@@ -458,7 +458,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
           <img
             src="https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png"
             alt="Ghost Roastery Platform"
-            className="h-12 w-auto"
+            className="h-16 w-auto"
           />
         </Link>
       </div>

@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, X } from "lucide-react";
+
+const PASSWORD_RULES = [
+  { label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },
+  { label: "One uppercase letter", test: (pw: string) => /[A-Z]/.test(pw) },
+  { label: "One special character", test: (pw: string) => /[^A-Za-z0-9]/.test(pw) },
+];
 
 export function SignupForm() {
   const router = useRouter();
@@ -13,11 +19,30 @@ export function SignupForm() {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
 
+  const passwordChecks = useMemo(
+    () => PASSWORD_RULES.map((rule) => ({ ...rule, passed: rule.test(password) })),
+    [password]
+  );
+  const allPasswordChecksPassed = passwordChecks.every((c) => c.passed);
+  const passwordsMatch = password === confirmPassword;
+  const showMismatch = confirmPassword.length > 0 && !passwordsMatch;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!allPasswordChecksPassed) {
+      setError("Password does not meet the requirements.");
+      return;
+    }
+    if (!passwordsMatch) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -114,9 +139,41 @@ export function SignupForm() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
           required
-          minLength={6}
           className={inputClassName}
         />
+        {password.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {passwordChecks.map((check) => (
+              <li key={check.label} className="flex items-center gap-1.5 text-xs">
+                {check.passed ? (
+                  <Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                ) : (
+                  <X className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                )}
+                <span className={check.passed ? "text-green-600" : "text-slate-500"}>
+                  {check.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          Confirm Password
+        </label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder="••••••••"
+          required
+          className={`${inputClassName} ${showMismatch ? "border-red-400 focus:ring-red-400" : ""}`}
+        />
+        {showMismatch && (
+          <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+        )}
       </div>
 
       <div>
@@ -151,7 +208,7 @@ export function SignupForm() {
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || !allPasswordChecksPassed || showMismatch}
         className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
       >
         {isLoading ? (

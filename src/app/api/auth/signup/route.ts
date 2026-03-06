@@ -16,9 +16,13 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (
+      password.length < 8 ||
+      !/[A-Z]/.test(password) ||
+      !/[^A-Za-z0-9]/.test(password)
+    ) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
+        { error: "Password must be at least 8 characters with one uppercase letter and one special character" },
         { status: 400 }
       );
     }

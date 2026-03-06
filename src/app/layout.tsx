@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: "Ghost Roastery Platform",
   description:
     "Manage your wholesale coffee business and Ghost Roaster orders.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({

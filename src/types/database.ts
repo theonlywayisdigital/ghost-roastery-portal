@@ -41,6 +41,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_credit_ledger: {
+        Row: {
+          action_type: string
+          created_at: string
+          credits_used: number
+          granted_by: string | null
+          id: string
+          metadata: Json | null
+          reason: string | null
+          roaster_id: string
+          source: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          credits_used?: number
+          granted_by?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          roaster_id: string
+          source?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          credits_used?: number
+          granted_by?: string | null
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          roaster_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_credit_ledger_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_credit_ledger_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_enrollments: {
         Row: {
           automation_id: string
@@ -275,6 +326,65 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          author_name: string | null
+          content: Json | null
+          created_at: string | null
+          excerpt: string | null
+          featured_image_url: string | null
+          id: string
+          is_published: boolean | null
+          published_at: string | null
+          roaster_id: string
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          author_name?: string | null
+          content?: Json | null
+          created_at?: string | null
+          excerpt?: string | null
+          featured_image_url?: string | null
+          id?: string
+          is_published?: boolean | null
+          published_at?: string | null
+          roaster_id: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          author_name?: string | null
+          content?: Json | null
+          created_at?: string | null
+          excerpt?: string | null
+          featured_image_url?: string | null
+          id?: string
+          is_published?: boolean | null
+          published_at?: string | null
+          roaster_id?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
             referencedColumns: ["id"]
           },
         ]
@@ -643,6 +753,51 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_conversations: {
+        Row: {
+          created_at: string
+          escalated_to_ticket: boolean
+          id: string
+          messages: Json
+          ticket_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          escalated_to_ticket?: boolean
+          id?: string
+          messages?: Json
+          ticket_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          escalated_to_ticket?: boolean
+          id?: string
+          messages?: Json
+          ticket_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_conversations_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1320,24 +1475,119 @@ export type Database = {
           },
         ]
       }
+      invoice_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          sort_order: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          paid_at: string
+          payment_method: string
+          recorded_by: string | null
+          reference: string | null
+          stripe_payment_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string
+          recorded_by?: string | null
+          reference?: string | null
+          stripe_payment_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string
+          recorded_by?: string | null
+          reference?: string | null
+          stripe_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_sequences: {
         Row: {
           last_number: number
-          roaster_id: string
+          roaster_id: string | null
         }
         Insert: {
           last_number?: number
-          roaster_id: string
+          roaster_id?: string | null
         }
         Update: {
           last_number?: number
-          roaster_id?: string
+          roaster_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "invoice_sequences_roaster_id_fkey"
             columns: ["roaster_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "partner_roasters"
             referencedColumns: ["id"]
           },
@@ -1345,25 +1595,35 @@ export type Database = {
       }
       invoices: {
         Row: {
-          buyer_id: string
+          amount_due: number | null
+          amount_paid: number | null
+          business_id: string | null
+          buyer_id: string | null
           created_at: string | null
+          currency: string | null
+          customer_id: string | null
           discount_amount: number | null
           discount_code: string | null
           due_days: number | null
           id: string
           internal_notes: string | null
+          invoice_access_token: string | null
           invoice_number: string
+          issued_date: string | null
           line_items: Json
           notes: string | null
           offline_payment_method: string | null
           offline_payment_reference: string | null
+          order_ids: string[] | null
+          owner_type: string | null
           paid_at: string | null
           payment_due_date: string | null
           payment_method: string
           payment_status: string
           platform_fee_amount: number
           platform_fee_percent: number
-          roaster_id: string
+          reminder_sent_at: string | null
+          roaster_id: string | null
           sent_at: string | null
           status: string
           stripe_payment_intent_id: string | null
@@ -1377,25 +1637,35 @@ export type Database = {
           wholesale_access_id: string | null
         }
         Insert: {
-          buyer_id: string
+          amount_due?: number | null
+          amount_paid?: number | null
+          business_id?: string | null
+          buyer_id?: string | null
           created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
           discount_amount?: number | null
           discount_code?: string | null
           due_days?: number | null
           id?: string
           internal_notes?: string | null
+          invoice_access_token?: string | null
           invoice_number: string
+          issued_date?: string | null
           line_items?: Json
           notes?: string | null
           offline_payment_method?: string | null
           offline_payment_reference?: string | null
+          order_ids?: string[] | null
+          owner_type?: string | null
           paid_at?: string | null
           payment_due_date?: string | null
           payment_method?: string
           payment_status?: string
           platform_fee_amount?: number
           platform_fee_percent?: number
-          roaster_id: string
+          reminder_sent_at?: string | null
+          roaster_id?: string | null
           sent_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
@@ -1409,25 +1679,35 @@ export type Database = {
           wholesale_access_id?: string | null
         }
         Update: {
-          buyer_id?: string
+          amount_due?: number | null
+          amount_paid?: number | null
+          business_id?: string | null
+          buyer_id?: string | null
           created_at?: string | null
+          currency?: string | null
+          customer_id?: string | null
           discount_amount?: number | null
           discount_code?: string | null
           due_days?: number | null
           id?: string
           internal_notes?: string | null
+          invoice_access_token?: string | null
           invoice_number?: string
+          issued_date?: string | null
           line_items?: Json
           notes?: string | null
           offline_payment_method?: string | null
           offline_payment_reference?: string | null
+          order_ids?: string[] | null
+          owner_type?: string | null
           paid_at?: string | null
           payment_due_date?: string | null
           payment_method?: string
           payment_status?: string
           platform_fee_amount?: number
           platform_fee_percent?: number
-          roaster_id?: string
+          reminder_sent_at?: string | null
+          roaster_id?: string | null
           sent_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
@@ -1442,10 +1722,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoices_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
@@ -1464,6 +1758,123 @@ export type Database = {
           },
         ]
       }
+      kb_articles: {
+        Row: {
+          audience: string[]
+          category_id: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          excerpt: string
+          helpful_no: number
+          helpful_yes: number
+          id: string
+          is_active: boolean
+          is_featured: boolean
+          media: Json | null
+          slug: string
+          sort_order: number
+          tags: string[] | null
+          title: string
+          type: string
+          updated_at: string
+          video_url: string | null
+          view_count: number
+        }
+        Insert: {
+          audience?: string[]
+          category_id?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string
+          helpful_no?: number
+          helpful_yes?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          media?: Json | null
+          slug: string
+          sort_order?: number
+          tags?: string[] | null
+          title: string
+          type?: string
+          updated_at?: string
+          video_url?: string | null
+          view_count?: number
+        }
+        Update: {
+          audience?: string[]
+          category_id?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          excerpt?: string
+          helpful_no?: number
+          helpful_yes?: number
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          media?: Json | null
+          slug?: string
+          sort_order?: number
+          tags?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+          video_url?: string | null
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kb_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_articles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_categories: {
+        Row: {
+          audience: string[]
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          audience?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          audience?: string[]
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       labels: {
         Row: {
           canvas_json: Json | null
@@ -1471,6 +1882,7 @@ export type Database = {
           id: string
           name: string
           pdf_url: string | null
+          print_url: string | null
           thumbnail_url: string | null
           updated_at: string
           user_id: string
@@ -1481,6 +1893,7 @@ export type Database = {
           id?: string
           name?: string
           pdf_url?: string | null
+          print_url?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id: string
@@ -1491,6 +1904,7 @@ export type Database = {
           id?: string
           name?: string
           pdf_url?: string | null
+          print_url?: string | null
           thumbnail_url?: string | null
           updated_at?: string
           user_id?: string
@@ -1641,11 +2055,14 @@ export type Database = {
           bag_colour: string
           bag_size: string
           brand_name: string | null
+          cancellation_reason: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
           delivery_address: Json | null
           delivery_country: string | null
+          dispute_status: string | null
+          dispute_ticket_id: string | null
           fulfilment_type: string | null
           grind: string
           id: string
@@ -1659,9 +2076,14 @@ export type Database = {
           partner_rate_per_bag: number | null
           partner_roaster_id: string | null
           payment_status: string | null
+          payout_batch_id: string | null
+          payout_item_id: string | null
+          payout_status: string | null
           price_per_bag: number
           pricing_bracket_id: string | null
           quantity: number
+          refund_status: string | null
+          refund_total: number | null
           roast_profile: string
           roaster_id: string | null
           routed_at: string | null
@@ -1676,11 +2098,14 @@ export type Database = {
           bag_colour: string
           bag_size: string
           brand_name?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           delivery_address?: Json | null
           delivery_country?: string | null
+          dispute_status?: string | null
+          dispute_ticket_id?: string | null
           fulfilment_type?: string | null
           grind: string
           id?: string
@@ -1694,9 +2119,14 @@ export type Database = {
           partner_rate_per_bag?: number | null
           partner_roaster_id?: string | null
           payment_status?: string | null
+          payout_batch_id?: string | null
+          payout_item_id?: string | null
+          payout_status?: string | null
           price_per_bag: number
           pricing_bracket_id?: string | null
           quantity: number
+          refund_status?: string | null
+          refund_total?: number | null
           roast_profile: string
           roaster_id?: string | null
           routed_at?: string | null
@@ -1711,11 +2141,14 @@ export type Database = {
           bag_colour?: string
           bag_size?: string
           brand_name?: string | null
+          cancellation_reason?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           delivery_address?: Json | null
           delivery_country?: string | null
+          dispute_status?: string | null
+          dispute_ticket_id?: string | null
           fulfilment_type?: string | null
           grind?: string
           id?: string
@@ -1729,9 +2162,14 @@ export type Database = {
           partner_rate_per_bag?: number | null
           partner_roaster_id?: string | null
           payment_status?: string | null
+          payout_batch_id?: string | null
+          payout_item_id?: string | null
+          payout_status?: string | null
           price_per_bag?: number
           pricing_bracket_id?: string | null
           quantity?: number
+          refund_status?: string | null
+          refund_total?: number | null
           roast_profile?: string
           roaster_id?: string | null
           routed_at?: string | null
@@ -1742,6 +2180,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_dispute_ticket_id_fkey"
+            columns: ["dispute_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_label_id_fkey"
             columns: ["label_id"]
@@ -1754,6 +2199,20 @@ export type Database = {
             columns: ["partner_roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_payout_batch_id_fkey"
+            columns: ["payout_batch_id"]
+            isOneToOne: false
+            referencedRelation: "partner_payout_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_payout_item_id_fkey"
+            columns: ["payout_item_id"]
+            isOneToOne: false
+            referencedRelation: "partner_payout_items"
             referencedColumns: ["id"]
           },
           {
@@ -1839,6 +2298,145 @@ export type Database = {
           },
         ]
       }
+      partner_payout_batches: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          batch_number: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          partner_count: number
+          payment_method: string
+          period_end: string | null
+          period_start: string | null
+          status: string
+          total_amount: number
+          total_orders: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          partner_count?: number
+          payment_method?: string
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          total_amount?: number
+          total_orders?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_number?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          partner_count?: number
+          payment_method?: string
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          total_amount?: number
+          total_orders?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_payout_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_payout_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_payout_items: {
+        Row: {
+          amount: number
+          batch_id: string
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          order_id: string
+          paid_at: string | null
+          payment_method: string
+          roaster_id: string
+          status: string
+          stripe_transfer_id: string | null
+        }
+        Insert: {
+          amount: number
+          batch_id: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          paid_at?: string | null
+          payment_method?: string
+          roaster_id: string
+          status?: string
+          stripe_transfer_id?: string | null
+        }
+        Update: {
+          amount?: number
+          batch_id?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          paid_at?: string | null
+          payment_method?: string
+          roaster_id?: string
+          status?: string
+          stripe_transfer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_payout_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "partner_payout_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_payout_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_payout_items_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_rates: {
         Row: {
           bag_size: string
@@ -1910,6 +2508,7 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          ai_credits_topup_balance: number
           ai_generation_reset_at: string | null
           ai_generations_today: number
           auto_approve_wholesale: boolean | null
@@ -1920,8 +2519,9 @@ export type Database = {
           billing_email: string | null
           brand_about: string | null
           brand_accent_colour: string | null
+          brand_body_font: string | null
           brand_facebook: string | null
-          brand_font: string | null
+          brand_heading_font: string | null
           brand_hero_image_url: string | null
           brand_instagram: string | null
           brand_logo_url: string | null
@@ -1938,12 +2538,14 @@ export type Database = {
           created_at: string | null
           default_dispatch_time: string | null
           default_payment_terms: number | null
+          discount_note: string | null
           dispatch_cutoff_time: string | null
           dispatch_days: string[] | null
           email: string
           ghost_roaster_application_status: string | null
           ghost_roaster_applied_at: string | null
           ghost_roaster_approved_at: string | null
+          grace_period_expires_at: string | null
           id: string
           invoice_currency: string | null
           invoice_prefix: string | null
@@ -1951,11 +2553,19 @@ export type Database = {
           is_active: boolean | null
           is_ghost_roaster: boolean | null
           is_verified: boolean | null
+          label_fulfilment: string
           last_login_at: string | null
           late_payment_terms: string | null
+          marketing_billing_cycle: string | null
+          marketing_discount_percent: number
+          marketing_tier: string
           minimum_wholesale_order: number | null
+          monthly_ai_credits_reset_at: string | null
+          monthly_ai_credits_used: number
           monthly_email_reset_at: string | null
           monthly_emails_sent: number | null
+          monthly_wholesale_orders_count: number
+          monthly_wholesale_orders_reset_at: string | null
           notes: string | null
           password_hash: string
           payment_instructions: string | null
@@ -1966,6 +2576,9 @@ export type Database = {
           reminder_days_before_due: number | null
           retail_enabled: boolean | null
           roaster_slug: string | null
+          sales_billing_cycle: string | null
+          sales_discount_percent: number
+          sales_tier: string
           storefront_enabled: boolean | null
           storefront_seo_description: string | null
           storefront_seo_title: string | null
@@ -1974,16 +2587,33 @@ export type Database = {
           storefront_type: string | null
           strikes: number | null
           stripe_account_id: string | null
+          stripe_customer_id: string | null
+          stripe_marketing_subscription_id: string | null
+          stripe_sales_subscription_id: string | null
+          stripe_website_subscription_id: string | null
+          subscription_past_due_since: string | null
+          subscription_status: string | null
+          tier_changed_at: string | null
+          tier_override_by: string | null
+          tier_override_reason: string | null
           updated_at: string | null
           user_id: string | null
           vat_number: string | null
           vat_registered: boolean | null
           website: string | null
+          website_billing_cycle: string | null
+          website_custom_domain: string | null
+          website_discount_percent: number | null
+          website_domain_verified: boolean | null
+          website_enabled: boolean
+          website_subscription_active: boolean | null
+          website_template: string | null
           wholesale_enabled: boolean | null
         }
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          ai_credits_topup_balance?: number
           ai_generation_reset_at?: string | null
           ai_generations_today?: number
           auto_approve_wholesale?: boolean | null
@@ -1994,8 +2624,9 @@ export type Database = {
           billing_email?: string | null
           brand_about?: string | null
           brand_accent_colour?: string | null
+          brand_body_font?: string | null
           brand_facebook?: string | null
-          brand_font?: string | null
+          brand_heading_font?: string | null
           brand_hero_image_url?: string | null
           brand_instagram?: string | null
           brand_logo_url?: string | null
@@ -2012,12 +2643,14 @@ export type Database = {
           created_at?: string | null
           default_dispatch_time?: string | null
           default_payment_terms?: number | null
+          discount_note?: string | null
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
           email: string
           ghost_roaster_application_status?: string | null
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null
+          grace_period_expires_at?: string | null
           id?: string
           invoice_currency?: string | null
           invoice_prefix?: string | null
@@ -2025,11 +2658,19 @@ export type Database = {
           is_active?: boolean | null
           is_ghost_roaster?: boolean | null
           is_verified?: boolean | null
+          label_fulfilment?: string
           last_login_at?: string | null
           late_payment_terms?: string | null
+          marketing_billing_cycle?: string | null
+          marketing_discount_percent?: number
+          marketing_tier?: string
           minimum_wholesale_order?: number | null
+          monthly_ai_credits_reset_at?: string | null
+          monthly_ai_credits_used?: number
           monthly_email_reset_at?: string | null
           monthly_emails_sent?: number | null
+          monthly_wholesale_orders_count?: number
+          monthly_wholesale_orders_reset_at?: string | null
           notes?: string | null
           password_hash: string
           payment_instructions?: string | null
@@ -2040,6 +2681,9 @@ export type Database = {
           reminder_days_before_due?: number | null
           retail_enabled?: boolean | null
           roaster_slug?: string | null
+          sales_billing_cycle?: string | null
+          sales_discount_percent?: number
+          sales_tier?: string
           storefront_enabled?: boolean | null
           storefront_seo_description?: string | null
           storefront_seo_title?: string | null
@@ -2048,16 +2692,33 @@ export type Database = {
           storefront_type?: string | null
           strikes?: number | null
           stripe_account_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_marketing_subscription_id?: string | null
+          stripe_sales_subscription_id?: string | null
+          stripe_website_subscription_id?: string | null
+          subscription_past_due_since?: string | null
+          subscription_status?: string | null
+          tier_changed_at?: string | null
+          tier_override_by?: string | null
+          tier_override_reason?: string | null
           updated_at?: string | null
           user_id?: string | null
           vat_number?: string | null
           vat_registered?: boolean | null
           website?: string | null
+          website_billing_cycle?: string | null
+          website_custom_domain?: string | null
+          website_discount_percent?: number | null
+          website_domain_verified?: boolean | null
+          website_enabled?: boolean
+          website_subscription_active?: boolean | null
+          website_template?: string | null
           wholesale_enabled?: boolean | null
         }
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          ai_credits_topup_balance?: number
           ai_generation_reset_at?: string | null
           ai_generations_today?: number
           auto_approve_wholesale?: boolean | null
@@ -2068,8 +2729,9 @@ export type Database = {
           billing_email?: string | null
           brand_about?: string | null
           brand_accent_colour?: string | null
+          brand_body_font?: string | null
           brand_facebook?: string | null
-          brand_font?: string | null
+          brand_heading_font?: string | null
           brand_hero_image_url?: string | null
           brand_instagram?: string | null
           brand_logo_url?: string | null
@@ -2086,12 +2748,14 @@ export type Database = {
           created_at?: string | null
           default_dispatch_time?: string | null
           default_payment_terms?: number | null
+          discount_note?: string | null
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
           email?: string
           ghost_roaster_application_status?: string | null
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null
+          grace_period_expires_at?: string | null
           id?: string
           invoice_currency?: string | null
           invoice_prefix?: string | null
@@ -2099,11 +2763,19 @@ export type Database = {
           is_active?: boolean | null
           is_ghost_roaster?: boolean | null
           is_verified?: boolean | null
+          label_fulfilment?: string
           last_login_at?: string | null
           late_payment_terms?: string | null
+          marketing_billing_cycle?: string | null
+          marketing_discount_percent?: number
+          marketing_tier?: string
           minimum_wholesale_order?: number | null
+          monthly_ai_credits_reset_at?: string | null
+          monthly_ai_credits_used?: number
           monthly_email_reset_at?: string | null
           monthly_emails_sent?: number | null
+          monthly_wholesale_orders_count?: number
+          monthly_wholesale_orders_reset_at?: string | null
           notes?: string | null
           password_hash?: string
           payment_instructions?: string | null
@@ -2114,6 +2786,9 @@ export type Database = {
           reminder_days_before_due?: number | null
           retail_enabled?: boolean | null
           roaster_slug?: string | null
+          sales_billing_cycle?: string | null
+          sales_discount_percent?: number
+          sales_tier?: string
           storefront_enabled?: boolean | null
           storefront_seo_description?: string | null
           storefront_seo_title?: string | null
@@ -2122,14 +2797,38 @@ export type Database = {
           storefront_type?: string | null
           strikes?: number | null
           stripe_account_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_marketing_subscription_id?: string | null
+          stripe_sales_subscription_id?: string | null
+          stripe_website_subscription_id?: string | null
+          subscription_past_due_since?: string | null
+          subscription_status?: string | null
+          tier_changed_at?: string | null
+          tier_override_by?: string | null
+          tier_override_reason?: string | null
           updated_at?: string | null
           user_id?: string | null
           vat_number?: string | null
           vat_registered?: boolean | null
           website?: string | null
+          website_billing_cycle?: string | null
+          website_custom_domain?: string | null
+          website_discount_percent?: number | null
+          website_domain_verified?: boolean | null
+          website_enabled?: boolean
+          website_subscription_active?: boolean | null
+          website_template?: string | null
           wholesale_enabled?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "partner_roasters_tier_override_by_fkey"
+            columns: ["tier_override_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_territories: {
         Row: {
@@ -2251,41 +2950,50 @@ export type Database = {
         Row: {
           collection_month: string | null
           created_at: string | null
+          currency: string | null
           fee_amount: number
-          fee_percent: number
+          fee_percent: number | null
           gross_amount: number
           id: string
+          net_to_roaster: number | null
           order_type: string
           reference_id: string | null
-          roaster_id: string
+          roaster_id: string | null
           status: string
           stripe_debit_id: string | null
+          stripe_payment_id: string | null
         }
         Insert: {
           collection_month?: string | null
           created_at?: string | null
+          currency?: string | null
           fee_amount: number
-          fee_percent: number
+          fee_percent?: number | null
           gross_amount: number
           id?: string
+          net_to_roaster?: number | null
           order_type: string
           reference_id?: string | null
-          roaster_id: string
+          roaster_id?: string | null
           status?: string
           stripe_debit_id?: string | null
+          stripe_payment_id?: string | null
         }
         Update: {
           collection_month?: string | null
           created_at?: string | null
+          currency?: string | null
           fee_amount?: number
-          fee_percent?: number
+          fee_percent?: number | null
           gross_amount?: number
           id?: string
+          net_to_roaster?: number | null
           order_type?: string
           reference_id?: string | null
-          roaster_id?: string
+          roaster_id?: string | null
           status?: string
           stripe_debit_id?: string | null
+          stripe_payment_id?: string | null
         }
         Relationships: [
           {
@@ -2296,6 +3004,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_settings: {
+        Row: {
+          auto_reminder: boolean
+          auto_send_invoices: boolean
+          bank_account_number: string | null
+          bank_iban: string | null
+          bank_name: string | null
+          bank_sort_code: string | null
+          brand_accent_colour: string | null
+          brand_body_font: string | null
+          brand_heading_font: string | null
+          brand_logo_url: string | null
+          brand_primary_colour: string | null
+          brand_tagline: string | null
+          created_at: string
+          default_currency: string
+          default_payment_terms: string
+          id: string
+          invoice_next_number: number
+          invoice_notes_default: string | null
+          invoice_prefix: string
+          late_payment_terms: string | null
+          payment_instructions: string | null
+          reminder_days_before_due: number
+          updated_at: string
+        }
+        Insert: {
+          auto_reminder?: boolean
+          auto_send_invoices?: boolean
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_sort_code?: string | null
+          brand_accent_colour?: string | null
+          brand_body_font?: string | null
+          brand_heading_font?: string | null
+          brand_logo_url?: string | null
+          brand_primary_colour?: string | null
+          brand_tagline?: string | null
+          created_at?: string
+          default_currency?: string
+          default_payment_terms?: string
+          id?: string
+          invoice_next_number?: number
+          invoice_notes_default?: string | null
+          invoice_prefix?: string
+          late_payment_terms?: string | null
+          payment_instructions?: string | null
+          reminder_days_before_due?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_reminder?: boolean
+          auto_send_invoices?: boolean
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_sort_code?: string | null
+          brand_accent_colour?: string | null
+          brand_body_font?: string | null
+          brand_heading_font?: string | null
+          brand_logo_url?: string | null
+          brand_primary_colour?: string | null
+          brand_tagline?: string | null
+          created_at?: string
+          default_currency?: string
+          default_payment_terms?: string
+          id?: string
+          invoice_next_number?: number
+          invoice_notes_default?: string | null
+          invoice_prefix?: string
+          late_payment_terms?: string | null
+          payment_instructions?: string | null
+          reminder_days_before_due?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       pricing_change_history: {
         Row: {
@@ -2486,6 +3272,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      refunds: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string
+          failed_reason: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          order_type: string
+          reason: string
+          reason_category: string | null
+          refund_type: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
+        }
+        Insert: {
+          amount: number
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          failed_reason?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          order_type: string
+          reason: string
+          reason_category?: string | null
+          refund_type: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string
+          failed_reason?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          order_type?: string
+          reason?: string
+          reason_category?: string | null
+          refund_type?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+        }
+        Relationships: []
       }
       roast_profiles: {
         Row: {
@@ -2721,6 +3564,7 @@ export type Database = {
           dispatch_deadline: string | null
           dispatched_on_time: boolean | null
           id: string
+          label_print_status: string | null
           notes: string | null
           order_id: string
           roasted_at: string | null
@@ -2738,6 +3582,7 @@ export type Database = {
           dispatch_deadline?: string | null
           dispatched_on_time?: boolean | null
           id?: string
+          label_print_status?: string | null
           notes?: string | null
           order_id: string
           roasted_at?: string | null
@@ -2755,6 +3600,7 @@ export type Database = {
           dispatch_deadline?: string | null
           dispatched_on_time?: boolean | null
           id?: string
+          label_print_status?: string | null
           notes?: string | null
           order_id?: string
           roasted_at?: string | null
@@ -3109,6 +3955,60 @@ export type Database = {
           },
         ]
       }
+      subscription_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          new_tier: string | null
+          previous_tier: string | null
+          product_type: string | null
+          roaster_id: string
+          stripe_event_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          new_tier?: string | null
+          previous_tier?: string | null
+          product_type?: string | null
+          roaster_id: string
+          stripe_event_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          new_tier?: string | null
+          previous_tier?: string | null
+          product_type?: string | null
+          roaster_id?: string
+          stripe_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supply_orders: {
         Row: {
           created_at: string | null
@@ -3140,6 +4040,184 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "supply_orders_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          ticket_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_history_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_ticket_messages: {
+        Row: {
+          attachments: Json | null
+          created_at: string
+          id: string
+          is_internal: boolean
+          message: string
+          sender_id: string
+          sender_type: string
+          ticket_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          message: string
+          sender_id: string
+          sender_type?: string
+          ticket_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          message?: string
+          sender_id?: string
+          sender_type?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_ticket_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          chatbot_conversation: Json | null
+          closed_at: string | null
+          created_at: string
+          created_by: string
+          created_by_type: string
+          description: string
+          id: string
+          order_id: string | null
+          priority: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          roaster_id: string | null
+          status: string
+          subject: string
+          ticket_number: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          chatbot_conversation?: Json | null
+          closed_at?: string | null
+          created_at?: string
+          created_by: string
+          created_by_type?: string
+          description?: string
+          id?: string
+          order_id?: string | null
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          roaster_id?: string | null
+          status?: string
+          subject: string
+          ticket_number?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          chatbot_conversation?: Json | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_type?: string
+          description?: string
+          id?: string
+          order_id?: string | null
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          roaster_id?: string | null
+          status?: string
+          subject?: string
+          ticket_number?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_roaster_id_fkey"
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
@@ -3360,6 +4438,121 @@ export type Database = {
         }
         Relationships: []
       }
+      website_pages: {
+        Row: {
+          content: Json
+          created_at: string
+          footer_sort_order: number
+          id: string
+          is_nav_button: boolean
+          is_published: boolean
+          meta_description: string | null
+          meta_title: string | null
+          nav_sort_order: number
+          show_in_footer: boolean
+          show_in_nav: boolean
+          slug: string
+          sort_order: number
+          title: string
+          updated_at: string
+          website_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          footer_sort_order?: number
+          id?: string
+          is_nav_button?: boolean
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          nav_sort_order?: number
+          show_in_footer?: boolean
+          show_in_nav?: boolean
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          website_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          footer_sort_order?: number
+          id?: string
+          is_nav_button?: boolean
+          is_published?: boolean
+          meta_description?: string | null
+          meta_title?: string | null
+          nav_sort_order?: number
+          show_in_footer?: boolean
+          show_in_nav?: boolean
+          slug?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          website_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_pages_website_id_fkey"
+            columns: ["website_id"]
+            isOneToOne: false
+            referencedRelation: "websites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      websites: {
+        Row: {
+          created_at: string
+          design_settings: Json
+          domain: string | null
+          footer_text: string | null
+          id: string
+          is_published: boolean
+          name: string
+          roaster_id: string
+          subdomain: string | null
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          design_settings?: Json
+          domain?: string | null
+          footer_text?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          roaster_id: string
+          subdomain?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          design_settings?: Json
+          domain?: string | null
+          footer_text?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          roaster_id?: string
+          subdomain?: string | null
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "websites_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: true
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wholesale_access: {
         Row: {
           approved_at: string | null
@@ -3460,69 +4653,99 @@ export type Database = {
       }
       wholesale_orders: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          confirmed_at: string | null
           created_at: string | null
           customer_business: string | null
           customer_email: string
           customer_name: string
+          delivered_at: string | null
           delivery_address: Json
           discount_amount: number
           discount_code: string | null
           discount_code_id: string | null
+          dispatched_at: string | null
           id: string
           invoice_id: string | null
           items: Json
+          order_channel: string | null
           payment_method: string | null
           payment_terms: string | null
           platform_fee: number
+          refund_status: string | null
+          refund_total: number | null
           roaster_id: string
           roaster_payout: number
           status: string | null
           stripe_payment_id: string | null
           subtotal: number
+          tracking_carrier: string | null
+          tracking_number: string | null
           user_id: string | null
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string | null
           customer_business?: string | null
           customer_email: string
           customer_name: string
+          delivered_at?: string | null
           delivery_address: Json
           discount_amount?: number
           discount_code?: string | null
           discount_code_id?: string | null
+          dispatched_at?: string | null
           id?: string
           invoice_id?: string | null
           items: Json
+          order_channel?: string | null
           payment_method?: string | null
           payment_terms?: string | null
           platform_fee: number
+          refund_status?: string | null
+          refund_total?: number | null
           roaster_id: string
           roaster_payout: number
           status?: string | null
           stripe_payment_id?: string | null
           subtotal: number
+          tracking_carrier?: string | null
+          tracking_number?: string | null
           user_id?: string | null
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          confirmed_at?: string | null
           created_at?: string | null
           customer_business?: string | null
           customer_email?: string
           customer_name?: string
+          delivered_at?: string | null
           delivery_address?: Json
           discount_amount?: number
           discount_code?: string | null
           discount_code_id?: string | null
+          dispatched_at?: string | null
           id?: string
           invoice_id?: string | null
           items?: Json
+          order_channel?: string | null
           payment_method?: string | null
           payment_terms?: string | null
           platform_fee?: number
+          refund_status?: string | null
+          refund_total?: number | null
           roaster_id?: string
           roaster_payout?: number
           status?: string | null
           stripe_payment_id?: string | null
           subtotal?: number
+          tracking_carrier?: string | null
+          tracking_number?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -3696,6 +4919,10 @@ export type Database = {
       }
     }
     Functions: {
+      decrement_ai_topup_balance: {
+        Args: { p_count?: number; p_roaster_id: string }
+        Returns: undefined
+      }
       find_or_create_person: {
         Args: {
           p_email?: string
@@ -3706,6 +4933,7 @@ export type Database = {
         Returns: string
       }
       generate_order_number: { Args: never; Returns: string }
+      generate_ticket_number: { Args: never; Returns: string }
       get_partner_for_order: {
         Args: { p_country_code: string; p_region?: string }
         Returns: {
@@ -3717,6 +4945,14 @@ export type Database = {
       get_partner_rate: {
         Args: { p_bag_size: string; p_quantity: number; p_roaster_id: string }
         Returns: number
+      }
+      increment_monthly_ai_credits: {
+        Args: { p_count?: number; p_roaster_id: string }
+        Returns: undefined
+      }
+      increment_monthly_wholesale_orders: {
+        Args: { p_count?: number; p_roaster_id: string }
+        Returns: undefined
       }
     }
     Enums: {

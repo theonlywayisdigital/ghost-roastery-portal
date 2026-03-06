@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { createAuthServerClient, createServerClient } from "@/lib/supabase";
+import { createAuthServerClient } from "@/lib/supabase";
 
 export async function GET() {
   const user = await getCurrentUser();

@@ -51,7 +51,7 @@ export function EmbedShop({
       : `/s/${roaster.slug}`;
 
   function handleBuyNow(productId: string) {
-    window.open(`${storefrontBase}#product-${productId}`, "_blank");
+    window.location.href = `${storefrontBase}/shop/product/${productId}?embedded=true`;
   }
 
   if (products.length === 0) {
@@ -157,9 +157,7 @@ export function EmbedShop({
 
       <div className="mt-4 text-center">
         <a
-          href={storefrontBase}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`${storefrontBase}/shop?embedded=true`}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
           {`Powered by Ghost Roastery`}

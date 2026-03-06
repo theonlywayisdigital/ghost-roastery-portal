@@ -13,6 +13,8 @@ function SuccessContent() {
   const invoiceId = searchParams.get("invoice_id");
   const invoiceNumber = searchParams.get("invoice_number");
   const accessToken = searchParams.get("access_token");
+  const embedded = searchParams.get("embedded") === "true";
+  const qs = embedded ? "?embedded=true" : "";
 
   const isInvoiceOrder = !!invoiceId && !sessionId;
 
@@ -100,7 +102,7 @@ function SuccessContent() {
             Don&apos;t worry — our team will follow up shortly.
           </p>
           <Link
-            href={`/s/${slug}`}
+            href={`/s/${slug}${qs}`}
             className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors"
           >
             Back to Store
@@ -168,7 +170,7 @@ function SuccessContent() {
               </Link>
             )}
             <Link
-              href={`/s/${slug}`}
+              href={`/s/${slug}${qs}`}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors"
             >
               Back to Store

@@ -143,27 +143,29 @@ export function BrandingEditor({
             className="hidden"
           />
           {logoUrl ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoUrl}
                 alt="Logo"
-                className="w-16 h-16 object-contain rounded-lg border border-slate-200 bg-white"
+                className="max-h-28 max-w-[280px] w-auto h-auto object-contain rounded-lg border border-slate-200 bg-white p-2"
               />
-              <button
-                type="button"
-                onClick={() => logoInputRef.current?.click()}
-                className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-              >
-                Replace
-              </button>
-              <button
-                type="button"
-                onClick={() => setLogoUrl("")}
-                className="text-sm text-slate-400 hover:text-slate-600"
-              >
-                Remove
-              </button>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl("")}
+                  className="text-sm text-slate-400 hover:text-slate-600"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           ) : (
             <button

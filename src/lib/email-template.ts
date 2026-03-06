@@ -41,7 +41,6 @@ export function wrapEmailWithBranding(options: {
   const { body, businessName, branding } = options;
 
   const primary = branding?.primaryColour || DEFAULT_BRANDING.primaryColour;
-  const accent = branding?.accentColour || DEFAULT_BRANDING.accentColour;
   const headingFamily = resolveFontFamily(branding?.headingFont || DEFAULT_BRANDING.headingFont);
   const bodyFamily = resolveFontFamily(branding?.bodyFont || DEFAULT_BRANDING.bodyFont);
   const logoUrl = branding?.logoUrl || null;

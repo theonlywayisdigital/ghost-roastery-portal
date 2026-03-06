@@ -224,7 +224,7 @@ export async function POST(
             `;
 
             await resend.emails.send({
-              from: `Ghost Roastery Portal <noreply@${FROM_DOMAIN}>`,
+              from: `Ghost Roastery Platform <noreply@${FROM_DOMAIN}>`,
               to: roasterEmail,
               subject: `New submission: ${form.name}`,
               html: wrapEmailWithBranding({ body: bodyHtml, businessName: roaster.business_name, branding }),

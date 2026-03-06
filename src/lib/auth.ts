@@ -34,6 +34,7 @@ export interface PortalUser {
     storefront_logo_url: string | null;
     stripe_account_id: string | null;
     stripe_onboarding_complete: boolean;
+    website_subscription_active: boolean;
     [key: string]: unknown;
   } | null;
 }

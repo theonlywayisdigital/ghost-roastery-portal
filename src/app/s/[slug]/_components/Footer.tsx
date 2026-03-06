@@ -6,7 +6,9 @@ import { useStorefront } from "./StorefrontProvider";
 import { SocialLinks } from "./SocialIcons";
 
 export function Footer() {
-  const { roaster, slug, primary, showWholesale } = useStorefront();
+  const { roaster, slug, primary, showWholesale, embedded } = useStorefront();
+
+  if (embedded) return null;
 
   return (
     <footer style={{ backgroundColor: primary }} className="text-white">
@@ -55,16 +57,12 @@ export function Footer() {
               </li>
               {showWholesale && (
                 <li>
-                  <button
-                    onClick={() =>
-                      document
-                        .getElementById("trade-apply")
-                        ?.scrollIntoView({ behavior: "smooth" })
-                    }
+                  <a
+                    href="/wholesale"
                     className="text-sm text-white/60 hover:text-white transition-colors"
                   >
                     Trade Account
-                  </button>
+                  </a>
                 </li>
               )}
             </ul>

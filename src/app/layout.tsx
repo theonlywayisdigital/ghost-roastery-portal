@@ -9,7 +9,7 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Ghost Roastery — Partner Portal",
+  title: "Ghost Roastery Platform",
   description:
     "Manage your wholesale coffee business and Ghost Roaster orders.",
 };

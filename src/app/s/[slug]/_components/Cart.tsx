@@ -16,12 +16,12 @@ export function Cart() {
     removeItem,
     subtotal,
   } = useCart();
-  const { slug, accent, accentText } = useStorefront();
+  const { slug, accent, accentText, embedded } = useStorefront();
   const router = useRouter();
 
   function handleCheckout() {
     closeCart();
-    router.push(`/s/${slug}/checkout`);
+    router.push(`/s/${slug}/checkout${embedded ? "?embedded=true" : ""}`);
   }
 
   return (
@@ -93,7 +93,7 @@ export function Cart() {
                       Your cart is empty
                     </p>
                     <Link
-                      href={`/s/${slug}/shop`}
+                      href={`/s/${slug}/shop${embedded ? "?embedded=true" : ""}`}
                       onClick={closeCart}
                       className="text-sm font-medium mt-2 hover:opacity-80 transition-opacity"
                       style={{ color: accent }}

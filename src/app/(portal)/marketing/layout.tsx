@@ -19,7 +19,10 @@ export default async function MarketingLayout({
         </p>
       </div>
 
-      <MarketingNav />
+      <MarketingNav
+        salesTier={roaster.sales_tier as string | undefined}
+        marketingTier={roaster.marketing_tier as string | undefined}
+      />
 
       {children}
     </div>

@@ -3,6 +3,7 @@ import { getCurrentUser, getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { fireAutomationTrigger } from "@/lib/automation-triggers";
 import { findOrCreatePerson, resolvePrimaryContactType } from "@/lib/people";
+import { checkLimit } from "@/lib/feature-gates";
 
 export async function GET(request: NextRequest) {
   const roaster = await getCurrentRoaster();
@@ -118,6 +119,15 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "At least a name or email is required" },
         { status: 400 }
+      );
+    }
+
+    // Check CRM contact limit
+    const limitCheck = await checkLimit(roaster.id as string, "crmContacts", 1);
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        { error: limitCheck.message, upgrade_required: true },
+        { status: 403 }
       );
     }
 

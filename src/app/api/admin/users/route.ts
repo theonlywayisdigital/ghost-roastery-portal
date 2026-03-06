@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       .map((p) => p.people_id)
       .filter(Boolean) as string[];
 
-    let peopleMap = new Map<string, { id: string; first_name: string; last_name: string; email: string | null }>();
+    const peopleMap = new Map<string, { id: string; first_name: string; last_name: string; email: string | null }>();
     if (peopleIds.length > 0) {
       const { data: people } = await supabase
         .from("people")
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       .map((p) => p.associated_roaster_id)
       .filter(Boolean) as string[];
 
-    let roasterMap = new Map<string, string>();
+    const roasterMap = new Map<string, string>();
     if (roasterIds.length > 0) {
       const uniqueRoasterIds = Array.from(new Set(roasterIds));
       const { data: roasters } = await supabase

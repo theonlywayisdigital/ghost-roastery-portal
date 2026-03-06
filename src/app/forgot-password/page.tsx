@@ -11,7 +11,7 @@ export default function ForgotPasswordPage() {
           <div className="flex justify-center mb-4">
             <Logo height={150} className="h-[150px] w-auto" />
           </div>
-          <p className="text-slate-500 mt-1">Wholesale and Partner Portal</p>
+          <p className="text-slate-500 mt-1">Sell, market &amp; manage &mdash; built for roasters</p>
         </div>
 
         {/* Form */}

@@ -37,7 +37,6 @@ interface InvoiceEditorProps {
 }
 
 export function InvoiceEditor({
-  ownerType,
   backHref,
   successHref,
   initialData,
@@ -48,8 +47,8 @@ export function InvoiceEditor({
   const [customerSearch, setCustomerSearch] = useState(
     initialData?.customerName || initialData?.customerEmail || ""
   );
-  const [customerId, setCustomerId] = useState<string | null>(null);
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [customerId] = useState<string | null>(null);
+  const [businessId] = useState<string | null>(null);
 
   // Line items
   const [lineItems, setLineItems] = useState<LineItem[]>(

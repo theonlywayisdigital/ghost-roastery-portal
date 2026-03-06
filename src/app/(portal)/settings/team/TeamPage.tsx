@@ -17,6 +17,8 @@ import {
   Mail,
 } from "lucide-react";
 import { SettingsHeader } from "@/components/SettingsHeader";
+import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
+import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 
 interface TeamMember {
   id: string;
@@ -51,6 +53,8 @@ export function TeamPage({ currentUserId }: { currentUserId: string }) {
 
   // Action menu
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const banner = useUpgradeBanner("teamMembers");
 
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<{
@@ -210,6 +214,15 @@ export function TeamPage({ currentUserId }: { currentUserId: string }) {
       />
 
       <div className="space-y-6">
+        {banner.show && (
+          <UpgradeBanner
+            type={banner.type}
+            message={banner.message}
+            upgradeTier={banner.upgradeTier}
+            productType={banner.productType}
+          />
+        )}
+
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />

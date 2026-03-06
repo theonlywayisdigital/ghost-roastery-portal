@@ -6,6 +6,7 @@ import {
   generateInvoiceNumber,
   generateAccessToken,
 } from "@/lib/invoice-utils";
+import { checkFeature } from "@/lib/feature-gates";
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
@@ -22,6 +23,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Check invoices feature gate
+    if (owner.roaster_id) {
+      const featureCheck = await checkFeature(owner.roaster_id, "invoices");
+      if (!featureCheck.allowed) {
+        return NextResponse.json(
+          { error: featureCheck.message, upgrade_required: true },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await req.json();
     const {
       customer_id,

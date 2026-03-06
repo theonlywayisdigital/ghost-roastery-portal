@@ -1,4 +1,4 @@
-import type { SocialConnection, SocialPost, SocialPlatform } from "@/types/social";
+import type { SocialConnection, SocialPost } from "@/types/social";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const META_APP_ID = process.env.META_APP_ID;
@@ -300,7 +300,6 @@ export async function getMetaPostMetrics(
   connection: SocialConnection,
   platformPostId: string,
   platform: "facebook" | "instagram",
-  _supabase: SupabaseClient
 ): Promise<{ impressions: number; reach: number; likes: number; comments: number; shares: number }> {
   assertConfigured();
   const token = connection.access_token;

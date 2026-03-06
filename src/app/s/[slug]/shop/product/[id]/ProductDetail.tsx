@@ -18,7 +18,8 @@ export function ProductDetail({
   product: Product;
   relatedProducts: Product[];
 }) {
-  const { slug, primary, accent, accentText } = useStorefront();
+  const { slug, primary, accent, accentText, embedded } = useStorefront();
+  const qs = embedded ? "?embedded=true" : "";
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
 
@@ -51,20 +52,20 @@ export function ProductDetail({
       <Cart />
 
       {/* Spacer for fixed header */}
-      <div className="h-16 md:h-20" />
+      {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-slate-400 mb-8">
           <Link
-            href={`/s/${slug}`}
+            href={`/s/${slug}${qs}`}
             className="hover:text-slate-600 transition-colors"
           >
             Home
           </Link>
           <span>/</span>
           <Link
-            href={`/s/${slug}/shop`}
+            href={`/s/${slug}/shop${qs}`}
             className="hover:text-slate-600 transition-colors"
           >
             Shop

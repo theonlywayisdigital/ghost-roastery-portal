@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           const gMetrics = await getGooglePostMetrics(connection, platformPostId, supabase);
           metrics = { impressions: gMetrics.impressions, clicks: gMetrics.clicks };
         } else if ((platform === "facebook" || platform === "instagram") && isMetaConfigured()) {
-          metrics = await getMetaPostMetrics(connection, platformPostId, platform, supabase);
+          metrics = await getMetaPostMetrics(connection, platformPostId, platform);
         } else {
           continue;
         }

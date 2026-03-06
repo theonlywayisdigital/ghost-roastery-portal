@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
-import type { CalendarItem, CalendarChannel } from "@/types/marketing";
+import type { CalendarItem } from "@/types/marketing";
+import { checkFeature } from "@/lib/feature-gates";
 
 export async function GET(request: NextRequest) {
   const owner = await getMarketingOwner(request);
   if (!owner) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Check content calendar feature gate
+  if (owner.owner_id) {
+    const featureCheck = await checkFeature(owner.owner_id, "contentCalendar");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        { error: featureCheck.message, upgrade_required: true },
+        { status: 403 }
+      );
+    }
   }
 
   const { searchParams } = new URL(request.url);

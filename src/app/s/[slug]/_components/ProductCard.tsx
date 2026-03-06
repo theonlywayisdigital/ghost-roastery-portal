@@ -8,7 +8,7 @@ import { useCart } from "./CartProvider";
 import type { Product } from "./types";
 
 export function ProductCard({ product }: { product: Product }) {
-  const { slug, accent, accentText, retailEnabled } = useStorefront();
+  const { slug, accent, accentText, retailEnabled, embedded } = useStorefront();
   const { addItem } = useCart();
 
   const displayPrice = product.retail_price ?? product.price;
@@ -47,7 +47,7 @@ export function ProductCard({ product }: { product: Product }) {
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
     >
       <Link
-        href={`/s/${slug}/shop/product/${product.id}`}
+        href={`/s/${slug}/shop/product/${product.id}${embedded ? "?embedded=true" : ""}`}
         className="block bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow"
       >
         {/* Image */}

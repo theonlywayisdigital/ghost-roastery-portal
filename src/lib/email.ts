@@ -14,7 +14,7 @@ export async function sendWelcomeEmail(
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Welcome to Ghost Roastery</h1>
-    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale and Partner Portal</p>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Sell, market &amp; manage &mdash; built for roasters</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Hi ${contactName},
@@ -202,7 +202,7 @@ export async function sendPasswordResetEmail(
   // Password reset always uses Ghost Roastery branding (platform-level)
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Reset Your Password</h1>
-    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ghost Roastery Partner Portal</p>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Sell, market &amp; manage &mdash; built for roasters</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Hi ${contactName},

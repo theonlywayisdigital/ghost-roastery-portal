@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import Link from "next/link";
+import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
+import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 
 interface Product {
   id: string;
@@ -19,6 +21,7 @@ interface Product {
 export function ProductsTable({ products: initial }: { products: Product[] }) {
   const router = useRouter();
   const [products, setProducts] = useState(initial);
+  const banner = useUpgradeBanner("products");
 
   async function toggleActive(product: Product) {
     const newValue = !product.is_active;
@@ -73,6 +76,17 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
           Add Product
         </Link>
       </div>
+
+      {banner.show && (
+        <div className="mb-6">
+          <UpgradeBanner
+            type={banner.type}
+            message={banner.message}
+            upgradeTier={banner.upgradeTier}
+            productType={banner.productType}
+          />
+        </div>
+      )}
 
       {products.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">

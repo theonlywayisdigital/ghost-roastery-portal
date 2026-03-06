@@ -1,7 +1,7 @@
-# Ghost Roastery — Partner Portal
+# Ghost Roastery Platform
 
 ## Overview
-Partner portal for Ghost Roastery. Separate Next.js 14 app sharing the same Supabase database as the main ghostroasting.co.uk site. Serves both roasters (B2B) and customers (B2C).
+Partner platform for Ghost Roastery. Separate Next.js 14 app sharing the same Supabase database as the main ghostroasting.co.uk site. Serves both roasters (B2B) and customers (B2C).
 
 ## Tech Stack
 - Next.js 14 (App Router)

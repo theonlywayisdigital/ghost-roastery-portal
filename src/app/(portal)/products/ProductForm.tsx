@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, X, ImageIcon } from "lucide-react";
+import { Loader2, ArrowLeft, X, ImageIcon } from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 

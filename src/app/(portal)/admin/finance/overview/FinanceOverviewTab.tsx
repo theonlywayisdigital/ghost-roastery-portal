@@ -9,7 +9,7 @@ import {
   Loader2,
   Info,
   RotateCcw,
-} from "lucide-react";
+} from "@/components/icons";
 import type { FinanceOverview, LedgerEntry } from "@/types/finance";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 

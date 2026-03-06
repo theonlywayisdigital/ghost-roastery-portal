@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Facebook, Instagram } from "lucide-react";
+import { Building2, Facebook, Instagram } from "@/components/icons";
 import type { SocialPlatform } from "@/types/social";
 
 const PLATFORM_CONFIG: Record<SocialPlatform, { label: string; icon: typeof Building2; color: string; bg: string }> = {

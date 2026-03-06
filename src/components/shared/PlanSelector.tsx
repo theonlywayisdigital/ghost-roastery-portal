@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Loader2 } from "lucide-react";
+import { Check, X, Loader2 } from "@/components/icons";
 import {
   type TierLevel,
   type ProductType,

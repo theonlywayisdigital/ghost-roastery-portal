@@ -27,7 +27,7 @@ import {
   Code,
   Link2,
   Copy,
-} from "lucide-react";
+} from "@/components/icons";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface FormField {

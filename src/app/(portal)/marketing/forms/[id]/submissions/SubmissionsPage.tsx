@@ -24,7 +24,7 @@ import {
   Globe,
   Code,
   Minus,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ─── Types ───────────────────────────────────────────────────
 

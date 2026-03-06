@@ -15,7 +15,7 @@ import {
   ChevronUp,
   Package,
   History,
-} from "lucide-react";
+} from "@/components/icons";
 import type {
   SupportTicket,
   TicketMessage,

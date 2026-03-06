@@ -25,7 +25,7 @@ import {
   X,
   Pencil,
   Sparkles,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Automation, AutomationWithSteps, TriggerType } from "@/types/marketing";
 
 // ─── Template icon + color map ───────────────────────────────────────

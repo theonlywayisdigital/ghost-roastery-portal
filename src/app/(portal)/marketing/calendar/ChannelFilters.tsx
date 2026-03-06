@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, Share2, Zap, Ticket } from "lucide-react";
+import { Send, Share2, Zap, Ticket } from "@/components/icons";
 import type { CalendarChannel } from "@/types/marketing";
 
 const CHANNELS: {

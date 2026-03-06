@@ -10,7 +10,7 @@ import {
   Trash2,
   Save,
   Send,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface LineItem {
   description: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Send, Share2, Zap } from "lucide-react";
+import { Send, Share2, Zap } from "@/components/icons";
 
 const OPTIONS = [
   {

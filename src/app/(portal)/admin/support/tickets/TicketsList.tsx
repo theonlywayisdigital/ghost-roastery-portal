@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   Clock,
   Plus as PlusIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import type { SupportTicket, TicketStats } from "@/types/support";

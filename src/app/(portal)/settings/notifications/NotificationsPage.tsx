@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Lock,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 
 interface PreferenceConfig {

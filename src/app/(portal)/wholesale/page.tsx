@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Store } from "lucide-react";
+import { ArrowRight, Store } from "@/components/icons";
 
 const TIER_LABELS: Record<string, string> = {
   standard: "Standard",

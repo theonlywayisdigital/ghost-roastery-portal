@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { FileText, Download, Pencil, Trash2 } from "lucide-react";
+import { FileText, Download, Pencil, Trash2 } from "@/components/icons";
 
 interface SavedLabel {
   id: string;

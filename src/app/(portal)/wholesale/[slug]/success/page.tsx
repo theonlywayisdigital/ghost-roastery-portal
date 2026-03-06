@@ -4,7 +4,7 @@ import { useSearchParams, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CheckCircle, FileText, ArrowLeft } from "lucide-react";
+import { CheckCircle, FileText, ArrowLeft } from "@/components/icons";
 
 function SuccessContent() {
   const params = useParams();

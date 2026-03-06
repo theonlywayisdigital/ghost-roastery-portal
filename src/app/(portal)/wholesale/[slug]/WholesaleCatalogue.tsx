@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ShoppingCart, Minus, Plus, Package, Trash2 } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Minus, Plus, Package, Trash2 } from "@/components/icons";
 
 interface Product {
   id: string;

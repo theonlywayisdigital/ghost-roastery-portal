@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { BarChart3 } from "lucide-react";
+import { BarChart3 } from "@/components/icons";
 
 export default async function AdminAnalyticsPage() {
   const user = await getCurrentUser();

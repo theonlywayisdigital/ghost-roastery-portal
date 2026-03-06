@@ -1,5 +1,5 @@
 import { ComingSoon } from "@/components/ComingSoon";
-import { BarChart3 } from "lucide-react";
+import { BarChart3 } from "@/components/icons";
 
 export default function AnalyticsPage() {
   return (

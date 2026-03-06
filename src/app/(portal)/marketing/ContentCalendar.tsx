@@ -10,7 +10,7 @@ import {
   CalendarDays,
   List,
   LayoutGrid,
-} from "lucide-react";
+} from "@/components/icons";
 import type { CalendarItem, CalendarChannel } from "@/types/marketing";
 import { ContentCalendarMonth } from "./calendar/ContentCalendarMonth";
 import { ContentCalendarWeek } from "./calendar/ContentCalendarWeek";

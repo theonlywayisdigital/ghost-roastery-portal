@@ -6,7 +6,7 @@ import {
   ImageIcon,
   Check,
   ChevronDown,
-} from "lucide-react";
+} from "@/components/icons";
 import {
   FONT_LIBRARY,
   FONT_CATEGORIES,

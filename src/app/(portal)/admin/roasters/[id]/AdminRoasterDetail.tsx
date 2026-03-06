@@ -36,7 +36,7 @@ import {
   Crown,
   Sparkles,
   Zap,
-} from "lucide-react";
+} from "@/components/icons";
 import { UsageBar } from "@/components/shared/UsageBar";
 import { StatusBadge as TierBadge } from "@/components/admin/StatusBadge";
 import {

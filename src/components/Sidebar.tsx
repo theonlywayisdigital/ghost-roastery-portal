@@ -43,7 +43,7 @@ import {
   Globe,
   Link2,
   Eye,
-} from "lucide-react";
+} from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
   getEffectiveFeatures,

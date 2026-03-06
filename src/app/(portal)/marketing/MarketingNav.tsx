@@ -13,7 +13,7 @@ import {
   Sparkles,
   BarChart3,
   Lock,
-} from "lucide-react";
+} from "@/components/icons";
 import { getEffectiveFeatures, getEffectiveLimits, type TierLevel, type FeatureKey, type LimitKey } from "@/lib/tier-config";
 
 interface TabDef {

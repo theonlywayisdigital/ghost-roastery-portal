@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { Coffee } from "lucide-react";
+import { Coffee } from "@/components/icons";
 
 export default async function AdminPartnersPage() {
   const user = await getCurrentUser();

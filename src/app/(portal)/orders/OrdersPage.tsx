@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Package, ShoppingCart, TrendingUp, Clock } from "lucide-react";
+import { Package, ShoppingCart, TrendingUp, Clock } from "@/components/icons";
 import { DataTable, FilterBar, Pagination, StatusBadge } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
 import type { FilterConfig } from "@/components/admin/FilterBar";

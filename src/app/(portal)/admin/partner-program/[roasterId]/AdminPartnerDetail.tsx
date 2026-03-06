@@ -19,7 +19,7 @@ import {
   DollarSign,
   Package,
   TrendingUp,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ── Types ──
 

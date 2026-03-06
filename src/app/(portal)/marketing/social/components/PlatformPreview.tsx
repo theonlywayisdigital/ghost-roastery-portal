@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Facebook, Instagram, ImageIcon } from "lucide-react";
+import { Building2, Facebook, Instagram, ImageIcon } from "@/components/icons";
 import type { SocialPlatform, PlatformConfigs } from "@/types/social";
 import { PLATFORM_CHAR_LIMITS } from "@/types/social";
 

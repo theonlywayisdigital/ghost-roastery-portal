@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search, X } from "@/components/icons";
 
 export interface FilterConfig {
   key: string;

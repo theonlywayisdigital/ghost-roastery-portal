@@ -15,7 +15,7 @@ import {
   X,
   Clock,
   Mail,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";

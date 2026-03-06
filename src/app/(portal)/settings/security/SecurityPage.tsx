@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   Copy,
   Check,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { createBrowserClient } from "@/lib/supabase";
 

@@ -1,5 +1,5 @@
 import { ComingSoon } from "@/components/ComingSoon";
-import { CreditCard } from "lucide-react";
+import { CreditCard } from "@/components/icons";
 
 export default function StripeConnectSettingsPage() {
   return (

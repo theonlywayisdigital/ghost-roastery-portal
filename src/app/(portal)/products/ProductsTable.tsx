@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus } from "@/components/icons";
 import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";

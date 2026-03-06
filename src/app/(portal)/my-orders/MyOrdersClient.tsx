@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { Package } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 import { formatPrice } from "@/components/shared/orders";
 

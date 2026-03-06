@@ -16,7 +16,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Monitor, Smartphone, Tablet, Undo2, Redo2 } from "lucide-react";
+import { Monitor, Smartphone, Tablet, Undo2, Redo2 } from "@/components/icons";
 import type { WebBlock, WebBlockType } from "./web-block-types";
 import { WebBlockPalette, WEB_PALETTE_PREFIX } from "./WebBlockPalette";
 import { WebEditorCanvas } from "./WebEditorCanvas";

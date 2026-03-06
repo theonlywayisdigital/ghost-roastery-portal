@@ -11,7 +11,7 @@ import {
   ChevronRight,
   ArrowUpDown,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface UserRow {
   id: string;

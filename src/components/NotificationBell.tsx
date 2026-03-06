@@ -14,7 +14,7 @@ import {
   Megaphone,
   Star,
   UserPlus,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface Notification {
   id: string;

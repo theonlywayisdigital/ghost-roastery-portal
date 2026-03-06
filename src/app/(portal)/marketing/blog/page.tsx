@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import Link from "next/link";
-import { Plus, Pencil, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Eye, EyeOff } from "@/components/icons";
 
 export default async function BlogPostsPage() {
   const user = await getCurrentUser();

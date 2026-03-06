@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "@/components/icons";
 import { MfaChallengeForm } from "./MfaChallengeForm";
 import { createBrowserClient } from "@/lib/supabase";
 

@@ -17,7 +17,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, Plus, X } from "@/components/icons";
 
 interface PageItem {
   id: string;

@@ -22,7 +22,7 @@ import {
   Gift,
   Pencil,
   Check,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Automation, AutomationStep, AutomationEnrollment, TriggerType, StepType } from "@/types/marketing";
 
 const TRIGGER_META: Partial<Record<

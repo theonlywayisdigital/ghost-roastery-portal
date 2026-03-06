@@ -11,7 +11,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface WebFloatingToolbarProps {
   anchorRef: RefObject<HTMLDivElement | null>;

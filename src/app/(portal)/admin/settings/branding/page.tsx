@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { BrandingEditor } from "@/components/branding/BrandingEditor";
-import { Palette } from "lucide-react";
+import { Palette } from "@/components/icons";
 
 export default async function AdminBrandingSettingsPage() {
   const user = await getCurrentUser();

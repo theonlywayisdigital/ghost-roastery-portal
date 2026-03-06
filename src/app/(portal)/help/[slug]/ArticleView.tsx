@@ -15,7 +15,7 @@ import {
   Calendar,
   Eye,
   ExternalLink,
-} from "lucide-react";
+} from "@/components/icons";
 import type { KBArticle } from "@/types/support";
 
 const TYPE_CONFIG: Record<

@@ -19,7 +19,7 @@ import {
   Play,
   Archive,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import type { DiscountCode, DiscountCodesListResponse } from "@/types/marketing";
 
 const STATUS_TABS = [

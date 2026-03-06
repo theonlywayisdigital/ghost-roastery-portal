@@ -14,7 +14,7 @@ import {
   Loader2,
   Trash2,
   Layers,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ── Types ──
 

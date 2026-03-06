@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, Settings2 } from "lucide-react";
+import { Trash2, Settings2 } from "@/components/icons";
 import type { WebBlock } from "./web-block-types";
 
 interface WebPropertiesPanelProps {

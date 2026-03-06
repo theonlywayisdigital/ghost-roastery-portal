@@ -9,7 +9,7 @@ import {
   Play,
   Trash2,
   Ban,
-} from "lucide-react";
+} from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { PayoutBatchDetail as BatchDetailType, PayoutItem } from "@/types/finance";
 

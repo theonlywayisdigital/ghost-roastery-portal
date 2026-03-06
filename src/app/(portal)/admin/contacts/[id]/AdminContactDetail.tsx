@@ -28,7 +28,7 @@ import {
   Activity,
   AlertTriangle,
   ExternalLink as LinkIcon,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ─── Types ───
 

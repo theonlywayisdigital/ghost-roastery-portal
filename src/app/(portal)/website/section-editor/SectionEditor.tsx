@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { Layers, Plus, X } from "lucide-react";
+import { Layers, Plus, X } from "@/components/icons";
 import type { WebSection, WebsiteTheme, SectionType } from "@/lib/website-sections/types";
 import { createDefaultSection } from "@/lib/website-sections/defaults";
 import { SectionList } from "./SectionList";

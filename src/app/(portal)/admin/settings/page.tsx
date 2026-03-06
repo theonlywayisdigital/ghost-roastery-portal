@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { Sliders } from "lucide-react";
+import { Sliders } from "@/components/icons";
 
 export default async function AdminSettingsPage() {
   const user = await getCurrentUser();

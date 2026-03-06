@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { MapPin } from "@/components/icons";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

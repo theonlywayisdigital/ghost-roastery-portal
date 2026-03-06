@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "@/components/icons";
 import { useMarketingContext } from "@/lib/marketing-context";
 
 export default function NewCampaignPage() {

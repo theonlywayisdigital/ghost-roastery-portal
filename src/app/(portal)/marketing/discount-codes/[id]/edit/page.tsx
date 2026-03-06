@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useMarketingContext } from "@/lib/marketing-context";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 import { DiscountCodeForm } from "../../DiscountCodeForm";
 import type { DiscountCode } from "@/types/marketing";
 

@@ -9,7 +9,7 @@ import {
   Loader2,
   LifeBuoy,
   Bot,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SupportTicket } from "@/types/support";
 
 const STATUS_COLORS: Record<string, string> = {

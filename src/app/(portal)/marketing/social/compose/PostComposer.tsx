@@ -9,7 +9,7 @@ import {
   Clock,
   Loader2,
   CheckCircle,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SocialPost, SocialConnection, PlatformConfigs, SocialPlatform } from "@/types/social";
 import { PlatformToggle } from "../components/PlatformToggle";
 import { MediaUploader } from "../components/MediaUploader";

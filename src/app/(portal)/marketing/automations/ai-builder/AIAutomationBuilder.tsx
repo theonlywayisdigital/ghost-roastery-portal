@@ -20,7 +20,7 @@ import {
   Zap,
   Settings2,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import type { EmailBlock } from "@/types/marketing";
 import { EmailMiniPreview } from "../[id]/edit/EmailMiniPreview";
 

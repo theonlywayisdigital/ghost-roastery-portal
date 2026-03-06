@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Monitor, Tablet, Smartphone, ExternalLink } from "lucide-react";
+import { Monitor, Tablet, Smartphone, ExternalLink } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 type Viewport = "desktop" | "tablet" | "mobile";

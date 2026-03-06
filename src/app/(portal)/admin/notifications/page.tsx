@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { Bell } from "lucide-react";
+import { Bell } from "@/components/icons";
 
 export default async function AdminNotificationsPage() {
   const user = await getCurrentUser();

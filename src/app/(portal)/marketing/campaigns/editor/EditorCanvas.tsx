@@ -11,7 +11,7 @@ import {
   ChevronDown,
   Upload,
   ImageIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { EmailBlock } from "@/types/marketing";
 import { FloatingToolbar } from "./FloatingToolbar";
 import { AiGenerateButton } from "@/components/AiGenerateButton";

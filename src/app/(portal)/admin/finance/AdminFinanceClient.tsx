@@ -7,7 +7,7 @@ import {
   FileText,
   ScrollText,
   RotateCcw,
-} from "lucide-react";
+} from "@/components/icons";
 import { FinanceOverviewTab } from "./overview/FinanceOverviewTab";
 import { PayoutsTab } from "./payouts/PayoutsTab";
 import { InvoicesTab } from "./invoices/InvoicesTab";

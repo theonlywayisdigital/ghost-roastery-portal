@@ -5,7 +5,7 @@ import { defaultTheme } from "@/lib/website-sections/types";
 import type { WebsiteTheme, NavLayout } from "@/lib/website-sections/types";
 import { templateOptions } from "@/lib/website-templates";
 import type { TemplateId } from "@/lib/website-templates";
-import { Loader2, Eye, Menu, ImageIcon } from "lucide-react";
+import { Loader2, Eye, Menu, ImageIcon } from "@/components/icons";
 import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
 const NAV_TEXT_SIZES: Record<string, number> = { small: 14, medium: 16, large: 18 };
@@ -685,7 +685,7 @@ function NavPreview({ settings, logoUrl, siteName }: { settings: DesignSettings;
       {layout === "logo-minimal" && (
         <nav className="flex items-center justify-between px-6" style={{ height: Math.max(64, logoHeight + 24) }}>
           {logoEl}
-          <Menu className="w-5 h-5" style={{ color: textColor }} />
+          <Menu className="w-5 h-5" color={textColor} />
         </nav>
       )}
     </div>

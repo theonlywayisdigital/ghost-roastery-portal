@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, LifeBuoy } from "lucide-react";
+import { Send, Loader2, Bot, User, LifeBuoy } from "@/components/icons";
 import type { ChatMessage } from "@/types/support";
 
 interface Props {

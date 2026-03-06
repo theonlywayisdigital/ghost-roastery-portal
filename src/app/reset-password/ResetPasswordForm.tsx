@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "@/components/icons";
 
 interface Props {
   token: string;

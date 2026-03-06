@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "@/components/icons";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");

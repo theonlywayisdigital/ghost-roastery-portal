@@ -22,7 +22,7 @@ import {
   Trash2,
   X,
   Save,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ─── Types ───
 

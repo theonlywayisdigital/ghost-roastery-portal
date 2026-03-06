@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send } from "lucide-react";
+import { Send } from "@/components/icons";
 import type { OrderType } from "@/types/admin";
 
 interface EmailDialogProps {

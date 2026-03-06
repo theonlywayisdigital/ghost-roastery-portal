@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "@/components/icons";
 import { useMarketingContext } from "@/lib/marketing-context";
 import { SocialConnectionsBar } from "./components/SocialConnectionsBar";
 import { SocialListView } from "./components/SocialListView";

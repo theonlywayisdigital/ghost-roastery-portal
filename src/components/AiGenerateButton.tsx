@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Loader2, X, AlertTriangle } from "lucide-react";
+import { Sparkles, Loader2, X, AlertTriangle } from "@/components/icons";
 import type { GenerationType } from "@/lib/ai-prompts";
 
 interface AiGenerateButtonProps {

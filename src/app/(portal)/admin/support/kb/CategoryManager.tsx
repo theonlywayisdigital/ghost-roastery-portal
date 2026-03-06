@@ -9,7 +9,7 @@ import {
   Trash2,
   Check,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
 import type { KBCategory, AudienceType } from "@/types/support";
 
 const AUDIENCES: { value: AudienceType; label: string }[] = [

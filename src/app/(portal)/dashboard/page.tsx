@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { Package, Coffee, TrendingUp, ArrowRight, ClipboardList, Users, Store } from "lucide-react";
+import { Package, Coffee, TrendingUp, ArrowRight, ClipboardList, Users, Store } from "@/components/icons";
 import Link from "next/link";
 
 export default async function DashboardPage() {

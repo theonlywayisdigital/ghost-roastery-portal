@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { UserCircle } from "lucide-react";
+import { UserCircle } from "@/components/icons";
 
 export default async function AdminProfilePage() {
   const user = await getCurrentUser();

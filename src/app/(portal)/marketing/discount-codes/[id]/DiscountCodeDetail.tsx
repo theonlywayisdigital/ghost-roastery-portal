@@ -19,7 +19,7 @@ import {
   Users,
   TrendingUp,
   Tag,
-} from "lucide-react";
+} from "@/components/icons";
 import type { DiscountCode, DiscountRedemption } from "@/types/marketing";
 
 const STATUS_COLORS: Record<string, string> = {

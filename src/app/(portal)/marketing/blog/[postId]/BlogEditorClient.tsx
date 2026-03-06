@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Save, Eye, Loader2 } from "lucide-react";
+import { Save, Eye, Loader2 } from "@/components/icons";
 import type { WebBlock } from "@/app/(portal)/website/editor/web-block-types";
 import { WebPageEditor } from "@/app/(portal)/website/editor/WebPageEditor";
 

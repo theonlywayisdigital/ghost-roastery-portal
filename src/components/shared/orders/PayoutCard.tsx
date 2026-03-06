@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { Wallet } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 import { formatPrice } from "./format";
 

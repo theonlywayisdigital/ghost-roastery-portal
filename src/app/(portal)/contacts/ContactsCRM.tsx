@@ -17,7 +17,7 @@ import {
   ArrowUpDown,
   X,
   Download,
-} from "lucide-react";
+} from "@/components/icons";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 

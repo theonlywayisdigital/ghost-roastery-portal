@@ -2,7 +2,7 @@
 
 import { MarketingProvider } from "@/lib/marketing-context";
 import { MarketingNav } from "../../marketing/MarketingNav";
-import { Megaphone } from "lucide-react";
+import { Megaphone } from "@/components/icons";
 
 const ADMIN_CONTEXT = {
   apiBase: "/api/admin/marketing",

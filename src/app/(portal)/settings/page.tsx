@@ -11,7 +11,7 @@ import {
   Bell,
   Crown,
   ShieldCheck,
-} from "lucide-react";
+} from "@/components/icons";
 
 const settingsItems = [
   {

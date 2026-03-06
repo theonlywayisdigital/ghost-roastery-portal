@@ -10,6 +10,7 @@ import {
   Users,
   Bell,
   Crown,
+  ShieldCheck,
 } from "lucide-react";
 
 const settingsItems = [
@@ -53,6 +54,12 @@ const settingsItems = [
     description: "Shipping rates, zones, and dispatch times.",
     icon: Truck,
     roasterOnly: true,
+  },
+  {
+    href: "/settings/security",
+    label: "Security",
+    description: "Two-factor authentication and account security.",
+    icon: ShieldCheck,
   },
   {
     href: "/settings/team",

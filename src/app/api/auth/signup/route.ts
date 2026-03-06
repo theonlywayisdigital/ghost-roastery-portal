@@ -1,9 +1,8 @@
 import { createServerClient as createServiceClient } from "@/lib/supabase";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendEmailConfirmation } from "@/lib/email";
 import { findOrCreatePerson } from "@/lib/people";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -47,12 +46,12 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
 
-    // Create auth user via admin API
+    // Create auth user via admin API — email NOT confirmed
     const { data: authData, error: authError } =
       await serviceClient.auth.admin.createUser({
         email: normalizedEmail,
         password,
-        email_confirm: true,
+        email_confirm: false,
         user_metadata: {
           full_name: contactName,
           business_name: businessName,
@@ -173,36 +172,23 @@ export async function POST(request: Request) {
       }
     })();
 
-    // Sign in the new user (sets session cookies)
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    // Generate email verification token
+    const token = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
-    await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
+    await serviceClient.from("email_verification_tokens").insert({
+      user_id: authData.user.id,
+      token,
+      expires_at: expiresAt,
     });
 
-    // Fire-and-forget welcome email
-    sendWelcomeEmail(roaster.email, roaster.contact_name, roaster.business_name).catch(
-      (err) => console.error("Failed to send welcome email:", err)
+    // Send confirmation email (fire-and-forget)
+    const confirmUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/verify-email?token=${token}`;
+    sendEmailConfirmation(normalizedEmail, contactName, confirmUrl).catch(
+      (err) => console.error("Failed to send confirmation email:", err)
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, requiresVerification: true });
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(

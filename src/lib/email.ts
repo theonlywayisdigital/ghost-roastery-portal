@@ -2,9 +2,44 @@ import { Resend } from "resend";
 import { wrapEmailWithBranding, emailButton, type EmailBranding } from "@/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "Ghost Roastery <noreply@ghostroasting.co.uk>";
+const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
 
 export { type EmailBranding } from "@/lib/email-template";
+
+export async function sendEmailConfirmation(
+  email: string,
+  contactName: string,
+  confirmUrl: string
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Confirm Your Email</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">One last step to get started</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Thanks for signing up to Ghost Roastery. Please confirm your email address by clicking the button below:
+    </p>
+
+    ${emailButton({ href: confirmUrl, label: "Confirm Email Address" })}
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      This link expires in 24 hours. If you didn&rsquo;t create an account, you can safely ignore this email.
+    </p>
+
+    <p style="color:#94a3b8;font-size:12px;margin-top:32px;word-break:break-all;text-align:left;">
+      If the button doesn&rsquo;t work, copy and paste this link:<br/>
+      <a href="${confirmUrl}" style="color:#0083dc;">${confirmUrl}</a>
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: "Confirm your Ghost Roastery email",
+    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+  });
+}
 
 export async function sendWelcomeEmail(
   email: string,

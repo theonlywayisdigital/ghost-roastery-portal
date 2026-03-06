@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createServerClient as createServiceClient } from "@/lib/supabase";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -32,8 +33,10 @@ export async function POST(request: Request) {
       }
     );
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       password,
     });
 
@@ -42,6 +45,38 @@ export async function POST(request: Request) {
         { error: "Invalid email or password" },
         { status: 401 }
       );
+    }
+
+    // Check if email is confirmed
+    if (!data.user.email_confirmed_at) {
+      // Sign out the unconfirmed user
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        {
+          error: "Please verify your email before signing in.",
+          requiresVerification: true,
+          email: normalizedEmail,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check for MFA factors
+    const serviceClient = createServiceClient();
+    const { data: factors } = await serviceClient.auth.admin.mfa.listFactors({
+      userId: data.user.id,
+    });
+
+    const verifiedFactors = factors?.factors?.filter(
+      (f) => f.factor_type === "totp" && f.status === "verified"
+    ) || [];
+
+    if (verifiedFactors.length > 0) {
+      return NextResponse.json({
+        success: true,
+        requiresMfa: true,
+        factorId: verifiedFactors[0].id,
+      });
     }
 
     return NextResponse.json({ success: true });

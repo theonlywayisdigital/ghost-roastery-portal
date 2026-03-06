@@ -44,6 +44,11 @@ export function SignupForm() {
         return;
       }
 
+      if (data.requiresVerification) {
+        router.push(`/check-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
     } catch {

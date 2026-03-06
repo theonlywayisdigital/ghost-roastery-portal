@@ -7,6 +7,9 @@ const PUBLIC_PATHS = [
   "/signup",
   "/forgot-password",
   "/reset-password",
+  "/check-email",
+  "/verify-email",
+  "/mfa-challenge",
   "/auth",
   "/s",
   "/w",
@@ -66,6 +69,16 @@ export async function middleware(request: NextRequest) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Check MFA: if user has TOTP factors but session is aal1, redirect to MFA challenge
+  const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (
+    mfaData &&
+    mfaData.nextLevel === "aal2" &&
+    mfaData.currentLevel === "aal1"
+  ) {
+    return NextResponse.redirect(new URL("/mfa-challenge", request.url));
   }
 
   return response;

@@ -28,6 +28,7 @@ export async function POST() {
   cookieStore.set("portal_session", "", { path: "/", maxAge: 0 });
 
   return NextResponse.redirect(
-    new URL("/login", process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001")
+    new URL("/login", process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"),
+    303
   );
 }

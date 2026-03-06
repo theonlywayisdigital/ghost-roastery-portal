@@ -11,11 +11,14 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showVerifyLink, setShowVerifyLink] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setShowVerifyLink(false);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -27,8 +30,20 @@ export function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.requiresVerification) {
+          setError(data.error);
+          setShowVerifyLink(true);
+          setVerifyEmail(data.email || email);
+          setIsLoading(false);
+          return;
+        }
         setError(data.error || "Login failed");
         setIsLoading(false);
+        return;
+      }
+
+      if (data.requiresMfa) {
+        router.push(`/mfa-challenge?factorId=${data.factorId}`);
         return;
       }
 
@@ -75,7 +90,19 @@ export function LoginForm() {
           />
         </div>
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && (
+          <div>
+            <p className="text-red-600 text-sm">{error}</p>
+            {showVerifyLink && (
+              <Link
+                href={`/check-email?email=${encodeURIComponent(verifyEmail)}`}
+                className="text-sm text-brand-600 font-medium hover:underline mt-1 inline-block"
+              >
+                Resend verification email
+              </Link>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
@@ -85,7 +112,7 @@ export function LoginForm() {
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Signing in…
+              Signing in...
             </>
           ) : (
             "Sign In"

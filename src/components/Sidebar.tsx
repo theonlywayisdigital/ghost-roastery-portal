@@ -326,7 +326,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <SuiteIcon className="w-5 h-5 flex-shrink-0" />
+            <SuiteIcon className="w-6 h-6 flex-shrink-0 text-black" />
             <span className="flex-1 text-left">{suite.label}</span>
             <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "text-brand-600" : "text-slate-400"}`} />
           </button>
@@ -342,7 +342,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <SuiteIcon className="w-5 h-5 flex-shrink-0" />
+            <SuiteIcon className="w-6 h-6 flex-shrink-0 text-black" />
             <span className="flex-1 text-left">{suite.label}</span>
             <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""} text-slate-400`} />
           </button>
@@ -370,7 +370,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                           : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    <ItemIcon className="w-5 h-5 flex-shrink-0" />
+                    <ItemIcon className="w-6 h-6 flex-shrink-0 text-black" />
                     <span className="flex-1">{item.label}</span>
                     {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
                   </Link>
@@ -397,7 +397,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
             : "text-slate-600 hover:bg-slate-100"
         }`}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" />
+        <Icon className="w-6 h-6 flex-shrink-0 text-black" />
         <span className="flex-1">{label}</span>
       </Link>
     );
@@ -438,7 +438,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                       : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                <ItemIcon className="w-5 h-5 flex-shrink-0" />
+                <ItemIcon className="w-6 h-6 flex-shrink-0 text-black" />
                 <span className="flex-1">{item.label}</span>
                 {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
               </Link>
@@ -452,13 +452,13 @@ export function Sidebar({ user }: { user: SidebarUser }) {
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo area */}
-      <div className="px-4 py-4 border-b border-slate-200">
+      <div className="px-5 py-2.5 border-b border-slate-200 flex items-center justify-center">
         <Link href={isAdmin ? "/admin/dashboard" : "/dashboard"} className="block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png"
             alt="Ghost Roastery Platform"
-            className="h-16 w-auto"
+            className="w-full h-auto max-w-[210px]"
           />
         </Link>
       </div>
@@ -500,7 +500,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                           : "text-slate-600 hover:bg-slate-100"
                     }`}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className="w-6 h-6 flex-shrink-0 text-black" />
                     <span className="flex-1">{item.label}</span>
                     {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
                   </Link>
@@ -544,7 +544,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <LifeBuoy className="w-5 h-5 flex-shrink-0" />
+              <LifeBuoy className="w-6 h-6 flex-shrink-0 text-black" />
               Support
             </Link>
             <Link
@@ -556,7 +556,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <BookOpen className="w-5 h-5 flex-shrink-0" />
+              <BookOpen className="w-6 h-6 flex-shrink-0 text-black" />
               Help Centre
             </Link>
           </>
@@ -572,7 +572,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                 : "text-slate-600 hover:bg-slate-100"
             }`}
           >
-            <Settings className="w-5 h-5 flex-shrink-0" />
+            <Settings className="w-6 h-6 flex-shrink-0 text-black" />
             Settings
           </Link>
         )}

@@ -17,3 +17,13 @@ body {
   color: var(--foreground);
   background: var(--background);
 }
+
+/* Phosphor duotone icons: secondary (filled) layer gets brand blue instead of grey */
+svg > path[opacity="0.2"],
+svg > rect[opacity="0.2"],
+svg > circle[opacity="0.2"],
+svg > ellipse[opacity="0.2"],
+svg > polygon[opacity="0.2"] {
+  fill: var(--accent);
+  opacity: 0.35;
+}

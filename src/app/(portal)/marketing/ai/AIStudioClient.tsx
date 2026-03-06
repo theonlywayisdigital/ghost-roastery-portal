@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
+} from "@/components/icons";
 
 type PlanType = "campaign" | "social" | "automation" | "ideas";
 type ActiveSection = PlanType | null;

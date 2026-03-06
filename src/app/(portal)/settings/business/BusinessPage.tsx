@@ -7,7 +7,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 
 const BUSINESS_TYPE_OPTIONS = [

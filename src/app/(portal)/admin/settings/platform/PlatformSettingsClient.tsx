@@ -10,7 +10,7 @@ import {
   Loader2,
   CheckCircle2,
   Sliders,
-} from "lucide-react";
+} from "@/components/icons";
 import type { PlatformSettings } from "@/types/finance";
 
 const PAYMENT_TERMS_OPTIONS = [

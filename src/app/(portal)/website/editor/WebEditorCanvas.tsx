@@ -13,7 +13,7 @@ import {
   ImageIcon,
   Play,
   MapPin,
-} from "lucide-react";
+} from "@/components/icons";
 import type { WebBlock } from "./web-block-types";
 import { WebFloatingToolbar } from "./WebFloatingToolbar";
 

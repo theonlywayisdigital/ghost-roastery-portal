@@ -16,7 +16,7 @@ import {
   MessageCircle,
   Users,
   ImageIcon,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SocialPost, SocialPostAnalytics, SocialPlatform } from "@/types/social";
 import { useMarketingContext } from "@/lib/marketing-context";
 import { PlatformBadge } from "../components/PlatformBadge";

@@ -8,7 +8,7 @@ import {
   Loader2,
   Clock,
   User,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SupportTicket, TicketMessage } from "@/types/support";
 
 const STATUS_COLORS: Record<string, string> = {

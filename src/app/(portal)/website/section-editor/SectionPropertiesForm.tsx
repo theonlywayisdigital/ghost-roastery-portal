@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlignLeft, AlignCenter, AlignRight, ChevronDown, ChevronUp } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, ChevronDown, ChevronUp } from "@/components/icons";
 import type { WebSection, SectionBg } from "@/lib/website-sections/types";
 import { HeroForm } from "./forms/HeroForm";
 import { HeroSplitForm } from "./forms/HeroSplitForm";

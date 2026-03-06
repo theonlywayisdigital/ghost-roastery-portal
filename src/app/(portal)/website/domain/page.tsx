@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Globe, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Globe, CheckCircle2, AlertCircle, Loader2 } from "@/components/icons";
 
 export default function WebsiteDomainPage() {
   const [domain, setDomain] = useState("");

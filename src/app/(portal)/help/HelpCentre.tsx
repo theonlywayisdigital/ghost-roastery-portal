@@ -11,7 +11,7 @@ import {
   ChevronRight,
   Loader2,
   Video,
-} from "lucide-react";
+} from "@/components/icons";
 import type { KBArticle, KBCategory } from "@/types/support";
 
 const TYPE_ICONS: Record<string, React.ElementType> = {

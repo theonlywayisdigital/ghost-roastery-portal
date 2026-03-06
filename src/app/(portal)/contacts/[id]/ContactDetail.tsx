@@ -28,7 +28,7 @@ import {
   UserCheck,
   Activity,
   TrendingUp,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ─── Types ───
 

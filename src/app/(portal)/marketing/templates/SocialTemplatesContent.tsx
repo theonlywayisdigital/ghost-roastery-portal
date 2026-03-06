@@ -8,7 +8,7 @@ import {
   X,
   Hash,
   MessageSquare,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SocialTemplate, SocialPlatform } from "@/types/social";
 import { useMarketingContext } from "@/lib/marketing-context";
 

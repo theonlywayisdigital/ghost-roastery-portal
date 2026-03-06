@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Layout, BookOpen, Eye } from "lucide-react";
+import { Loader2, Layout, BookOpen, Eye } from "@/components/icons";
 import { defaultTheme } from "@/lib/website-sections/types";
 import type { TemplateId } from "@/lib/website-templates";
 import { TemplatePreviewModal } from "../design/TemplatePreviewModal";

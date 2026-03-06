@@ -15,7 +15,7 @@ import {
   Paintbrush,
   Users,
   Eye,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Campaign, EmailBlock, AudienceType, EmailTemplate } from "@/types/marketing";
 import { VisualEditor } from "./editor/VisualEditor";
 import { EmailPreview } from "./editor/EmailPreview";

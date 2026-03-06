@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Send, Loader2, Bot, MessageSquare, X } from "lucide-react";
+import { ArrowLeft, Send, Loader2, Bot, MessageSquare, X } from "@/components/icons";
 import type { TicketType, ChatMessage } from "@/types/support";
 import { SupportChatbot } from "../../chat/SupportChatbot";
 

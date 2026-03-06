@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, CheckCircle, AlertTriangle, Printer } from "lucide-react";
+import { Download, CheckCircle, AlertTriangle, Printer } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

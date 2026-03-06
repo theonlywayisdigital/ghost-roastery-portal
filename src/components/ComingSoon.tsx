@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock } from "@/components/icons";
 
 interface ComingSoonProps {
   title: string;

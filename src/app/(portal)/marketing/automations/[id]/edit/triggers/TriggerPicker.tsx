@@ -5,7 +5,7 @@ import {
   FileText, UserPlus, UserCog, Building, Building2,
   ShoppingCart, PackageCheck, Ticket, MailOpen, Clock,
   Calendar, Webhook, Zap, Search, X,
-} from "lucide-react";
+} from "@/components/icons";
 import type { TriggerDefinition, TriggerType } from "@/types/marketing";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {

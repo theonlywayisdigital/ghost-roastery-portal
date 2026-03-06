@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X } from "@/components/icons";
 import type {
   TriggerFilters,
   FilterGroup,

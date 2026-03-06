@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LifeBuoy, BookOpen, BarChart3 } from "lucide-react";
+import { LifeBuoy, BookOpen, BarChart3 } from "@/components/icons";
 import { KBManagement } from "./kb/KBManagement";
 import { TicketsList } from "./tickets/TicketsList";
 import { SupportAnalytics } from "./analytics/SupportAnalytics";

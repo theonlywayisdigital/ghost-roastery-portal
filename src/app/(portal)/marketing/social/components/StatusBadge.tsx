@@ -1,6 +1,6 @@
 "use client";
 
-import { FileEdit, Clock, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
+import { FileEdit, Clock, Loader2, CheckCircle, AlertCircle, AlertTriangle } from "@/components/icons";
 import type { PostStatus } from "@/types/social";
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; icon: typeof FileEdit; color: string }> = {

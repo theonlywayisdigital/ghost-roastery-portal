@@ -12,7 +12,7 @@ import {
   FileText,
   HelpCircle,
   BookOpen,
-} from "lucide-react";
+} from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import type { KBArticle, KBCategory } from "@/types/support";

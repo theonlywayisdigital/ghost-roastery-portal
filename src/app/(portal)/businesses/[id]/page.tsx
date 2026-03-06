@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { BusinessDetail } from "./BusinessDetail";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 
 export default async function BusinessDetailPage({
   params,

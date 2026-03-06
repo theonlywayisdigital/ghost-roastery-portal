@@ -8,7 +8,7 @@ import {
   Loader2,
   Shuffle,
   AlertTriangle,
-} from "lucide-react";
+} from "@/components/icons";
 import type { DiscountCode, DiscountType, DiscountAppliesTo } from "@/types/marketing";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 

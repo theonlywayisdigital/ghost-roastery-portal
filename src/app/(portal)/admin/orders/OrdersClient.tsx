@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Package } from "lucide-react";
+import { Download, Package } from "@/components/icons";
 import {
   DataTable,
   FilterBar,

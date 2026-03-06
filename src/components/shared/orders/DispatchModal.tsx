@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Truck } from "lucide-react";
+import { Truck } from "@/components/icons";
 
 interface DispatchModalProps {
   onConfirm: (trackingNumber?: string, trackingCarrier?: string) => void;

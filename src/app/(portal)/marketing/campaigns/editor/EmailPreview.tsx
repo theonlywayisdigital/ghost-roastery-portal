@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Monitor, Smartphone } from "lucide-react";
+import { Monitor, Smartphone } from "@/components/icons";
 import type { EmailBlock } from "@/types/marketing";
 import { renderEmailHtml } from "./renderEmailHtml";
 

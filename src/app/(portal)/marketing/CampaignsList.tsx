@@ -19,7 +19,7 @@ import {
   Copy,
   Eye,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Campaign, CampaignsListResponse } from "@/types/marketing";
 import { useMarketingContext } from "@/lib/marketing-context";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";

@@ -11,7 +11,7 @@ import {
   X,
   Plus,
   ExternalLink,
-} from "lucide-react";
+} from "@/components/icons";
 import type { KBArticle, KBCategory, ArticleType, AudienceType } from "@/types/support";
 
 const ARTICLE_TYPES: { value: ArticleType; label: string }[] = [

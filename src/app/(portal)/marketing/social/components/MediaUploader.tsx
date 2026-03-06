@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, X, ImageIcon, Film, Loader2 } from "lucide-react";
+import { Upload, X, ImageIcon, Film, Loader2 } from "@/components/icons";
 
 export function MediaUploader({
   mediaUrls,

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { ShoppingCart, Users, Building2, TrendingUp } from "lucide-react";
+import { ShoppingCart, Users, Building2, TrendingUp } from "@/components/icons";
 import Link from "next/link";
 
 export default async function AdminDashboardPage() {

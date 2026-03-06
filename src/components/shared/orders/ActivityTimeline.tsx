@@ -11,7 +11,7 @@ import {
   XCircle,
   Mail,
   Edit3,
-} from "lucide-react";
+} from "@/components/icons";
 import { formatRelativeTime } from "./format";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

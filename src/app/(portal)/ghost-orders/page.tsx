@@ -1,5 +1,5 @@
 import { ComingSoon } from "@/components/ComingSoon";
-import { Coffee } from "lucide-react";
+import { Coffee } from "@/components/icons";
 
 export default function GhostOrdersPage() {
   return (

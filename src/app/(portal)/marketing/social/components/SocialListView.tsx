@@ -15,7 +15,7 @@ import {
   Eye,
   X,
   Calendar,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SocialPost, SocialPostsListResponse, SocialPlatform, PostStatus } from "@/types/social";
 import { useMarketingContext } from "@/lib/marketing-context";
 import { PlatformBadge } from "./PlatformBadge";

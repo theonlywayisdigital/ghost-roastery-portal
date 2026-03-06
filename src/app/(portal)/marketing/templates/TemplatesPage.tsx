@@ -19,7 +19,7 @@ import {
   Monitor,
   Smartphone,
   Eye,
-} from "lucide-react";
+} from "@/components/icons";
 import type { EmailTemplate, TemplateCategory } from "@/types/marketing";
 import { renderEmailHtmlForPreview } from "@/lib/render-email-html";
 import { SocialTemplatesContent } from "./SocialTemplatesContent";

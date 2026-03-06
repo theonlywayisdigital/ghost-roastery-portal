@@ -13,7 +13,7 @@ import {
   X,
   MapPin,
   Package,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 
 const DISPATCH_TIME_OPTIONS = [

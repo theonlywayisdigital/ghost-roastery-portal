@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Users } from "lucide-react";
+import { Users } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

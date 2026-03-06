@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, Lock } from "@/components/icons";
 import Link from "next/link";
 import type { TierLevel, ProductType } from "@/lib/tier-config";
 import { TIER_NAMES } from "@/lib/tier-config";

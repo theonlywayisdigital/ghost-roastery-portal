@@ -13,7 +13,7 @@ import {
   ExternalLink,
   Lock,
   ArrowLeft,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SocialConnection, SocialPlatform } from "@/types/social";
 import { useMarketingContext } from "@/lib/marketing-context";
 

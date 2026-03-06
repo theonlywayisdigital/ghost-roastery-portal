@@ -16,7 +16,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ── Types ──
 

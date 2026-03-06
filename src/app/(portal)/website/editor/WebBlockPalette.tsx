@@ -16,7 +16,7 @@ import {
   Play,
   MapPin,
   PanelTop,
-} from "lucide-react";
+} from "@/components/icons";
 import type { WebBlockType } from "./web-block-types";
 
 export const WEB_PALETTE_PREFIX = "web-palette-";

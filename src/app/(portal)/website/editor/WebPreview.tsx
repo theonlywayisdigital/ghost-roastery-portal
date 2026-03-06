@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Monitor, Smartphone, Tablet } from "lucide-react";
+import { Monitor, Smartphone, Tablet } from "@/components/icons";
 import type { WebBlock } from "./web-block-types";
 import { renderWebHtml } from "./renderWebHtml";
 

@@ -9,7 +9,7 @@ import {
   ExternalLink,
   Check,
   ArrowRight,
-} from "lucide-react";
+} from "@/components/icons";
 import { resolveFontFamily, loadGoogleFont } from "@/lib/fonts";
 
 interface BrandingData {

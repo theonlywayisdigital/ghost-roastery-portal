@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Tag, Download } from "lucide-react";
+import { Tag, Download } from "@/components/icons";
 
 interface Brand {
   brandName: string;

@@ -17,7 +17,7 @@ import {
   Download,
   Building2,
   Handshake,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface Contact {
   id: string;

@@ -11,7 +11,7 @@ import {
   Copy,
   CheckCircle2,
   AlertCircle,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface RoasterData {
   id: string;

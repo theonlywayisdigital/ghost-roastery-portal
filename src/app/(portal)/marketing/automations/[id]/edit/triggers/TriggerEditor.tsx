@@ -7,7 +7,7 @@ import {
   ShoppingCart, PackageCheck, Ticket, MailOpen, Clock,
   Calendar, Webhook, Zap, ChevronDown, Loader2, Settings2,
   Filter, Copy, ExternalLink,
-} from "lucide-react";
+} from "@/components/icons";
 import type {
   TriggerType,
   TriggerDefinition,

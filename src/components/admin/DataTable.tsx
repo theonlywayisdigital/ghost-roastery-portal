@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "@/components/icons";
 
 export interface Column<T> {
   key: string;

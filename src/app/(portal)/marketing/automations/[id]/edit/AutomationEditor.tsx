@@ -18,7 +18,7 @@ import {
   ChevronRight,
   Check,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Automation, AutomationStep, StepType, EmailBlock } from "@/types/marketing";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { EmailEditorSlideOver } from "./EmailEditorSlideOver";

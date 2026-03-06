@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { WholesaleBuyersPage } from "../wholesale-buyers/WholesaleBuyersPage";
-import { Users, ShoppingBag, Truck, UserPlus, Clock } from "lucide-react";
+import { Users, ShoppingBag, Truck, UserPlus, Clock } from "@/components/icons";
 
 interface ContactsTabsProps {
   buyers: unknown[];

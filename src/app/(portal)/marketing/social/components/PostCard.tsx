@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, ImageIcon } from "lucide-react";
+import { Calendar, ImageIcon } from "@/components/icons";
 import type { SocialPost, SocialPlatform } from "@/types/social";
 import { PlatformBadge } from "./PlatformBadge";
 import { StatusBadge } from "./StatusBadge";

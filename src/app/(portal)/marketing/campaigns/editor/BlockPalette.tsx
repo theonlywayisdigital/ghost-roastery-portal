@@ -12,7 +12,7 @@ import {
   AlignLeft,
   LayoutGrid,
   Ticket,
-} from "lucide-react";
+} from "@/components/icons";
 import type { EmailBlockType } from "@/types/marketing";
 
 export const PALETTE_PREFIX = "palette-";

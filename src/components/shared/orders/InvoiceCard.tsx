@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { FileText } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 import { formatDate, formatPrice } from "./format";
 

@@ -5,7 +5,7 @@ import {
   Mail,
   MousePointerClick,
   Eye,
-} from "lucide-react";
+} from "@/components/icons";
 
 const FEATURES = [
   { icon: TrendingUp, title: "Campaign Performance", description: "Track open rates, click rates, and conversions over time." },

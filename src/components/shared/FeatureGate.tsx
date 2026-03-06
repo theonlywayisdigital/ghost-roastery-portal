@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Lock } from "@/components/icons";
 import type { TierLevel, ProductType } from "@/lib/tier-config";
 import { TIER_NAMES } from "@/lib/tier-config";
 

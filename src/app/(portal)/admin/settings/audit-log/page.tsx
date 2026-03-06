@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { ComingSoon } from "@/components/ComingSoon";
-import { ScrollText } from "lucide-react";
+import { ScrollText } from "@/components/icons";
 
 export default async function AuditLogPage() {
   const user = await getCurrentUser();

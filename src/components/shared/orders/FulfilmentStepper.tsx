@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, XCircle } from "lucide-react";
+import { Check, XCircle } from "@/components/icons";
 import { formatDate, formatDateTime } from "./format";
 
 interface StepDef {

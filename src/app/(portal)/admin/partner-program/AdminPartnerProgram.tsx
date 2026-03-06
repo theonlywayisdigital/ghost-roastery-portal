@@ -14,7 +14,7 @@ import {
   Clock,
   Eye,
   ChevronRight,
-} from "lucide-react";
+} from "@/components/icons";
 
 // ── Types ──
 

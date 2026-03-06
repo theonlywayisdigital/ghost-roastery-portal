@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Save, Eye, ExternalLink, Loader2, Check, AlertCircle, ChevronDown, Plus, Settings, Trash2, X } from "lucide-react";
+import { Save, Eye, ExternalLink, Loader2, Check, AlertCircle, ChevronDown, Plus, Settings, Trash2, X } from "@/components/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";

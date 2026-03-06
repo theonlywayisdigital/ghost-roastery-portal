@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { VerifyEmailContent } from "./VerifyEmailContent";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 
 export default function VerifyEmailPage() {
   return (

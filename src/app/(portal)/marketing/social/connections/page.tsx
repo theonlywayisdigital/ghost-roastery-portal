@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { checkFeature } from "@/lib/feature-gates";
 import { FeatureGate } from "@/components/shared/FeatureGate";
 import { ConnectionsPage } from "./ConnectionsPage";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 
 export default async function ConnectionsRoute() {
   const roaster = await getCurrentRoaster();

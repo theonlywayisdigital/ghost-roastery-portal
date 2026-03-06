@@ -16,7 +16,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Monitor, Smartphone, Undo2, Redo2, Sparkles, X } from "lucide-react";
+import { Monitor, Smartphone, Undo2, Redo2, Sparkles, X } from "@/components/icons";
 import type { EmailBlock, EmailBlockType, EmailTemplate } from "@/types/marketing";
 import { BlockPalette, PALETTE_PREFIX } from "./BlockPalette";
 import { EditorCanvas } from "./EditorCanvas";

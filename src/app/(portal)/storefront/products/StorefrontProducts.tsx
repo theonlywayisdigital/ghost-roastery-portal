@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Package, Plus, Pencil } from "lucide-react";
+import { Package, Plus, Pencil } from "@/components/icons";
 
 interface Product {
   id: string;

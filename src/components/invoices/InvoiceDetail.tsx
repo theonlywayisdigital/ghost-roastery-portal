@@ -12,7 +12,7 @@ import {
   Bell,
   ExternalLink,
   Plus,
-} from "lucide-react";
+} from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { InvoiceFull, InvoiceLineItem, InvoicePayment } from "@/types/finance";
 

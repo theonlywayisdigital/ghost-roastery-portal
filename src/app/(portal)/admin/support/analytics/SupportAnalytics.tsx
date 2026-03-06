@@ -10,7 +10,7 @@ import {
   Clock,
   Bot,
   Loader2,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface ArticleStat {
   id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/icons";
 import type { WebsiteTheme } from "@/lib/website-sections/types";
 import type { TemplateId } from "@/lib/website-templates";
 import { modernMinimalTemplate } from "@/lib/website-templates";

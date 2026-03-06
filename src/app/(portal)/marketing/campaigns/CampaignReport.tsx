@@ -14,7 +14,7 @@ import {
   Search,
   ExternalLink,
   CheckCircle,
-} from "lucide-react";
+} from "@/components/icons";
 import type { CampaignReportResponse, CampaignRecipient } from "@/types/marketing";
 import { useMarketingContext } from "@/lib/marketing-context";
 

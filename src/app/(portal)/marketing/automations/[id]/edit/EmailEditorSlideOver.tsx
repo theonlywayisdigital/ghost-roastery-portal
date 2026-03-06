@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMarketingContext } from "@/lib/marketing-context";
-import { X, Save } from "lucide-react";
+import { X, Save } from "@/components/icons";
 import { VisualEditor } from "@/app/(portal)/marketing/campaigns/editor/VisualEditor";
 import type { EmailBlock, EmailTemplate } from "@/types/marketing";
 

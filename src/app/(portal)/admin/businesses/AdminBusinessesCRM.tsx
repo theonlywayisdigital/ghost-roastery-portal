@@ -15,7 +15,7 @@ import {
   ArrowUpDown,
   X,
   Users,
-} from "lucide-react";
+} from "@/components/icons";
 
 interface Business {
   id: string;

@@ -14,7 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 
 interface ProfileData {

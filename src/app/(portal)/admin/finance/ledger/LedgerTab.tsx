@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Download, ScrollText } from "lucide-react";
+import { Loader2, Download, ScrollText } from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Pagination } from "@/components/admin/Pagination";
 import type { LedgerEntry } from "@/types/finance";

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, Check, X } from "@/components/icons";
 
 const PASSWORD_RULES = [
   { label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },

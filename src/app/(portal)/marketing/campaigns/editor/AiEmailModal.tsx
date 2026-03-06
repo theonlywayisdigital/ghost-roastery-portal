@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, Loader2, X, Package, Ticket, AlertTriangle } from "lucide-react";
+import { Sparkles, Loader2, X, Package, Ticket, AlertTriangle } from "@/components/icons";
 import type { EmailBlock } from "@/types/marketing";
 import { useMarketingContext } from "@/lib/marketing-context";
 

@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { MfaChallengeContent } from "./MfaChallengeContent";
-import { Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/icons";
 
 export default function MfaChallengePage() {
   return (

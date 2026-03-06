@@ -20,7 +20,7 @@ import {
   Crown,
   Sparkles,
   Zap,
-} from "lucide-react";
+} from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { UsageBar } from "@/components/shared/UsageBar";
 import { PlanSelector } from "@/components/shared/PlanSelector";

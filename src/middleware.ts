@@ -72,12 +72,19 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check MFA: if user has TOTP factors but session is aal1, redirect to MFA challenge
+  // Only redirect page navigations — API routes get a 401 JSON response instead
   const { data: mfaData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (
     mfaData &&
     mfaData.nextLevel === "aal2" &&
     mfaData.currentLevel === "aal1"
   ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "MFA verification required" },
+        { status: 401 }
+      );
+    }
     return NextResponse.redirect(new URL("/mfa-challenge", request.url));
   }
 

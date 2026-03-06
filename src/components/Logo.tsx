@@ -1,7 +1,7 @@
 import Image from "next/image";
 
 const PLATFORM_LOGO_URL =
-  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo.png";
+  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo-v2.png";
 
 interface LogoProps {
   height?: number;

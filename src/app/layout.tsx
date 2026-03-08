@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   description:
     "Manage your wholesale coffee business and Ghost Roaster orders.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png", media: "(prefers-color-scheme: dark)" },
+    ],
     apple: "/apple-icon.png",
   },
 };

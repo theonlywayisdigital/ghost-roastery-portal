@@ -1358,33 +1358,20 @@ function MyBillingTab({
             <PromptConnect message="Connect Stripe to view your fee structure." />
           ) : (
             <div className="space-y-3">
-              <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Transaction fee
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Deducted from each storefront sale before payout
-                  </p>
-                </div>
-                <span className="text-lg font-semibold text-slate-900">
-                  {`${getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free")}%`}
-                  <span className="text-xs font-normal text-slate-400 ml-1">
-                    {`(${TIER_NAMES[(roaster.sales_tier as TierLevel) || "free"]} plan)`}
-                  </span>
-                </span>
-              </div>
               <div className="flex items-center justify-between py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-900">
-                    Stripe processing
+                    Card payment fees
                   </p>
                   <p className="text-xs text-slate-500">
-                    Standard Stripe fees (1.4% + 20p for UK cards)
+                    Includes Stripe processing, deducted per storefront sale
                   </p>
                 </div>
-                <span className="text-sm text-slate-500">
-                  Charged by Stripe
+                <span className="text-lg font-semibold text-slate-900">
+                  {((roaster.sales_tier as TierLevel) || "free") === "free" ? "5% + 20p" : "2% + 20p"}
+                  <span className="text-xs font-normal text-slate-400 ml-1">
+                    {`(${TIER_NAMES[(roaster.sales_tier as TierLevel) || "free"]} plan)`}
+                  </span>
                 </span>
               </div>
               <p className="text-xs text-slate-400 pt-2">

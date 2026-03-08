@@ -20,7 +20,13 @@ export type MarketingLimitKey =
   | "embeddedForms"
   | "aiCreditsPerMonth";
 
-export type LimitKey = SalesLimitKey | MarketingLimitKey;
+export type ToolsLimitKey =
+  | "greenBeans"
+  | "roastLogsPerMonth"
+  | "cuppingSessionsPerMonth"
+  | "certifications";
+
+export type LimitKey = SalesLimitKey | MarketingLimitKey | ToolsLimitKey;
 
 // ─── Feature Keys ───
 
@@ -38,7 +44,12 @@ export type MarketingFeatureKey =
   | "marketingAnalyticsFull"
   | "formBrandingRemoved";
 
-export type FeatureKey = SalesFeatureKey | MarketingFeatureKey;
+export type ToolsFeatureKey =
+  | "toolsProductionPlanner"
+  | "toolsBreakeven"
+  | "toolsLowStockAlerts";
+
+export type FeatureKey = SalesFeatureKey | MarketingFeatureKey | ToolsFeatureKey;
 
 // ─── Tier Order ───
 
@@ -79,6 +90,23 @@ const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
   aiCreditsPerMonth:  { free: 0,    starter: 50,   growth: 150,   pro: 500,   scale: 1500 },
 };
 
+// ─── Tools Suite Limits (gated via Sales Suite tier) ───
+
+const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
+  greenBeans:              { free: 5,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
+  roastLogsPerMonth:       { free: 10, starter: Infinity, growth: Infinity, pro: Infinity, scale: Infinity },
+  cuppingSessionsPerMonth: { free: 2,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
+  certifications:          { free: 3,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
+};
+
+// ─── Tools Suite Features (gated via Sales Suite tier) ───
+
+const TOOLS_FEATURES: Record<ToolsFeatureKey, Record<TierLevel, boolean>> = {
+  toolsProductionPlanner: { free: false, starter: false, growth: true,  pro: true,  scale: true },
+  toolsBreakeven:         { free: false, starter: false, growth: true,  pro: true,  scale: true },
+  toolsLowStockAlerts:    { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+};
+
 // ─── Marketing Suite Features ───
 
 const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>> = {
@@ -90,14 +118,16 @@ const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>
   formBrandingRemoved:     { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
-// ─── Platform Fee ───
+// ─── Platform Fee (GR application fee %, excludes Stripe processing) ───
+// Total card payment fees shown to roasters: Free = 5% + 20p, Paid = 2% + 20p
+// Stripe takes ~1.5% + 20p, so GR keeps: Free = 3.5%, Paid = 0.5%
 
 const PLATFORM_FEE: Record<TierLevel, number> = {
-  free: 5,
-  starter: 0,
-  growth: 0,
-  pro: 0,
-  scale: 0,
+  free: 3.5,
+  starter: 0.5,
+  growth: 0.5,
+  pro: 0.5,
+  scale: 0.5,
 };
 
 // ─── Pricing (pence) ───
@@ -156,6 +186,11 @@ export function getEffectiveLimits(salesTier: TierLevel, marketingTier: TierLeve
     emailSendsPerMonth: MARKETING_LIMITS.emailSendsPerMonth[marketingTier],
     embeddedForms: MARKETING_LIMITS.embeddedForms[marketingTier],
     aiCreditsPerMonth: MARKETING_LIMITS.aiCreditsPerMonth[marketingTier],
+    // Tools limits (gated via sales tier)
+    greenBeans: TOOLS_LIMITS.greenBeans[salesTier],
+    roastLogsPerMonth: TOOLS_LIMITS.roastLogsPerMonth[salesTier],
+    cuppingSessionsPerMonth: TOOLS_LIMITS.cuppingSessionsPerMonth[salesTier],
+    certifications: TOOLS_LIMITS.certifications[salesTier],
   };
 }
 
@@ -177,6 +212,10 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     marketingAnalyticsBasic: MARKETING_FEATURES.marketingAnalyticsBasic[marketingTier],
     marketingAnalyticsFull: MARKETING_FEATURES.marketingAnalyticsFull[marketingTier],
     formBrandingRemoved: MARKETING_FEATURES.formBrandingRemoved[marketingTier],
+    // Tools features (gated via sales tier)
+    toolsProductionPlanner: TOOLS_FEATURES.toolsProductionPlanner[salesTier],
+    toolsBreakeven: TOOLS_FEATURES.toolsBreakeven[salesTier],
+    toolsLowStockAlerts: TOOLS_FEATURES.toolsLowStockAlerts[salesTier],
   };
 }
 
@@ -212,6 +251,14 @@ export function getMinimumTierForFeature(featureKey: FeatureKey): { tier: TierLe
     }
   }
 
+  // Check tools features
+  const toolsFeatureMap = TOOLS_FEATURES as Record<string, Record<TierLevel, boolean>>;
+  if (featureKey in toolsFeatureMap) {
+    for (const tier of TIER_ORDER) {
+      if (toolsFeatureMap[featureKey][tier]) return { tier, product: "sales" };
+    }
+  }
+
   return { tier: "scale", product: "sales" }; // fallback
 }
 
@@ -230,6 +277,14 @@ export function getMinimumTierForHigherLimit(limitKey: LimitKey, currentValue: n
   if (limitKey in marketingLimitMap) {
     for (const tier of TIER_ORDER) {
       if (marketingLimitMap[limitKey][tier] > currentValue) return { tier, product: "marketing" };
+    }
+    return null;
+  }
+
+  const toolsLimitMap = TOOLS_LIMITS as Record<string, Record<TierLevel, number>>;
+  if (limitKey in toolsLimitMap) {
+    for (const tier of TIER_ORDER) {
+      if (toolsLimitMap[limitKey][tier] > currentValue) return { tier, product: "sales" };
     }
     return null;
   }
@@ -266,6 +321,10 @@ export const LIMIT_LABELS: Record<LimitKey, string> = {
   emailSendsPerMonth: "Email Sends / Month",
   embeddedForms: "Embedded Forms",
   aiCreditsPerMonth: "AI Credits / Month",
+  greenBeans: "Green Beans",
+  roastLogsPerMonth: "Roast Logs / Month",
+  cuppingSessionsPerMonth: "Cupping Sessions / Month",
+  certifications: "Certifications",
 };
 
 // ─── Feature Labels (for UI display) ───
@@ -281,6 +340,9 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   marketingAnalyticsBasic: "Basic Marketing Analytics",
   marketingAnalyticsFull: "Advanced Marketing Analytics",
   formBrandingRemoved: "Remove Form Branding",
+  toolsProductionPlanner: "Production Planner",
+  toolsBreakeven: "Break-even Calculator",
+  toolsLowStockAlerts: "Low Stock Alerts",
 };
 
 // ─── Limit product mapping ───
@@ -294,6 +356,10 @@ export const LIMIT_PRODUCT_MAP: Record<LimitKey, ProductType> = {
   emailSendsPerMonth: "marketing",
   embeddedForms: "marketing",
   aiCreditsPerMonth: "marketing",
+  greenBeans: "sales",
+  roastLogsPerMonth: "sales",
+  cuppingSessionsPerMonth: "sales",
+  certifications: "sales",
 };
 
 // ─── Get all limits for a specific product and tier ───

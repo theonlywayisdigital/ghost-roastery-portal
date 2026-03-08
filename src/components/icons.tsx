@@ -179,6 +179,9 @@ import {
   VideoCamera as _VideoCamera,
   WebhooksLogo as _WebhooksLogo,
   Placeholder as _Placeholder,
+  Thermometer as _Thermometer,
+  Scales as _Scales,
+  Timer as _Timer,
 } from "@phosphor-icons/react";
 
 // ── Wrapper ──
@@ -396,3 +399,8 @@ export const UserMinus = wrapIcon(_UserMinus, "UserMinus");
 export const UserX = wrapIcon(_UserMinus, "UserX");
 export const Video = wrapIcon(_VideoCamera, "Video");
 export const Webhook = wrapIcon(_WebhooksLogo, "Webhook");
+
+// ── Roaster Tools icons ──
+export const Thermometer = wrapIcon(_Thermometer, "Thermometer");
+export const Scale = wrapIcon(_Scales, "Scale");
+export const Timer = wrapIcon(_Timer, "Timer");

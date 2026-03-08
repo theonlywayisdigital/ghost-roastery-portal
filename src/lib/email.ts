@@ -229,6 +229,47 @@ export async function sendWholesaleRejected(
   });
 }
 
+export async function sendWholesaleAccountSetup(
+  email: string,
+  contactName: string,
+  roasterName: string,
+  setupUrl: string,
+  branding?: EmailBranding | null
+) {
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Set Up Your Account</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Thanks for applying for a wholesale account with <strong>${roasterName}</strong>. We&rsquo;ve created a portal account for you &mdash; click below to set your password and sign in.
+    </p>
+
+    ${emailButton({ href: setupUrl, label: "Set Your Password", branding })}
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Your application is now being reviewed. We&rsquo;ll notify you once it&rsquo;s been processed &mdash; usually within 1&ndash;2 business days.
+    </p>
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      This link expires in 48 hours. If you didn&rsquo;t apply for a wholesale account, you can safely ignore this email.
+    </p>
+
+    <p style="color:#94a3b8;font-size:12px;margin-top:32px;word-break:break-all;text-align:left;">
+      If the button doesn&rsquo;t work, copy and paste this link:<br/>
+      <a href="${setupUrl}" style="color:#0083dc;">${setupUrl}</a>
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Set up your account — ${roasterName}`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   resetUrl: string,

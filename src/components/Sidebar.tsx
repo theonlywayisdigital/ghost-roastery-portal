@@ -43,6 +43,9 @@ import {
   Globe,
   Link2,
   Eye,
+  Flame,
+  TestTube,
+  ShieldCheck,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -187,7 +190,22 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     activePrefixes: ["/website"],
   };
 
-  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(user.websiteSubscriptionActive ? [websiteSuiteConfig] : [])];
+  const roasterToolsSuiteConfig: SuiteConfig = {
+    key: "tools",
+    label: "Roaster Tools",
+    icon: Coffee,
+    items: [
+      { label: "Green Beans", href: "/tools/green-beans", icon: Package },
+      { label: "Roast Log", href: "/tools/roast-log", icon: Flame },
+      { label: "Production", href: "/tools/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
+      { label: "Cupping", href: "/tools/cupping", icon: TestTube },
+      { label: "Calculators", href: "/tools/pricing", icon: PoundSterling },
+      { label: "Certifications", href: "/tools/certifications", icon: ShieldCheck },
+    ],
+    activePrefixes: ["/tools"],
+  };
+
+  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(user.websiteSubscriptionActive ? [websiteSuiteConfig] : []), roasterToolsSuiteConfig];
 
   function isSuiteActive(suite: SuiteConfig): boolean {
     return suite.activePrefixes.some(
@@ -230,6 +248,8 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         { label: "All Businesses", href: "/admin/businesses", icon: Store },
         { label: "All Users", href: "/admin/users", icon: Users },
         { label: "All Roasters", href: "/admin/roasters", icon: Building2 },
+        { label: "Products", href: "/admin/products", icon: Package },
+        { label: "Wholesale", href: "/admin/wholesale", icon: Store },
         { label: "Partner Program", href: "/admin/partner-program", icon: Coffee },
       ],
     });

@@ -58,7 +58,7 @@ interface AdminContactsCRMProps {
   roasters: Roaster[];
 }
 
-type OwnerTab = "ghost_roastery" | "roaster";
+type OwnerTab = "ghost_roastery" | "gr_wholesale" | "roaster";
 
 const GR_TABS = [
   { id: "all", label: "All", icon: Users, typeFilter: "" },
@@ -133,14 +133,20 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
 
   const loadContacts = useCallback(async () => {
     setLoading(true);
+    const effectiveOwnerType = ownerTab === "gr_wholesale" ? "ghost_roastery" : ownerTab;
     const params = new URLSearchParams({
-      ownerType: ownerTab,
+      ownerType: effectiveOwnerType,
       page: String(page),
       sort: sortField,
       order: sortOrder,
       status: statusFilter,
     });
-    if (tabConfig.typeFilter) params.set("type", tabConfig.typeFilter);
+    // For gr_wholesale tab, always filter by wholesale type
+    if (ownerTab === "gr_wholesale") {
+      params.set("type", "wholesale");
+    } else if (tabConfig.typeFilter) {
+      params.set("type", tabConfig.typeFilter);
+    }
     if (search) params.set("search", search);
     if (leadStatusFilter && activeTab === "leads") params.set("lead_status", leadStatusFilter);
     if (roasterFilter && ownerTab === "roaster") params.set("roasterId", roasterFilter);
@@ -259,7 +265,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
   }
 
   const totalPages = Math.ceil(total / 20);
-  const isGhostRoastery = ownerTab === "ghost_roastery";
+  const isGhostRoastery = ownerTab === "ghost_roastery" || ownerTab === "gr_wholesale";
 
   return (
     <div>
@@ -295,6 +301,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
         {(
           [
             { id: "ghost_roastery" as const, label: "Ghost Roastery" },
+            { id: "gr_wholesale" as const, label: "GR Wholesale" },
             { id: "roaster" as const, label: "Roaster Contacts" },
           ] as const
         ).map((tab) => (

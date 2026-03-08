@@ -4,9 +4,11 @@ import {
   sendWholesaleApplicationReceived,
   sendWholesaleApplicationNotification,
   sendWholesaleApproved,
+  sendWholesaleAccountSetup,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
+import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
 
     // Find or create user account (same pattern as confirm-order)
     let userId: string | null = null;
+    let isNewUser = false;
 
     const { data: existingUser } = await supabase
       .from("users")
@@ -78,6 +81,7 @@ export async function POST(request: Request) {
     if (existingUser) {
       userId = existingUser.id;
     } else {
+      isNewUser = true;
       const { data: authData, error: authError } =
         await supabase.auth.admin.createUser({
           email,
@@ -208,15 +212,35 @@ export async function POST(request: Request) {
         });
       }
 
-      // Send approval email
+      // Send approval email + account setup for new users
       try {
-        await sendWholesaleApproved(
-          email,
-          name,
-          roaster.business_name,
-          "standard",
-          "prepay"
-        );
+        const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+
+        if (isNewUser && userId) {
+          const token = crypto.randomBytes(32).toString("hex");
+          const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+          await supabase.from("account_setup_tokens").insert({
+            user_id: userId,
+            token,
+            expires_at: expiresAt,
+          });
+
+          const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+
+          await Promise.all([
+            sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay"),
+            sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+          ]);
+        } else {
+          await sendWholesaleApproved(
+            email,
+            name,
+            roaster.business_name,
+            "standard",
+            "prepay"
+          );
+        }
       } catch (emailErr) {
         console.error("Failed to send approval email:", emailErr);
       }
@@ -251,15 +275,40 @@ export async function POST(request: Request) {
     const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
 
     try {
-      await Promise.all([
-        sendWholesaleApplicationReceived(email, name, roaster.business_name),
-        sendWholesaleApplicationNotification(
-          roaster.email,
-          roaster.business_name,
-          businessName,
-          portalUrl
-        ),
-      ]);
+      // For new users, send account setup email (with password link) instead
+      // of the plain "application received" email
+      if (isNewUser && userId) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48 hours
+
+        await supabase.from("account_setup_tokens").insert({
+          user_id: userId,
+          token,
+          expires_at: expiresAt,
+        });
+
+        const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+
+        await Promise.all([
+          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+          sendWholesaleApplicationNotification(
+            roaster.email,
+            roaster.business_name,
+            businessName,
+            portalUrl
+          ),
+        ]);
+      } else {
+        await Promise.all([
+          sendWholesaleApplicationReceived(email, name, roaster.business_name),
+          sendWholesaleApplicationNotification(
+            roaster.email,
+            roaster.business_name,
+            businessName,
+            portalUrl
+          ),
+        ]);
+      }
     } catch (emailErr) {
       console.error("Failed to send notification emails:", emailErr);
     }

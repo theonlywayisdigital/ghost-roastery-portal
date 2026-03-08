@@ -1,6 +1,6 @@
 "use client";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -136,6 +136,23 @@ const colorMap: Record<string, Record<string, string>> = {
     pro: "bg-amber-50 text-amber-700",
     scale: "bg-green-50 text-green-700",
   },
+  certificationStatus: {
+    active: "bg-green-50 text-green-700",
+    expiring_soon: "bg-orange-50 text-orange-700",
+    expired: "bg-red-50 text-red-700",
+    pending: "bg-yellow-50 text-yellow-700",
+    revoked: "bg-slate-100 text-slate-500",
+  },
+  roastLogStatus: {
+    draft: "bg-slate-100 text-slate-600",
+    completed: "bg-green-50 text-green-700",
+    void: "bg-red-50 text-red-700",
+  },
+  stockAlert: {
+    ok: "bg-green-50 text-green-700",
+    low: "bg-orange-50 text-orange-700",
+    out: "bg-red-50 text-red-700",
+  },
 };
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -250,6 +267,23 @@ const labelMap: Record<string, Record<string, string>> = {
     growth: "Growth",
     pro: "Pro",
     scale: "Scale",
+  },
+  certificationStatus: {
+    active: "Active",
+    expiring_soon: "Expiring Soon",
+    expired: "Expired",
+    pending: "Pending",
+    revoked: "Revoked",
+  },
+  roastLogStatus: {
+    draft: "Draft",
+    completed: "Completed",
+    void: "Void",
+  },
+  stockAlert: {
+    ok: "In Stock",
+    low: "Low Stock",
+    out: "Out of Stock",
   },
 };
 

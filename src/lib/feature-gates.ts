@@ -161,6 +161,39 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
         return 0;
       }
       return roasterData.monthly_ai_credits_used;
+
+    // Tools limits
+    case "greenBeans":
+      return getCount("green_beans", "roaster_id", roasterId);
+
+    case "roastLogsPerMonth": {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const supabase = createServerClient();
+      const { count } = await supabase
+        .from("roast_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("roaster_id", roasterId)
+        .gte("created_at", startOfMonth.toISOString());
+      return count || 0;
+    }
+
+    case "cuppingSessionsPerMonth": {
+      const startOfMonth2 = new Date();
+      startOfMonth2.setDate(1);
+      startOfMonth2.setHours(0, 0, 0, 0);
+      const supabase = createServerClient();
+      const { count } = await supabase
+        .from("cupping_sessions")
+        .select("*", { count: "exact", head: true })
+        .eq("roaster_id", roasterId)
+        .gte("created_at", startOfMonth2.toISOString());
+      return count || 0;
+    }
+
+    case "certifications":
+      return getCount("certifications", "roaster_id", roasterId);
   }
 }
 
@@ -279,6 +312,8 @@ export async function getRoasterUsageSummary(roasterId: string): Promise<UsageSu
     "products", "wholesaleOrdersPerMonth", "wholesaleAccounts",
     "crmContacts", "teamMembers", "emailSendsPerMonth",
     "embeddedForms", "aiCreditsPerMonth",
+    "greenBeans", "roastLogsPerMonth",
+    "cuppingSessionsPerMonth", "certifications",
   ];
 
   const counts = await Promise.all(

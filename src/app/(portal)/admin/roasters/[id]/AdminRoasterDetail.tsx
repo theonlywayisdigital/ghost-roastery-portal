@@ -1459,7 +1459,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
               )}
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-slate-500">
-                  {`Platform fee: ${getEffectivePlatformFee(subSalesTier)}% (derived from Sales tier)`}
+                  {`Card payment fees: ${subSalesTier === "free" ? "5% + 20p" : "2% + 20p"} (derived from Sales tier)`}
                 </p>
               </div>
             </div>

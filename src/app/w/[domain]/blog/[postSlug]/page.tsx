@@ -1,13 +1,61 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase";
 import { WebPageRenderer } from "../../_components/WebPageRenderer";
 import Link from "next/link";
 
-export default async function WebsiteBlogPostPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ domain: string; postSlug: string }>;
-}) {
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { domain, postSlug } = await params;
+  const supabase = createServerClient();
+
+  const { data: roaster } = await supabase
+    .from("partner_roasters")
+    .select("id, business_name")
+    .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
+    .eq("website_subscription_active", true)
+    .single();
+
+  if (!roaster) return { title: "Not Found" };
+
+  const { data: post } = await supabase
+    .from("blog_posts")
+    .select("title, excerpt, seo_title, seo_description, featured_image_url, author_name, published_at")
+    .eq("roaster_id", roaster.id)
+    .eq("slug", postSlug)
+    .eq("is_published", true)
+    .single();
+
+  if (!post) return { title: "Not Found" };
+
+  const title = post.seo_title || post.title;
+  const description = post.seo_description || post.excerpt || undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: roaster.business_name,
+      type: "article",
+      ...(post.featured_image_url && {
+        images: [{ url: post.featured_image_url }],
+      }),
+      ...(post.published_at && {
+        publishedTime: post.published_at,
+      }),
+      ...(post.author_name && {
+        authors: [post.author_name],
+      }),
+    },
+  };
+}
+
+export default async function WebsiteBlogPostPage({ params }: PageProps) {
   const { domain, postSlug } = await params;
   const supabase = createServerClient();
 

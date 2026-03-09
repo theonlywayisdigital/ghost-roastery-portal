@@ -1,15 +1,60 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase";
 import type { WebSection } from "@/lib/website-sections/types";
 import { WebPageRenderer } from "./_components/WebPageRenderer";
 
 export const dynamic = "force-dynamic";
 
-export default async function WebsiteHomePage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ domain: string }>;
-}) {
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { domain } = await params;
+  const supabase = createServerClient();
+
+  const { data: roaster } = await supabase
+    .from("partner_roasters")
+    .select("id, business_name")
+    .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
+    .eq("website_subscription_active", true)
+    .single();
+
+  if (!roaster) return { title: "Not Found" };
+
+  const { data: website } = await supabase
+    .from("websites")
+    .select("id, name")
+    .eq("roaster_id", roaster.id)
+    .single();
+
+  if (!website) return { title: "Not Found" };
+
+  const { data: page } = await supabase
+    .from("website_pages")
+    .select("title, meta_title, meta_description")
+    .eq("website_id", website.id)
+    .eq("slug", "home")
+    .single();
+
+  const siteName = website.name || roaster.business_name;
+  const title = page?.meta_title || siteName;
+  const description = page?.meta_description || `Welcome to ${siteName}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName,
+      type: "website",
+    },
+  };
+}
+
+export default async function WebsiteHomePage({ params }: PageProps) {
   const { domain } = await params;
   const supabase = createServerClient();
 

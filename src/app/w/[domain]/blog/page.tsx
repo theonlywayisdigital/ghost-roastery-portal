@@ -1,12 +1,40 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase";
 import Link from "next/link";
 
-export default async function WebsiteBlogIndexPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ domain: string }>;
-}) {
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { domain } = await params;
+  const supabase = createServerClient();
+
+  const { data: roaster } = await supabase
+    .from("partner_roasters")
+    .select("id, business_name")
+    .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
+    .eq("website_subscription_active", true)
+    .single();
+
+  if (!roaster) return { title: "Blog" };
+
+  const siteName = roaster.business_name;
+
+  return {
+    title: `Blog | ${siteName}`,
+    description: `Latest news and stories from ${siteName}`,
+    openGraph: {
+      title: `Blog | ${siteName}`,
+      description: `Latest news and stories from ${siteName}`,
+      siteName,
+      type: "website",
+    },
+  };
+}
+
+export default async function WebsiteBlogIndexPage({ params }: PageProps) {
   const { domain } = await params;
   const supabase = createServerClient();
 

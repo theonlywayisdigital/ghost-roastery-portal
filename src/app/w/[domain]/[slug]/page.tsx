@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase";
 import type { WebSection } from "@/lib/website-sections/types";
 import { WebPageRenderer } from "../_components/WebPageRenderer";
@@ -9,13 +10,13 @@ interface PageProps {
   params: Promise<{ domain: string; slug: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { domain, slug } = await params;
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
     .from("partner_roasters")
-    .select("id")
+    .select("id, business_name")
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)
     .single();
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps) {
 
   const { data: website } = await supabase
     .from("websites")
-    .select("id")
+    .select("id, name")
     .eq("roaster_id", roaster.id)
     .single();
 
@@ -37,9 +38,19 @@ export async function generateMetadata({ params }: PageProps) {
     .eq("slug", slug)
     .single();
 
+  const siteName = website.name || roaster.business_name;
+  const title = page?.meta_title || page?.title || "Page";
+  const description = page?.meta_description ?? undefined;
+
   return {
-    title: page?.meta_title || page?.title || "Page",
-    description: page?.meta_description ?? undefined,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName,
+      type: "website",
+    },
   };
 }
 

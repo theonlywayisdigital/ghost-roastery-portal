@@ -3,13 +3,15 @@
 import type { EventsSectionData, EventItem } from "@/lib/website-sections/types";
 import { FormField, TextInput, SelectInput } from "./FormField";
 import { ArrayField } from "./ArrayField";
+import { ImageUploadField } from "./ImageUploadField";
 
 interface EventsFormProps {
   data: EventsSectionData;
   onChange: (data: EventsSectionData) => void;
+  roasterId: string;
 }
 
-export function EventsForm({ data, onChange }: EventsFormProps) {
+export function EventsForm({ data, onChange, roasterId }: EventsFormProps) {
   function update(partial: Partial<EventsSectionData>) {
     onChange({ ...data, ...partial });
   }
@@ -60,6 +62,7 @@ export function EventsForm({ data, onChange }: EventsFormProps) {
             </div>
             <TextInput value={event.description} onChange={(description) => updateItem({ ...event, description })} placeholder="Description" />
             <TextInput value={event.link ?? ""} onChange={(link) => updateItem({ ...event, link: link || undefined })} placeholder="Link URL (optional)" />
+            <ImageUploadField label="Image" value={event.image} onChange={(image) => updateItem({ ...event, image })} roasterId={roasterId} />
           </div>
         )}
       />

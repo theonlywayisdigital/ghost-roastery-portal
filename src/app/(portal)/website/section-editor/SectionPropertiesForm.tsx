@@ -291,7 +291,7 @@ function renderForm(section: WebSection, onChange: (s: WebSection) => void, roas
     case "video_hero":
       return <VideoHeroForm data={section} onChange={onChange} />;
     case "events":
-      return <EventsForm data={section} onChange={onChange} />;
+      return <EventsForm data={section} onChange={onChange} roasterId={roasterId} />;
     case "location":
       return <LocationForm data={section} onChange={onChange} roasterId={roasterId} />;
     case "brewing_guide":

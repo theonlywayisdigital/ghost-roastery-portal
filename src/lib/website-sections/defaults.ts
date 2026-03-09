@@ -347,5 +347,40 @@ export function createDefaultSection(type: SectionType): WebSection {
           { day: "Sunday", hours: "9:00 AM - 4:00 PM" },
         ],
       };
+
+    case "brewing_guide":
+      return {
+        id,
+        type: "brewing_guide",
+        visible: true,
+        heading: "Brewing Guides",
+        subheading: "Master the perfect cup with our step-by-step guides",
+        methods: [
+          {
+            name: "Cafeti\u00e8re",
+            grind: "Coarse",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Preheat", description: "Rinse the cafeti\u00e8re with hot water", duration: "30s" },
+              { title: "Add Coffee", description: "Add coarsely ground coffee", duration: "" },
+              { title: "Pour", description: "Fill with water just off the boil (93-96\u00b0C)", duration: "30s" },
+              { title: "Brew", description: "Place the plunger on top without pressing. Let it steep", duration: "4 min" },
+              { title: "Plunge & Pour", description: "Press the plunger slowly and pour immediately", duration: "30s" },
+            ],
+          },
+          {
+            name: "Pour Over (V60)",
+            grind: "Medium-Fine",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Rinse Filter", description: "Place filter in V60 and rinse with hot water", duration: "15s" },
+              { title: "Add Coffee", description: "Add medium-fine ground coffee, create a small well in the centre", duration: "" },
+              { title: "Bloom", description: "Pour twice the weight of coffee in water, let it bloom", duration: "30s" },
+              { title: "Pour", description: "Pour in slow circles from the centre outward", duration: "2 min" },
+              { title: "Serve", description: "Let it drip through completely and serve", duration: "30s" },
+            ],
+          },
+        ],
+      };
   }
 }

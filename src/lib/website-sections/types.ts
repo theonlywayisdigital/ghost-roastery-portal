@@ -85,7 +85,8 @@ export type SectionType =
   | "stats_counter"
   | "video_hero"
   | "events"
-  | "location";
+  | "location"
+  | "brewing_guide";
 
 export interface SectionBg {
   type: "solid" | "gradient" | "image";
@@ -359,6 +360,27 @@ export interface LocationSectionData extends SectionBase {
   email?: string;
 }
 
+export interface BrewingStep {
+  title: string;
+  description: string;
+  duration?: string;
+}
+
+export interface BrewingMethod {
+  name: string;
+  grind: string;
+  ratio: string;
+  steps: BrewingStep[];
+  icon?: string;
+}
+
+export interface BrewingGuideSectionData extends SectionBase {
+  type: "brewing_guide";
+  heading: string;
+  subheading: string;
+  methods: BrewingMethod[];
+}
+
 // ─── Discriminated Union ────────────────────────────────────────────────────
 
 export type WebSection =
@@ -384,7 +406,8 @@ export type WebSection =
   | StatsCounterSectionData
   | VideoHeroSectionData
   | EventsSectionData
-  | LocationSectionData;
+  | LocationSectionData
+  | BrewingGuideSectionData;
 
 // ─── Section Catalog Entry (for the "Add Section" modal) ───────────────────
 

@@ -157,12 +157,36 @@ export function modernMinimalTemplate(): Record<string, WebSection[]> {
     brewing: [
       {
         id: id(),
-        type: "text_content",
+        type: "brewing_guide",
         visible: true,
         heading: "Brewing Guides",
-        body: "<h3>Cafetière (French Press)</h3><p>Use 15g of coarsely ground coffee per 250ml of water. Pour water just off the boil (around 94°C) and steep for 4 minutes. Press slowly and serve immediately.</p><h3>Pour Over</h3><p>Use a medium-fine grind at a 1:16 ratio. Bloom with twice the weight of coffee in water for 30 seconds, then pour in slow, steady circles until you reach your target weight.</p><h3>Espresso</h3><p>Use 18g of finely ground coffee. Aim for a 36g yield in 25-30 seconds. Adjust grind finer for slower extraction, coarser for faster.</p><h3>Aeropress</h3><p>Use 15g of medium-fine ground coffee with 200ml of water at 85°C. Steep for 1 minute, then press steadily for 30 seconds.</p>",
-        background: "light",
-        maxWidth: "medium",
+        subheading: "Master the perfect cup with our step-by-step guides",
+        methods: [
+          {
+            name: "Cafeti\u00e8re",
+            grind: "Coarse",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Preheat", description: "Rinse the cafeti\u00e8re with hot water", duration: "30s" },
+              { title: "Add Coffee", description: "Add coarsely ground coffee", duration: "" },
+              { title: "Pour", description: "Fill with water just off the boil (93-96\u00b0C)", duration: "30s" },
+              { title: "Brew", description: "Place the plunger on top without pressing. Let it steep", duration: "4 min" },
+              { title: "Plunge & Pour", description: "Press the plunger slowly and pour immediately", duration: "30s" },
+            ],
+          },
+          {
+            name: "Pour Over (V60)",
+            grind: "Medium-Fine",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Rinse Filter", description: "Place filter in V60 and rinse with hot water", duration: "15s" },
+              { title: "Add Coffee", description: "Add medium-fine ground coffee, create a small well in the centre", duration: "" },
+              { title: "Bloom", description: "Pour twice the weight of coffee in water, let it bloom", duration: "30s" },
+              { title: "Pour", description: "Pour in slow circles from the centre outward", duration: "2 min" },
+              { title: "Serve", description: "Let it drip through completely and serve", duration: "30s" },
+            ],
+          },
+        ],
       },
     ],
   };

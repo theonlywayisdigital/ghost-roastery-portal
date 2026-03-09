@@ -175,4 +175,11 @@ export const sectionCatalog: SectionCatalogEntry[] = [
     category: "Content",
     icon: "MapPin",
   },
+  {
+    type: "brewing_guide",
+    label: "Brewing Guide",
+    description: "Interactive timeline for coffee brewing methods and recipes.",
+    category: "Content",
+    icon: "Coffee",
+  },
 ];

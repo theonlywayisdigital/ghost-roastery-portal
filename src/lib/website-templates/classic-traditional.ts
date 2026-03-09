@@ -177,12 +177,36 @@ export function classicTraditionalTemplate(): Record<string, WebSection[]> {
     brewing: [
       {
         id: id(),
-        type: "text_content",
+        type: "brewing_guide",
         visible: true,
         heading: "Brewing Guides",
-        body: "<h3>The Basics</h3><p>Great coffee starts with fresh beans, clean water, and the right ratio. We recommend 60g of coffee per litre of water as a starting point — adjust to taste.</p><h3>Cafetière</h3><p>Coarse grind. 15g coffee, 250ml water at 94°C. Steep 4 minutes. Press slowly.</p><h3>V60 / Pour Over</h3><p>Medium grind. 15g coffee, 250ml water. Bloom 30s, then pour in steady spirals over 2-3 minutes.</p><h3>Espresso</h3><p>Fine grind. 18g in, 36g out, 25-30 seconds. Adjust grind to taste.</p><h3>Cold Brew</h3><p>Coarse grind. 100g coffee, 1 litre cold water. Steep 12-18 hours in the fridge. Strain and dilute to taste.</p>",
-        background: "white",
-        maxWidth: "medium",
+        subheading: "Master the perfect cup with our step-by-step guides",
+        methods: [
+          {
+            name: "Cafeti\u00e8re",
+            grind: "Coarse",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Preheat", description: "Rinse the cafeti\u00e8re with hot water", duration: "30s" },
+              { title: "Add Coffee", description: "Add coarsely ground coffee", duration: "" },
+              { title: "Pour", description: "Fill with water just off the boil (93-96\u00b0C)", duration: "30s" },
+              { title: "Brew", description: "Place the plunger on top without pressing. Let it steep", duration: "4 min" },
+              { title: "Plunge & Pour", description: "Press the plunger slowly and pour immediately", duration: "30s" },
+            ],
+          },
+          {
+            name: "Pour Over (V60)",
+            grind: "Medium-Fine",
+            ratio: "15g / 250ml",
+            steps: [
+              { title: "Rinse Filter", description: "Place filter in V60 and rinse with hot water", duration: "15s" },
+              { title: "Add Coffee", description: "Add medium-fine ground coffee, create a small well in the centre", duration: "" },
+              { title: "Bloom", description: "Pour twice the weight of coffee in water, let it bloom", duration: "30s" },
+              { title: "Pour", description: "Pour in slow circles from the centre outward", duration: "2 min" },
+              { title: "Serve", description: "Let it drip through completely and serve", duration: "30s" },
+            ],
+          },
+        ],
       },
     ],
   };

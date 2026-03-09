@@ -340,7 +340,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
               }`}
             >
               <Icon className="w-4 h-4" />
-              {`${tab.label}${count > 0 ? ` (${count})` : ""}`}
+              {`${tab.label} (${count})`}
             </button>
           );
         })}

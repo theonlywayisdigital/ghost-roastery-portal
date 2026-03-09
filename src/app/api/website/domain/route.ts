@@ -2,6 +2,21 @@ import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 
+const VERCEL_API_TOKEN = process.env.VERCEL_API_TOKEN;
+const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID;
+const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
+
+function vercelHeaders() {
+  return {
+    Authorization: `Bearer ${VERCEL_API_TOKEN}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function vercelParams() {
+  return VERCEL_TEAM_ID ? `?teamId=${VERCEL_TEAM_ID}` : "";
+}
+
 export async function GET() {
   const roaster = await getCurrentRoaster();
   if (!roaster) {
@@ -41,12 +56,13 @@ export async function POST(request: Request) {
     }
 
     const supabase = createServerClient();
+    const normalised = domain.toLowerCase();
 
     // Check domain not already taken by another roaster
     const { data: existing } = await supabase
       .from("partner_roasters")
       .select("id")
-      .eq("website_custom_domain", domain.toLowerCase())
+      .eq("website_custom_domain", normalised)
       .neq("id", roaster.id)
       .single();
 
@@ -57,11 +73,56 @@ export async function POST(request: Request) {
       );
     }
 
-    // Save domain (unverified)
+    // If changing domain, remove old one from Vercel first
+    if (
+      VERCEL_API_TOKEN &&
+      VERCEL_PROJECT_ID &&
+      roaster.website_custom_domain &&
+      roaster.website_custom_domain !== normalised
+    ) {
+      try {
+        await fetch(
+          `https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/domains/${roaster.website_custom_domain}${vercelParams()}`,
+          { method: "DELETE", headers: vercelHeaders() }
+        );
+      } catch {
+        // ignore — old domain may not exist in Vercel
+      }
+    }
+
+    // Register domain with Vercel
+    let vercelRegistered = false;
+    if (VERCEL_API_TOKEN && VERCEL_PROJECT_ID) {
+      try {
+        const res = await fetch(
+          `https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/domains${vercelParams()}`,
+          {
+            method: "POST",
+            headers: vercelHeaders(),
+            body: JSON.stringify({ name: normalised }),
+          }
+        );
+        if (res.ok) {
+          vercelRegistered = true;
+        } else {
+          const errData = await res.json();
+          // Domain may already exist in project — treat as success
+          if (errData?.error?.code === "domain_already_in_use") {
+            vercelRegistered = true;
+          } else {
+            console.error("Vercel domain add error:", errData);
+          }
+        }
+      } catch (err) {
+        console.error("Vercel API error:", err);
+      }
+    }
+
+    // Save domain to database
     const { error } = await supabase
       .from("partner_roasters")
       .update({
-        website_custom_domain: domain.toLowerCase(),
+        website_custom_domain: normalised,
         website_domain_verified: false,
       })
       .eq("id", roaster.id);
@@ -74,17 +135,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // TODO: Call Vercel API to add domain to project
-    // const vercelResponse = await fetch(`https://api.vercel.com/v10/projects/${projectId}/domains`, {
-    //   method: "POST",
-    //   headers: { Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}` },
-    //   body: JSON.stringify({ name: domain.toLowerCase() }),
-    // });
-
     return NextResponse.json({
-      domain: domain.toLowerCase(),
+      domain: normalised,
       verified: false,
-      message: "Domain saved. Please add a CNAME record pointing to cname.vercel-dns.com",
+      vercelRegistered,
+      message: "Domain saved. Add a CNAME record pointing to cname.vercel-dns.com and click Verify.",
     });
   } catch (error) {
     console.error("Domain save error:", error);
@@ -103,7 +158,17 @@ export async function DELETE() {
 
   const supabase = createServerClient();
 
-  // TODO: Call Vercel API to remove domain from project
+  // Remove domain from Vercel
+  if (VERCEL_API_TOKEN && VERCEL_PROJECT_ID && roaster.website_custom_domain) {
+    try {
+      await fetch(
+        `https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/domains/${roaster.website_custom_domain}${vercelParams()}`,
+        { method: "DELETE", headers: vercelHeaders() }
+      );
+    } catch (err) {
+      console.error("Vercel domain remove error:", err);
+    }
+  }
 
   const { error } = await supabase
     .from("partner_roasters")

@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import type { AboutSectionData, WebsiteTheme } from "@/lib/website-sections/types";
-import { cn } from "@/lib/utils";
 
 interface AboutSectionProps {
   data: AboutSectionData;
@@ -89,12 +88,7 @@ export function AboutSection({ data, theme, isEditor }: AboutSectionProps) {
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          className={cn(
-            "grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center",
-            imageFirst && "lg:[&>*:first-child]:order-2"
-          )}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           {imageFirst ? (
             <>
               {ImageContent}

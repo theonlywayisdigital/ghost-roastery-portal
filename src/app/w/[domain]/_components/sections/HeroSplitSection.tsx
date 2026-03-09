@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { getButtonRadius } from "@/lib/website-sections/types";
 import type { HeroSplitSectionData, WebsiteTheme } from "@/lib/website-sections/types";
-import { cn } from "@/lib/utils";
 
 interface HeroSplitSectionProps {
   data: HeroSplitSectionData;
@@ -94,12 +93,7 @@ export function HeroSplitSection({ data, theme, isEditor }: HeroSplitSectionProp
       style={{ backgroundColor: theme.backgroundColor }}
     >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        <div
-          className={cn(
-            "grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center min-h-[500px]",
-            imageFirst && "lg:[&>*:first-child]:order-2"
-          )}
-        >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center min-h-[500px]">
           {imageFirst ? (
             <>
               {ImageContent}

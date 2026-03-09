@@ -3,6 +3,7 @@
 import type { TextContentSectionData } from "@/lib/website-sections/types";
 import { FormField, TextInput, SelectInput } from "./FormField";
 import { RichTextField } from "./RichTextField";
+import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface TextContentFormProps {
   data: TextContentSectionData;
@@ -17,18 +18,37 @@ export function TextContentForm({ data, onChange }: TextContentFormProps) {
   return (
     <div>
       <FormField label="Heading">
-        <TextInput
-          value={data.heading}
-          onChange={(heading) => update({ heading })}
-          placeholder="Brewing Guide"
-        />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput
+              value={data.heading}
+              onChange={(heading) => update({ heading })}
+              placeholder="Brewing Guide"
+            />
+          </div>
+          <AiGenerateButton
+            type="website_heading"
+            context={{ sectionType: "text content", existingContent: data.heading }}
+            onSelect={(text) => update({ heading: text })}
+          />
+        </div>
       </FormField>
 
-      <RichTextField
-        label="Body"
-        value={data.body}
-        onChange={(body) => update({ body })}
-      />
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-sm font-medium text-neutral-700">Body</label>
+          <AiGenerateButton
+            type="website_body"
+            context={{ sectionType: "text content", existingContent: data.body }}
+            onSelect={(text) => update({ body: text })}
+          />
+        </div>
+        <RichTextField
+          label=""
+          value={data.body}
+          onChange={(body) => update({ body })}
+        />
+      </div>
 
       <FormField label="Background">
         <SelectInput

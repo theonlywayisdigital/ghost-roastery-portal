@@ -2,6 +2,7 @@
 
 import type { CtaBannerSectionData } from "@/lib/website-sections/types";
 import { FormField, TextInput, SelectInput } from "./FormField";
+import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface CtaBannerFormProps {
   data: CtaBannerSectionData;
@@ -16,21 +17,39 @@ export function CtaBannerForm({ data, onChange }: CtaBannerFormProps) {
   return (
     <div>
       <FormField label="Heading">
-        <TextInput
-          value={data.heading}
-          onChange={(heading) => update({ heading })}
-          placeholder="Ready to try something new?"
-        />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput
+              value={data.heading}
+              onChange={(heading) => update({ heading })}
+              placeholder="Ready to try something new?"
+            />
+          </div>
+          <AiGenerateButton
+            type="website_heading"
+            context={{ sectionType: "call to action", existingContent: data.heading }}
+            onSelect={(text) => update({ heading: text })}
+          />
+        </div>
       </FormField>
 
       <FormField label="Subheading">
-        <TextInput
-          value={data.subheading}
-          onChange={(subheading) => update({ subheading })}
-          placeholder="Order today and get free delivery..."
-          multiline
-          rows={2}
-        />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput
+              value={data.subheading}
+              onChange={(subheading) => update({ subheading })}
+              placeholder="Order today and get free delivery..."
+              multiline
+              rows={2}
+            />
+          </div>
+          <AiGenerateButton
+            type="website_body"
+            context={{ sectionType: "call to action", existingContent: data.subheading }}
+            onSelect={(text) => update({ subheading: text })}
+          />
+        </div>
       </FormField>
 
       <FormField label="Background Style">

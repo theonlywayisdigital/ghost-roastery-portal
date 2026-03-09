@@ -12,7 +12,11 @@ export type GenerationType =
   | "product_description"
   | "discount_description"
   | "form_description"
-  | "form_success_message";
+  | "form_success_message"
+  | "website_heading"
+  | "website_body"
+  | "website_meta_title"
+  | "website_meta_description";
 
 interface PromptContext {
   roasterName?: string;
@@ -105,6 +109,30 @@ export function buildPrompt(
       return {
         system: BASE_SYSTEM + brand + "\nYou are writing a success/thank-you message shown after form submission. Be warm and appreciative. Keep to 1-2 sentences.",
         user: buildUserPrompt("form success messages", userInstruction, context),
+      };
+
+    case "website_heading":
+      return {
+        system: BASE_SYSTEM + brand + `\nYou are writing a short heading for a website section. Keep to 3-8 words. Make it punchy and engaging.${context.sectionType ? ` This heading is for a "${context.sectionType}" section.` : ""}`,
+        user: buildUserPrompt("section headings", userInstruction, context),
+      };
+
+    case "website_body":
+      return {
+        system: BASE_SYSTEM + brand + `\nYou are writing body copy for a website section. Keep each option to 2-3 sentences. Write in plain text (no HTML or markdown).${context.sectionType ? ` This is for a "${context.sectionType}" section.` : ""}`,
+        user: buildUserPrompt("body copy paragraphs", userInstruction, context),
+      };
+
+    case "website_meta_title":
+      return {
+        system: BASE_SYSTEM + brand + "\nYou are writing SEO meta titles for a web page. Keep each option to 50-60 characters. Include the brand name if possible. Make them descriptive and click-worthy for search results.",
+        user: buildUserPrompt("SEO meta titles", userInstruction, context),
+      };
+
+    case "website_meta_description":
+      return {
+        system: BASE_SYSTEM + brand + "\nYou are writing SEO meta descriptions for a web page. Keep each option to 150-160 characters. Summarise what the page offers and include a call to action. These appear in search engine results.",
+        user: buildUserPrompt("SEO meta descriptions", userInstruction, context),
       };
 
     default:

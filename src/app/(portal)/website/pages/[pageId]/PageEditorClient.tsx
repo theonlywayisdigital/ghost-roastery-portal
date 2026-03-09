@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";
 import { SectionEditor } from "../../section-editor/SectionEditor";
+import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface PageEditorClientProps {
   pageId: string;
@@ -371,7 +372,14 @@ export function PageEditorClient({
 
                 {/* SEO Meta Title */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Meta Title</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-slate-700">Meta Title</label>
+                    <AiGenerateButton
+                      type="website_meta_title"
+                      context={{ existingContent: settingsMetaTitle, pageTitle: settingsTitle }}
+                      onSelect={(text) => setSettingsMetaTitle(text)}
+                    />
+                  </div>
                   <input
                     type="text"
                     value={settingsMetaTitle}
@@ -379,11 +387,21 @@ export function PageEditorClient({
                     placeholder="Uses page title if empty"
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
                   />
+                  <p className="mt-1 text-xs text-slate-400">
+                    {settingsMetaTitle.length}/60 characters
+                  </p>
                 </div>
 
                 {/* SEO Meta Description */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Meta Description</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-slate-700">Meta Description</label>
+                    <AiGenerateButton
+                      type="website_meta_description"
+                      context={{ existingContent: settingsMetaDescription, pageTitle: settingsTitle }}
+                      onSelect={(text) => setSettingsMetaDescription(text)}
+                    />
+                  </div>
                   <textarea
                     value={settingsMetaDescription}
                     onChange={(e) => setSettingsMetaDescription(e.target.value)}
@@ -391,6 +409,9 @@ export function PageEditorClient({
                     placeholder="Brief description for search engines"
                     className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
                   />
+                  <p className="mt-1 text-xs text-slate-400">
+                    {settingsMetaDescription.length}/160 characters
+                  </p>
                 </div>
               </div>
 

@@ -3,6 +3,7 @@
 import type { FaqSectionData, FaqItem } from "@/lib/website-sections/types";
 import { FormField, TextInput } from "./FormField";
 import { ArrayField } from "./ArrayField";
+import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface FaqFormProps {
   data: FaqSectionData;
@@ -17,10 +18,28 @@ export function FaqForm({ data, onChange }: FaqFormProps) {
   return (
     <div>
       <FormField label="Heading">
-        <TextInput value={data.heading} onChange={(heading) => update({ heading })} placeholder="Frequently Asked Questions" />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput value={data.heading} onChange={(heading) => update({ heading })} placeholder="Frequently Asked Questions" />
+          </div>
+          <AiGenerateButton
+            type="website_heading"
+            context={{ sectionType: "FAQ", existingContent: data.heading }}
+            onSelect={(text) => update({ heading: text })}
+          />
+        </div>
       </FormField>
       <FormField label="Subheading">
-        <TextInput value={data.subheading} onChange={(subheading) => update({ subheading })} placeholder="Everything you need to know..." />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput value={data.subheading} onChange={(subheading) => update({ subheading })} placeholder="Everything you need to know..." />
+          </div>
+          <AiGenerateButton
+            type="website_body"
+            context={{ sectionType: "FAQ subheading", existingContent: data.subheading }}
+            onSelect={(text) => update({ subheading: text })}
+          />
+        </div>
       </FormField>
 
       <ArrayField<FaqItem>

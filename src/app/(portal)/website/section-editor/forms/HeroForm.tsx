@@ -3,6 +3,7 @@
 import type { HeroSectionData } from "@/lib/website-sections/types";
 import { FormField, TextInput, Slider } from "./FormField";
 import { ImageUploadField } from "./ImageUploadField";
+import { AiGenerateButton } from "@/components/AiGenerateButton";
 
 interface HeroFormProps {
   data: HeroSectionData;
@@ -18,21 +19,39 @@ export function HeroForm({ data, onChange, roasterId }: HeroFormProps) {
   return (
     <div>
       <FormField label="Heading">
-        <TextInput
-          value={data.heading}
-          onChange={(heading) => update({ heading })}
-          placeholder="Welcome to Our Roastery"
-        />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput
+              value={data.heading}
+              onChange={(heading) => update({ heading })}
+              placeholder="Welcome to Our Roastery"
+            />
+          </div>
+          <AiGenerateButton
+            type="website_heading"
+            context={{ sectionType: "hero", existingContent: data.heading }}
+            onSelect={(text) => update({ heading: text })}
+          />
+        </div>
       </FormField>
 
       <FormField label="Subheading">
-        <TextInput
-          value={data.subheading}
-          onChange={(subheading) => update({ subheading })}
-          placeholder="Specialty coffee, roasted with care..."
-          multiline
-          rows={2}
-        />
+        <div className="flex items-start gap-1">
+          <div className="flex-1">
+            <TextInput
+              value={data.subheading}
+              onChange={(subheading) => update({ subheading })}
+              placeholder="Specialty coffee, roasted with care..."
+              multiline
+              rows={2}
+            />
+          </div>
+          <AiGenerateButton
+            type="website_body"
+            context={{ sectionType: "hero subheading", existingContent: data.subheading }}
+            onSelect={(text) => update({ subheading: text })}
+          />
+        </div>
       </FormField>
 
       <ImageUploadField

@@ -328,7 +328,8 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
         {GR_TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
-          const count = counts[tab.id as keyof Counts] || 0;
+          const countKey = (tab.typeFilter || tab.id) as keyof Counts;
+          const count = counts[countKey] ?? 0;
           return (
             <button
               key={tab.id}

@@ -233,16 +233,6 @@ export function PageEditorClient({
                     </span>
                   </button>
                 ))}
-                <div className="border-t border-slate-100 mt-1 pt-1">
-                  <Link
-                    href="/website/pages/new"
-                    onClick={() => setPageDropdownOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-brand-600 hover:bg-brand-50 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add New Page
-                  </Link>
-                </div>
               </div>
             )}
           </div>
@@ -259,6 +249,15 @@ export function PageEditorClient({
           >
             <Settings className="w-4 h-4" />
           </button>
+
+          {/* Add Page */}
+          <Link
+            href="/website/pages/new"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            title="Add new page"
+          >
+            <Plus className="w-4 h-4" />
+          </Link>
         </div>
         <div className="flex items-center gap-2">
           {/* Save status */}

@@ -78,6 +78,8 @@ function AppearancePanel({
 }) {
   const [expanded, setExpanded] = useState(false);
   const bgType = section.sectionBg?.type ?? "none";
+  // Hero and video_hero have their own background image controls — hide duplicate
+  const hasOwnBackgroundImage = section.type === "hero" || section.type === "video_hero";
 
   function updateBg(partial: Partial<SectionBg>) {
     const current = section.sectionBg ?? { type: "solid" };
@@ -140,7 +142,7 @@ function AppearancePanel({
               <option value="none">None</option>
               <option value="solid">Solid</option>
               <option value="gradient">Gradient</option>
-              <option value="image">Image</option>
+              {!hasOwnBackgroundImage && <option value="image">Image</option>}
             </select>
           </FormField>
 

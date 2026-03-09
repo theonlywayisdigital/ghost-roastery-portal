@@ -61,7 +61,7 @@ export function LivePreview({
   const navBgColor = theme.navBgColor ?? "#ffffff";
   const navTextColor = theme.navTextColor ?? "#475569";
   const navTextSize = { small: 14, medium: 16, large: 18 }[theme.navTextSize ?? "medium"];
-  const logoHeight = { small: 48, medium: 80, large: 120 }[theme.navLogoSize ?? "medium"];
+  const logoHeight = { small: 80, medium: 120, large: 160 }[theme.navLogoSize ?? "medium"];
   const navLayout = theme.navLayout ?? "logo-left";
 
   // Split nav pages into links and buttons

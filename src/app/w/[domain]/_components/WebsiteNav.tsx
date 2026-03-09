@@ -12,9 +12,9 @@ const TEXT_SIZES: Record<NonNullable<WebsiteTheme["navTextSize"]>, number> = {
 };
 
 const LOGO_SIZES: Record<NonNullable<WebsiteTheme["navLogoSize"]>, number> = {
-  small: 48,
-  medium: 80,
-  large: 120,
+  small: 80,
+  medium: 120,
+  large: 160,
 };
 
 interface WebsiteNavProps {

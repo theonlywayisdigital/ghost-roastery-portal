@@ -9,7 +9,7 @@ import { Loader2, Eye, Menu, ImageIcon } from "@/components/icons";
 import { TemplatePreviewModal } from "./TemplatePreviewModal";
 
 const NAV_TEXT_SIZES: Record<string, number> = { small: 14, medium: 16, large: 18 };
-const NAV_LOGO_SIZES: Record<string, number> = { small: 48, medium: 80, large: 120 };
+const NAV_LOGO_SIZES: Record<string, number> = { small: 80, medium: 120, large: 160 };
 
 interface DesignSettings {
   primaryColor: string;
@@ -426,9 +426,9 @@ export default function DesignPage() {
                 onChange={(e) => update({ navLogoSize: e.target.value as DesignSettings["navLogoSize"] })}
                 className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
               >
-                <option value="small">Small (48px)</option>
-                <option value="medium">Medium (80px)</option>
-                <option value="large">Large (120px)</option>
+                <option value="small">Small (80px)</option>
+                <option value="medium">Medium (120px)</option>
+                <option value="large">Large (160px)</option>
               </select>
             </div>
           </div>

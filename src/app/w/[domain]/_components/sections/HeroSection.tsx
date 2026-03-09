@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { HeroSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 import { cn } from "@/lib/utils";
 
@@ -72,10 +73,11 @@ export function HeroSection({ data, theme, isEditor }: HeroSectionProps) {
           {data.primaryButton?.text && (
             <a
               href={data.primaryButton.url}
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold transition-all duration-200 active:scale-[0.98]"
               style={{
                 backgroundColor: theme.primaryColor,
                 color: theme.backgroundColor,
+                borderRadius: getButtonRadius(theme),
               }}
             >
               {data.primaryButton.text}
@@ -84,10 +86,11 @@ export function HeroSection({ data, theme, isEditor }: HeroSectionProps) {
           {data.secondaryButton?.text && (
             <a
               href={data.secondaryButton.url}
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg border-2 transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold border-2 transition-all duration-200 active:scale-[0.98]"
               style={{
                 borderColor: theme.primaryColor,
                 color: theme.primaryColor,
+                borderRadius: getButtonRadius(theme),
               }}
             >
               {data.secondaryButton.text}

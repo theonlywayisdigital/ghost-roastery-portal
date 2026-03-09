@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { NewsletterSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface NewsletterSectionProps {
@@ -50,17 +51,18 @@ export function NewsletterSection({ data, theme, isEditor }: NewsletterSectionPr
             <input
               type="email"
               placeholder="Your email address"
-              className="flex-1 rounded-lg border px-4 py-3 text-base outline-none"
+              className="flex-1 border px-4 py-3 text-base outline-none"
               style={{
                 backgroundColor: `${bg.textColor}06`,
                 borderColor: `${bg.textColor}15`,
                 color: bg.textColor,
+                borderRadius: getButtonRadius(theme),
               }}
             />
             <button
               type="submit"
-              className="rounded-lg px-6 py-3 text-base font-semibold transition-all duration-200 active:scale-[0.98] shrink-0"
-              style={{ backgroundColor: theme.primaryColor, color: theme.backgroundColor }}
+              className="px-6 py-3 text-base font-semibold transition-all duration-200 active:scale-[0.98] shrink-0"
+              style={{ backgroundColor: theme.primaryColor, color: theme.backgroundColor, borderRadius: getButtonRadius(theme) }}
             >
               {data.buttonText}
             </button>

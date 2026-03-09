@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";
 import { SectionRenderer } from "@/app/w/[domain]/_components/sections/SectionRenderer";
 import { cn } from "@/lib/utils";
@@ -100,13 +101,14 @@ export function LivePreview({
   const previewButtons = buttonPages.map((page) => (
     <span
       key={page.slug}
-      className="font-semibold rounded-lg cursor-default"
+      className="font-semibold cursor-default"
       style={{
         fontSize: navTextSize - 1,
         color: btnText,
         backgroundColor: btnBg,
         border: `1px solid ${btnBorder}`,
         padding: "8px 20px",
+        borderRadius: getButtonRadius(theme),
       }}
     >
       {page.title}

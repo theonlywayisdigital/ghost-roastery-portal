@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { VideoHeroSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface VideoHeroSectionProps {
@@ -85,10 +86,11 @@ export function VideoHeroSection({ data, theme, isEditor }: VideoHeroSectionProp
         {data.primaryButton?.text && (
           <a
             href={data.primaryButton.url}
-            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-200"
+            className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold transition-all duration-200"
             style={{
               backgroundColor: theme.primaryColor,
               color: theme.backgroundColor,
+              borderRadius: getButtonRadius(theme),
             }}
           >
             {data.primaryButton.text}

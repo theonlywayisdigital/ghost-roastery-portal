@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { ContactFormSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface ContactFormSectionProps {
@@ -40,15 +41,15 @@ function FormInput({
       {multiline ? (
         <textarea
           rows={5}
-          className="w-full rounded-lg border px-4 py-3 text-base outline-none transition-colors focus:border-current"
-          style={inputStyle}
+          className="w-full border px-4 py-3 text-base outline-none transition-colors focus:border-current"
+          style={{ ...inputStyle, borderRadius: getButtonRadius(theme) }}
           placeholder={`Your ${label.toLowerCase()}...`}
         />
       ) : (
         <input
           type={type}
-          className="w-full rounded-lg border px-4 py-3 text-base outline-none transition-colors focus:border-current"
-          style={inputStyle}
+          className="w-full border px-4 py-3 text-base outline-none transition-colors focus:border-current"
+          style={{ ...inputStyle, borderRadius: getButtonRadius(theme) }}
           placeholder={`Your ${label.toLowerCase()}...`}
         />
       )}
@@ -104,10 +105,11 @@ export function ContactFormSection({ data, theme, isEditor }: ContactFormSection
               {data.showMessage && <FormInput label="Message" theme={theme} multiline />}
               <button
                 type="submit"
-                className="w-full rounded-lg px-6 py-3 text-base font-semibold transition-all duration-200 active:scale-[0.98]"
+                className="w-full px-6 py-3 text-base font-semibold transition-all duration-200 active:scale-[0.98]"
                 style={{
                   backgroundColor: theme.primaryColor,
                   color: theme.backgroundColor,
+                  borderRadius: getButtonRadius(theme),
                 }}
               >
                 {data.submitText}

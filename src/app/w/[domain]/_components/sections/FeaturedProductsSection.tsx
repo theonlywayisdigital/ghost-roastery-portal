@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { FeaturedProductsSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface FeaturedProductsSectionProps {
@@ -163,10 +164,11 @@ export function FeaturedProductsSection({
           <div className="text-center mt-10">
             <a
               href="/shop"
-              className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold rounded-lg border-2 transition-all duration-200 active:scale-[0.98]"
+              className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold border-2 transition-all duration-200 active:scale-[0.98]"
               style={{
                 borderColor: theme.primaryColor,
                 color: theme.primaryColor,
+                borderRadius: getButtonRadius(theme),
               }}
             >
               View All Products

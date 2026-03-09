@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { AllProductsSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 import type { ProductData } from "./FeaturedProductsSection";
 
@@ -52,11 +53,12 @@ export function AllProductsSection({ data, theme, isEditor, products }: AllProdu
               placeholder="Search products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border px-4 py-3 text-base outline-none"
+              className="w-full border px-4 py-3 text-base outline-none"
               style={{
                 backgroundColor: `${theme.textColor}06`,
                 borderColor: `${theme.textColor}15`,
                 color: theme.textColor,
+                borderRadius: getButtonRadius(theme),
               }}
             />
           </div>

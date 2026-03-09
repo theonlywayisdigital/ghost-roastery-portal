@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { PricingTableSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface PricingTableSectionProps {
@@ -87,11 +88,12 @@ export function PricingTableSection({ data, theme, isEditor }: PricingTableSecti
               {tier.button?.text && (
                 <a
                   href={tier.button.url}
-                  className="block text-center px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200"
+                  className="block text-center px-6 py-3 text-sm font-semibold transition-all duration-200"
                   style={{
                     backgroundColor: tier.highlighted ? theme.primaryColor : "transparent",
                     color: tier.highlighted ? theme.backgroundColor : theme.primaryColor,
                     border: tier.highlighted ? "none" : `2px solid ${theme.primaryColor}`,
+                    borderRadius: getButtonRadius(theme),
                   }}
                 >
                   {tier.button.text}

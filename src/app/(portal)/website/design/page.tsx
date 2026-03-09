@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { defaultTheme } from "@/lib/website-sections/types";
+import { defaultTheme, getButtonRadius } from "@/lib/website-sections/types";
 import type { WebsiteTheme, NavLayout } from "@/lib/website-sections/types";
 import { templateOptions } from "@/lib/website-templates";
 import type { TemplateId } from "@/lib/website-templates";
@@ -542,19 +542,21 @@ export default function DesignPage() {
           </p>
           <div className="flex gap-3">
             <div
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold"
+              className="px-5 py-2.5 text-sm font-semibold"
               style={{
                 backgroundColor: settings.primaryColor,
                 color: settings.backgroundColor,
+                borderRadius: getButtonRadius(settings as unknown as WebsiteTheme),
               }}
             >
               Primary Button
             </div>
             <div
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold border-2"
+              className="px-5 py-2.5 text-sm font-semibold border-2"
               style={{
                 borderColor: settings.accentColor,
                 color: settings.accentColor,
+                borderRadius: getButtonRadius(settings as unknown as WebsiteTheme),
               }}
             >
               Secondary Button
@@ -632,13 +634,14 @@ function NavPreview({ settings, logoUrl, siteName }: { settings: DesignSettings;
   const ctaEl = activeButtons.length > 0 && activeButtons.map((label) => (
     <span
       key={label}
-      className="font-semibold rounded-lg cursor-default transition-colors"
+      className="font-semibold cursor-default transition-colors"
       style={{
         fontSize: textSize - 1,
         color: settings.navButtonTextColor,
         backgroundColor: settings.navButtonBgColor,
         border: `1px solid ${settings.navButtonBorderColor}`,
         padding: "8px 20px",
+        borderRadius: getButtonRadius(settings as unknown as WebsiteTheme),
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = settings.navButtonHoverBgColor;

@@ -47,6 +47,19 @@ export const defaultTheme: WebsiteTheme = {
   navButtonHoverBorderColor: "#1e293b",
 };
 
+/** Map theme borderRadius to CSS border-radius values */
+export function getButtonRadius(theme: WebsiteTheme): string {
+  switch (theme.borderRadius) {
+    case "sharp":
+      return "0px";
+    case "pill":
+      return "9999px";
+    case "rounded":
+    default:
+      return "0.5rem";
+  }
+}
+
 // ─── Section Base ───────────────────────────────────────────────────────────
 
 export type SectionType =

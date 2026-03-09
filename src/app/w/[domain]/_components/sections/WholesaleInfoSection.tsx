@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { WholesaleInfoSectionData, WebsiteTheme } from "@/lib/website-sections/types";
 
 interface WholesaleInfoSectionProps {
@@ -50,8 +51,8 @@ export function WholesaleInfoSection({ data, theme, isEditor }: WholesaleInfoSec
           {data.button?.text && (
             <a
               href={data.button.url}
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold rounded-lg transition-all duration-200 active:scale-[0.98]"
-              style={{ backgroundColor: theme.primaryColor, color: theme.backgroundColor }}
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold transition-all duration-200 active:scale-[0.98]"
+              style={{ backgroundColor: theme.primaryColor, color: theme.backgroundColor, borderRadius: getButtonRadius(theme) }}
             >
               {data.button.text}
             </a>

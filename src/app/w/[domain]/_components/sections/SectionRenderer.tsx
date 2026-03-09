@@ -23,6 +23,8 @@ import { LogoBarSection } from "./LogoBarSection";
 import { PricingTableSection } from "./PricingTableSection";
 import { StatsCounterSection } from "./StatsCounterSection";
 import { VideoHeroSection } from "./VideoHeroSection";
+import { EventsSection } from "./EventsSection";
+import { LocationSection } from "./LocationSection";
 
 interface SectionRendererProps {
   section: WebSection;
@@ -101,6 +103,10 @@ export function SectionRenderer({ section, theme: themeProp, isEditor, products 
         return <StatsCounterSection data={section} theme={theme} isEditor={isEditor} />;
       case "video_hero":
         return <VideoHeroSection data={section} theme={theme} isEditor={isEditor} />;
+      case "events":
+        return <EventsSection data={section} theme={theme} isEditor={isEditor} />;
+      case "location":
+        return <LocationSection data={section} theme={theme} isEditor={isEditor} />;
     }
   })();
 

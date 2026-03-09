@@ -161,4 +161,18 @@ export const sectionCatalog: SectionCatalogEntry[] = [
     category: "Hero",
     icon: "Play",
   },
+  {
+    type: "events",
+    label: "Events",
+    description: "Showcase upcoming tastings, workshops, and events.",
+    category: "Content",
+    icon: "CalendarDays",
+  },
+  {
+    type: "location",
+    label: "Location / Caf\u00e9",
+    description: "Show your caf\u00e9 location with address, opening hours, and map.",
+    category: "Content",
+    icon: "MapPin",
+  },
 ];

@@ -83,7 +83,9 @@ export type SectionType =
   | "logo_bar"
   | "pricing_table"
   | "stats_counter"
-  | "video_hero";
+  | "video_hero"
+  | "events"
+  | "location";
 
 export interface SectionBg {
   type: "solid" | "gradient" | "image";
@@ -327,6 +329,36 @@ export interface VideoHeroSectionData extends SectionBase {
   primaryButton?: ButtonData;
 }
 
+export interface EventItem {
+  title: string;
+  date: string;
+  time: string;
+  description: string;
+  image?: string;
+  link?: string;
+}
+
+export interface EventsSectionData extends SectionBase {
+  type: "events";
+  heading: string;
+  subheading: string;
+  events: EventItem[];
+  layout: "grid" | "list";
+}
+
+export interface LocationSectionData extends SectionBase {
+  type: "location";
+  heading: string;
+  body: string;
+  address: string;
+  image?: string;
+  imagePosition: "left" | "right";
+  showMap: boolean;
+  openingHours: { day: string; hours: string }[];
+  phone?: string;
+  email?: string;
+}
+
 // ─── Discriminated Union ────────────────────────────────────────────────────
 
 export type WebSection =
@@ -350,7 +382,9 @@ export type WebSection =
   | LogoBarSectionData
   | PricingTableSectionData
   | StatsCounterSectionData
-  | VideoHeroSectionData;
+  | VideoHeroSectionData
+  | EventsSectionData
+  | LocationSectionData;
 
 // ─── Section Catalog Entry (for the "Add Section" modal) ───────────────────
 

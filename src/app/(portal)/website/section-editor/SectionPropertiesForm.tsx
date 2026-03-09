@@ -24,6 +24,8 @@ import { LogoBarForm } from "./forms/LogoBarForm";
 import { PricingTableForm } from "./forms/PricingTableForm";
 import { StatsCounterForm } from "./forms/StatsCounterForm";
 import { VideoHeroForm } from "./forms/VideoHeroForm";
+import { EventsForm } from "./forms/EventsForm";
+import { LocationForm } from "./forms/LocationForm";
 import { ImageUploadField } from "./forms/ImageUploadField";
 import { FormField } from "./forms/FormField";
 
@@ -286,5 +288,9 @@ function renderForm(section: WebSection, onChange: (s: WebSection) => void, roas
       return <StatsCounterForm data={section} onChange={onChange} />;
     case "video_hero":
       return <VideoHeroForm data={section} onChange={onChange} />;
+    case "events":
+      return <EventsForm data={section} onChange={onChange} />;
+    case "location":
+      return <LocationForm data={section} onChange={onChange} roasterId={roasterId} />;
   }
 }

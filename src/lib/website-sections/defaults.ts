@@ -306,5 +306,46 @@ export function createDefaultSection(type: SectionType): WebSection {
         overlayOpacity: 0.5,
         primaryButton: { text: "Shop Now", url: "/shop" },
       };
+
+    case "events":
+      return {
+        id,
+        type: "events",
+        visible: true,
+        heading: "Upcoming Events",
+        subheading: "Join us for tastings, workshops, and more.",
+        events: [
+          {
+            title: "Cupping Session",
+            date: "2026-04-15",
+            time: "10:00",
+            description: "Join us for a guided cupping session exploring our latest single origins.",
+          },
+          {
+            title: "Latte Art Workshop",
+            date: "2026-04-22",
+            time: "14:00",
+            description: "Learn the basics of latte art with our head barista.",
+          },
+        ],
+        layout: "grid",
+      };
+
+    case "location":
+      return {
+        id,
+        type: "location",
+        visible: true,
+        heading: "Visit Us",
+        body: "Drop by our caf\u00e9 and roastery to see where the magic happens. Freshly roasted coffee, pastries, and a warm welcome await.",
+        address: "123 Coffee Lane, London, EC1A 1BB",
+        imagePosition: "right",
+        showMap: true,
+        openingHours: [
+          { day: "Monday - Friday", hours: "7:00 AM - 6:00 PM" },
+          { day: "Saturday", hours: "8:00 AM - 5:00 PM" },
+          { day: "Sunday", hours: "9:00 AM - 4:00 PM" },
+        ],
+      };
   }
 }

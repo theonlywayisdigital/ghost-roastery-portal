@@ -16,3 +16,5 @@ export { InstagramFeedSection } from "./InstagramFeedSection";
 export { BlogLatestSection } from "./BlogLatestSection";
 export { WholesaleInfoSection } from "./WholesaleInfoSection";
 export { CustomHtmlSection } from "./CustomHtmlSection";
+export { EventsSection } from "./EventsSection";
+export { LocationSection } from "./LocationSection";

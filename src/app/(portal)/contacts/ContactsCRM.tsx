@@ -324,7 +324,7 @@ export function ContactsCRM({ buyers, autoApprove, roasterId }: ContactsCRMProps
               }`}
             >
               <Icon className="w-4 h-4" />
-              {`${tab.label}${count > 0 ? ` (${count})` : ""}`}
+              {`${tab.label} (${count})`}
             </button>
           );
         })}

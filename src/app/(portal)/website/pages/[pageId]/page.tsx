@@ -129,6 +129,23 @@ export default async function WebsitePageEditorRoute({
     is_published: p.is_published,
   }));
 
+  // Fetch products for preview
+  const { data: productsData } = await supabase
+    .from("wholesale_products")
+    .select("id, name, description, price, image_url, sort_order")
+    .eq("roaster_id", user.roaster.id)
+    .eq("is_active", true)
+    .in("product_type", ["retail", "both"])
+    .order("sort_order", { ascending: true });
+
+  const products = (productsData ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    image: p.image_url ?? undefined,
+    description: p.description ?? undefined,
+  }));
+
   const siteName = website.name || user.roaster.business_name || "My Coffee";
   const logoUrl = theme.logoUrl || (user.roaster as Record<string, unknown>).brand_logo_url as string | undefined;
   const previewDomain = (user.roaster as Record<string, unknown>).storefront_slug as string | undefined;
@@ -149,6 +166,7 @@ export default async function WebsitePageEditorRoute({
       previewDomain={previewDomain}
       metaTitle={page.meta_title ?? ""}
       metaDescription={page.meta_description ?? ""}
+      products={products}
     />
   );
 }

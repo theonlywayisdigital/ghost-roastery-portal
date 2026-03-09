@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";
 import { SectionEditor } from "../../section-editor/SectionEditor";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
+import type { ProductData } from "@/app/w/[domain]/_components/sections/FeaturedProductsSection";
 
 interface PageEditorClientProps {
   pageId: string;
@@ -23,6 +24,7 @@ interface PageEditorClientProps {
   previewDomain?: string;
   metaTitle?: string;
   metaDescription?: string;
+  products?: ProductData[];
 }
 
 export function PageEditorClient({
@@ -40,6 +42,7 @@ export function PageEditorClient({
   previewDomain,
   metaTitle: initialMetaTitle = "",
   metaDescription: initialMetaDescription = "",
+  products,
 }: PageEditorClientProps) {
   const router = useRouter();
   const [sections, setSections] = useState<WebSection[]>(initialSections);
@@ -325,6 +328,7 @@ export function PageEditorClient({
             siteName={siteName}
             logoUrl={logoUrl}
             pages={navPages}
+            products={products}
           />
         </div>
 

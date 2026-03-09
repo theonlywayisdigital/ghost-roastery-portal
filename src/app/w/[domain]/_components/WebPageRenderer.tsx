@@ -3,12 +3,14 @@
 import type { WebSection } from "@/lib/website-sections/types";
 import { useWebsiteTheme } from "@/app/(portal)/website/section-editor/WebsiteThemeProvider";
 import { SectionRenderer } from "./sections/SectionRenderer";
+import type { ProductData } from "./sections/FeaturedProductsSection";
 
 interface WebPageRendererProps {
   sections: WebSection[];
+  products?: ProductData[];
 }
 
-export function WebPageRenderer({ sections }: WebPageRendererProps) {
+export function WebPageRenderer({ sections, products }: WebPageRendererProps) {
   const theme = useWebsiteTheme();
 
   if (!sections || sections.length === 0) {
@@ -24,7 +26,7 @@ export function WebPageRenderer({ sections }: WebPageRendererProps) {
       {sections
         .filter((s) => s.visible !== false)
         .map((section) => (
-          <SectionRenderer key={section.id} section={section} theme={theme} isEditor={false} />
+          <SectionRenderer key={section.id} section={section} theme={theme} isEditor={false} products={products} />
         ))}
     </div>
   );

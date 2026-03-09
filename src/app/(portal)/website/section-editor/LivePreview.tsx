@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { getButtonRadius } from "@/lib/website-sections/types";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";
 import { SectionRenderer } from "@/app/w/[domain]/_components/sections/SectionRenderer";
+import type { ProductData } from "@/app/w/[domain]/_components/sections/FeaturedProductsSection";
 import { cn } from "@/lib/utils";
 
 interface LivePreviewProps {
@@ -14,6 +15,7 @@ interface LivePreviewProps {
   siteName?: string;
   logoUrl?: string;
   pages?: { title: string; slug: string; is_nav_button?: boolean }[];
+  products?: ProductData[];
 }
 
 type Viewport = "desktop" | "tablet" | "mobile";
@@ -32,6 +34,7 @@ export function LivePreview({
   siteName = "My Coffee",
   logoUrl,
   pages = [],
+  products,
 }: LivePreviewProps) {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -229,6 +232,7 @@ export function LivePreview({
                   section={section}
                   theme={theme}
                   isEditor
+                  products={products}
                 />
                 {/* Hover highlight */}
                 <div className="absolute inset-0 hover:bg-brand-500/5 transition-colors pointer-events-none" />

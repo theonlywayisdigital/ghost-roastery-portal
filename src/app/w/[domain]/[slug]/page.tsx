@@ -78,5 +78,29 @@ export default async function WebsitePage({ params }: PageProps) {
     ? (page.content as unknown as WebSection[])
     : [];
 
-  return <WebPageRenderer sections={sections} />;
+  // Fetch products if any product sections exist
+  const hasProductSection = sections.some(
+    (s) => s.type === "featured_products" || s.type === "all_products"
+  );
+
+  let products;
+  if (hasProductSection) {
+    const { data: dbProducts } = await supabase
+      .from("wholesale_products")
+      .select("id, name, description, price, image_url, sort_order")
+      .eq("roaster_id", roaster.id)
+      .eq("is_active", true)
+      .in("product_type", ["retail", "both"])
+      .order("sort_order", { ascending: true });
+
+    products = (dbProducts ?? []).map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      image: p.image_url ?? undefined,
+      description: p.description ?? undefined,
+    }));
+  }
+
+  return <WebPageRenderer sections={sections} products={products} />;
 }

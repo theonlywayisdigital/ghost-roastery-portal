@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Layers, Plus, X } from "@/components/icons";
 import type { WebSection, WebsiteTheme, SectionType } from "@/lib/website-sections/types";
+import type { ProductData } from "@/app/w/[domain]/_components/sections/FeaturedProductsSection";
 import { createDefaultSection } from "@/lib/website-sections/defaults";
 import { SectionList } from "./SectionList";
 import { LivePreview } from "./LivePreview";
@@ -33,6 +34,7 @@ interface SectionEditorProps {
   siteName?: string;
   logoUrl?: string;
   pages?: { title: string; slug: string; is_nav_button?: boolean }[];
+  products?: ProductData[];
 }
 
 export function SectionEditor({
@@ -43,6 +45,7 @@ export function SectionEditor({
   siteName,
   logoUrl,
   pages,
+  products,
 }: SectionEditorProps) {
   const [sections, setSections] = useState<WebSection[]>(initialSections);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -237,6 +240,7 @@ export function SectionEditor({
             siteName={siteName}
             logoUrl={logoUrl}
             pages={pages}
+            products={products}
           />
         </WebsiteThemeProvider>
       </div>

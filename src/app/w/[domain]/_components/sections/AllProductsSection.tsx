@@ -91,6 +91,9 @@ export function AllProductsSection({ data, theme, isEditor, products }: AllProdu
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-base mb-1" style={{ color: theme.textColor }}>{product.name}</h3>
+                    {product.description && (
+                      <p className="text-sm mb-2 line-clamp-2 opacity-70" style={{ color: theme.textColor }}>{product.description}</p>
+                    )}
                     <p className="font-medium" style={{ color: theme.primaryColor }}>£{product.price.toFixed(2)}</p>
                   </div>
                 </a>

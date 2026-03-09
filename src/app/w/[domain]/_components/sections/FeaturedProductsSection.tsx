@@ -17,6 +17,7 @@ export interface ProductData {
   price: number;
   image?: string;
   slug?: string;
+  description?: string;
 }
 
 const ease = [0.21, 0.47, 0.32, 0.98] as const;
@@ -95,6 +96,14 @@ function ProductCard({ product, theme }: { product: ProductData; theme: WebsiteT
         >
           {product.name}
         </h3>
+        {product.description && (
+          <p
+            className="text-sm mb-2 line-clamp-2 opacity-70"
+            style={{ color: theme.textColor, fontFamily: theme.bodyFont }}
+          >
+            {product.description}
+          </p>
+        )}
         <p
           className="font-medium"
           style={{ color: theme.primaryColor }}

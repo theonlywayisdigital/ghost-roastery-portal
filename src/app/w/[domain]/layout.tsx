@@ -126,12 +126,14 @@ export default async function WebsiteLayout({ children, params }: WebsiteLayoutP
             logoUrl={theme.logoUrl}
             pages={navPages}
             theme={theme}
+            basePath={`/w/${domain}`}
           />
           <main>{children}</main>
           <WebsiteFooter
             siteName={website?.name ?? roaster.business_name}
             theme={theme}
             pages={footerPages}
+            basePath={`/w/${domain}`}
           />
         </WebsiteThemeProvider>
       </body>

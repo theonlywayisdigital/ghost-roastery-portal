@@ -22,9 +22,10 @@ interface WebsiteNavProps {
   logoUrl?: string;
   pages: { title: string; slug: string; is_nav_button?: boolean }[];
   theme: WebsiteTheme;
+  basePath?: string;
 }
 
-export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps) {
+export function WebsiteNav({ siteName, logoUrl, pages, theme, basePath = "" }: WebsiteNavProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const layout: NavLayout = theme.navLayout ?? "logo-left";
@@ -42,15 +43,19 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
   const btnHoverText = theme.navButtonHoverTextColor ?? "#ffffff";
   const btnHoverBorder = theme.navButtonHoverBorderColor ?? "#1e293b";
 
-  // Filter out "home" — logo already links to /
+  // Build link helper — uses basePath to stay within the website
+  const link = (slug: string) => `${basePath}/${slug}`;
+  const homeLink = basePath || "/";
+
+  // Filter out "home" — logo already links to homepage
   const allNavPages = pages.filter((p) => p.slug !== "home");
   const navPages = allNavPages.filter((p) => !p.is_nav_button);
   const buttonLinks = allNavPages
     .filter((p) => p.is_nav_button)
-    .map((p) => ({ label: p.title, href: `/${p.slug}` }));
+    .map((p) => ({ label: p.title, href: link(p.slug) }));
 
   const logo = (
-    <Link href="/" className="flex items-center gap-2.5 no-underline shrink-0">
+    <Link href={homeLink} className="flex items-center gap-2.5 no-underline shrink-0">
       {logoUrl ? (
         <img src={logoUrl} alt={siteName} style={{ height: logoHeight }} className="w-auto" />
       ) : (
@@ -73,7 +78,7 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
       {navPages.map((page) => (
         <Link
           key={page.slug}
-          href={`/${page.slug}`}
+          href={link(page.slug)}
           className="font-medium transition-colors no-underline"
           style={{ color: textColor, fontSize: textSize }}
           onMouseEnter={(e) => (e.currentTarget.style.color = textHoverColor)}
@@ -142,7 +147,7 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
             {navPages.map((page) => (
               <Link
                 key={page.slug}
-                href={`/${page.slug}`}
+                href={link(page.slug)}
                 onClick={() => setMobileOpen(false)}
                 className="block py-2 font-medium no-underline"
                 style={{ color: textColor, fontSize: textSize }}
@@ -183,7 +188,7 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
           {navPages.map((page) => (
             <Link
               key={page.slug}
-              href={`/${page.slug}`}
+              href={link(page.slug)}
               className="font-medium transition-colors no-underline"
               style={{ color: textColor, fontSize: textSize }}
               onMouseEnter={(e) => (e.currentTarget.style.color = textHoverColor)}
@@ -214,7 +219,7 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
             {navPages.map((page) => (
               <Link
                 key={page.slug}
-                href={`/${page.slug}`}
+                href={link(page.slug)}
                 onClick={() => setMobileOpen(false)}
                 className="block py-2 font-medium no-underline"
                 style={{ color: textColor, fontSize: textSize }}
@@ -273,7 +278,7 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme }: WebsiteNavProps)
           {navPages.map((page) => (
             <Link
               key={page.slug}
-              href={`/${page.slug}`}
+              href={link(page.slug)}
               onClick={() => setMobileOpen(false)}
               className="block py-2 font-medium no-underline"
               style={{ color: textColor, fontSize: textSize }}

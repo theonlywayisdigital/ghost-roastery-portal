@@ -5,9 +5,10 @@ interface WebsiteFooterProps {
   theme: WebsiteTheme;
   pages: { title: string; slug: string }[];
   footerText?: string;
+  basePath?: string;
 }
 
-export function WebsiteFooter({ siteName, theme, pages, footerText }: WebsiteFooterProps) {
+export function WebsiteFooter({ siteName, theme, pages, footerText, basePath = "" }: WebsiteFooterProps) {
   const year = new Date().getFullYear();
 
   // Filter out "home" — logo already links to /
@@ -37,7 +38,7 @@ export function WebsiteFooter({ siteName, theme, pages, footerText }: WebsiteFoo
               {footerPages.map((page) => (
                 <li key={page.slug}>
                   <a
-                    href={`/${page.slug}`}
+                    href={`${basePath}/${page.slug}`}
                     className="text-sm text-slate-500 hover:text-slate-700 no-underline"
                   >
                     {page.title}

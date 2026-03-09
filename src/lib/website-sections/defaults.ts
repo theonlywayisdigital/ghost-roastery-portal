@@ -348,6 +348,16 @@ export function createDefaultSection(type: SectionType): WebSection {
         ],
       };
 
+    case "form_embed":
+      return {
+        id,
+        type: "form_embed",
+        visible: true,
+        heading: "",
+        subheading: "",
+        formId: "",
+      };
+
     case "brewing_guide":
       return {
         id,

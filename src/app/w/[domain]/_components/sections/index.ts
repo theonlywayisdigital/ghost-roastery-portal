@@ -19,3 +19,4 @@ export { CustomHtmlSection } from "./CustomHtmlSection";
 export { EventsSection } from "./EventsSection";
 export { LocationSection } from "./LocationSection";
 export { BrewingGuideSection } from "./BrewingGuideSection";
+export { FormEmbedSection } from "./FormEmbedSection";

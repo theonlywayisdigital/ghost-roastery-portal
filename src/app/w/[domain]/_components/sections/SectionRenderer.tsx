@@ -26,6 +26,7 @@ import { VideoHeroSection } from "./VideoHeroSection";
 import { EventsSection } from "./EventsSection";
 import { LocationSection } from "./LocationSection";
 import { BrewingGuideSection } from "./BrewingGuideSection";
+import { FormEmbedSection } from "./FormEmbedSection";
 
 interface SectionRendererProps {
   section: WebSection;
@@ -110,6 +111,8 @@ export function SectionRenderer({ section, theme: themeProp, isEditor, products 
         return <LocationSection data={section} theme={theme} isEditor={isEditor} />;
       case "brewing_guide":
         return <BrewingGuideSection data={section} theme={theme} isEditor={isEditor} />;
+      case "form_embed":
+        return <FormEmbedSection data={section} theme={theme} isEditor={isEditor} />;
     }
   })();
 

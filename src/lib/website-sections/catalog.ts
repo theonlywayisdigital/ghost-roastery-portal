@@ -122,6 +122,13 @@ export const sectionCatalog: SectionCatalogEntry[] = [
     category: "Forms",
     icon: "Bell",
   },
+  {
+    type: "form_embed",
+    label: "Marketing Form",
+    description: "Embed one of your marketing forms directly on the page.",
+    category: "Forms",
+    icon: "ClipboardList",
+  },
 
   // Advanced
   {

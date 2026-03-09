@@ -86,7 +86,8 @@ export type SectionType =
   | "video_hero"
   | "events"
   | "location"
-  | "brewing_guide";
+  | "brewing_guide"
+  | "form_embed";
 
 export interface SectionBg {
   type: "solid" | "gradient" | "image";
@@ -381,6 +382,13 @@ export interface BrewingGuideSectionData extends SectionBase {
   methods: BrewingMethod[];
 }
 
+export interface FormEmbedSectionData extends SectionBase {
+  type: "form_embed";
+  heading: string;
+  subheading: string;
+  formId: string;
+}
+
 // ─── Discriminated Union ────────────────────────────────────────────────────
 
 export type WebSection =
@@ -407,7 +415,8 @@ export type WebSection =
   | VideoHeroSectionData
   | EventsSectionData
   | LocationSectionData
-  | BrewingGuideSectionData;
+  | BrewingGuideSectionData
+  | FormEmbedSectionData;
 
 // ─── Section Catalog Entry (for the "Add Section" modal) ───────────────────
 

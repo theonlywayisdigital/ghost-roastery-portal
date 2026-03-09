@@ -27,6 +27,7 @@ import { VideoHeroForm } from "./forms/VideoHeroForm";
 import { EventsForm } from "./forms/EventsForm";
 import { LocationForm } from "./forms/LocationForm";
 import { BrewingGuideForm } from "./forms/BrewingGuideForm";
+import { FormEmbedForm } from "./forms/FormEmbedForm";
 import { ImageUploadField } from "./forms/ImageUploadField";
 import { FormField } from "./forms/FormField";
 
@@ -295,5 +296,7 @@ function renderForm(section: WebSection, onChange: (s: WebSection) => void, roas
       return <LocationForm data={section} onChange={onChange} roasterId={roasterId} />;
     case "brewing_guide":
       return <BrewingGuideForm data={section} onChange={onChange} />;
+    case "form_embed":
+      return <FormEmbedForm data={section} onChange={onChange} roasterId={roasterId} />;
   }
 }

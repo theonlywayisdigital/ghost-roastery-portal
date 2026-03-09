@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, X, ImageIcon } from "@/components/icons";
 import Link from "next/link";
+import { compressImage } from "@/lib/compress-image";
 
 interface Product {
   id: string;
@@ -101,13 +102,14 @@ export function AdminProductForm({ product }: { product?: Product }) {
   const showWholesale = productType === "wholesale" || productType === "both";
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     e.target.value = "";
     setIsUploading(true);
     setError(null);
 
+    const file = await compressImage(rawFile);
     const formData = new FormData();
     formData.append("file", file);
 

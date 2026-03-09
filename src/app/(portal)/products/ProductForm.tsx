@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, X, ImageIcon } from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
+import { compressImage } from "@/lib/compress-image";
 
 
 interface Product {
@@ -104,8 +105,8 @@ export function ProductForm({ product }: { product?: Product }) {
   const showWholesale = productType === "wholesale" || productType === "both";
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     // Reset the input so the same file can be re-selected
     e.target.value = "";
@@ -113,6 +114,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setIsUploading(true);
     setError(null);
 
+    const file = await compressImage(rawFile);
     const formData = new FormData();
     formData.append("file", file);
 

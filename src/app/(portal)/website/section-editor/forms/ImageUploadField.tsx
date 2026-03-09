@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { FormField } from "./FormField";
+import { compressImage } from "@/lib/compress-image";
 
 interface ImageUploadFieldProps {
   label: string;
@@ -14,9 +15,10 @@ export function ImageUploadField({ label, value, onChange, roasterId }: ImageUpl
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleUpload(file: File) {
+  async function handleUpload(rawFile: File) {
     setUploading(true);
     try {
+      const file = await compressImage(rawFile);
       const formData = new FormData();
       formData.append("file", file);
       formData.append("roasterId", roasterId);

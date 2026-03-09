@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "@/components/icons";
+import { getButtonRadius } from "@/lib/website-sections/types";
 import type { WebsiteTheme, NavLayout } from "@/lib/website-sections/types";
 
 const TEXT_SIZES: Record<NonNullable<WebsiteTheme["navTextSize"]>, number> = {
@@ -96,13 +97,14 @@ export function WebsiteNav({ siteName, logoUrl, pages, theme, basePath = "" }: W
         <Link
           key={btn.label}
           href={btn.href}
-          className="no-underline font-semibold rounded-lg transition-colors"
+          className="no-underline font-semibold transition-colors"
           style={{
             fontSize: textSize - 1,
             color: btnText,
             backgroundColor: btnBg,
             border: `1px solid ${btnBorder}`,
             padding: "8px 20px",
+            borderRadius: getButtonRadius(theme),
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = btnHoverBg;

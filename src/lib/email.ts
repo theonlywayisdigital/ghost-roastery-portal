@@ -241,20 +241,32 @@ export async function sendWholesaleAccountSetup(
   contactName: string,
   roasterName: string,
   setupUrl: string,
+  wholesaleUrl: string,
   branding?: EmailBranding | null
 ) {
   const body = `
-    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;ve Been Invited</h1>
-    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">${roasterName} Wholesale</p>
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;ve been invited to ${roasterName} Wholesale</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ghost Roastery Platform</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>. Create your password to get started.
+      <strong>${roasterName}</strong> has added you as a wholesale customer.
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      To place orders, you&rsquo;ll need to set up your Ghost Roastery account &mdash; the platform that powers ${roasterName}&rsquo;s wholesale store.
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      This takes less than a minute and gives you access to your orders, invoices and wholesale catalogue.
     </p>
 
-    ${emailButton({ href: setupUrl, label: "Create Password", branding })}
+    ${emailButton({ href: setupUrl, label: "Set Up Your Account", branding })}
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      Once set up, you can browse ${roasterName}&rsquo;s catalogue at:<br/>
+      <a href="${wholesaleUrl}" style="color:#0083dc;">${wholesaleUrl}</a>
+    </p>
 
     <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
       This link expires in 48 hours. If you weren&rsquo;t expecting this, you can safely ignore this email.
@@ -263,12 +275,16 @@ export async function sendWholesaleAccountSetup(
     <p style="color:#94a3b8;font-size:12px;margin-top:32px;word-break:break-all;text-align:left;">
       If the button doesn&rsquo;t work, copy and paste this link:<br/>
       <a href="${setupUrl}" style="color:#0083dc;">${setupUrl}</a>
+    </p>
+
+    <p style="color:#94a3b8;font-size:12px;margin-top:16px;text-align:center;">
+      Ghost Roastery Platform is the all-in-one platform for independent coffee roasters.
     </p>`;
 
   await resend.emails.send({
     from: getFromEmail(branding),
     to: email,
-    subject: `Set up your account — ${roasterName} Wholesale`,
+    subject: `Set up your Ghost Roastery account — ${roasterName} Wholesale`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }
@@ -296,14 +312,17 @@ export async function sendWholesaleWelcome(
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>. You can now log in to browse the catalogue and place orders.
+      You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>.
     </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Sign in to your Ghost Roastery account to browse their catalogue and place orders.
+    </p>
+
+    ${emailButton({ href: wholesaleUrl, label: "Browse Catalogue", branding })}
 
     <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
       <p style="color:#334155;font-size:14px;margin:0;"><strong>Payment Terms:</strong> ${termsLabels[paymentTerms] || paymentTerms}</p>
     </div>
-
-    ${emailButton({ href: wholesaleUrl, label: "View Wholesale Catalogue", branding })}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       If you have any questions, reply to this email.
@@ -312,7 +331,7 @@ export async function sendWholesaleWelcome(
   await resend.emails.send({
     from: getFromEmail(branding),
     to: email,
-    subject: `You've been added to ${roasterName}'s wholesale account`,
+    subject: `You've been added to ${roasterName} Wholesale`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }

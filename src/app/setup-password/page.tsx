@@ -2,7 +2,6 @@ import { Logo } from "@/components/Logo";
 import { SetupPasswordForm } from "./SetupPasswordForm";
 import { createServerClient } from "@/lib/supabase";
 import Link from "next/link";
-import Image from "next/image";
 
 interface Props {
   searchParams: Promise<{ token?: string }>;
@@ -13,12 +12,6 @@ export default async function SetupPasswordPage({ searchParams }: Props) {
 
   let valid = false;
   let roasterSlug: string | null = null;
-  let roasterBranding: {
-    businessName: string;
-    logoUrl: string | null;
-    primaryColour: string | null;
-    accentColour: string | null;
-  } | null = null;
 
   if (token) {
     const supabase = createServerClient();
@@ -31,23 +24,6 @@ export default async function SetupPasswordPage({ searchParams }: Props) {
     if (data && !data.used_at && new Date(data.expires_at) > new Date()) {
       valid = true;
       roasterSlug = data.roaster_slug || null;
-
-      if (roasterSlug) {
-        const { data: roaster } = await supabase
-          .from("partner_roasters")
-          .select("business_name, brand_logo_url, brand_primary_colour, brand_accent_colour")
-          .eq("storefront_slug", roasterSlug)
-          .single();
-
-        if (roaster) {
-          roasterBranding = {
-            businessName: roaster.business_name,
-            logoUrl: roaster.brand_logo_url,
-            primaryColour: roaster.brand_primary_colour,
-            accentColour: roaster.brand_accent_colour,
-          };
-        }
-      }
     }
   }
 
@@ -57,23 +33,9 @@ export default async function SetupPasswordPage({ searchParams }: Props) {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            {roasterBranding?.logoUrl ? (
-              <Image
-                src={roasterBranding.logoUrl}
-                alt={roasterBranding.businessName}
-                width={150}
-                height={150}
-                className="h-[150px] w-auto object-contain"
-              />
-            ) : (
-              <Logo height={150} className="h-[150px] w-auto" />
-            )}
+            <Logo height={150} className="h-[150px] w-auto" />
           </div>
-          <p className="text-slate-500 mt-1">
-            {roasterBranding
-              ? `${roasterBranding.businessName} Wholesale`
-              : <>Sell, market &amp; manage &mdash; built for roasters</>}
-          </p>
+          <p className="text-slate-500 mt-1">Sell, market &amp; manage &mdash; built for roasters</p>
         </div>
 
         {/* Form or error */}
@@ -86,11 +48,7 @@ export default async function SetupPasswordPage({ searchParams }: Props) {
               <p className="text-sm text-slate-500 mb-6">
                 Choose a password to access your wholesale account.
               </p>
-              <SetupPasswordForm
-                token={token}
-                roasterSlug={roasterSlug}
-                businessName={roasterBranding?.businessName}
-              />
+              <SetupPasswordForm token={token} roasterSlug={roasterSlug} />
             </>
           ) : (
             <div className="text-center py-4">

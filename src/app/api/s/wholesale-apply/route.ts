@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     // Verify roaster exists and has storefront enabled
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, user_id, business_name, email, storefront_enabled, auto_approve_wholesale")
+      .select("id, user_id, business_name, email, storefront_slug, storefront_enabled, auto_approve_wholesale")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -215,6 +215,7 @@ export async function POST(request: Request) {
       // Send approval email + account setup for new users
       try {
         const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+        const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
 
         if (isNewUser && userId) {
           const token = crypto.randomBytes(32).toString("hex");
@@ -224,13 +225,14 @@ export async function POST(request: Request) {
             user_id: userId,
             token,
             expires_at: expiresAt,
+            roaster_slug: roaster.storefront_slug || null,
           });
 
           const setupUrl = `${portalUrl}/setup-password?token=${token}`;
 
           await Promise.all([
             sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay"),
-            sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+            sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl),
           ]);
         } else {
           await sendWholesaleApproved(
@@ -273,6 +275,7 @@ export async function POST(request: Request) {
 
     // Standard flow: send notification emails
     const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+    const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
 
     try {
       // For new users, send account setup email (with password link) instead
@@ -285,12 +288,13 @@ export async function POST(request: Request) {
           user_id: userId,
           token,
           expires_at: expiresAt,
+          roaster_slug: roaster.storefront_slug || null,
         });
 
         const setupUrl = `${portalUrl}/setup-password?token=${token}`;
 
         await Promise.all([
-          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl),
           sendWholesaleApplicationNotification(
             roaster.email,
             roaster.business_name,

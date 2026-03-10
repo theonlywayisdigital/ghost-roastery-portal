@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import {
-  sendWholesaleWelcome,
   sendWholesaleAccountSetup,
+  sendWholesaleWelcome,
   type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
@@ -278,7 +278,7 @@ export async function POST(request: Request) {
     // Send emails
     try {
       const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-      const wholesaleUrl = `${portalUrl}/wholesale`;
+      const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
 
       const branding: EmailBranding = {
         logoUrl: roaster.brand_logo_url,
@@ -303,10 +303,7 @@ export async function POST(request: Request) {
 
         const setupUrl = `${portalUrl}/setup-password?token=${token}`;
 
-        await Promise.all([
-          sendWholesaleWelcome(email, name, roaster.business_name, terms, wholesaleUrl, branding),
-          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, branding),
-        ]);
+        await sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, branding);
       } else {
         await sendWholesaleWelcome(email, name, roaster.business_name, terms, wholesaleUrl, branding);
       }

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const {
       name, description, price, unit, image_url, is_active, sort_order,
       is_retail, is_wholesale, retail_price, wholesale_price,
-      wholesale_price, minimum_wholesale_quantity, sku, weight_grams,
+      minimum_wholesale_quantity, sku, weight_grams,
       is_purchasable, track_stock, retail_stock_count,
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,

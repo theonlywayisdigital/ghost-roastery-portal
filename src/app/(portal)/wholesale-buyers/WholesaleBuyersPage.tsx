@@ -76,11 +76,13 @@ function formatDate(dateStr: string) {
 export function WholesaleBuyersPage({
   buyers: initial,
   autoApprove,
+  wholesaleStripeEnabled,
   roasterId,
   hideHeader,
 }: {
   buyers: WholesaleBuyer[];
   autoApprove: boolean;
+  wholesaleStripeEnabled: boolean;
   roasterId: string;
   hideHeader?: boolean;
 }) {
@@ -805,6 +807,7 @@ export function WholesaleBuyersPage({
 
           <SettingsSection
             autoApprove={autoApprove}
+            wholesaleStripeEnabled={wholesaleStripeEnabled}
             roasterId={roasterId}
           />
         </>

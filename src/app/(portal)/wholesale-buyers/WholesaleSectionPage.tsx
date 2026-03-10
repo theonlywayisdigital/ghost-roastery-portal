@@ -78,6 +78,7 @@ export function WholesaleSectionPage({
       <WholesaleBuyersPage
         buyers={buyers}
         autoApprove={autoApprove}
+        wholesaleStripeEnabled={wholesaleStripeEnabled}
         roasterId={roasterId}
         hideHeader
       />

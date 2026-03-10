@@ -11,7 +11,7 @@ interface ProductVariant {
   unit: string | null;
   wholesale_price: number | null;
   is_active: boolean;
-  grind_type: { id: string; name: string } | null;
+  grind_type: { id: string; name: string }[] | null;
 }
 
 interface Product {
@@ -40,7 +40,6 @@ interface OrderItem {
 export function WholesaleCatalogue({
   roaster,
   products,
-  priceTier,
   wholesaleAccessId,
   paymentTerms,
 }: {
@@ -67,7 +66,7 @@ export function WholesaleCatalogue({
     const itemKey = variant ? `${product.id}:${variant.id}` : product.id;
     const unitLabel = variant?.unit || product.unit;
     const variantLabel = variant
-      ? [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ")
+      ? [variant.unit, variant.grind_type?.[0]?.name].filter(Boolean).join(" — ")
       : null;
     const displayName = variantLabel ? `${product.name} (${variantLabel})` : product.name;
 
@@ -266,7 +265,7 @@ export function WholesaleCatalogue({
                         const vPrice = variant.wholesale_price!;
                         const itemKey = `${product.id}:${variant.id}`;
                         const inVariantOrder = order.find((i) => i.productId === itemKey);
-                        const label = [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ");
+                        const label = [variant.unit, variant.grind_type?.[0]?.name].filter(Boolean).join(" — ");
 
                         return (
                           <div key={variant.id} className="flex items-center justify-between gap-2 py-1.5 border-t border-slate-100 first:border-t-0">

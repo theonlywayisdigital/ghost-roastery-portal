@@ -211,18 +211,23 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
-  // Variant state — separate matrices per channel
-  const [variantsEnabled, setVariantsEnabled] = useState(false);
-  const [weightOptions, setWeightOptions] = useState<WeightOption[]>([]);
-  const [selectedGrindTypeIds, setSelectedGrindTypeIds] = useState<Set<string>>(new Set());
+  // Variant state — independent per channel
+  const [retailVariantsEnabled, setRetailVariantsEnabled] = useState(false);
+  const [wholesaleVariantsEnabled, setWholesaleVariantsEnabled] = useState(false);
+  const [retailWeightOptions, setRetailWeightOptions] = useState<WeightOption[]>([]);
+  const [wholesaleWeightOptions, setWholesaleWeightOptions] = useState<WeightOption[]>([]);
+  const [retailSelectedGrindTypeIds, setRetailSelectedGrindTypeIds] = useState<Set<string>>(new Set());
+  const [wholesaleSelectedGrindTypeIds, setWholesaleSelectedGrindTypeIds] = useState<Set<string>>(new Set());
   const [retailMatrixCells, setRetailMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [wholesaleMatrixCells, setWholesaleMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [expandedCell, setExpandedCell] = useState<string | null>(null);
   const [expandedSkuCell, setExpandedSkuCell] = useState<string | null>(null);
 
-  // Weight add form
-  const [newWeightGrams, setNewWeightGrams] = useState("");
-  const [newWeightUnit, setNewWeightUnit] = useState("");
+  // Weight add form — per channel
+  const [retailNewWeightGrams, setRetailNewWeightGrams] = useState("");
+  const [retailNewWeightUnit, setRetailNewWeightUnit] = useState("");
+  const [wholesaleNewWeightGrams, setWholesaleNewWeightGrams] = useState("");
+  const [wholesaleNewWeightUnit, setWholesaleNewWeightUnit] = useState("");
 
   // Grind types
   const [grindTypes, setGrindTypes] = useState<GrindType[]>([]);
@@ -250,7 +255,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setGrindTypesLoading(false);
   }, []);
 
-  // Fetch existing variants when editing — reconstruct matrices
+  // Fetch existing variants when editing — reconstruct per-channel matrices
   useEffect(() => {
     loadGrindTypes();
 
@@ -260,53 +265,73 @@ export function ProductForm({ product }: { product?: Product }) {
         .then((data) => {
           if (data.variants && data.variants.length > 0) {
             const variants: Variant[] = data.variants;
-            setVariantsEnabled(true);
 
-            // Extract unique weight options
-            const weightMap = new Map<number, string>();
-            for (const v of variants) {
-              if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
-                weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
-              }
-            }
-            const weights: WeightOption[] = Array.from(weightMap.entries()).map(
-              ([wg, u]) => ({ weight_grams: wg, unit: u })
-            );
-            setWeightOptions(weights);
+            const retailVars = variants.filter((v) => (v.channel || "retail") === "retail");
+            const wholesaleVars = variants.filter((v) => v.channel === "wholesale");
 
-            // Extract unique grind type ids
-            const gtIds = new Set<string>();
-            for (const v of variants) {
-              if (v.grind_type_id) gtIds.add(v.grind_type_id);
-            }
-            setSelectedGrindTypeIds(gtIds);
-
-            // Populate matrix cells per channel
-            const retailCells: Record<string, MatrixCell> = {};
-            const wholesaleCells: Record<string, MatrixCell> = {};
-            for (const v of variants) {
-              if (v.weight_grams != null && v.grind_type_id) {
-                const key = cellKey(v.weight_grams, v.grind_type_id);
-                const cell: MatrixCell = {
-                  id: v.id,
-                  sku: v.sku,
-                  retail_price: v.retail_price,
-                  compare_at_price: v.compare_at_price,
-                  wholesale_price: v.wholesale_price,
-                  retail_stock_count: v.retail_stock_count,
-                  track_stock: v.track_stock,
-                  is_active: v.is_active,
-                };
-                const channel = v.channel || "retail";
-                if (channel === "wholesale") {
-                  wholesaleCells[key] = cell;
-                } else {
-                  retailCells[key] = cell;
+            // Reconstruct retail
+            if (retailVars.length > 0) {
+              setRetailVariantsEnabled(true);
+              const weightMap = new Map<number, string>();
+              const gtIds = new Set<string>();
+              const cells: Record<string, MatrixCell> = {};
+              for (const v of retailVars) {
+                if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
+                  weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+                }
+                if (v.grind_type_id) gtIds.add(v.grind_type_id);
+                if (v.weight_grams != null && v.grind_type_id) {
+                  const key = cellKey(v.weight_grams, v.grind_type_id);
+                  cells[key] = {
+                    id: v.id,
+                    sku: v.sku,
+                    retail_price: v.retail_price,
+                    compare_at_price: v.compare_at_price,
+                    wholesale_price: v.wholesale_price,
+                    retail_stock_count: v.retail_stock_count,
+                    track_stock: v.track_stock,
+                    is_active: v.is_active,
+                  };
                 }
               }
+              setRetailWeightOptions(
+                Array.from(weightMap.entries()).map(([wg, u]) => ({ weight_grams: wg, unit: u }))
+              );
+              setRetailSelectedGrindTypeIds(gtIds);
+              setRetailMatrixCells(cells);
             }
-            setRetailMatrixCells(retailCells);
-            setWholesaleMatrixCells(wholesaleCells);
+
+            // Reconstruct wholesale
+            if (wholesaleVars.length > 0) {
+              setWholesaleVariantsEnabled(true);
+              const weightMap = new Map<number, string>();
+              const gtIds = new Set<string>();
+              const cells: Record<string, MatrixCell> = {};
+              for (const v of wholesaleVars) {
+                if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
+                  weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+                }
+                if (v.grind_type_id) gtIds.add(v.grind_type_id);
+                if (v.weight_grams != null && v.grind_type_id) {
+                  const key = cellKey(v.weight_grams, v.grind_type_id);
+                  cells[key] = {
+                    id: v.id,
+                    sku: v.sku,
+                    retail_price: v.retail_price,
+                    compare_at_price: v.compare_at_price,
+                    wholesale_price: v.wholesale_price,
+                    retail_stock_count: v.retail_stock_count,
+                    track_stock: v.track_stock,
+                    is_active: v.is_active,
+                  };
+                }
+              }
+              setWholesaleWeightOptions(
+                Array.from(weightMap.entries()).map(([wg, u]) => ({ weight_grams: wg, unit: u }))
+              );
+              setWholesaleSelectedGrindTypeIds(gtIds);
+              setWholesaleMatrixCells(cells);
+            }
           }
         })
         .catch(() => {
@@ -329,8 +354,12 @@ export function ProductForm({ product }: { product?: Product }) {
         setGrindTypes((prev) => [...prev, data.grindType]);
         setNewGrindTypeName("");
         setShowInlineGrindAdd(false);
-        // Auto-select newly created grind type
-        setSelectedGrindTypeIds((prev) => new Set([...Array.from(prev), data.grindType.id]));
+        // Auto-select in the active channel
+        if (activeTab === "retail") {
+          setRetailSelectedGrindTypeIds((prev) => new Set([...Array.from(prev), data.grindType.id]));
+        } else if (activeTab === "wholesale") {
+          setWholesaleSelectedGrindTypeIds((prev) => new Set([...Array.from(prev), data.grindType.id]));
+        }
       }
     } catch {
       // Silently fail
@@ -338,23 +367,31 @@ export function ProductForm({ product }: { product?: Product }) {
     setAddingGrindType(false);
   }
 
-  function handleAddWeight() {
-    const grams = parseInt(newWeightGrams);
+  function handleAddWeight(channel: "retail" | "wholesale") {
+    const newGrams = channel === "retail" ? retailNewWeightGrams : wholesaleNewWeightGrams;
+    const newUnit = channel === "retail" ? retailNewWeightUnit : wholesaleNewWeightUnit;
+    const weightOpts = channel === "retail" ? retailWeightOptions : wholesaleWeightOptions;
+    const setter = channel === "retail" ? setRetailWeightOptions : setWholesaleWeightOptions;
+    const setGrams = channel === "retail" ? setRetailNewWeightGrams : setWholesaleNewWeightGrams;
+    const setUnitVal = channel === "retail" ? setRetailNewWeightUnit : setWholesaleNewWeightUnit;
+
+    const grams = parseInt(newGrams);
     if (!grams || grams <= 0) return;
-    const unitLabel = newWeightUnit.trim() || `${grams}g`;
-    // Prevent duplicate weight_grams
-    if (weightOptions.some((w) => w.weight_grams === grams)) return;
-    setWeightOptions((prev) => [...prev, { weight_grams: grams, unit: unitLabel }]);
-    setNewWeightGrams("");
-    setNewWeightUnit("");
+    const unitLabel = newUnit.trim() || `${grams}g`;
+    if (weightOpts.some((w) => w.weight_grams === grams)) return;
+    setter((prev) => [...prev, { weight_grams: grams, unit: unitLabel }]);
+    setGrams("");
+    setUnitVal("");
   }
 
-  function handleRemoveWeight(grams: number) {
-    setWeightOptions((prev) => prev.filter((w) => w.weight_grams !== grams));
+  function handleRemoveWeight(channel: "retail" | "wholesale", grams: number) {
+    const setter = channel === "retail" ? setRetailWeightOptions : setWholesaleWeightOptions;
+    setter((prev) => prev.filter((w) => w.weight_grams !== grams));
   }
 
-  function handleToggleGrindType(gtId: string) {
-    setSelectedGrindTypeIds((prev) => {
+  function handleToggleGrindType(channel: "retail" | "wholesale", gtId: string) {
+    const setter = channel === "retail" ? setRetailSelectedGrindTypeIds : setWholesaleSelectedGrindTypeIds;
+    setter((prev) => {
       const next = new Set(Array.from(prev));
       if (next.has(gtId)) {
         next.delete(gtId);
@@ -378,20 +415,25 @@ export function ProductForm({ product }: { product?: Product }) {
     }));
   }
 
-  function handleCopyVariants(from: "retail" | "wholesale") {
-    const source = from === "retail" ? retailMatrixCells : wholesaleMatrixCells;
-    const setter = from === "retail" ? setWholesaleMatrixCells : setRetailMatrixCells;
-    // Deep copy, stripping IDs so new rows are created
-    const copied: Record<string, MatrixCell> = {};
-    for (const [key, cell] of Object.entries(source)) {
-      copied[key] = { ...cell, id: undefined };
+  function handleCopyVariantConfig(from: "retail" | "wholesale") {
+    if (from === "retail") {
+      // Copy retail config → wholesale
+      setWholesaleWeightOptions([...retailWeightOptions]);
+      setWholesaleSelectedGrindTypeIds(new Set(Array.from(retailSelectedGrindTypeIds)));
+      setWholesaleMatrixCells({});
+    } else {
+      // Copy wholesale config → retail
+      setRetailWeightOptions([...wholesaleWeightOptions]);
+      setRetailSelectedGrindTypeIds(new Set(Array.from(wholesaleSelectedGrindTypeIds)));
+      setRetailMatrixCells({});
     }
-    setter(copied);
   }
 
-  // Get selected grind types in their original sort order
-  const selectedGrindTypes = grindTypes.filter((gt) => selectedGrindTypeIds.has(gt.id));
-  const showMatrix = weightOptions.length > 0 && selectedGrindTypes.length > 0;
+  // Channel-specific derived values
+  const retailSelectedGrindTypes = grindTypes.filter((gt) => retailSelectedGrindTypeIds.has(gt.id));
+  const wholesaleSelectedGrindTypes = grindTypes.filter((gt) => wholesaleSelectedGrindTypeIds.has(gt.id));
+  const retailShowMatrix = retailWeightOptions.length > 0 && retailSelectedGrindTypes.length > 0;
+  const wholesaleShowMatrix = wholesaleWeightOptions.length > 0 && wholesaleSelectedGrindTypes.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const rawFile = e.target.files?.[0];
@@ -463,44 +505,59 @@ export function ProductForm({ product }: { product?: Product }) {
       subscription_frequency: isRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
     };
 
-    // Convert matrices to flat variants array
-    if (variantsEnabled && showMatrix) {
-      const flatVariants: Record<string, unknown>[] = [];
+    // Convert per-channel matrices to flat variants array
+    const flatVariants: Record<string, unknown>[] = [];
 
-      const addVariantsFromMatrix = (
-        cells: Record<string, MatrixCell>,
-        channel: "retail" | "wholesale"
-      ) => {
-        weightOptions.forEach((w, rowIdx) => {
-          selectedGrindTypes.forEach((gt, colIdx) => {
-            const key = cellKey(w.weight_grams, gt.id);
-            const cell = cells[key] || emptyCell();
-            flatVariants.push({
-              id: cell.id || undefined,
-              weight_grams: w.weight_grams,
-              unit: w.unit,
-              grind_type_id: gt.id,
-              sku: cell.sku,
-              retail_price: cell.retail_price,
-              compare_at_price: cell.compare_at_price,
-              wholesale_price: cell.wholesale_price,
-              retail_stock_count: cell.retail_stock_count,
-              track_stock: cell.track_stock,
-              is_active: cell.is_active,
-              sort_order: rowIdx * 100 + colIdx,
-              channel,
-            });
+    if (retailVariantsEnabled && retailShowMatrix && isRetail) {
+      retailWeightOptions.forEach((w, rowIdx) => {
+        retailSelectedGrindTypes.forEach((gt, colIdx) => {
+          const key = cellKey(w.weight_grams, gt.id);
+          const cell = retailMatrixCells[key] || emptyCell();
+          flatVariants.push({
+            id: cell.id || undefined,
+            weight_grams: w.weight_grams,
+            unit: w.unit,
+            grind_type_id: gt.id,
+            sku: cell.sku,
+            retail_price: cell.retail_price,
+            compare_at_price: cell.compare_at_price,
+            wholesale_price: cell.wholesale_price,
+            retail_stock_count: cell.retail_stock_count,
+            track_stock: cell.track_stock,
+            is_active: cell.is_active,
+            sort_order: rowIdx * 100 + colIdx,
+            channel: "retail",
           });
         });
-      };
+      });
+    }
 
-      if (isRetail) addVariantsFromMatrix(retailMatrixCells, "retail");
-      if (isWholesale) addVariantsFromMatrix(wholesaleMatrixCells, "wholesale");
+    if (wholesaleVariantsEnabled && wholesaleShowMatrix && isWholesale) {
+      wholesaleWeightOptions.forEach((w, rowIdx) => {
+        wholesaleSelectedGrindTypes.forEach((gt, colIdx) => {
+          const key = cellKey(w.weight_grams, gt.id);
+          const cell = wholesaleMatrixCells[key] || emptyCell();
+          flatVariants.push({
+            id: cell.id || undefined,
+            weight_grams: w.weight_grams,
+            unit: w.unit,
+            grind_type_id: gt.id,
+            sku: cell.sku,
+            retail_price: cell.retail_price,
+            compare_at_price: cell.compare_at_price,
+            wholesale_price: cell.wholesale_price,
+            retail_stock_count: cell.retail_stock_count,
+            track_stock: cell.track_stock,
+            is_active: cell.is_active,
+            sort_order: rowIdx * 100 + colIdx,
+            channel: "wholesale",
+          });
+        });
+      });
+    }
 
+    if (flatVariants.length > 0 || isEditing) {
       body.variants = flatVariants;
-    } else if (isEditing) {
-      // When variants are disabled on edit, send empty array to delete all
-      body.variants = [];
     }
 
     try {
@@ -541,27 +598,29 @@ export function ProductForm({ product }: { product?: Product }) {
     if (activeTab === "wholesale" && !isWholesale) setActiveTab("overview");
   }, [isRetail, isWholesale, activeTab]);
 
-  // ─── Variant Matrix Renderer ───
-  function renderMatrix(channel: "retail" | "wholesale") {
-    if (!showMatrix) return null;
-
-    const channelLabel = channel === "retail" ? "Retail" : "Wholesale";
+  // ─── Variant Options Panel Renderer ───
+  function renderVariantOptions(channel: "retail" | "wholesale") {
+    const weightOpts = channel === "retail" ? retailWeightOptions : wholesaleWeightOptions;
+    const selectedGtIds = channel === "retail" ? retailSelectedGrindTypeIds : wholesaleSelectedGrindTypeIds;
+    const newWG = channel === "retail" ? retailNewWeightGrams : wholesaleNewWeightGrams;
+    const setNewWG = channel === "retail" ? setRetailNewWeightGrams : setWholesaleNewWeightGrams;
+    const newWU = channel === "retail" ? retailNewWeightUnit : wholesaleNewWeightUnit;
+    const setNewWU = channel === "retail" ? setRetailNewWeightUnit : setWholesaleNewWeightUnit;
     const otherChannel = channel === "retail" ? "wholesale" : "retail";
     const otherLabel = channel === "retail" ? "Wholesale" : "Retail";
-    const otherEnabled = channel === "retail" ? isWholesale : isRetail;
-    const cells = channel === "retail" ? retailMatrixCells : wholesaleMatrixCells;
-    const hasCells = Object.keys(cells).length > 0;
+    const otherEnabled = channel === "retail" ? (isWholesale && wholesaleVariantsEnabled) : (isRetail && retailVariantsEnabled);
+    const otherHasConfig = channel === "retail"
+      ? (wholesaleWeightOptions.length > 0 || wholesaleSelectedGrindTypeIds.size > 0)
+      : (retailWeightOptions.length > 0 || retailSelectedGrindTypeIds.size > 0);
 
     return (
       <div className={sectionClassName}>
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-800">
-            {`${channelLabel} Variants (${weightOptions.length * selectedGrindTypes.length})`}
-          </h4>
-          {otherEnabled && (
+          <h4 className="text-sm font-semibold text-slate-800">Define Options</h4>
+          {otherEnabled && otherHasConfig && (
             <button
               type="button"
-              onClick={() => handleCopyVariants(otherChannel as "retail" | "wholesale")}
+              onClick={() => handleCopyVariantConfig(otherChannel as "retail" | "wholesale")}
               className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
             >
               <Copy className="w-3.5 h-3.5" />
@@ -569,6 +628,202 @@ export function ProductForm({ product }: { product?: Product }) {
             </button>
           )}
         </div>
+        <div className="grid grid-cols-2 gap-6">
+          {/* Panel 1 — Weights */}
+          <div className="space-y-3">
+            <label className={labelClassName}>Weight options</label>
+            {weightOpts.length > 0 && (
+              <div className="space-y-1.5">
+                {weightOpts.map((w) => (
+                  <div
+                    key={w.weight_grams}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                  >
+                    <span className="text-sm text-slate-900">
+                      {w.unit}
+                      {w.unit !== `${w.weight_grams}g` && (
+                        <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveWeight(channel, w.weight_grams)}
+                      className="p-0.5 text-slate-400 hover:text-red-500"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={newWG}
+                  onChange={(e) => setNewWG(e.target.value)}
+                  placeholder="250"
+                  className={inputClassName}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddWeight(channel);
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs text-slate-500 mb-1">Unit label</label>
+                <input
+                  type="text"
+                  value={newWU}
+                  onChange={(e) => setNewWU(e.target.value)}
+                  placeholder="e.g. 250g, 1kg"
+                  className={inputClassName}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddWeight(channel);
+                    }
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleAddWeight(channel)}
+                disabled={!newWG || parseInt(newWG) <= 0}
+                className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Panel 2 — Grind Types */}
+          <div className="space-y-3">
+            <label className={labelClassName}>Grind type options</label>
+            {!grindTypesLoading && grindTypes.length === 0 ? (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  No grind types set up. You can add them in{" "}
+                  <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
+                    Settings
+                  </Link>
+                  , or add one below.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={newGrindTypeName}
+                    onChange={(e) => setNewGrindTypeName(e.target.value)}
+                    placeholder="e.g. Whole Bean"
+                    className={`${inputClassName} max-w-[200px]`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddGrindType();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddGrindType}
+                    disabled={addingGrindType || !newGrindTypeName.trim()}
+                    className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                  >
+                    {addingGrindType ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  {grindTypes.map((gt) => (
+                    <label
+                      key={gt.id}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedGtIds.has(gt.id)}
+                        onChange={() => handleToggleGrindType(channel, gt.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      <span className="text-sm text-slate-900">{gt.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {/* Inline add new grind type */}
+                {showInlineGrindAdd ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newGrindTypeName}
+                      onChange={(e) => setNewGrindTypeName(e.target.value)}
+                      placeholder="e.g. Espresso"
+                      className={`${inputClassName} max-w-[180px]`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddGrindType();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddGrindType}
+                      disabled={addingGrindType || !newGrindTypeName.trim()}
+                      className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {addingGrindType ? "..." : "Add"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowInlineGrindAdd(false);
+                        setNewGrindTypeName("");
+                      }}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineGrindAdd(true)}
+                    className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                  >
+                    + Add new grind type
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Variant Matrix Renderer ───
+  function renderMatrix(channel: "retail" | "wholesale") {
+    const weightOpts = channel === "retail" ? retailWeightOptions : wholesaleWeightOptions;
+    const selectedGTs = channel === "retail" ? retailSelectedGrindTypes : wholesaleSelectedGrindTypes;
+    const showMx = channel === "retail" ? retailShowMatrix : wholesaleShowMatrix;
+
+    if (!showMx) return null;
+
+    const channelLabel = channel === "retail" ? "Retail" : "Wholesale";
+    const cells = channel === "retail" ? retailMatrixCells : wholesaleMatrixCells;
+    const hasCells = Object.keys(cells).length > 0;
+
+    return (
+      <div className={sectionClassName}>
+        <h4 className="text-sm font-semibold text-slate-800">
+          {`${channelLabel} Combinations (${weightOpts.length * selectedGTs.length})`}
+        </h4>
         {!hasCells && (
           <p className="text-xs text-slate-500">
             No variant overrides set yet. Click cells below to configure pricing, SKU, and stock for each combination.
@@ -581,7 +836,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 <th className="text-left py-2 pr-4 font-medium text-slate-500 text-xs uppercase tracking-wide">
                   Weight
                 </th>
-                {selectedGrindTypes.map((gt) => (
+                {selectedGTs.map((gt) => (
                   <th
                     key={gt.id}
                     className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide"
@@ -592,12 +847,12 @@ export function ProductForm({ product }: { product?: Product }) {
               </tr>
             </thead>
             <tbody>
-              {weightOptions.map((w) => (
+              {weightOpts.map((w) => (
                 <tr key={w.weight_grams} className="border-b border-slate-100 last:border-0">
                   <td className="py-3 pr-4 font-medium text-slate-900 align-top whitespace-nowrap">
                     {w.unit}
                   </td>
-                  {selectedGrindTypes.map((gt) => {
+                  {selectedGTs.map((gt) => {
                     const key = cellKey(w.weight_grams, gt.id);
                     const cell = getCell(channel, key);
                     const cellExpandKey = `${channel}:${key}`;
@@ -829,473 +1084,273 @@ export function ProductForm({ product }: { product?: Product }) {
 
             {/* ═══════════════ OVERVIEW TAB ═══════════════ */}
             {activeTab === "overview" && (
-              <>
-                {/* ─── General Section ─── */}
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-4">General</h3>
-                  <div className={sectionClassName}>
-                    {/* Product Name */}
-                    <div>
-                      <label className={labelClassName}>Product Name</label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Ethiopian Yirgacheffe"
-                        required
-                        className={inputClassName}
-                      />
-                    </div>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800 mb-4">General</h3>
+                <div className={sectionClassName}>
+                  {/* Product Name */}
+                  <div>
+                    <label className={labelClassName}>Product Name</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Ethiopian Yirgacheffe"
+                      required
+                      className={inputClassName}
+                    />
+                  </div>
 
-                    {/* Description */}
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <label className={labelClassName}>
-                          Description{" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <AiGenerateButton
-                          type="product_description"
-                          context={{ existingContent: description, productCategory: "coffee" }}
-                          onSelect={setDescription}
-                          enableShortcut
-                        />
-                      </div>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Tasting notes, origin details..."
-                        rows={3}
-                        className={inputClassName}
-                      />
-                    </div>
-
-                    {/* Meta Description */}
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <label className={labelClassName}>
-                          Meta Description{" "}
-                          <span className="text-slate-400 font-normal">(SEO)</span>
-                        </label>
-                        <AiGenerateButton
-                          type="product_meta_description"
-                          context={{ existingContent: metaDescription, productCategory: "coffee" }}
-                          onSelect={setMetaDescription}
-                        />
-                      </div>
-                      <textarea
-                        value={metaDescription}
-                        onChange={(e) => setMetaDescription(e.target.value)}
-                        placeholder="Brief SEO description for search engines..."
-                        rows={2}
-                        maxLength={155}
-                        className={inputClassName}
-                      />
-                      <p className={`text-xs mt-1 ${metaDescription.length > 155 ? "text-red-500" : metaDescription.length > 120 ? "text-amber-500" : "text-slate-400"}`}>
-                        {`${metaDescription.length}/155 characters`}
-                      </p>
-                    </div>
-
-                    {/* Channel Toggles */}
-                    <div>
-                      <label className={labelClassName}>Channels</label>
-                      <div className="flex gap-4">
-                        <label
-                          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                            isRetail
-                              ? "border-brand-500 bg-brand-50 text-brand-700"
-                              : "border-slate-300 text-slate-600 hover:border-slate-400"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isRetail}
-                            onChange={() => setIsRetail(!isRetail)}
-                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm font-medium">Retail</span>
-                        </label>
-                        <label
-                          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                            isWholesale
-                              ? "border-brand-500 bg-brand-50 text-brand-700"
-                              : "border-slate-300 text-slate-600 hover:border-slate-400"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isWholesale}
-                            onChange={() => setIsWholesale(!isWholesale)}
-                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                          />
-                          <span className="text-sm font-medium">Wholesale</span>
-                        </label>
-                      </div>
-                      {!isRetail && !isWholesale && (
-                        <p className="text-xs text-amber-600 mt-1.5">
-                          At least one channel should be selected.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Product Image */}
-                    <div>
+                  {/* Description */}
+                  <div>
+                    <div className="flex items-center justify-between">
                       <label className={labelClassName}>
-                        Product Image{" "}
+                        Description{" "}
                         <span className="text-slate-400 font-normal">(optional)</span>
                       </label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleFileSelect}
-                        className="hidden"
+                      <AiGenerateButton
+                        type="product_description"
+                        context={{ existingContent: description, productCategory: "coffee" }}
+                        onSelect={setDescription}
+                        enableShortcut
                       />
-                      {imageUrl ? (
-                        <div className="relative inline-block">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={imageUrl}
-                            alt="Product preview"
-                            className="w-40 h-40 object-cover rounded-lg border border-slate-200"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setImageUrl("")}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
-                          >
-                            Replace image
-                          </button>
-                        </div>
-                      ) : (
+                    </div>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Tasting notes, origin details..."
+                      rows={3}
+                      className={inputClassName}
+                    />
+                  </div>
+
+                  {/* Meta Description */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className={labelClassName}>
+                        Meta Description{" "}
+                        <span className="text-slate-400 font-normal">(SEO)</span>
+                      </label>
+                      <AiGenerateButton
+                        type="product_meta_description"
+                        context={{ existingContent: metaDescription, productCategory: "coffee" }}
+                        onSelect={setMetaDescription}
+                      />
+                    </div>
+                    <textarea
+                      value={metaDescription}
+                      onChange={(e) => setMetaDescription(e.target.value)}
+                      placeholder="Brief SEO description for search engines..."
+                      rows={2}
+                      maxLength={155}
+                      className={inputClassName}
+                    />
+                    <p className={`text-xs mt-1 ${metaDescription.length > 155 ? "text-red-500" : metaDescription.length > 120 ? "text-amber-500" : "text-slate-400"}`}>
+                      {`${metaDescription.length}/155 characters`}
+                    </p>
+                  </div>
+
+                  {/* Channel Toggles */}
+                  <div>
+                    <label className={labelClassName}>Channels</label>
+                    <div className="flex gap-4">
+                      <label
+                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                          isRetail
+                            ? "border-brand-500 bg-brand-50 text-brand-700"
+                            : "border-slate-300 text-slate-600 hover:border-slate-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isRetail}
+                          onChange={() => setIsRetail(!isRetail)}
+                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span className="text-sm font-medium">Retail</span>
+                      </label>
+                      <label
+                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                          isWholesale
+                            ? "border-brand-500 bg-brand-50 text-brand-700"
+                            : "border-slate-300 text-slate-600 hover:border-slate-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isWholesale}
+                          onChange={() => setIsWholesale(!isWholesale)}
+                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span className="text-sm font-medium">Wholesale</span>
+                      </label>
+                    </div>
+                    {!isRetail && !isWholesale && (
+                      <p className="text-xs text-amber-600 mt-1.5">
+                        At least one channel should be selected.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Product Image */}
+                  <div>
+                    <label className={labelClassName}>
+                      Product Image{" "}
+                      <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    {imageUrl ? (
+                      <div className="relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt="Product preview"
+                          className="w-40 h-40 object-cover rounded-lg border border-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setImageUrl("")}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
-                          className="w-full border-2 border-dashed border-slate-300 rounded-lg py-8 px-4 flex flex-col items-center gap-2 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
+                          className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
                         >
-                          {isUploading ? (
-                            <>
-                              <Loader2 className="w-8 h-8 animate-spin" />
-                              <span className="text-sm font-medium">Uploading…</span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                                <ImageIcon className="w-6 h-6" />
-                              </div>
-                              <span className="text-sm font-medium">Click to upload an image</span>
-                              <span className="text-xs">JPG, PNG or WebP — max 5MB</span>
-                            </>
-                          )}
+                          Replace image
                         </button>
-                      )}
-                    </div>
-
-                    {/* SKU & Unit */}
-                    <div className={`grid ${variantsEnabled ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
-                      <div>
-                        <label className={labelClassName}>
-                          SKU{" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={sku}
-                          onChange={(e) => setSku(e.target.value)}
-                          placeholder="GR-ETH-250"
-                          className={inputClassName}
-                        />
                       </div>
-                      {!variantsEnabled && (
-                        <div>
-                          <label className={labelClassName}>Unit</label>
-                          <input
-                            type="text"
-                            value={unit}
-                            onChange={(e) => setUnit(e.target.value)}
-                            placeholder="250g"
-                            className={inputClassName}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="w-full border-2 border-dashed border-slate-300 rounded-lg py-8 px-4 flex flex-col items-center gap-2 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-8 h-8 animate-spin" />
+                            <span className="text-sm font-medium">Uploading…</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                              <ImageIcon className="w-6 h-6" />
+                            </div>
+                            <span className="text-sm font-medium">Click to upload an image</span>
+                            <span className="text-xs">JPG, PNG or WebP — max 5MB</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
 
-                    {/* Weight & VAT */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClassName}>
-                          Weight (grams){" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={weightGrams}
-                          onChange={(e) => setWeightGrams(e.target.value)}
-                          placeholder="250"
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClassName}>VAT Rate</label>
-                        <select
-                          value={vatRate}
-                          onChange={(e) => setVatRate(e.target.value)}
-                          className={inputClassName}
-                        >
-                          {VAT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Sort Order */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClassName}>Sort Order</label>
-                        <input
-                          type="number"
-                          value={sortOrder}
-                          onChange={(e) => setSortOrder(e.target.value)}
-                          placeholder="0"
-                          className={inputClassName}
-                        />
-                        <p className="text-xs text-slate-400 mt-1">
-                          Lower numbers appear first.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Toggles */}
-                    <div className="space-y-3 pt-1">
-                      <Toggle
-                        enabled={isActive}
-                        onToggle={() => setIsActive(!isActive)}
-                        label={
-                          isActive
-                            ? "Active — visible to customers"
-                            : "Inactive — hidden from customers"
-                        }
+                  {/* SKU & Unit */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClassName}>
+                        SKU{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                        placeholder="GR-ETH-250"
+                        className={inputClassName}
                       />
-                      <Toggle
-                        enabled={isPurchasable}
-                        onToggle={() => setIsPurchasable(!isPurchasable)}
-                        label={
-                          isPurchasable
-                            ? "Purchasable — customers can buy online"
-                            : "Not purchasable — enquiry only"
-                        }
+                    </div>
+                    <div>
+                      <label className={labelClassName}>Unit</label>
+                      <input
+                        type="text"
+                        value={unit}
+                        onChange={(e) => setUnit(e.target.value)}
+                        placeholder="250g"
+                        className={inputClassName}
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* ─── Variants Section (shared options) ─── */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-slate-800">Variants</h3>
+                  {/* Weight & VAT */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClassName}>
+                        Weight (grams){" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={weightGrams}
+                        onChange={(e) => setWeightGrams(e.target.value)}
+                        placeholder="250"
+                        className={inputClassName}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClassName}>VAT Rate</label>
+                      <select
+                        value={vatRate}
+                        onChange={(e) => setVatRate(e.target.value)}
+                        className={inputClassName}
+                      >
+                        {VAT_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Sort Order */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClassName}>Sort Order</label>
+                      <input
+                        type="number"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value)}
+                        placeholder="0"
+                        className={inputClassName}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Lower numbers appear first.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="space-y-3 pt-1">
                     <Toggle
-                      enabled={variantsEnabled}
-                      onToggle={() => setVariantsEnabled(!variantsEnabled)}
-                      label={variantsEnabled ? "Enabled" : "Disabled"}
+                      enabled={isActive}
+                      onToggle={() => setIsActive(!isActive)}
+                      label={
+                        isActive
+                          ? "Active — visible to customers"
+                          : "Inactive — hidden from customers"
+                      }
+                    />
+                    <Toggle
+                      enabled={isPurchasable}
+                      onToggle={() => setIsPurchasable(!isPurchasable)}
+                      label={
+                        isPurchasable
+                          ? "Purchasable — customers can buy online"
+                          : "Not purchasable — enquiry only"
+                      }
                     />
                   </div>
-                  {variantsEnabled && (
-                    <div className={sectionClassName}>
-                      <h4 className="text-sm font-semibold text-slate-800">Define Options</h4>
-                      <p className="text-xs text-slate-500">
-                        Weight and grind type options are shared across channels. Per-channel variant pricing is configured in the Retail and Wholesale tabs.
-                      </p>
-                      <div className="grid grid-cols-2 gap-6">
-                        {/* Panel 1 — Weights */}
-                        <div className="space-y-3">
-                          <label className={labelClassName}>Weight options</label>
-                          {weightOptions.length > 0 && (
-                            <div className="space-y-1.5">
-                              {weightOptions.map((w) => (
-                                <div
-                                  key={w.weight_grams}
-                                  className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
-                                >
-                                  <span className="text-sm text-slate-900">
-                                    {w.unit}
-                                    {w.unit !== `${w.weight_grams}g` && (
-                                      <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
-                                    )}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveWeight(w.weight_grams)}
-                                    className="p-0.5 text-slate-400 hover:text-red-500"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div className="flex items-end gap-2">
-                            <div className="flex-1">
-                              <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={newWeightGrams}
-                                onChange={(e) => setNewWeightGrams(e.target.value)}
-                                placeholder="250"
-                                className={inputClassName}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddWeight();
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-xs text-slate-500 mb-1">Unit label</label>
-                              <input
-                                type="text"
-                                value={newWeightUnit}
-                                onChange={(e) => setNewWeightUnit(e.target.value)}
-                                placeholder="e.g. 250g, 1kg"
-                                className={inputClassName}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddWeight();
-                                  }
-                                }}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={handleAddWeight}
-                              disabled={!newWeightGrams || parseInt(newWeightGrams) <= 0}
-                              className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                            >
-                              Add
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Panel 2 — Grind Types */}
-                        <div className="space-y-3">
-                          <label className={labelClassName}>Grind type options</label>
-                          {!grindTypesLoading && grindTypes.length === 0 ? (
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                              <p className="text-sm text-amber-800">
-                                No grind types set up. You can add them in{" "}
-                                <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
-                                  Settings
-                                </Link>
-                                , or add one below.
-                              </p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <input
-                                  type="text"
-                                  value={newGrindTypeName}
-                                  onChange={(e) => setNewGrindTypeName(e.target.value)}
-                                  placeholder="e.g. Whole Bean"
-                                  className={`${inputClassName} max-w-[200px]`}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      handleAddGrindType();
-                                    }
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleAddGrindType}
-                                  disabled={addingGrindType || !newGrindTypeName.trim()}
-                                  className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                                >
-                                  {addingGrindType ? "Adding..." : "Add"}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="space-y-1.5">
-                                {grindTypes.map((gt) => (
-                                  <label
-                                    key={gt.id}
-                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedGrindTypeIds.has(gt.id)}
-                                      onChange={() => handleToggleGrindType(gt.id)}
-                                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                                    />
-                                    <span className="text-sm text-slate-900">{gt.name}</span>
-                                  </label>
-                                ))}
-                              </div>
-                              {/* Inline add new grind type */}
-                              {showInlineGrindAdd ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={newGrindTypeName}
-                                    onChange={(e) => setNewGrindTypeName(e.target.value)}
-                                    placeholder="e.g. Espresso"
-                                    className={`${inputClassName} max-w-[180px]`}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        handleAddGrindType();
-                                      }
-                                    }}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={handleAddGrindType}
-                                    disabled={addingGrindType || !newGrindTypeName.trim()}
-                                    className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                                  >
-                                    {addingGrindType ? "..." : "Add"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setShowInlineGrindAdd(false);
-                                      setNewGrindTypeName("");
-                                    }}
-                                    className="text-slate-400 hover:text-slate-600"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowInlineGrindAdd(true)}
-                                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                                >
-                                  + Add new grind type
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </>
+              </div>
             )}
 
             {/* ═══════════════ RETAIL TAB ═══════════════ */}
@@ -1337,12 +1392,6 @@ export function ProductForm({ product }: { product?: Product }) {
                         </p>
                       </div>
                     </div>
-
-                    {variantsEnabled && (
-                      <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                        These prices are used as defaults. Set per-variant pricing in the matrix below to override.
-                      </p>
-                    )}
 
                     {/* Brand & GTIN */}
                     <div className="grid grid-cols-2 gap-4">
@@ -1429,8 +1478,23 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                 </div>
 
-                {/* Retail Variant Matrix */}
-                {variantsEnabled && renderMatrix("retail")}
+                {/* Retail Variants */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-800">Retail Variants</h3>
+                    <Toggle
+                      enabled={retailVariantsEnabled}
+                      onToggle={() => setRetailVariantsEnabled(!retailVariantsEnabled)}
+                      label={retailVariantsEnabled ? "Enabled" : "Disabled"}
+                    />
+                  </div>
+                  {retailVariantsEnabled && (
+                    <div className="space-y-5">
+                      {renderVariantOptions("retail")}
+                      {renderMatrix("retail")}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1440,7 +1504,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800 mb-4">Wholesale Pricing</h3>
                   <div className={sectionClassName}>
-                    {/* Wholesale Price */}
+                    {/* Wholesale Price & RRP */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className={labelClassName}>Wholesale Price (£)</label>
@@ -1470,12 +1534,6 @@ export function ProductForm({ product }: { product?: Product }) {
                         />
                       </div>
                     </div>
-
-                    {variantsEnabled && (
-                      <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                        This price is used as the default. Set per-variant pricing in the matrix below to override.
-                      </p>
-                    )}
 
                     {/* Min Qty & Order Multiples */}
                     <div className="grid grid-cols-2 gap-4">
@@ -1511,8 +1569,23 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                 </div>
 
-                {/* Wholesale Variant Matrix */}
-                {variantsEnabled && renderMatrix("wholesale")}
+                {/* Wholesale Variants */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
+                    <Toggle
+                      enabled={wholesaleVariantsEnabled}
+                      onToggle={() => setWholesaleVariantsEnabled(!wholesaleVariantsEnabled)}
+                      label={wholesaleVariantsEnabled ? "Enabled" : "Disabled"}
+                    />
+                  </div>
+                  {wholesaleVariantsEnabled && (
+                    <div className="space-y-5">
+                      {renderVariantOptions("wholesale")}
+                      {renderMatrix("wholesale")}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

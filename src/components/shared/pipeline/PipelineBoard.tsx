@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -12,11 +12,29 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { Loader2, List, LayoutGrid, Plus, X, Building2, User, Settings } from "@/components/icons";
+import { Loader2, List, LayoutGrid, Plus, X, Building2, User, Settings, Search, ChevronDown, ChevronRight } from "@/components/icons";
 import { PipelineColumn } from "./PipelineColumn";
 import { PipelineCard, type PipelineItem } from "./PipelineCard";
 import { PipelineList } from "./PipelineList";
 import type { PipelineStage } from "@/lib/pipeline";
+
+interface ContactResult {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  business_name: string | null;
+  business_id: string | null;
+  businesses: { id: string; name: string } | null;
+  types: string[];
+}
+
+interface BusinessResult {
+  id: string;
+  name: string;
+  industry: string | null;
+  email: string | null;
+}
 
 interface PipelineBoardProps {
   apiBase: string;
@@ -34,18 +52,27 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
 
   // Add Deal modal state
   const [showAddDeal, setShowAddDeal] = useState(false);
-  const [dealType, setDealType] = useState<"contact" | "business">("contact");
-  const [dealForm, setDealForm] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    business_name: "",
-    // Business-specific fields
-    name: "",
-    industry: "",
-  });
   const [creatingDeal, setCreatingDeal] = useState(false);
+
+  // Contact search
+  const [contactQuery, setContactQuery] = useState("");
+  const [contactResults, setContactResults] = useState<ContactResult[]>([]);
+  const [contactSearching, setContactSearching] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<ContactResult | null>(null);
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [newContact, setNewContact] = useState({ first_name: "", last_name: "", email: "", phone: "" });
+  const contactDebounce = useRef<ReturnType<typeof setTimeout>>();
+
+  // Business search
+  const [showBusinessSection, setShowBusinessSection] = useState(false);
+  const [businessQuery, setBusinessQuery] = useState("");
+  const [businessResults, setBusinessResults] = useState<BusinessResult[]>([]);
+  const [businessSearching, setBusinessSearching] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState<BusinessResult | null>(null);
+  const [businessLocked, setBusinessLocked] = useState(false);
+  const [showNewBusiness, setShowNewBusiness] = useState(false);
+  const [newBusiness, setNewBusiness] = useState({ name: "", industry: "", website: "" });
+  const businessDebounce = useRef<ReturnType<typeof setTimeout>>();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -183,60 +210,191 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     }
   }
 
-  function resetDealForm() {
-    setDealForm({
-      first_name: "",
-      last_name: "",
-      email: "",
-      phone: "",
-      business_name: "",
-      name: "",
-      industry: "",
-    });
-    setDealType("contact");
+  function resetDealModal() {
+    setContactQuery("");
+    setContactResults([]);
+    setSelectedContact(null);
+    setShowNewContact(false);
+    setNewContact({ first_name: "", last_name: "", email: "", phone: "" });
+    setBusinessQuery("");
+    setBusinessResults([]);
+    setSelectedBusiness(null);
+    setBusinessLocked(false);
+    setShowBusinessSection(false);
+    setShowNewBusiness(false);
+    setNewBusiness({ name: "", industry: "", website: "" });
+  }
+
+  function handleContactSearch(query: string) {
+    setContactQuery(query);
+    setShowNewContact(false);
+    if (contactDebounce.current) clearTimeout(contactDebounce.current);
+    if (!query.trim()) {
+      setContactResults([]);
+      return;
+    }
+    contactDebounce.current = setTimeout(async () => {
+      setContactSearching(true);
+      try {
+        const res = await fetch(`${apiBase}?search=${encodeURIComponent(query.trim())}&status=all&page=1`);
+        if (res.ok) {
+          const data = await res.json();
+          setContactResults((data.contacts || []).slice(0, 5));
+        }
+      } catch { /* ignore */ }
+      setContactSearching(false);
+    }, 300);
+  }
+
+  function handleSelectContact(contact: ContactResult) {
+    setSelectedContact(contact);
+    setContactQuery("");
+    setContactResults([]);
+    setShowNewContact(false);
+    // Auto-populate business if contact has one
+    if (contact.businesses) {
+      setSelectedBusiness({ id: contact.businesses.id, name: contact.businesses.name, industry: null, email: null });
+      setBusinessLocked(true);
+      setShowBusinessSection(true);
+    } else {
+      setSelectedBusiness(null);
+      setBusinessLocked(false);
+    }
+  }
+
+  function handleClearContact() {
+    setSelectedContact(null);
+    setContactQuery("");
+    // Also clear business if it was auto-populated
+    if (businessLocked) {
+      setSelectedBusiness(null);
+      setBusinessLocked(false);
+      setShowBusinessSection(false);
+    }
+  }
+
+  function handleBusinessSearch(query: string) {
+    setBusinessQuery(query);
+    setShowNewBusiness(false);
+    if (businessDebounce.current) clearTimeout(businessDebounce.current);
+    if (!query.trim()) {
+      setBusinessResults([]);
+      return;
+    }
+    const businessApi = apiBase.replace("/contacts", "/businesses");
+    businessDebounce.current = setTimeout(async () => {
+      setBusinessSearching(true);
+      try {
+        const res = await fetch(`${businessApi}?search=${encodeURIComponent(query.trim())}&status=all&page=1`);
+        if (res.ok) {
+          const data = await res.json();
+          setBusinessResults((data.businesses || []).slice(0, 5));
+        }
+      } catch { /* ignore */ }
+      setBusinessSearching(false);
+    }, 300);
+  }
+
+  function handleSelectBusiness(biz: BusinessResult) {
+    setSelectedBusiness(biz);
+    setBusinessQuery("");
+    setBusinessResults([]);
+    setShowNewBusiness(false);
+  }
+
+  function handleClearBusiness() {
+    setSelectedBusiness(null);
+    setBusinessLocked(false);
+    setBusinessQuery("");
+    setShowNewBusiness(false);
   }
 
   async function handleCreateDeal() {
     setCreatingDeal(true);
+    const businessApi = apiBase.replace("/contacts", "/businesses");
     try {
-      if (dealType === "contact") {
-        const res = await fetch(apiBase, {
-          method: "POST",
+      if (selectedContact) {
+        // --- Existing contact ---
+        const contactTypes = [...(selectedContact.types || [])];
+        if (!contactTypes.includes("lead")) contactTypes.push("lead");
+
+        await fetch(`${apiBase}/${selectedContact.id}`, {
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            first_name: dealForm.first_name.trim(),
-            last_name: dealForm.last_name.trim(),
-            email: dealForm.email.trim() || null,
-            phone: dealForm.phone.trim() || null,
-            business_name: dealForm.business_name.trim() || null,
-            types: ["lead"],
-            lead_status: defaultStageSlug,
-            source: "pipeline",
-          }),
+          body: JSON.stringify({ lead_status: defaultStageSlug, types: contactTypes }),
         });
-        if (res.ok) {
-          setShowAddDeal(false);
-          resetDealForm();
-          loadPipeline();
+
+        // Link business if selected and contact has no business_id
+        if (selectedBusiness && !selectedContact.business_id) {
+          await fetch(`${apiBase}/${selectedContact.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ business_id: selectedBusiness.id }),
+          });
         }
-      } else {
-        const businessApi = apiBase.replace("/contacts", "/businesses");
-        const res = await fetch(businessApi, {
+
+        // Update business lead_status too if one is selected
+        if (selectedBusiness) {
+          await fetch(`${businessApi}/${selectedBusiness.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lead_status: defaultStageSlug, types: ["lead"] }),
+          });
+        }
+
+        setShowAddDeal(false);
+        resetDealModal();
+        loadPipeline();
+      } else if (showNewContact && newContact.first_name.trim()) {
+        // --- New contact ---
+        let businessId: string | null = null;
+
+        // Create new business first if needed
+        if (showNewBusiness && newBusiness.name.trim()) {
+          const bizRes = await fetch(businessApi, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: newBusiness.name.trim(),
+              industry: newBusiness.industry || null,
+              website: newBusiness.website.trim() || null,
+              types: ["lead"],
+              lead_status: defaultStageSlug,
+              source: "pipeline",
+            }),
+          });
+          if (bizRes.ok) {
+            const bizData = await bizRes.json();
+            businessId = bizData.business?.id || null;
+          }
+        } else if (selectedBusiness) {
+          businessId = selectedBusiness.id;
+          // Also update existing business lead_status
+          await fetch(`${businessApi}/${selectedBusiness.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lead_status: defaultStageSlug, types: ["lead"] }),
+          });
+        }
+
+        const contactRes = await fetch(apiBase, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: dealForm.name.trim(),
-            email: dealForm.email.trim() || null,
-            phone: dealForm.phone.trim() || null,
-            industry: dealForm.industry.trim() || null,
+            first_name: newContact.first_name.trim(),
+            last_name: newContact.last_name.trim(),
+            email: newContact.email.trim() || null,
+            phone: newContact.phone.trim() || null,
+            business_id: businessId,
             types: ["lead"],
             lead_status: defaultStageSlug,
             source: "pipeline",
           }),
         });
-        if (res.ok) {
+
+        if (contactRes.ok) {
           setShowAddDeal(false);
-          resetDealForm();
+          resetDealModal();
           loadPipeline();
         }
       }
@@ -246,9 +404,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     setCreatingDeal(false);
   }
 
-  const canCreateDeal = dealType === "contact"
-    ? dealForm.first_name.trim() || dealForm.last_name.trim()
-    : dealForm.name.trim();
+  const canCreateDeal = selectedContact || (showNewContact && newContact.first_name.trim());
 
   // Count totals
   const total = items.length;
@@ -278,7 +434,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           </Link>
           <button
             onClick={() => {
-              resetDealForm();
+              resetDealModal();
               setShowAddDeal(true);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors"
@@ -355,7 +511,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       {showAddDeal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-slate-900">Add Deal</h3>
               <button
                 onClick={() => setShowAddDeal(false)}
@@ -365,151 +521,291 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
               </button>
             </div>
 
-            {/* Type toggle */}
-            <div className="flex gap-2 mb-5">
-              <button
-                onClick={() => setDealType("contact")}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                  dealType === "contact"
-                    ? "bg-brand-50 border-brand-300 text-brand-700"
-                    : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-              >
-                <User className="w-4 h-4" />
-                Contact
-              </button>
-              <button
-                onClick={() => setDealType("business")}
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                  dealType === "business"
-                    ? "bg-brand-50 border-brand-300 text-brand-700"
-                    : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                Business
-              </button>
-            </div>
+            {/* SECTION 1 — Contact (required) */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Contact <span className="text-red-500">*</span>
+              </label>
 
-            <div className="space-y-4">
-              {dealType === "contact" ? (
-                <>
+              {selectedContact ? (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-200 rounded-lg text-sm">
+                  <User className="w-3.5 h-3.5 text-brand-600" />
+                  <span className="text-brand-700 font-medium">
+                    {`${selectedContact.first_name} ${selectedContact.last_name}`.trim()}
+                  </span>
+                  {selectedContact.email && (
+                    <span className="text-brand-500">{selectedContact.email}</span>
+                  )}
+                  <button
+                    onClick={handleClearContact}
+                    className="text-brand-400 hover:text-brand-600 ml-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : showNewContact ? (
+                <div className="space-y-3 border border-slate-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">New Contact</p>
+                    <button
+                      onClick={() => setShowNewContact(false)}
+                      className="text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        First Name
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        First Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={dealForm.first_name}
-                        onChange={(e) => setDealForm((f) => ({ ...f, first_name: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        value={newContact.first_name}
+                        onChange={(e) => setNewContact((f) => ({ ...f, first_name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         placeholder="John"
+                        autoFocus
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Last Name
-                      </label>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Last Name</label>
                       <input
                         type="text"
-                        value={dealForm.last_name}
-                        onChange={(e) => setDealForm((f) => ({ ...f, last_name: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        value={newContact.last_name}
+                        onChange={(e) => setNewContact((f) => ({ ...f, last_name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                         placeholder="Smith"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
                     <input
                       type="email"
-                      value={dealForm.email}
-                      onChange={(e) => setDealForm((f) => ({ ...f, email: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      value={newContact.email}
+                      onChange={(e) => setNewContact((f) => ({ ...f, email: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                       placeholder="john@example.com"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-                      <input
-                        type="tel"
-                        value={dealForm.phone}
-                        onChange={(e) => setDealForm((f) => ({ ...f, phone: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Business</label>
-                      <input
-                        type="text"
-                        value={dealForm.business_name}
-                        onChange={(e) => setDealForm((f) => ({ ...f, business_name: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Business Name
-                    </label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={newContact.phone}
+                      onChange={(e) => setNewContact((f) => ({ ...f, phone: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
-                      value={dealForm.name}
-                      onChange={(e) => setDealForm((f) => ({ ...f, name: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      placeholder="Acme Coffee Co."
+                      value={contactQuery}
+                      onChange={(e) => handleContactSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      placeholder="Search contacts by name or email..."
+                      autoFocus
                     />
+                    {contactSearching && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={dealForm.email}
-                      onChange={(e) => setDealForm((f) => ({ ...f, email: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      placeholder="info@acmecoffee.com"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
-                      <input
-                        type="tel"
-                        value={dealForm.phone}
-                        onChange={(e) => setDealForm((f) => ({ ...f, phone: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
-                      <select
-                        value={dealForm.industry}
-                        onChange={(e) => setDealForm((f) => ({ ...f, industry: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+
+                  {/* Search results dropdown */}
+                  {contactQuery.trim() && !contactSearching && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                      {contactResults.length > 0 ? (
+                        contactResults.map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={() => handleSelectContact(c)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                          >
+                            <p className="text-sm font-medium text-slate-900">
+                              {`${c.first_name} ${c.last_name}`.trim()}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {[c.email, c.business_name].filter(Boolean).join(" · ")}
+                            </p>
+                          </button>
+                        ))
+                      ) : null}
+                      <button
+                        onClick={() => {
+                          setShowNewContact(true);
+                          setNewContact((f) => ({ ...f, first_name: contactQuery.trim() }));
+                          setContactQuery("");
+                          setContactResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50 text-sm text-brand-600 font-medium flex items-center gap-2"
                       >
-                        <option value="">Select industry</option>
-                        <option value="cafe">Cafe</option>
-                        <option value="restaurant">Restaurant</option>
-                        <option value="gym">Gym</option>
-                        <option value="hotel">Hotel</option>
-                        <option value="office">Office</option>
-                        <option value="coworking">Coworking</option>
-                        <option value="events">Events</option>
-                        <option value="retail">Retail</option>
-                        <option value="other">Other</option>
-                      </select>
+                        <Plus className="w-3.5 h-3.5" />
+                        {`Create new contact${contactQuery.trim() ? ` "${contactQuery.trim()}"` : ""}`}
+                      </button>
                     </div>
-                  </div>
-                </>
+                  )}
+                </div>
               )}
             </div>
 
-            <p className="text-xs text-slate-400 mt-4">
+            {/* SECTION 2 — Business (optional) */}
+            <div className="mb-5">
+              {!showBusinessSection && !selectedBusiness ? (
+                <button
+                  onClick={() => setShowBusinessSection(true)}
+                  className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  Add Business (optional)
+                </button>
+              ) : (
+                <div>
+                  <button
+                    onClick={() => {
+                      if (!businessLocked) {
+                        setShowBusinessSection(false);
+                        setSelectedBusiness(null);
+                        setBusinessQuery("");
+                        setBusinessResults([]);
+                        setShowNewBusiness(false);
+                        setNewBusiness({ name: "", industry: "", website: "" });
+                      }
+                    }}
+                    className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                    Business
+                    <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                  </button>
+
+                  {selectedBusiness ? (
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm">
+                      <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-slate-700 font-medium">{selectedBusiness.name}</span>
+                      {businessLocked && (
+                        <span className="text-xs text-slate-400">(linked)</span>
+                      )}
+                      <button
+                        onClick={handleClearBusiness}
+                        className="text-slate-400 hover:text-slate-600 ml-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : showNewBusiness ? (
+                    <div className="space-y-3 border border-slate-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">New Business</p>
+                        <button
+                          onClick={() => setShowNewBusiness(false)}
+                          className="text-xs text-slate-400 hover:text-slate-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          Business Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={newBusiness.name}
+                          onChange={(e) => setNewBusiness((f) => ({ ...f, name: e.target.value }))}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Acme Coffee Co."
+                          autoFocus
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Industry</label>
+                          <select
+                            value={newBusiness.industry}
+                            onChange={(e) => setNewBusiness((f) => ({ ...f, industry: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          >
+                            <option value="">Select industry</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="gym">Gym</option>
+                            <option value="hotel">Hotel</option>
+                            <option value="office">Office</option>
+                            <option value="coworking">Coworking</option>
+                            <option value="events">Events</option>
+                            <option value="retail">Retail</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 mb-1">Website</label>
+                          <input
+                            type="text"
+                            value={newBusiness.website}
+                            onChange={(e) => setNewBusiness((f) => ({ ...f, website: e.target.value }))}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                            placeholder="acmecoffee.com"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={businessQuery}
+                          onChange={(e) => handleBusinessSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          placeholder="Search businesses..."
+                        />
+                        {businessSearching && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                        )}
+                      </div>
+
+                      {businessQuery.trim() && !businessSearching && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                          {businessResults.length > 0 ? (
+                            businessResults.map((b) => (
+                              <button
+                                key={b.id}
+                                onClick={() => handleSelectBusiness(b)}
+                                className="w-full text-left px-3 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                              >
+                                <p className="text-sm font-medium text-slate-900">{b.name}</p>
+                                {b.industry && (
+                                  <p className="text-xs text-slate-500">{b.industry}</p>
+                                )}
+                              </button>
+                            ))
+                          ) : null}
+                          <button
+                            onClick={() => {
+                              setShowNewBusiness(true);
+                              setNewBusiness((f) => ({ ...f, name: businessQuery.trim() }));
+                              setBusinessQuery("");
+                              setBusinessResults([]);
+                            }}
+                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 text-sm text-brand-600 font-medium flex items-center gap-2"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {`Create new business${businessQuery.trim() ? ` "${businessQuery.trim()}"` : ""}`}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-400">
               {`Lead will be added to the "${stages.find((s) => s.slug === defaultStageSlug)?.name || "first"}" stage.`}
             </p>
 

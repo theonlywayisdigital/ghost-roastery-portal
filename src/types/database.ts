@@ -3183,6 +3183,7 @@ export type Database = {
           website_subscription_active: boolean | null
           website_template: string | null
           wholesale_enabled: boolean | null
+          wholesale_stripe_enabled: boolean
         }
         Insert: {
           address_line1?: string | null
@@ -3288,6 +3289,7 @@ export type Database = {
           website_subscription_active?: boolean | null
           website_template?: string | null
           wholesale_enabled?: boolean | null
+          wholesale_stripe_enabled?: boolean
         }
         Update: {
           address_line1?: string | null
@@ -3393,6 +3395,7 @@ export type Database = {
           website_subscription_active?: boolean | null
           website_template?: string | null
           wholesale_enabled?: boolean | null
+          wholesale_stripe_enabled?: boolean
         }
         Relationships: [
           {

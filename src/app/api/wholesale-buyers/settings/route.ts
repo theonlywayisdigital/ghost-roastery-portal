@@ -9,13 +9,22 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { autoApproveWholesale } = body as {
-    autoApproveWholesale: boolean;
+  const { autoApproveWholesale, wholesaleStripeEnabled } = body as {
+    autoApproveWholesale?: boolean;
+    wholesaleStripeEnabled?: boolean;
   };
 
-  if (typeof autoApproveWholesale !== "boolean") {
+  const update: Record<string, boolean> = {};
+  if (typeof autoApproveWholesale === "boolean") {
+    update.auto_approve_wholesale = autoApproveWholesale;
+  }
+  if (typeof wholesaleStripeEnabled === "boolean") {
+    update.wholesale_stripe_enabled = wholesaleStripeEnabled;
+  }
+
+  if (Object.keys(update).length === 0) {
     return NextResponse.json(
-      { error: "Invalid value." },
+      { error: "No valid fields provided." },
       { status: 400 }
     );
   }
@@ -24,7 +33,7 @@ export async function PATCH(request: Request) {
 
   const { error } = await supabase
     .from("partner_roasters")
-    .update({ auto_approve_wholesale: autoApproveWholesale })
+    .update(update)
     .eq("id", user.roaster.id);
 
   if (error) {

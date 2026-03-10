@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     // Verify roaster exists and has Stripe connected
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, stripe_account_id, platform_fee_percent, business_name, sales_tier")
+      .select("id, stripe_account_id, platform_fee_percent, business_name, sales_tier, wholesale_stripe_enabled")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -111,6 +111,14 @@ export async function POST(request: Request) {
     if (!roaster || !roaster.stripe_account_id) {
       return NextResponse.json(
         { error: "This store is not set up for online payments." },
+        { status: 400 }
+      );
+    }
+
+    // Guard: wholesale Stripe checkout must be enabled by the roaster
+    if (isWholesale && !roaster.wholesale_stripe_enabled) {
+      return NextResponse.json(
+        { error: "Online payment is not enabled for wholesale orders. Please use invoice checkout." },
         { status: 400 }
       );
     }

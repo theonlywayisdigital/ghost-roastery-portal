@@ -30,12 +30,14 @@ interface WholesaleBuyer {
 interface WholesaleSectionPageProps {
   buyers: WholesaleBuyer[];
   autoApprove: boolean;
+  wholesaleStripeEnabled: boolean;
   roasterId: string;
 }
 
 export function WholesaleSectionPage({
   buyers: initialBuyers,
   autoApprove,
+  wholesaleStripeEnabled,
   roasterId,
 }: WholesaleSectionPageProps) {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -71,7 +73,7 @@ export function WholesaleSectionPage({
         </button>
       </div>
 
-      <SettingsSection autoApprove={autoApprove} roasterId={roasterId} />
+      <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} roasterId={roasterId} />
 
       <WholesaleBuyersPage
         buyers={buyers}

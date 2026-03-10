@@ -23,7 +23,7 @@ export default async function WholesaleBuyersPageRoute() {
 
   const { data: roaster } = await supabase
     .from("partner_roasters")
-    .select("auto_approve_wholesale")
+    .select("auto_approve_wholesale, wholesale_stripe_enabled")
     .eq("id", user.roaster.id)
     .single();
 
@@ -31,6 +31,7 @@ export default async function WholesaleBuyersPageRoute() {
     <WholesaleSectionPage
       buyers={buyers || []}
       autoApprove={roaster?.auto_approve_wholesale ?? false}
+      wholesaleStripeEnabled={roaster?.wholesale_stripe_enabled ?? false}
       roasterId={user.roaster.id as string}
     />
   );

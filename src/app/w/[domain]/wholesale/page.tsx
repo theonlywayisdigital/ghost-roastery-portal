@@ -76,7 +76,8 @@ export default async function WebsiteWholesalePageRoute({
           .from("wholesale_products")
           .select(
             `id, name, description, image_url, unit, price, sort_order,
-             wholesale_price, minimum_wholesale_quantity, is_active`
+             wholesale_price, minimum_wholesale_quantity, is_active,
+             product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name))`
           )
           .eq("roaster_id", roaster.id)
           .eq("is_active", true)

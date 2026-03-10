@@ -4,6 +4,15 @@ import { useState } from "react";
 import Image from "next/image";
 import { Minus, Plus, Package, Trash2, ShoppingCart } from "@/components/icons";
 
+interface ProductVariant {
+  id: string;
+  weight_grams: number | null;
+  unit: string | null;
+  wholesale_price: number | null;
+  is_active: boolean;
+  grind_type: { id: string; name: string } | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -14,10 +23,12 @@ interface Product {
   sort_order: number;
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
+  product_variants?: ProductVariant[] | null;
 }
 
 interface OrderItem {
   productId: string;
+  variantId?: string;
   name: string;
   price: number;
   unit: string;
@@ -32,7 +43,6 @@ type CatalogueContext =
 export function StorefrontWholesaleCatalogue({
   roaster,
   products,
-  priceTier,
   wholesaleAccessId,
   paymentTerms,
   accentColour,
@@ -59,15 +69,21 @@ export function StorefrontWholesaleCatalogue({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function addToOrder(product: Product) {
-    const price = product.wholesale_price ?? product.price;
+  function addToOrder(product: Product, variant?: ProductVariant) {
+    const price = variant?.wholesale_price ?? product.wholesale_price ?? product.price;
     const min = product.minimum_wholesale_quantity || 1;
+    const itemKey = variant ? `${product.id}:${variant.id}` : product.id;
+    const unitLabel = variant?.unit || product.unit;
+    const variantLabel = variant
+      ? [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ")
+      : null;
+    const displayName = variantLabel ? `${product.name} (${variantLabel})` : product.name;
 
     setOrder((prev) => {
-      const existing = prev.find((item) => item.productId === product.id);
+      const existing = prev.find((item) => item.productId === itemKey);
       if (existing) {
         return prev.map((item) =>
-          item.productId === product.id
+          item.productId === itemKey
             ? { ...item, quantity: item.quantity + min }
             : item
         );
@@ -75,10 +91,11 @@ export function StorefrontWholesaleCatalogue({
       return [
         ...prev,
         {
-          productId: product.id,
-          name: product.name,
+          productId: itemKey,
+          variantId: variant?.id,
+          name: displayName,
           price,
-          unit: product.unit,
+          unit: unitLabel,
           quantity: min,
           minimum: min,
         },
@@ -87,22 +104,22 @@ export function StorefrontWholesaleCatalogue({
     setShowOrder(true);
   }
 
-  function updateQuantity(productId: string, quantity: number) {
-    const item = order.find((i) => i.productId === productId);
+  function updateQuantity(itemKey: string, quantity: number) {
+    const item = order.find((i) => i.productId === itemKey);
     if (!item) return;
     if (quantity < item.minimum) {
-      setOrder((prev) => prev.filter((i) => i.productId !== productId));
+      setOrder((prev) => prev.filter((i) => i.productId !== itemKey));
     } else {
       setOrder((prev) =>
         prev.map((i) =>
-          i.productId === productId ? { ...i, quantity } : i
+          i.productId === itemKey ? { ...i, quantity } : i
         )
       );
     }
   }
 
-  function removeFromOrder(productId: string) {
-    setOrder((prev) => prev.filter((i) => i.productId !== productId));
+  function removeFromOrder(itemKey: string) {
+    setOrder((prev) => prev.filter((i) => i.productId !== itemKey));
   }
 
   const orderTotal = order.reduce(
@@ -142,7 +159,8 @@ export function StorefrontWholesaleCatalogue({
         body: JSON.stringify({
           roasterId: roaster.id,
           items: order.map((item) => ({
-            productId: item.productId,
+            productId: item.productId.split(":")[0],
+            variantId: item.variantId,
             quantity: item.quantity,
           })),
           wholesaleAccessId,
@@ -202,8 +220,16 @@ export function StorefrontWholesaleCatalogue({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
           {products.map((product) => {
-            const price = product.wholesale_price ?? product.price;
-            const inOrder = order.find((i) => i.productId === product.id);
+            const wholesaleVariants = (product.product_variants || []).filter(
+              (v) => v.is_active && v.wholesale_price != null
+            );
+            const hasVariants = wholesaleVariants.length > 0;
+            const basePrice = product.wholesale_price ?? product.price;
+
+            // For products without variants, check order by product.id
+            const inOrder = !hasVariants
+              ? order.find((i) => i.productId === product.id)
+              : null;
 
             return (
               <div
@@ -233,57 +259,111 @@ export function StorefrontWholesaleCatalogue({
                       {product.description}
                     </p>
                   )}
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <span className="text-lg font-bold text-slate-900">
-                        {`\u00a3${price.toFixed(2)}`}
-                      </span>
-                      <span className="text-sm text-slate-500 ml-1">
-                        {`/ ${product.unit}`}
-                      </span>
-                    </div>
-                    {product.minimum_wholesale_quantity > 1 && (
-                      <span className="text-xs text-slate-400">
-                        {`Min ${product.minimum_wholesale_quantity}`}
-                      </span>
-                    )}
-                  </div>
-                  {inOrder ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() =>
-                          updateQuantity(
-                            product.id,
-                            inOrder.quantity - 1
-                          )
-                        }
-                        className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
-                      >
-                        <Minus className="w-4 h-4 text-slate-600" />
-                      </button>
-                      <span className="text-sm font-medium text-slate-900 w-10 text-center">
-                        {inOrder.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          updateQuantity(
-                            product.id,
-                            inOrder.quantity + 1
-                          )
-                        }
-                        className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
-                      >
-                        <Plus className="w-4 h-4 text-slate-600" />
-                      </button>
+
+                  {hasVariants ? (
+                    /* Variant list — each variant is individually orderable */
+                    <div className="space-y-2">
+                      {wholesaleVariants.map((variant) => {
+                        const vPrice = variant.wholesale_price!;
+                        const itemKey = `${product.id}:${variant.id}`;
+                        const inVariantOrder = order.find((i) => i.productId === itemKey);
+                        const label = [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ");
+
+                        return (
+                          <div key={variant.id} className="flex items-center justify-between gap-2 py-1.5 border-t border-slate-100 first:border-t-0">
+                            <div className="min-w-0">
+                              <span className="text-sm text-slate-700">{label}</span>
+                              <span className="text-sm font-semibold text-slate-900 ml-2">
+                                {`\u00a3${vPrice.toFixed(2)}`}
+                              </span>
+                            </div>
+                            {inVariantOrder ? (
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  onClick={() => updateQuantity(itemKey, inVariantOrder.quantity - 1)}
+                                  className="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                                >
+                                  <Minus className="w-3 h-3 text-slate-600" />
+                                </button>
+                                <span className="text-xs font-medium text-slate-900 w-6 text-center">
+                                  {inVariantOrder.quantity}
+                                </span>
+                                <button
+                                  onClick={() => updateQuantity(itemKey, inVariantOrder.quantity + 1)}
+                                  className="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                                >
+                                  <Plus className="w-3 h-3 text-slate-600" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addToOrder(product, variant)}
+                                style={{ backgroundColor: accentColour, color: accentText }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-opacity flex-shrink-0"
+                              >
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <button
-                      onClick={() => addToOrder(product)}
-                      style={{ backgroundColor: accentColour, color: accentText }}
-                      className="w-full py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-                    >
-                      Add to Order
-                    </button>
+                    /* No variants — simple price + add */
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <span className="text-lg font-bold text-slate-900">
+                            {`\u00a3${basePrice.toFixed(2)}`}
+                          </span>
+                          <span className="text-sm text-slate-500 ml-1">
+                            {`/ ${product.unit}`}
+                          </span>
+                        </div>
+                        {product.minimum_wholesale_quantity > 1 && (
+                          <span className="text-xs text-slate-400">
+                            {`Min ${product.minimum_wholesale_quantity}`}
+                          </span>
+                        )}
+                      </div>
+                      {inOrder ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() =>
+                              updateQuantity(
+                                product.id,
+                                inOrder.quantity - 1
+                              )
+                            }
+                            className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                          >
+                            <Minus className="w-4 h-4 text-slate-600" />
+                          </button>
+                          <span className="text-sm font-medium text-slate-900 w-10 text-center">
+                            {inOrder.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              updateQuantity(
+                                product.id,
+                                inOrder.quantity + 1
+                              )
+                            }
+                            className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                          >
+                            <Plus className="w-4 h-4 text-slate-600" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addToOrder(product)}
+                          style={{ backgroundColor: accentColour, color: accentText }}
+                          className="w-full py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                        >
+                          Add to Order
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

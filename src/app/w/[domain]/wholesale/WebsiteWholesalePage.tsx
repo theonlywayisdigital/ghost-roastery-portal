@@ -5,6 +5,15 @@ import { WholesaleAuthGate } from "@/components/wholesale/WholesaleAuthGate";
 import { StorefrontWholesaleCatalogue } from "@/components/wholesale/StorefrontWholesaleCatalogue";
 import { isLightColour } from "@/app/s/[slug]/_components/utils";
 
+interface ProductVariant {
+  id: string;
+  weight_grams: number | null;
+  unit: string | null;
+  wholesale_price: number | null;
+  is_active: boolean;
+  grind_type: { id: string; name: string } | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -15,6 +24,7 @@ interface Product {
   sort_order: number;
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
+  product_variants?: ProductVariant[] | null;
 }
 
 interface AccessResponse {

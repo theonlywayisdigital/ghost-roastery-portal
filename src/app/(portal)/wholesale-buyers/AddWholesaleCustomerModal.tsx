@@ -16,12 +16,6 @@ const BUSINESS_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
-const TIER_OPTIONS = [
-  { value: "standard", label: "Standard" },
-  { value: "preferred", label: "Preferred" },
-  { value: "vip", label: "VIP" },
-];
-
 const TERMS_OPTIONS = [
   { value: "prepay", label: "Prepay" },
   { value: "net7", label: "Net 7" },
@@ -50,10 +44,7 @@ export function AddWholesaleCustomerModal({
     businessAddress: "",
     businessWebsite: "",
     vatNumber: "",
-    priceTier: "standard",
     paymentTerms: "prepay",
-    creditLimit: "",
-    monthlyVolume: "",
     notes: "",
   });
 
@@ -79,11 +70,8 @@ export function AddWholesaleCustomerModal({
           businessAddress: form.businessAddress || undefined,
           businessWebsite: form.businessWebsite || undefined,
           vatNumber: form.vatNumber || undefined,
-          monthlyVolume: form.monthlyVolume || undefined,
           notes: form.notes || undefined,
-          priceTier: form.priceTier,
           paymentTerms: form.paymentTerms,
-          creditLimit: form.creditLimit ? parseFloat(form.creditLimit) : null,
         }),
       });
 
@@ -246,71 +234,21 @@ export function AddWholesaleCustomerModal({
             <h4 className="text-sm font-semibold text-slate-900 mb-3">
               Wholesale Terms
             </h4>
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Price Tier
-                  </label>
-                  <select
-                    value={form.priceTier}
-                    onChange={(e) => updateField("priceTier", e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    {TIER_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Payment Terms
-                  </label>
-                  <select
-                    value={form.paymentTerms}
-                    onChange={(e) => updateField("paymentTerms", e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    {TERMS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Credit Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={form.creditLimit}
-                    onChange={(e) => updateField("creditLimit", e.target.value)}
-                    placeholder="\u00a30.00"
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Monthly Volume
-                  </label>
-                  <input
-                    type="text"
-                    value={form.monthlyVolume}
-                    onChange={(e) =>
-                      updateField("monthlyVolume", e.target.value)
-                    }
-                    placeholder="e.g. 50kg"
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Payment Terms
+              </label>
+              <select
+                value={form.paymentTerms}
+                onChange={(e) => updateField("paymentTerms", e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                {TERMS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

@@ -56,11 +56,8 @@ export async function POST(request: Request) {
       businessAddress,
       businessWebsite,
       vatNumber,
-      monthlyVolume,
       notes,
-      priceTier,
       paymentTerms,
-      creditLimit,
     } = body as {
       name: string;
       email: string;
@@ -70,11 +67,8 @@ export async function POST(request: Request) {
       businessAddress?: string;
       businessWebsite?: string;
       vatNumber?: string;
-      monthlyVolume?: string;
       notes?: string;
-      priceTier?: string;
       paymentTerms?: string;
-      creditLimit?: number | null;
     };
 
     if (!name || !email || !businessName) {
@@ -181,9 +175,9 @@ export async function POST(request: Request) {
         name: businessName,
         types: ["wholesale"],
         industry: businessType || null,
-        address: businessAddress || null,
+        address_line_1: businessAddress || null,
         website: businessWebsite || null,
-        vat_number: vatNumber || null,
+        source: "wholesale_application",
         roaster_id: roasterId,
       })
       .select("id")
@@ -225,7 +219,6 @@ export async function POST(request: Request) {
     }
 
     // Create wholesale_access record (auto-approved)
-    const tier = priceTier || "standard";
     const terms = paymentTerms || "prepay";
     const now = new Date().toISOString();
 
@@ -242,11 +235,8 @@ export async function POST(request: Request) {
           business_address: businessAddress || null,
           business_website: businessWebsite || null,
           vat_number: vatNumber || null,
-          monthly_volume: monthlyVolume || null,
           notes: notes || null,
-          price_tier: tier,
           payment_terms: terms,
-          credit_limit: creditLimit ?? null,
           business_id: business.id,
           approved_by: user.id,
           approved_at: now,
@@ -301,11 +291,11 @@ export async function POST(request: Request) {
         const setupUrl = `${portalUrl}/setup-password?token=${token}`;
 
         await Promise.all([
-          sendWholesaleApproved(email, name, roaster.business_name, tier, terms),
+          sendWholesaleApproved(email, name, roaster.business_name, "standard", terms),
           sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
         ]);
       } else {
-        await sendWholesaleApproved(email, name, roaster.business_name, tier, terms);
+        await sendWholesaleApproved(email, name, roaster.business_name, "standard", terms);
       }
     } catch (emailErr) {
       console.error("Failed to send emails:", emailErr);

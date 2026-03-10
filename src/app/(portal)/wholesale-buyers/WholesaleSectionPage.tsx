@@ -17,13 +17,12 @@ interface WholesaleBuyer {
   vat_number: string | null;
   monthly_volume: string | null;
   notes: string | null;
-  price_tier: string;
   payment_terms: string;
-  credit_limit: number | null;
   rejected_reason: string | null;
   created_at: string;
   updated_at: string;
   approved_at: string | null;
+  contact_id: string | null;
   users: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null;
 }
 

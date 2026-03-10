@@ -18,11 +18,9 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { action, priceTier, paymentTerms, creditLimit, reason } = body as {
+  const { action, paymentTerms, reason } = body as {
     action: "approve" | "reject" | "suspend" | "reactivate" | "update";
-    priceTier?: string;
     paymentTerms?: string;
-    creditLimit?: number | null;
     reason?: string;
   };
 
@@ -50,16 +48,13 @@ export async function PATCH(
 
   switch (action) {
     case "approve": {
-      const tier = priceTier || "standard";
       const terms = paymentTerms || "prepay";
 
       const { error: updateError } = await supabase
         .from("wholesale_access")
         .update({
           status: "approved",
-          price_tier: tier,
           payment_terms: terms,
-          credit_limit: creditLimit ?? null,
           approved_by: user.id,
           approved_at: new Date().toISOString(),
           rejected_reason: null,
@@ -96,7 +91,7 @@ export async function PATCH(
             contactEmail,
             contactName,
             user.roaster.business_name,
-            tier,
+            "standard",
             terms
           );
         } catch (e) {
@@ -204,9 +199,7 @@ export async function PATCH(
       const updates: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
-      if (priceTier) updates.price_tier = priceTier;
       if (paymentTerms) updates.payment_terms = paymentTerms;
-      if (creditLimit !== undefined) updates.credit_limit = creditLimit;
 
       const { error: updateError } = await supabase
         .from("wholesale_access")

@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       roasterId,
       name,
       email,
+      phone,
       businessName,
       businessType,
       businessAddress,
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
       roasterId: string;
       name: string;
       email: string;
+      phone?: string;
       businessName: string;
       businessType?: string;
       businessAddress?: string;
@@ -110,7 +112,7 @@ export async function POST(request: Request) {
 
     // Ensure people record exists
     const nameParts = name.split(" ");
-    findOrCreatePerson(supabase, email, nameParts[0] || "", nameParts.slice(1).join(" ") || "").catch(() => {});
+    findOrCreatePerson(supabase, email, nameParts[0] || "", nameParts.slice(1).join(" ") || "", phone).catch(() => {});
 
     // Check for existing wholesale_access record (prevent duplicates)
     const { data: existing } = await supabase

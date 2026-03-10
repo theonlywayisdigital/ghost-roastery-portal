@@ -16,6 +16,13 @@ const BUSINESS_TYPE_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const VOLUME_OPTIONS = [
+  "Under 5kg",
+  "5\u201320kg",
+  "20\u201350kg",
+  "50kg+",
+];
+
 const TERMS_OPTIONS = [
   { value: "prepay", label: "Prepay" },
   { value: "net7", label: "Net 7" },
@@ -44,6 +51,7 @@ export function AddWholesaleCustomerModal({
     businessAddress: "",
     businessWebsite: "",
     vatNumber: "",
+    monthlyVolume: "",
     paymentTerms: "prepay",
     notes: "",
   });
@@ -70,6 +78,7 @@ export function AddWholesaleCustomerModal({
           businessAddress: form.businessAddress || undefined,
           businessWebsite: form.businessWebsite || undefined,
           vatNumber: form.vatNumber || undefined,
+          monthlyVolume: form.monthlyVolume || undefined,
           notes: form.notes || undefined,
           paymentTerms: form.paymentTerms,
         }),
@@ -225,6 +234,23 @@ export function AddWholesaleCustomerModal({
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Estimated Monthly Volume
+                </label>
+                <select
+                  value={form.monthlyVolume}
+                  onChange={(e) => updateField("monthlyVolume", e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                >
+                  <option value="">Select volume...</option>
+                  {VOLUME_OPTIONS.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

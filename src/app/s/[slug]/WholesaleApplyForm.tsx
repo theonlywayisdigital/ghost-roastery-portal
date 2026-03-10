@@ -8,6 +8,10 @@ const BUSINESS_TYPES = [
   { value: "hotel", label: "Hotel" },
   { value: "office", label: "Office" },
   { value: "retailer", label: "Retailer" },
+  { value: "gym", label: "Gym" },
+  { value: "coworking", label: "Coworking" },
+  { value: "events", label: "Events" },
+  { value: "retail", label: "Retail" },
   { value: "other", label: "Other" },
 ];
 
@@ -31,6 +35,7 @@ export function WholesaleApplyForm({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
@@ -57,6 +62,7 @@ export function WholesaleApplyForm({
           slug,
           name,
           email,
+          phone: phone || null,
           businessName,
           businessType: businessType || null,
           businessAddress: businessAddress || null,
@@ -126,21 +132,22 @@ export function WholesaleApplyForm({
       onSubmit={handleSubmit}
       className="bg-white rounded-xl border border-slate-200 p-6 md:p-8 space-y-4"
     >
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          Name <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          className={inputClassName}
+          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+        />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
-          />
-        </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             Email <span className="text-red-500">*</span>
@@ -151,6 +158,20 @@ export function WholesaleApplyForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Phone{" "}
+            <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Your phone number"
             className={inputClassName}
             style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
           />

@@ -22,12 +22,26 @@ export async function GET() {
     .from("wholesale_access")
     .select(
       `id, user_id, status, business_name, business_type, business_address,
-       business_website, vat_number, monthly_volume, notes, price_tier,
-       payment_terms, credit_limit, rejected_reason, created_at, updated_at,
+       business_website, vat_number, monthly_volume, notes,
+       payment_terms, rejected_reason, created_at, updated_at,
        approved_at, users!wholesale_access_user_id_fkey(full_name, email)`
     )
     .eq("roaster_id", user.roaster.id)
     .order("created_at", { ascending: false });
+
+  // Look up contact IDs for each buyer
+  const userIds = (records || []).map((r) => r.user_id);
+  const { data: contacts } = userIds.length
+    ? await supabase
+        .from("contacts")
+        .select("id, user_id")
+        .eq("roaster_id", user.roaster.id)
+        .in("user_id", userIds)
+    : { data: [] };
+
+  const contactMap = new Map(
+    (contacts || []).map((c) => [c.user_id, c.id])
+  );
 
   if (error) {
     console.error("Failed to fetch wholesale buyers:", error);
@@ -37,7 +51,12 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json({ buyers: records || [] });
+  const enriched = (records || []).map((r) => ({
+    ...r,
+    contact_id: contactMap.get(r.user_id) || null,
+  }));
+
+  return NextResponse.json({ buyers: enriched });
 }
 
 export async function POST(request: Request) {
@@ -57,6 +76,7 @@ export async function POST(request: Request) {
       businessAddress,
       businessWebsite,
       vatNumber,
+      monthlyVolume,
       notes,
       paymentTerms,
     } = body as {
@@ -68,6 +88,7 @@ export async function POST(request: Request) {
       businessAddress?: string;
       businessWebsite?: string;
       vatNumber?: string;
+      monthlyVolume?: string;
       notes?: string;
       paymentTerms?: string;
     };
@@ -236,6 +257,7 @@ export async function POST(request: Request) {
           business_address: businessAddress || null,
           business_website: businessWebsite || null,
           vat_number: vatNumber || null,
+          monthly_volume: monthlyVolume || null,
           notes: notes || null,
           payment_terms: terms,
           business_id: business.id,

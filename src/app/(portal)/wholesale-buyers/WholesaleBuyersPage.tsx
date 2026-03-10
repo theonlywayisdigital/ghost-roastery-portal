@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "@/components/icons";
 import { SettingsSection } from "./SettingsSection";
+import Link from "next/link";
 
 interface BuyerUser {
   full_name: string | null;
@@ -20,13 +21,12 @@ interface WholesaleBuyer {
   vat_number: string | null;
   monthly_volume: string | null;
   notes: string | null;
-  price_tier: string;
   payment_terms: string;
-  credit_limit: number | null;
   rejected_reason: string | null;
   created_at: string;
   updated_at: string;
   approved_at: string | null;
+  contact_id: string | null;
   users: BuyerUser | BuyerUser[] | null;
 }
 
@@ -36,12 +36,6 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   rejected: { label: "Rejected", className: "bg-red-50 text-red-700" },
   suspended: { label: "Suspended", className: "bg-slate-100 text-slate-600" },
 };
-
-const TIER_OPTIONS = [
-  { value: "standard", label: "Standard" },
-  { value: "preferred", label: "Preferred" },
-  { value: "vip", label: "VIP" },
-];
 
 const TERMS_OPTIONS = [
   { value: "prepay", label: "Prepay" },
@@ -56,6 +50,10 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   hotel: "Hotel",
   office: "Office",
   retailer: "Retailer",
+  gym: "Gym",
+  coworking: "Coworking",
+  events: "Events",
+  retail: "Retail",
   other: "Other",
 };
 
@@ -92,9 +90,7 @@ export function WholesaleBuyersPage({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Approve form state
-  const [approveTier, setApproveTier] = useState("standard");
   const [approveTerms, setApproveTerms] = useState("prepay");
-  const [approveCreditLimit, setApproveCreditLimit] = useState("");
   const [showApproveForm, setShowApproveForm] = useState<string | null>(null);
 
   // Reject form state
@@ -102,9 +98,7 @@ export function WholesaleBuyersPage({
   const [showRejectForm, setShowRejectForm] = useState<string | null>(null);
 
   // Edit form state
-  const [editTier, setEditTier] = useState("");
   const [editTerms, setEditTerms] = useState("");
-  const [editCreditLimit, setEditCreditLimit] = useState("");
   const [showEditForm, setShowEditForm] = useState<string | null>(null);
 
   const requests = buyers.filter(
@@ -227,9 +221,19 @@ export function WholesaleBuyersPage({
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-slate-900">
-                          {getUser(buyer.users)?.full_name || "\u2014"}
-                        </p>
+                        {buyer.contact_id ? (
+                          <Link
+                            href={`/contacts/${buyer.contact_id}`}
+                            className="text-sm text-brand-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {getUser(buyer.users)?.full_name || "\u2014"}
+                          </Link>
+                        ) : (
+                          <p className="text-sm text-slate-900">
+                            {getUser(buyer.users)?.full_name || "\u2014"}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500">
                           {getUser(buyer.users)?.email}
                         </p>
@@ -321,27 +325,6 @@ export function WholesaleBuyersPage({
                                       </h4>
                                       <div>
                                         <label className="block text-xs font-medium text-slate-500 mb-1">
-                                          Price Tier
-                                        </label>
-                                        <select
-                                          value={approveTier}
-                                          onChange={(e) =>
-                                            setApproveTier(e.target.value)
-                                          }
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                        >
-                                          {TIER_OPTIONS.map((o) => (
-                                            <option
-                                              key={o.value}
-                                              value={o.value}
-                                            >
-                                              {o.label}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">
                                           Payment Terms
                                         </label>
                                         <select
@@ -361,34 +344,12 @@ export function WholesaleBuyersPage({
                                           ))}
                                         </select>
                                       </div>
-                                      <div>
-                                        <label className="block text-xs font-medium text-slate-500 mb-1">
-                                          Credit Limit (optional)
-                                        </label>
-                                        <input
-                                          type="number"
-                                          value={approveCreditLimit}
-                                          onChange={(e) =>
-                                            setApproveCreditLimit(
-                                              e.target.value
-                                            )
-                                          }
-                                          placeholder="\u00a30.00"
-                                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                        />
-                                      </div>
                                       <div className="flex gap-2">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             handleAction(buyer.id, "approve", {
-                                              priceTier: approveTier,
                                               paymentTerms: approveTerms,
-                                              creditLimit: approveCreditLimit
-                                                ? parseFloat(
-                                                    approveCreditLimit
-                                                  )
-                                                : null,
                                             });
                                           }}
                                           disabled={updatingId === buyer.id}
@@ -455,9 +416,7 @@ export function WholesaleBuyersPage({
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setApproveTier("standard");
                                           setApproveTerms("prepay");
-                                          setApproveCreditLimit("");
                                           setShowApproveForm(buyer.id);
                                           setShowRejectForm(null);
                                         }}
@@ -527,9 +486,6 @@ export function WholesaleBuyersPage({
                   Contact
                 </th>
                 <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3 hidden md:table-cell">
-                  Tier
-                </th>
-                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3 hidden md:table-cell">
                   Terms
                 </th>
                 <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
@@ -543,12 +499,10 @@ export function WholesaleBuyersPage({
             <tbody className="divide-y divide-slate-100">
               {active.map((buyer) => {
                 const isExpanded = expandedId === buyer.id;
-                const tierLabel =
-                  TIER_OPTIONS.find((t) => t.value === buyer.price_tier)
-                    ?.label || buyer.price_tier;
                 const termsLabel =
                   TERMS_OPTIONS.find((t) => t.value === buyer.payment_terms)
                     ?.label || buyer.payment_terms;
+                const buyerUser = getUser(buyer.users);
 
                 return (
                   <Fragment key={buyer.id}>
@@ -571,17 +525,22 @@ export function WholesaleBuyersPage({
                         </p>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-slate-900">
-                          {getUser(buyer.users)?.full_name || "\u2014"}
-                        </p>
+                        {buyer.contact_id ? (
+                          <Link
+                            href={`/contacts/${buyer.contact_id}`}
+                            className="text-sm text-brand-600 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {buyerUser?.full_name || "\u2014"}
+                          </Link>
+                        ) : (
+                          <p className="text-sm text-slate-900">
+                            {buyerUser?.full_name || "\u2014"}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500">
-                          {getUser(buyer.users)?.email}
+                          {buyerUser?.email}
                         </p>
-                      </td>
-                      <td className="px-6 py-4 hidden md:table-cell">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-brand-50 text-brand-700">
-                          {tierLabel}
-                        </span>
                       </td>
                       <td className="px-6 py-4 hidden md:table-cell">
                         <span className="text-sm text-slate-600">
@@ -602,7 +561,7 @@ export function WholesaleBuyersPage({
 
                     {isExpanded && (
                       <tr>
-                        <td colSpan={7} className="bg-slate-50 px-6 py-5">
+                        <td colSpan={6} className="bg-slate-50 px-6 py-5">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                             <div className="space-y-3">
                               {buyer.business_address && (
@@ -640,16 +599,6 @@ export function WholesaleBuyersPage({
                                   </p>
                                 </div>
                               )}
-                              {buyer.credit_limit != null && (
-                                <div>
-                                  <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
-                                    Credit Limit
-                                  </h4>
-                                  <p className="text-sm text-slate-700">
-                                    {`\u00a3${buyer.credit_limit.toFixed(2)}`}
-                                  </p>
-                                </div>
-                              )}
                             </div>
 
                             <div className="space-y-4">
@@ -658,24 +607,6 @@ export function WholesaleBuyersPage({
                                   <h4 className="text-sm font-medium text-slate-900">
                                     Edit Terms
                                   </h4>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">
-                                      Price Tier
-                                    </label>
-                                    <select
-                                      value={editTier}
-                                      onChange={(e) =>
-                                        setEditTier(e.target.value)
-                                      }
-                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                    >
-                                      {TIER_OPTIONS.map((o) => (
-                                        <option key={o.value} value={o.value}>
-                                          {o.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
                                   <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1">
                                       Payment Terms
@@ -694,30 +625,12 @@ export function WholesaleBuyersPage({
                                       ))}
                                     </select>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">
-                                      Credit Limit
-                                    </label>
-                                    <input
-                                      type="number"
-                                      value={editCreditLimit}
-                                      onChange={(e) =>
-                                        setEditCreditLimit(e.target.value)
-                                      }
-                                      placeholder="\u00a30.00"
-                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                    />
-                                  </div>
                                   <div className="flex gap-2">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleAction(buyer.id, "update", {
-                                          priceTier: editTier,
                                           paymentTerms: editTerms,
-                                          creditLimit: editCreditLimit
-                                            ? parseFloat(editCreditLimit)
-                                            : null,
                                         });
                                       }}
                                       disabled={updatingId === buyer.id}
@@ -741,11 +654,7 @@ export function WholesaleBuyersPage({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setEditTier(buyer.price_tier);
                                       setEditTerms(buyer.payment_terms);
-                                      setEditCreditLimit(
-                                        buyer.credit_limit?.toString() || ""
-                                      );
                                       setShowEditForm(buyer.id);
                                     }}
                                     className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50"

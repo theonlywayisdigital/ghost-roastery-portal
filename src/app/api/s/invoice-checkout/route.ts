@@ -10,6 +10,7 @@ import {
   generateInvoiceNumber,
   generateAccessToken,
 } from "@/lib/invoice-utils";
+import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 
 interface CheckoutItem {
   productId: string;
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     // Verify roaster exists (does NOT require stripe_account_id since no Stripe payment)
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, platform_fee_percent, business_name, user_id")
+      .select("id, platform_fee_percent, business_name, user_id, sales_tier")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -247,8 +248,7 @@ export async function POST(request: Request) {
 
     // Calculate platform fee on discounted subtotal
     const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
-    const platformFeePercent =
-      (roaster.platform_fee_percent as number) || 4;
+    const platformFeePercent = getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free");
     const platformFeePence = Math.round(
       effectiveSubtotalPence * (platformFeePercent / 100)
     );
@@ -377,40 +377,16 @@ export async function POST(request: Request) {
         discount_amount: validatedDiscountPence / 100,
       });
 
-      // Increment used_count
-      const { data: codeData } = await supabase
-        .from("discount_codes")
-        .select("used_count")
-        .eq("id", validatedDiscountCodeId)
-        .single();
-
-      if (codeData) {
-        await supabase
-          .from("discount_codes")
-          .update({ used_count: (codeData.used_count || 0) + 1 })
-          .eq("id", validatedDiscountCodeId);
-      }
+      // Increment used_count atomically
+      await supabase.rpc("increment_discount_used_count", { discount_id: validatedDiscountCodeId });
     }
 
-    // ─── Decrement stock for tracked products ───
+    // ─── Decrement stock atomically for tracked products ───
     for (const item of orderItems) {
-      const { data: product } = await supabase
-        .from("wholesale_products")
-        .select("retail_stock_count, track_stock")
-        .eq("id", item.productId)
-        .single();
-
-      if (product?.track_stock && product.retail_stock_count != null) {
-        await supabase
-          .from("wholesale_products")
-          .update({
-            retail_stock_count: Math.max(
-              0,
-              product.retail_stock_count - item.quantity
-            ),
-          })
-          .eq("id", item.productId);
-      }
+      await supabase.rpc("decrement_product_stock", {
+        product_id: item.productId,
+        qty: item.quantity,
+      });
     }
 
     // ─── Notify the roaster about the new order ───

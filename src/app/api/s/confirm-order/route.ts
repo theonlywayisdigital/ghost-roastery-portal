@@ -208,40 +208,16 @@ export async function POST(request: Request) {
         discount_amount: discountAmountPence / 100,
       });
 
-      // Increment used_count
-      const { data: codeData } = await supabase
-        .from("discount_codes")
-        .select("used_count")
-        .eq("id", discountCodeId)
-        .single();
-
-      if (codeData) {
-        await supabase
-          .from("discount_codes")
-          .update({ used_count: (codeData.used_count || 0) + 1 })
-          .eq("id", discountCodeId);
-      }
+      // Increment used_count atomically
+      await supabase.rpc("increment_discount_used_count", { discount_id: discountCodeId });
     }
 
-    // Decrement stock for tracked products
+    // Decrement stock atomically for tracked products
     for (const item of items) {
-      const { data: product } = await supabase
-        .from("wholesale_products")
-        .select("retail_stock_count, track_stock")
-        .eq("id", item.productId)
-        .single();
-
-      if (product?.track_stock && product.retail_stock_count != null) {
-        await supabase
-          .from("wholesale_products")
-          .update({
-            retail_stock_count: Math.max(
-              0,
-              product.retail_stock_count - item.quantity
-            ),
-          })
-          .eq("id", item.productId);
-      }
+      await supabase.rpc("decrement_product_stock", {
+        product_id: item.productId,
+        qty: item.quantity,
+      });
     }
 
     // Notify the roaster about the new order
@@ -293,10 +269,10 @@ export async function POST(request: Request) {
         } : undefined;
 
         const roasterName = roasterBranding?.business_name || "Your Roaster";
-        const emailItems = items.map((item: { name?: string; productName?: string; quantity: number; price?: number; unitPrice?: number }) => ({
+        const emailItems = items.map((item: { name?: string; productName?: string; quantity: number; price?: number; unitPrice?: number; unitAmount?: number }) => ({
           name: item.name || item.productName || "Item",
           quantity: item.quantity,
-          price: ((item.price || item.unitPrice || 0) * item.quantity),
+          price: ((item.unitAmount || item.price || item.unitPrice || 0) / 100 * item.quantity),
         }));
 
         const sendFn = isWholesaleChannel ? sendWholesaleOrderConfirmation : sendStorefrontOrderConfirmation;

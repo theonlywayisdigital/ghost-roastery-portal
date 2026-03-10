@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     // Check wholesale_access record for this roaster
     const { data: access } = await supabase
       .from("wholesale_access")
-      .select("id, status, price_tier, payment_terms")
+      .select("id, status, payment_terms")
       .eq("user_id", user.id)
       .eq("roaster_id", roasterId)
       .single();
@@ -50,7 +50,6 @@ export async function GET(request: Request) {
         ? {
             id: access.id,
             status: access.status,
-            priceTier: access.price_tier,
             paymentTerms: access.payment_terms,
           }
         : null,

@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     // Get roaster details for emails
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, user_id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+      .select("id, user_id, business_name, email, storefront_slug, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roasterId)
       .single();
 
@@ -298,6 +298,7 @@ export async function POST(request: Request) {
           user_id: userId,
           token,
           expires_at: expiresAt,
+          roaster_slug: roaster.storefront_slug || null,
         });
 
         const setupUrl = `${portalUrl}/setup-password?token=${token}`;

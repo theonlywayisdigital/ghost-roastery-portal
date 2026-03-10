@@ -35,7 +35,6 @@ interface AccessResponse {
   access?: {
     id: string;
     status: string;
-    priceTier: string;
     paymentTerms: string;
   } | null;
 }

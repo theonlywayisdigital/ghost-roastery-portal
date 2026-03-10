@@ -46,6 +46,7 @@ export type Database = {
           created_at: string
           expires_at: string
           id: string
+          roaster_slug: string | null
           token: string
           used_at: string | null
           user_id: string
@@ -54,6 +55,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
+          roaster_slug?: string | null
           token: string
           used_at?: string | null
           user_id: string
@@ -62,6 +64,7 @@ export type Database = {
           created_at?: string
           expires_at?: string
           id?: string
+          roaster_slug?: string | null
           token?: string
           used_at?: string | null
           user_id?: string

@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/check-email",
   "/verify-email",
   "/mfa-challenge",
+  "/setup-password",
   "/auth",
   "/s",
   "/w",

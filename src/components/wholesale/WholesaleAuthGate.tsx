@@ -7,7 +7,6 @@ import { WholesaleApplyForm } from "@/app/s/[slug]/WholesaleApplyForm";
 interface WholesaleAccess {
   id: string;
   status: string;
-  priceTier: string;
   paymentTerms: string;
 }
 
@@ -26,7 +25,6 @@ interface WholesaleAuthGateProps {
   initialAccess?: AccessResponse | null;
   children: (ctx: {
     wholesaleAccessId: string;
-    priceTier: string;
     paymentTerms: string;
   }) => ReactNode;
 }
@@ -315,7 +313,6 @@ export function WholesaleAuthGate({
     <>
       {children({
         wholesaleAccessId: access.id,
-        priceTier: access.priceTier,
         paymentTerms: access.paymentTerms,
       })}
     </>

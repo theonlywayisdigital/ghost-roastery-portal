@@ -49,7 +49,7 @@ export default async function WebsiteWholesalePageRoute({
 
       const { data: access } = await supabase
         .from("wholesale_access")
-        .select("id, status, price_tier, payment_terms")
+        .select("id, status, payment_terms")
         .eq("user_id", user.id)
         .eq("roaster_id", roaster.id)
         .single();
@@ -65,7 +65,6 @@ export default async function WebsiteWholesalePageRoute({
           ? {
               id: access.id,
               status: access.status,
-              priceTier: access.price_tier,
               paymentTerms: access.payment_terms,
             }
           : null,

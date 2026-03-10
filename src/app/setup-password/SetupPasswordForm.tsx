@@ -6,9 +6,11 @@ import { Loader2, CheckCircle } from "@/components/icons";
 
 interface Props {
   token: string;
+  roasterSlug?: string | null;
+  businessName?: string;
 }
 
-export function SetupPasswordForm({ token }: Props) {
+export function SetupPasswordForm({ token, roasterSlug, businessName }: Props) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -54,7 +56,12 @@ export function SetupPasswordForm({ token }: Props) {
       }
 
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 2000);
+
+      if (roasterSlug) {
+        setTimeout(() => router.push(`/s/${roasterSlug}/wholesale`), 2000);
+      } else {
+        setTimeout(() => router.push("/login"), 2000);
+      }
     } catch {
       setError("Something went wrong. Please try again.");
       setIsLoading(false);
@@ -65,9 +72,11 @@ export function SetupPasswordForm({ token }: Props) {
     return (
       <div className="text-center py-4">
         <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-        <p className="text-slate-900 font-medium mb-2">Password set</p>
+        <p className="text-slate-900 font-medium mb-2">Password created</p>
         <p className="text-sm text-slate-500">
-          Redirecting you to sign in…
+          {roasterSlug && businessName
+            ? `Redirecting you to ${businessName} Wholesale\u2026`
+            : "Redirecting you to sign in\u2026"}
         </p>
       </div>
     );

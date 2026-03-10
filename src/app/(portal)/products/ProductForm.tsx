@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, X, ImageIcon } from "@/components/icons";
+import {
+  Loader2,
+  ArrowLeft,
+  X,
+  ImageIcon,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+} from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { compressImage } from "@/lib/compress-image";
@@ -38,6 +48,29 @@ interface Product {
   rrp: number | null;
   order_multiples: number | null;
   subscription_frequency: string | null;
+}
+
+interface GrindType {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
+interface Variant {
+  id?: string;
+  weight_grams: number | null;
+  grind_type_id: string | null;
+  grind_type?: { id: string; name: string } | null;
+  sku: string | null;
+  retail_price: number | null;
+  compare_at_price: number | null;
+  wholesale_price_standard: number | null;
+  wholesale_price_preferred: number | null;
+  wholesale_price_vip: number | null;
+  retail_stock_count: number | null;
+  track_stock: boolean;
+  is_active: boolean;
+  sort_order: number;
 }
 
 function Toggle({
@@ -82,6 +115,30 @@ const SUBSCRIPTION_OPTIONS = [
   { value: "monthly", label: "Monthly" },
   { value: "quarterly", label: "Quarterly" },
 ];
+
+function emptyVariant(sortOrder: number): Variant {
+  return {
+    weight_grams: null,
+    grind_type_id: null,
+    sku: null,
+    retail_price: null,
+    compare_at_price: null,
+    wholesale_price_standard: null,
+    wholesale_price_preferred: null,
+    wholesale_price_vip: null,
+    retail_stock_count: null,
+    track_stock: false,
+    is_active: true,
+    sort_order: sortOrder,
+  };
+}
+
+const inputClassName =
+  "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
+
+const labelClassName = "block text-sm font-medium text-slate-700 mb-1.5";
+
+const sectionClassName = "border border-slate-200 rounded-lg p-5 space-y-5";
 
 export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
@@ -141,6 +198,21 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
+  // Variant state
+  const [variantsEnabled, setVariantsEnabled] = useState(false);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
+  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
+  const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null);
+  const [pricingOverrideOpen, setPricingOverrideOpen] = useState(false);
+
+  // Grind types
+  const [grindTypes, setGrindTypes] = useState<GrindType[]>([]);
+  const [grindTypesLoading, setGrindTypesLoading] = useState(true);
+  const [newGrindTypeName, setNewGrindTypeName] = useState("");
+  const [addingGrindType, setAddingGrindType] = useState(false);
+  const [showInlineGrindAdd, setShowInlineGrindAdd] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +220,107 @@ export function ProductForm({ product }: { product?: Product }) {
 
   const showRetail = productType === "retail" || productType === "both";
   const showWholesale = productType === "wholesale" || productType === "both";
+
+  // Fetch grind types on mount
+  const loadGrindTypes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/grind-types");
+      if (res.ok) {
+        const data = await res.json();
+        setGrindTypes(data.grindTypes || []);
+      }
+    } catch {
+      // Non-critical, grind types will just be empty
+    }
+    setGrindTypesLoading(false);
+  }, []);
+
+  // Fetch existing variants when editing
+  useEffect(() => {
+    loadGrindTypes();
+
+    if (isEditing) {
+      fetch(`/api/products/${product.id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.variants && data.variants.length > 0) {
+            setVariants(data.variants);
+            setVariantsEnabled(true);
+          }
+        })
+        .catch(() => {
+          // Non-critical
+        });
+    }
+  }, [loadGrindTypes, isEditing, product?.id]);
+
+  async function handleAddGrindType() {
+    if (!newGrindTypeName.trim()) return;
+    setAddingGrindType(true);
+    try {
+      const res = await fetch("/api/settings/grind-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newGrindTypeName.trim(), sort_order: grindTypes.length }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGrindTypes((prev) => [...prev, data.grindType]);
+        setNewGrindTypeName("");
+        setShowInlineGrindAdd(false);
+        // Auto-select it in editing variant
+        if (editingVariant) {
+          setEditingVariant({ ...editingVariant, grind_type_id: data.grindType.id });
+        }
+      }
+    } catch {
+      // Silently fail
+    }
+    setAddingGrindType(false);
+  }
+
+  function handleStartAddVariant() {
+    setEditingVariant(emptyVariant(variants.length));
+    setEditingVariantIndex(null);
+    setPricingOverrideOpen(false);
+  }
+
+  function handleStartEditVariant(index: number) {
+    setEditingVariant({ ...variants[index] });
+    setEditingVariantIndex(index);
+    // Open pricing section if any pricing values are set
+    const v = variants[index];
+    const hasPricing = v.retail_price != null || v.compare_at_price != null ||
+      v.wholesale_price_standard != null || v.wholesale_price_preferred != null ||
+      v.wholesale_price_vip != null || v.track_stock;
+    setPricingOverrideOpen(hasPricing);
+  }
+
+  function handleSaveVariant() {
+    if (!editingVariant) return;
+    if (editingVariantIndex !== null) {
+      // Update existing
+      setVariants((prev) => prev.map((v, i) => (i === editingVariantIndex ? editingVariant : v)));
+    } else {
+      // Add new
+      setVariants((prev) => [...prev, editingVariant]);
+    }
+    setEditingVariant(null);
+    setEditingVariantIndex(null);
+  }
+
+  function handleDeleteVariant(index: number) {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+    setConfirmDeleteVariant(null);
+  }
+
+  function getGrindTypeName(grindTypeId: string | null, variant?: Variant): string {
+    if (!grindTypeId) return "—";
+    // Check embedded grind_type first (from API response)
+    if (variant?.grind_type?.name) return variant.grind_type.name;
+    const gt = grindTypes.find((g) => g.id === grindTypeId);
+    return gt?.name || "—";
+  }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const rawFile = e.target.files?.[0];
@@ -190,7 +363,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setIsLoading(true);
     setError(null);
 
-    const body = {
+    const body: Record<string, unknown> = {
       name,
       description: description || null,
       meta_description: metaDescription || null,
@@ -221,6 +394,28 @@ export function ProductForm({ product }: { product?: Product }) {
       subscription_frequency: showRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
     };
 
+    // Include variants when enabled
+    if (variantsEnabled) {
+      body.variants = variants.map((v) => ({
+        id: v.id || undefined,
+        weight_grams: v.weight_grams,
+        grind_type_id: v.grind_type_id,
+        sku: v.sku,
+        retail_price: v.retail_price,
+        compare_at_price: v.compare_at_price,
+        wholesale_price_standard: v.wholesale_price_standard,
+        wholesale_price_preferred: v.wholesale_price_preferred,
+        wholesale_price_vip: v.wholesale_price_vip,
+        retail_stock_count: v.retail_stock_count,
+        track_stock: v.track_stock,
+        is_active: v.is_active,
+        sort_order: v.sort_order,
+      }));
+    } else if (isEditing) {
+      // When variants are disabled on edit, send empty array to delete all
+      body.variants = [];
+    }
+
     try {
       const res = await fetch(
         isEditing ? `/api/products/${product.id}` : "/api/products",
@@ -245,13 +440,6 @@ export function ProductForm({ product }: { product?: Product }) {
       setIsLoading(false);
     }
   }
-
-  const inputClassName =
-    "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
-
-  const labelClassName = "block text-sm font-medium text-slate-700 mb-1.5";
-
-  const sectionClassName = "border border-slate-200 rounded-lg p-5 space-y-5";
 
   return (
     <div>
@@ -484,7 +672,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 </div>
               </div>
 
-              {/* Shipping Cost */}
+              {/* Shipping Cost & Sort Order */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelClassName}>
@@ -540,6 +728,427 @@ export function ProductForm({ product }: { product?: Product }) {
             </div>
           </div>
 
+          {/* ─── Variants Section ─── */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-800">Variants</h3>
+              <Toggle
+                enabled={variantsEnabled}
+                onToggle={() => {
+                  setVariantsEnabled(!variantsEnabled);
+                  if (!variantsEnabled) {
+                    setEditingVariant(null);
+                    setEditingVariantIndex(null);
+                  }
+                }}
+                label={variantsEnabled ? "Enabled" : "Disabled"}
+              />
+            </div>
+            {variantsEnabled && (
+              <div className={sectionClassName}>
+                {/* Grind types notice / inline add */}
+                {!grindTypesLoading && grindTypes.length === 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      No grind types set up. You can add them in{" "}
+                      <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
+                        Settings → Grind Types
+                      </Link>
+                      , or add one below.
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={newGrindTypeName}
+                        onChange={(e) => setNewGrindTypeName(e.target.value)}
+                        placeholder="e.g. Whole Bean"
+                        className={`${inputClassName} max-w-[200px]`}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddGrindType();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddGrindType}
+                        disabled={addingGrindType || !newGrindTypeName.trim()}
+                        className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                      >
+                        {addingGrindType ? "Adding..." : "Add"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Variant list */}
+                {variants.length > 0 && (
+                  <div className="space-y-2">
+                    {variants.map((v, index) => (
+                      <div
+                        key={v.id || index}
+                        className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white"
+                      >
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div className="text-sm">
+                            <span className="font-medium text-slate-900">
+                              {v.weight_grams ? `${v.weight_grams}g` : "—"}
+                            </span>
+                            <span className="text-slate-400 mx-2">·</span>
+                            <span className="text-slate-600">
+                              {getGrindTypeName(v.grind_type_id, v)}
+                            </span>
+                            {v.sku && (
+                              <>
+                                <span className="text-slate-400 mx-2">·</span>
+                                <span className="text-slate-400">{v.sku}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${v.is_active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                            {v.is_active ? "Active" : "Inactive"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditVariant(index)}
+                            className="p-1.5 text-slate-400 hover:text-slate-600"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          {confirmDeleteVariant === index ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteVariant(index)}
+                                className="px-2 py-1 text-xs bg-red-600 text-white rounded font-medium hover:bg-red-700"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteVariant(null)}
+                                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteVariant(index)}
+                              className="p-1.5 text-slate-400 hover:text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add/Edit variant inline form */}
+                {editingVariant ? (
+                  <div className="border border-brand-200 bg-brand-50/30 rounded-lg p-4 space-y-4">
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      {editingVariantIndex !== null ? "Edit Variant" : "Add Variant"}
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Weight */}
+                      <div>
+                        <label className={labelClassName}>Weight (grams)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={editingVariant.weight_grams ?? ""}
+                          onChange={(e) =>
+                            setEditingVariant({
+                              ...editingVariant,
+                              weight_grams: e.target.value ? parseInt(e.target.value) : null,
+                            })
+                          }
+                          placeholder="250"
+                          className={inputClassName}
+                        />
+                      </div>
+
+                      {/* Grind Type */}
+                      <div>
+                        <label className={labelClassName}>Grind Type</label>
+                        <select
+                          value={editingVariant.grind_type_id || ""}
+                          onChange={(e) => {
+                            if (e.target.value === "__add_new__") {
+                              setShowInlineGrindAdd(true);
+                              return;
+                            }
+                            setEditingVariant({
+                              ...editingVariant,
+                              grind_type_id: e.target.value || null,
+                            });
+                          }}
+                          className={inputClassName}
+                        >
+                          <option value="">None</option>
+                          {grindTypes.map((gt) => (
+                            <option key={gt.id} value={gt.id}>
+                              {gt.name}
+                            </option>
+                          ))}
+                          <option value="__add_new__">+ Add new grind type</option>
+                        </select>
+                        {showInlineGrindAdd && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="text"
+                              value={newGrindTypeName}
+                              onChange={(e) => setNewGrindTypeName(e.target.value)}
+                              placeholder="e.g. Espresso"
+                              className={`${inputClassName} max-w-[180px]`}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddGrindType();
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddGrindType}
+                              disabled={addingGrindType || !newGrindTypeName.trim()}
+                              className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                            >
+                              {addingGrindType ? "..." : "Add"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowInlineGrindAdd(false);
+                                setNewGrindTypeName("");
+                              }}
+                              className="text-slate-400 hover:text-slate-600"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* SKU */}
+                    <div>
+                      <label className={labelClassName}>
+                        SKU{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={editingVariant.sku || ""}
+                        onChange={(e) =>
+                          setEditingVariant({ ...editingVariant, sku: e.target.value || null })
+                        }
+                        placeholder="GR-ETH-250-WB"
+                        className={`${inputClassName} max-w-[240px]`}
+                      />
+                    </div>
+
+                    {/* Active toggle */}
+                    <Toggle
+                      enabled={editingVariant.is_active}
+                      onToggle={() =>
+                        setEditingVariant({ ...editingVariant, is_active: !editingVariant.is_active })
+                      }
+                      label={editingVariant.is_active ? "Active" : "Inactive"}
+                    />
+
+                    {/* Pricing overrides — collapsible */}
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setPricingOverrideOpen(!pricingOverrideOpen)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <span>Override pricing for this variant</span>
+                        {pricingOverrideOpen ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        )}
+                      </button>
+                      {pricingOverrideOpen && (
+                        <div className="px-4 pb-4 space-y-4 border-t border-slate-200 pt-4">
+                          {/* Retail pricing overrides */}
+                          {showRetail && (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className={labelClassName}>Retail Price (£)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingVariant.retail_price ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      retail_price: e.target.value ? parseFloat(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="Override"
+                                  className={inputClassName}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClassName}>Compare-at Price (£)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingVariant.compare_at_price ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      compare_at_price: e.target.value ? parseFloat(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="Override"
+                                  className={inputClassName}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Wholesale pricing overrides */}
+                          {showWholesale && (
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <label className={labelClassName}>Standard (£)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingVariant.wholesale_price_standard ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      wholesale_price_standard: e.target.value ? parseFloat(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="Override"
+                                  className={inputClassName}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClassName}>Preferred (£)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingVariant.wholesale_price_preferred ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      wholesale_price_preferred: e.target.value ? parseFloat(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="Override"
+                                  className={inputClassName}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClassName}>VIP (£)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingVariant.wholesale_price_vip ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      wholesale_price_vip: e.target.value ? parseFloat(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="Override"
+                                  className={inputClassName}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Stock tracking override */}
+                          <div className="space-y-3">
+                            <Toggle
+                              enabled={editingVariant.track_stock}
+                              onToggle={() =>
+                                setEditingVariant({
+                                  ...editingVariant,
+                                  track_stock: !editingVariant.track_stock,
+                                })
+                              }
+                              label={editingVariant.track_stock ? "Stock tracking enabled" : "Stock tracking disabled"}
+                            />
+                            {editingVariant.track_stock && (
+                              <div>
+                                <label className={labelClassName}>Stock Count</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={editingVariant.retail_stock_count ?? ""}
+                                  onChange={(e) =>
+                                    setEditingVariant({
+                                      ...editingVariant,
+                                      retail_stock_count: e.target.value ? parseInt(e.target.value) : null,
+                                    })
+                                  }
+                                  placeholder="0"
+                                  className={`${inputClassName} max-w-[120px]`}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Save/Cancel buttons */}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingVariant(null);
+                          setEditingVariantIndex(null);
+                          setShowInlineGrindAdd(false);
+                        }}
+                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveVariant}
+                        className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+                      >
+                        {editingVariantIndex !== null ? "Update Variant" : "Save Variant"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartAddVariant}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Variant
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ─── Retail Section ─── */}
           {showRetail && (
             <div>
@@ -578,6 +1187,12 @@ export function ProductForm({ product }: { product?: Product }) {
                     </p>
                   </div>
                 </div>
+
+                {variantsEnabled && (
+                  <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                    These prices are used as defaults. Set per-variant pricing in the Variants section to override.
+                  </p>
+                )}
 
                 {/* Brand & GTIN */}
                 <div className="grid grid-cols-2 gap-4">
@@ -709,6 +1324,12 @@ export function ProductForm({ product }: { product?: Product }) {
                     />
                   </div>
                 </div>
+
+                {variantsEnabled && (
+                  <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                    These prices are used as defaults. Set per-variant pricing in the Variants section to override.
+                  </p>
+                )}
 
                 {/* RRP & Min Qty & Order Multiples */}
                 <div className="grid grid-cols-3 gap-4">

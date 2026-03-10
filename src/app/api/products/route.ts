@@ -52,6 +52,7 @@ export async function POST(request: Request) {
       is_purchasable, track_stock, retail_stock_count,
       meta_description, compare_at_price, brand, gtin, google_product_category,
       vat_rate, shipping_cost, rrp, order_multiples, subscription_frequency,
+      variants,
     } = body;
 
     if (!name) {
@@ -104,6 +105,34 @@ export async function POST(request: Request) {
         { error: "Failed to create product" },
         { status: 500 }
       );
+    }
+
+    // Insert variants if provided
+    if (Array.isArray(variants) && variants.length > 0) {
+      const variantRows = variants.map((v: Record<string, unknown>) => ({
+        product_id: product.id,
+        roaster_id: roaster.id,
+        weight_grams: v.weight_grams != null ? parseInt(String(v.weight_grams)) : null,
+        grind_type_id: v.grind_type_id || null,
+        sku: v.sku || null,
+        retail_price: v.retail_price != null ? parseFloat(String(v.retail_price)) : null,
+        compare_at_price: v.compare_at_price != null ? parseFloat(String(v.compare_at_price)) : null,
+        wholesale_price_standard: v.wholesale_price_standard != null ? parseFloat(String(v.wholesale_price_standard)) : null,
+        wholesale_price_preferred: v.wholesale_price_preferred != null ? parseFloat(String(v.wholesale_price_preferred)) : null,
+        wholesale_price_vip: v.wholesale_price_vip != null ? parseFloat(String(v.wholesale_price_vip)) : null,
+        retail_stock_count: v.retail_stock_count != null ? parseInt(String(v.retail_stock_count)) : null,
+        track_stock: v.track_stock ?? false,
+        is_active: v.is_active ?? true,
+        sort_order: v.sort_order ?? 0,
+      }));
+
+      const { error: variantError } = await supabase
+        .from("product_variants")
+        .insert(variantRows);
+
+      if (variantError) {
+        console.error("Variant creation error:", variantError);
+      }
     }
 
     return NextResponse.json({ product }, { status: 201 });

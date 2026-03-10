@@ -9,6 +9,7 @@ interface FeaturedProductsSectionProps {
   theme: WebsiteTheme;
   isEditor?: boolean;
   products?: ProductData[];
+  basePath?: string;
 }
 
 export interface ProductData {
@@ -57,10 +58,11 @@ function PlaceholderCard({ theme }: { theme: WebsiteTheme }) {
   );
 }
 
-function ProductCard({ product, theme }: { product: ProductData; theme: WebsiteTheme }) {
+function ProductCard({ product, theme, basePath }: { product: ProductData; theme: WebsiteTheme; basePath?: string }) {
+  const shopBase = basePath ? `${basePath}/shop` : "/shop";
   return (
     <a
-      href={product.slug ? `/shop/${product.slug}` : "#"}
+      href={product.slug ? `${shopBase}/${product.slug}` : "#"}
       className="group rounded-xl overflow-hidden transition-transform duration-200 hover:scale-[1.02]"
       style={{ backgroundColor: `${theme.textColor}08` }}
     >
@@ -120,6 +122,7 @@ export function FeaturedProductsSection({
   theme,
   isEditor,
   products,
+  basePath,
 }: FeaturedProductsSectionProps) {
   const displayProducts = products?.slice(0, data.maxProducts);
   const showPlaceholders = !displayProducts || displayProducts.length === 0;
@@ -165,14 +168,14 @@ export function FeaturedProductsSection({
                 <PlaceholderCard key={i} theme={theme} />
               ))
             : displayProducts.map((product) => (
-                <ProductCard key={product.id} product={product} theme={theme} />
+                <ProductCard key={product.id} product={product} theme={theme} basePath={basePath} />
               ))}
         </div>
 
         {data.showViewAll && (
           <div className="text-center mt-10">
             <a
-              href="/shop"
+              href={basePath ? `${basePath}/shop` : "/shop"}
               className="inline-flex items-center justify-center px-6 py-3 text-base font-semibold border-2 transition-all duration-200 active:scale-[0.98]"
               style={{
                 borderColor: theme.primaryColor,

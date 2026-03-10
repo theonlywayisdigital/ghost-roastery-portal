@@ -339,6 +339,7 @@ export const DollarSign = wrapIcon(_CurrencyDollar, "DollarSign");
 export const Edit2 = wrapIcon(_PencilSimple, "Edit2");
 export const Edit3 = wrapIcon(_PencilSimple, "Edit3");
 export const Filter = wrapIcon(_Funnel, "Filter");
+export const Funnel = wrapIcon(_Funnel, "Funnel");
 export const Flame = wrapIcon(_Fire, "Flame");
 export const GalleryHorizontalEnd = wrapIcon(_Images, "GalleryHorizontalEnd");
 export const Gift = wrapIcon(_Gift, "Gift");

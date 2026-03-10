@@ -92,7 +92,7 @@ export function NotificationsPage() {
         setHasMore(data.notifications.length === limit);
       }
     } catch {
-      // silent
+      setNotifications([]);
     }
     setLoading(false);
   }, [tab, page]);

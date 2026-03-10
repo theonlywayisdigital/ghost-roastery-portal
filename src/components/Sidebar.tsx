@@ -46,6 +46,8 @@ import {
   Flame,
   TestTube,
   ShieldCheck,
+  Funnel,
+  Handshake,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -150,12 +152,13 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Products", href: "/products", icon: Package },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Storefront", href: "/storefront", icon: Store },
-      { label: "Wholesale", href: "/wholesale", icon: Store, requiredRole: "wholesale_buyer" },
+      { label: "Wholesale", href: "/wholesale-buyers", icon: Handshake },
       { label: "Contacts", href: "/contacts", icon: Contact },
       { label: "Businesses", href: "/businesses", icon: Building2 },
+      { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
-    activePrefixes: ["/products", "/orders", "/storefront", "/wholesale", "/contacts", "/businesses", "/invoices"],
+    activePrefixes: ["/products", "/orders", "/storefront", "/wholesale-buyers", "/contacts", "/businesses", "/invoices"],
   };
 
   const marketingSuiteConfig: SuiteConfig = {
@@ -246,6 +249,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         { label: "All Orders", href: "/admin/orders", icon: ShoppingCart },
         { label: "All Contacts", href: "/admin/contacts", icon: Contact },
         { label: "All Businesses", href: "/admin/businesses", icon: Store },
+        { label: "Pipeline", href: "/admin/contacts/pipeline", icon: Funnel },
         { label: "All Users", href: "/admin/users", icon: Users },
         { label: "All Roasters", href: "/admin/roasters", icon: Building2 },
         { label: "Products", href: "/admin/products", icon: Package },

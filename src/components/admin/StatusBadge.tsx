@@ -1,6 +1,6 @@
 "use client";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert" | "leadStatus";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -153,6 +153,13 @@ const colorMap: Record<string, Record<string, string>> = {
     low: "bg-orange-50 text-orange-700",
     out: "bg-red-50 text-red-700",
   },
+  leadStatus: {
+    new: "bg-blue-50 text-blue-700",
+    contacted: "bg-yellow-50 text-yellow-700",
+    qualified: "bg-purple-50 text-purple-700",
+    won: "bg-green-50 text-green-700",
+    lost: "bg-red-50 text-red-600",
+  },
 };
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -284,6 +291,13 @@ const labelMap: Record<string, Record<string, string>> = {
     ok: "In Stock",
     low: "Low Stock",
     out: "Out of Stock",
+  },
+  leadStatus: {
+    new: "New",
+    contacted: "Contacted",
+    qualified: "Qualified",
+    won: "Won",
+    lost: "Lost",
   },
 };
 

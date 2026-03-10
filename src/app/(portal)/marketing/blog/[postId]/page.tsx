@@ -15,6 +15,12 @@ export default async function BlogPostEditorRoute({
   if (!user) redirect("/login");
   if (!user.roaster) redirect("/dashboard");
 
+  // Tier gate — free tier cannot access blog
+  const marketingTier = (user.roaster as Record<string, unknown>).marketing_tier as string | undefined;
+  if (!marketingTier || marketingTier === "free") {
+    redirect("/marketing/blog");
+  }
+
   // Handle "new" post creation
   if (postId === "new") {
     const supabase = createServerClient();
@@ -64,6 +70,11 @@ export default async function BlogPostEditorRoute({
         initialBlocks={post.content || []}
         isPublished={post.is_published}
         publishedAt={post.published_at}
+        roasterId={user.roaster.id}
+        initialFeaturedImageUrl={post.featured_image_url || ""}
+        initialAuthorName={post.author_name || ""}
+        initialSeoTitle={post.seo_title || ""}
+        initialSeoDescription={post.seo_description || ""}
       />
     </div>
   );

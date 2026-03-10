@@ -11,11 +11,12 @@ interface AllProductsSectionProps {
   theme: WebsiteTheme;
   isEditor?: boolean;
   products?: ProductData[];
+  basePath?: string;
 }
 
 const ease = [0.21, 0.47, 0.32, 0.98] as const;
 
-export function AllProductsSection({ data, theme, isEditor, products }: AllProductsSectionProps) {
+export function AllProductsSection({ data, theme, isEditor, products, basePath }: AllProductsSectionProps) {
   const [search, setSearch] = useState("");
   const displayProducts = products ?? [];
   const showPlaceholders = displayProducts.length === 0;
@@ -78,7 +79,7 @@ export function AllProductsSection({ data, theme, isEditor, products }: AllProdu
             : filteredProducts.map((product) => (
                 <a
                   key={product.id}
-                  href={product.slug ? `/shop/${product.slug}` : "#"}
+                  href={product.slug ? `${basePath || ""}/shop/${product.slug}` : "#"}
                   className="group rounded-xl overflow-hidden transition-transform duration-200 hover:scale-[1.02]"
                   style={{ backgroundColor: `${theme.textColor}08` }}
                 >

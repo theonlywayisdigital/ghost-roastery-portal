@@ -58,7 +58,7 @@ export function Footer() {
               {showWholesale && (
                 <li>
                   <a
-                    href="/wholesale"
+                    href={`/s/${slug}/wholesale`}
                     className="text-sm text-white/60 hover:text-white transition-colors"
                   >
                     Trade Account

@@ -32,7 +32,7 @@ export function Header() {
   const navLinks = [
     { label: "Shop", href: `/s/${slug}/shop` },
     ...(showWholesale
-      ? [{ label: "Trade", href: `/wholesale` }]
+      ? [{ label: "Trade", href: `/s/${slug}/wholesale` }]
       : []),
     ...(roaster.brand_about ? [{ label: "About", href: `#about` }] : []),
     { label: "Contact", href: `#enquiry` },

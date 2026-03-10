@@ -1,0 +1,91 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import { Plus } from "@/components/icons";
+import { WholesaleBuyersPage } from "./WholesaleBuyersPage";
+import { SettingsSection } from "./SettingsSection";
+import { AddWholesaleCustomerModal } from "./AddWholesaleCustomerModal";
+
+interface WholesaleBuyer {
+  id: string;
+  user_id: string;
+  status: string;
+  business_name: string;
+  business_type: string | null;
+  business_address: string | null;
+  business_website: string | null;
+  vat_number: string | null;
+  monthly_volume: string | null;
+  notes: string | null;
+  price_tier: string;
+  payment_terms: string;
+  credit_limit: number | null;
+  rejected_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+  users: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null;
+}
+
+interface WholesaleSectionPageProps {
+  buyers: WholesaleBuyer[];
+  autoApprove: boolean;
+  roasterId: string;
+}
+
+export function WholesaleSectionPage({
+  buyers: initialBuyers,
+  autoApprove,
+  roasterId,
+}: WholesaleSectionPageProps) {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [buyers, setBuyers] = useState(initialBuyers);
+
+  const refreshBuyers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/wholesale-buyers");
+      if (res.ok) {
+        const data = await res.json();
+        setBuyers(data.buyers);
+      }
+    } catch (err) {
+      console.error("Failed to refresh buyers:", err);
+    }
+  }, []);
+
+  return (
+    <div>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Wholesale</h1>
+          <p className="text-slate-500 mt-1">
+            Manage wholesale applications, active buyers, and settings.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add Wholesale Customer
+        </button>
+      </div>
+
+      <SettingsSection autoApprove={autoApprove} roasterId={roasterId} />
+
+      <WholesaleBuyersPage
+        buyers={buyers}
+        autoApprove={autoApprove}
+        roasterId={roasterId}
+        hideHeader
+      />
+
+      {showAddModal && (
+        <AddWholesaleCustomerModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={refreshBuyers}
+        />
+      )}
+    </div>
+  );
+}

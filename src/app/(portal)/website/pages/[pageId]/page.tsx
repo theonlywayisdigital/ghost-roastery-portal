@@ -149,6 +149,7 @@ export default async function WebsitePageEditorRoute({
   const siteName = website.name || user.roaster.business_name || "My Coffee";
   const logoUrl = theme.logoUrl || (user.roaster as Record<string, unknown>).brand_logo_url as string | undefined;
   const previewDomain = (user.roaster as Record<string, unknown>).storefront_slug as string | undefined;
+  const marketingTier = (user.roaster as Record<string, unknown>).marketing_tier as string | undefined;
 
   return (
     <PageEditorClient
@@ -167,6 +168,7 @@ export default async function WebsitePageEditorRoute({
       metaTitle={page.meta_title ?? ""}
       metaDescription={page.meta_description ?? ""}
       products={products}
+      marketingTier={marketingTier}
     />
   );
 }

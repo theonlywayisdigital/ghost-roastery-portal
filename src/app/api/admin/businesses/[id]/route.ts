@@ -137,7 +137,17 @@ export async function PUT(
       );
     }
 
-    // Log activity for status/type changes
+    // Log activity for lead_status/status/type changes
+    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
+      await supabase.from("business_activity").insert({
+        business_id: id,
+        author_id: user.id,
+        activity_type: "lead_status_changed",
+        description: `Lead status changed from ${existing.lead_status || "none"} to ${body.lead_status}`,
+        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
+      });
+    }
+
     if ("status" in body && body.status !== existing.status) {
       await supabase.from("business_activity").insert({
         business_id: id,

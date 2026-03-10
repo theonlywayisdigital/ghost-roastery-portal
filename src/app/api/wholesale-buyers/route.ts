@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import {
+  sendWholesaleApproved,
+  sendWholesaleAccountSetup,
+} from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
+import { findOrCreatePerson } from "@/lib/people";
+import crypto from "crypto";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -30,4 +37,300 @@ export async function GET() {
   }
 
   return NextResponse.json({ buyers: records || [] });
+}
+
+export async function POST(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !user.roaster) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const {
+      name,
+      email,
+      phone,
+      businessName,
+      businessType,
+      businessAddress,
+      businessWebsite,
+      vatNumber,
+      monthlyVolume,
+      notes,
+      priceTier,
+      paymentTerms,
+      creditLimit,
+    } = body as {
+      name: string;
+      email: string;
+      phone?: string;
+      businessName: string;
+      businessType?: string;
+      businessAddress?: string;
+      businessWebsite?: string;
+      vatNumber?: string;
+      monthlyVolume?: string;
+      notes?: string;
+      priceTier?: string;
+      paymentTerms?: string;
+      creditLimit?: number | null;
+    };
+
+    if (!name || !email || !businessName) {
+      return NextResponse.json(
+        { error: "Name, email, and business name are required." },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+    const roasterId = user.roaster.id as string;
+
+    // Get roaster details for emails
+    const { data: roaster } = await supabase
+      .from("partner_roasters")
+      .select("id, user_id, business_name, email")
+      .eq("id", roasterId)
+      .single();
+
+    if (!roaster) {
+      return NextResponse.json({ error: "Roaster not found." }, { status: 404 });
+    }
+
+    // Find or create user account
+    let userId: string | null = null;
+    let isNewUser = false;
+
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email.toLowerCase())
+      .single();
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      isNewUser = true;
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          user_metadata: { full_name: name },
+        });
+
+      if (authError) {
+        console.error("Failed to create user:", authError);
+        return NextResponse.json(
+          { error: "Failed to create user account." },
+          { status: 500 }
+        );
+      }
+
+      if (authData.user) {
+        userId = authData.user.id;
+        await supabase.from("users").insert({
+          id: userId,
+          email: email.toLowerCase(),
+          full_name: name,
+        });
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Failed to create user account." },
+        { status: 500 }
+      );
+    }
+
+    // Check for existing wholesale_access record
+    const { data: existing } = await supabase
+      .from("wholesale_access")
+      .select("id, status")
+      .eq("user_id", userId)
+      .eq("roaster_id", roasterId)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === "approved") {
+        return NextResponse.json(
+          { error: "This user already has an approved wholesale account." },
+          { status: 400 }
+        );
+      }
+      if (existing.status === "pending") {
+        return NextResponse.json(
+          { error: "This user already has a pending wholesale application." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Create business record
+    const { data: business, error: bizError } = await supabase
+      .from("businesses")
+      .insert({
+        name: businessName,
+        types: ["wholesale"],
+        industry: businessType || null,
+        address: businessAddress || null,
+        website: businessWebsite || null,
+        vat_number: vatNumber || null,
+        roaster_id: roasterId,
+      })
+      .select("id")
+      .single();
+
+    if (bizError) {
+      console.error("Failed to create business:", bizError);
+      return NextResponse.json(
+        { error: "Failed to create business record." },
+        { status: 500 }
+      );
+    }
+
+    // Create contact record
+    const nameParts = name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    const { data: contact, error: contactError } = await supabase
+      .from("contacts")
+      .insert({
+        first_name: firstName,
+        last_name: lastName,
+        email: email.toLowerCase(),
+        phone: phone || null,
+        types: ["wholesale"],
+        source: "manual",
+        status: "active",
+        business_id: business.id,
+        business_name: businessName,
+        user_id: userId,
+        roaster_id: roasterId,
+      })
+      .select("id")
+      .single();
+
+    if (contactError) {
+      console.error("Failed to create contact:", contactError);
+    }
+
+    // Create wholesale_access record (auto-approved)
+    const tier = priceTier || "standard";
+    const terms = paymentTerms || "prepay";
+    const now = new Date().toISOString();
+
+    const { data: wholesaleAccess, error: waError } = await supabase
+      .from("wholesale_access")
+      .upsert(
+        {
+          ...(existing ? { id: existing.id } : {}),
+          user_id: userId,
+          roaster_id: roasterId,
+          status: "approved",
+          business_name: businessName,
+          business_type: businessType || null,
+          business_address: businessAddress || null,
+          business_website: businessWebsite || null,
+          vat_number: vatNumber || null,
+          monthly_volume: monthlyVolume || null,
+          notes: notes || null,
+          price_tier: tier,
+          payment_terms: terms,
+          credit_limit: creditLimit ?? null,
+          business_id: business.id,
+          approved_by: user.id,
+          approved_at: now,
+          rejected_reason: null,
+          updated_at: now,
+        },
+        { onConflict: "id" }
+      )
+      .select("id")
+      .single();
+
+    if (waError) {
+      console.error("Failed to create wholesale_access:", waError);
+      return NextResponse.json(
+        { error: "Failed to create wholesale access record." },
+        { status: 500 }
+      );
+    }
+
+    // Grant wholesale_buyer role
+    const { data: existingRole } = await supabase
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role_id", "wholesale_buyer")
+      .maybeSingle();
+
+    if (!existingRole) {
+      await supabase.from("user_roles").insert({
+        user_id: userId,
+        role_id: "wholesale_buyer",
+      });
+    }
+
+    // Ensure people record exists
+    findOrCreatePerson(supabase, email, firstName, lastName, phone).catch(() => {});
+
+    // Send emails
+    try {
+      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+
+      if (isNewUser) {
+        const token = crypto.randomBytes(32).toString("hex");
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+        await supabase.from("account_setup_tokens").insert({
+          user_id: userId,
+          token,
+          expires_at: expiresAt,
+        });
+
+        const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+
+        await Promise.all([
+          sendWholesaleApproved(email, name, roaster.business_name, tier, terms),
+          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+        ]);
+      } else {
+        await sendWholesaleApproved(email, name, roaster.business_name, tier, terms);
+      }
+    } catch (emailErr) {
+      console.error("Failed to send emails:", emailErr);
+    }
+
+    // Notify the new wholesale customer
+    await createNotification({
+      userId,
+      type: "wholesale_application",
+      title: "Wholesale account created",
+      body: `Your wholesale account with ${roaster.business_name} has been set up. You can now browse the wholesale catalogue.`,
+      link: "/wholesale",
+    });
+
+    return NextResponse.json({
+      success: true,
+      wholesaleAccess: wholesaleAccess || null,
+      business: business || null,
+      contact: contact || null,
+    });
+  } catch (error) {
+    console.error("Add wholesale customer error:", error);
+    return NextResponse.json(
+      { error: "Failed to add wholesale customer." },
+      { status: 500 }
+    );
+  }
 }

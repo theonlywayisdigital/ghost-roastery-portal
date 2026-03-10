@@ -87,6 +87,7 @@ export default function DesignPage() {
   const [siteName, setSiteName] = useState("My Roastery");
   const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Load current settings
@@ -116,7 +117,7 @@ export default function DesignPage() {
           }));
         }
       })
-      .catch(console.error);
+      .catch(() => {});
   }, []);
 
   async function handleSave() {
@@ -130,7 +131,7 @@ export default function DesignPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      console.error("Save failed:", err);
+      setError("Failed to save design");
     } finally {
       setSaving(false);
     }
@@ -147,7 +148,7 @@ export default function DesignPage() {
       setConfirmTemplate(null);
       window.location.reload();
     } catch (err) {
-      console.error("Template apply failed:", err);
+      setError("Failed to apply template");
     } finally {
       setApplyingTemplate(false);
     }
@@ -165,12 +166,12 @@ export default function DesignPage() {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
-        console.error("Logo upload failed:", data.error);
+        setError("Failed to upload logo");
         return;
       }
       update({ logoUrl: data.url });
     } catch (err) {
-      console.error("Logo upload failed:", err);
+      setError("Failed to upload logo");
     } finally {
       setUploadingLogo(false);
     }
@@ -192,6 +193,13 @@ export default function DesignPage() {
           {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 font-medium text-xs ml-4">Dismiss</button>
+        </div>
+      )}
 
       {/* Logo */}
       <section className="mb-10">

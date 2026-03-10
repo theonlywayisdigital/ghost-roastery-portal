@@ -77,10 +77,12 @@ export function WholesaleBuyersPage({
   buyers: initial,
   autoApprove,
   roasterId,
+  hideHeader,
 }: {
   buyers: WholesaleBuyer[];
   autoApprove: boolean;
   roasterId: string;
+  hideHeader?: boolean;
 }) {
   const [buyers, setBuyers] = useState(initial);
   const [tab, setTab] = useState<"requests" | "active">("requests");
@@ -790,19 +792,23 @@ export function WholesaleBuyersPage({
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Wholesale Buyers
-        </h1>
-        <p className="text-slate-500 mt-1">
-          Manage trade account applications and active wholesale buyers.
-        </p>
-      </div>
+      {!hideHeader && (
+        <>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-slate-900">
+              Wholesale Buyers
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Manage trade account applications and active wholesale buyers.
+            </p>
+          </div>
 
-      <SettingsSection
-        autoApprove={autoApprove}
-        roasterId={roasterId}
-      />
+          <SettingsSection
+            autoApprove={autoApprove}
+            roasterId={roasterId}
+          />
+        </>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-slate-100 rounded-lg p-1 w-fit">

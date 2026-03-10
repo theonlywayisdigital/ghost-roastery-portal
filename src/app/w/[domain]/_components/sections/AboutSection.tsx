@@ -38,22 +38,6 @@ export function AboutSection({ data, theme, isEditor }: AboutSectionProps) {
       >
         {data.body}
       </div>
-      {data.showSocialLinks && (
-        <div className="flex gap-4 mt-8">
-          {["instagram", "twitter", "facebook"].map((platform) => (
-            <div
-              key={platform}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-              style={{ backgroundColor: `${theme.textColor}10` }}
-            >
-              <div
-                className="w-5 h-5 rounded-full"
-                style={{ backgroundColor: `${theme.textColor}30` }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 

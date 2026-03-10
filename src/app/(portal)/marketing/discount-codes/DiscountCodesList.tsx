@@ -140,9 +140,12 @@ export function DiscountCodesList() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) loadCodes();
+      if (res.ok) {
+        setError(null);
+        loadCodes();
+      }
     } catch {
-      // silent
+      setError("Failed to toggle discount code status");
     }
   }
 
@@ -154,9 +157,12 @@ export function DiscountCodesList() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "archived" }),
       });
-      if (res.ok) loadCodes();
+      if (res.ok) {
+        setError(null);
+        loadCodes();
+      }
     } catch {
-      // silent
+      setError("Failed to archive discount code");
     }
   }
 
@@ -190,9 +196,12 @@ export function DiscountCodesList() {
           status: "paused",
         }),
       });
-      if (dupeRes.ok) loadCodes();
+      if (dupeRes.ok) {
+        setError(null);
+        loadCodes();
+      }
     } catch {
-      // silent
+      setError("Failed to duplicate discount code");
     }
   }
 

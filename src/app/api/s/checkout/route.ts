@@ -23,6 +23,8 @@ export async function POST(request: Request) {
       discountType,
       // discountAmountPence sent by client but re-validated server-side
       embedded,
+      successUrl: customSuccessUrl,
+      cancelUrl: customCancelUrl,
     } = body as {
       roasterId: string;
       items: CheckoutItem[];
@@ -41,6 +43,8 @@ export async function POST(request: Request) {
       discountType?: string;
       discountAmountPence?: number;
       embedded?: boolean;
+      successUrl?: string;
+      cancelUrl?: string;
     };
 
     const isWholesale = !!wholesaleAccessId;
@@ -245,8 +249,10 @@ export async function POST(request: Request) {
     const effectiveEmail = isWholesale ? wholesaleBuyerEmail! : customerEmail!;
     const effectiveName = isWholesale ? wholesaleBuyerName! : customerName!;
     const baseUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
-    const successPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}/success` : `/s/${encodeURIComponent(body.slug || "")}/success`;
-    const cancelPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}` : `/s/${encodeURIComponent(body.slug || "")}`;
+    const defaultSuccessPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}/success` : `/s/${encodeURIComponent(body.slug || "")}/success`;
+    const defaultCancelPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}` : `/s/${encodeURIComponent(body.slug || "")}`;
+    const successPath = customSuccessUrl || defaultSuccessPath;
+    const cancelPath = customCancelUrl || defaultCancelPath;
 
     // Build session options
     const embeddedSuffix = embedded ? "&embedded=true" : "";

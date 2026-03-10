@@ -180,7 +180,35 @@ export async function PUT(
       );
     }
 
-    // Log activity for status/type changes
+    // Log activity for lead_status/status/type changes
+    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
+      await supabase.from("business_activity").insert({
+        business_id: id,
+        author_id: user.id,
+        activity_type: "lead_status_changed",
+        description: `Lead status changed from ${existing.lead_status || "none"} to ${body.lead_status}`,
+        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
+      });
+
+      // Fire automation trigger — find primary contact for this business
+      const { data: primaryContact } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("business_id", id)
+        .eq("roaster_id", roaster.id)
+        .limit(1)
+        .single();
+
+      if (primaryContact) {
+        fireAutomationTrigger({
+          trigger_type: "lead_status_changed",
+          roaster_id: roaster.id as string,
+          contact_id: primaryContact.id,
+          event_data: { new_status: body.lead_status, old_status: existing.lead_status },
+        }).catch(() => {});
+      }
+    }
+
     if ("status" in body && body.status !== existing.status) {
       await supabase.from("business_activity").insert({
         business_id: id,

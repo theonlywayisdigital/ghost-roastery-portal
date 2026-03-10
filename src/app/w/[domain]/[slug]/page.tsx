@@ -113,5 +113,5 @@ export default async function WebsitePage({ params }: PageProps) {
     }));
   }
 
-  return <WebPageRenderer sections={sections} products={products} />;
+  return <WebPageRenderer sections={sections} products={products} domain={domain} basePath={`/w/${domain}`} />;
 }

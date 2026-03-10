@@ -33,11 +33,15 @@ export function HelpCentre() {
     if (search) params.set("search", search);
     if (activeCategory) params.set("category", activeCategory);
 
-    const res = await fetch(`/api/support/kb?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setCategories(data.categories);
-      setArticles(data.articles);
+    try {
+      const res = await fetch(`/api/support/kb?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories);
+        setArticles(data.articles);
+      }
+    } catch {
+      // fetch failed
     }
     setLoading(false);
   }, [search, activeCategory]);

@@ -28,6 +28,11 @@ export default async function WholesaleCataloguePage({
 
   if (!roaster) notFound();
 
+  // Redirect to storefront wholesale if storefront is enabled
+  if (roaster.storefront_enabled) {
+    redirect(`/s/${roaster.storefront_slug}/wholesale`);
+  }
+
   // Fetch wholesale_access record for current user
   const { data: access } = await supabase
     .from("wholesale_access")

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createServerClient } from "@/lib/supabase";
-import { WebPageRenderer } from "../../_components/WebPageRenderer";
+import { WebBlockRenderer } from "../../_components/WebBlockRenderer";
 import Link from "next/link";
 
 interface PageProps {
@@ -111,7 +111,7 @@ export default async function WebsiteBlogPostPage({ params }: PageProps) {
         {post.author_name ? ` · ${post.author_name}` : ""}
       </p>
 
-      <WebPageRenderer sections={Array.isArray(post.content) ? (post.content as unknown as import("@/lib/website-sections/types").WebSection[]) : []} />
+      <WebBlockRenderer blocks={Array.isArray(post.content) ? (post.content as import("@/app/(portal)/website/editor/web-block-types").WebBlock[]) : []} />
     </article>
   );
 }

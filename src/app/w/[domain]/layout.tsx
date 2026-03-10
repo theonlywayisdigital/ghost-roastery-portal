@@ -134,6 +134,7 @@ export default async function WebsiteLayout({ children, params }: WebsiteLayoutP
             theme={theme}
             pages={footerPages}
             basePath={`/w/${domain}`}
+            footerText={website?.footer_text ?? undefined}
           />
         </WebsiteThemeProvider>
       </body>

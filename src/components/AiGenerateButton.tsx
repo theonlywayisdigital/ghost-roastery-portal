@@ -40,7 +40,9 @@ export function AiGenerateButton({
   const [options, setOptions] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Check if AI is available on mount
@@ -57,6 +59,14 @@ export function AiGenerateButton({
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "j") {
         e.preventDefault();
+        if (!open && buttonRef.current) {
+          const rect = buttonRef.current.getBoundingClientRect();
+          const popoverWidth = 320;
+          let left = rect.left;
+          if (left + popoverWidth > window.innerWidth - 16) left = window.innerWidth - popoverWidth - 16;
+          if (left < 16) left = 16;
+          setPopoverPos({ top: rect.bottom + 4, left });
+        }
         setOpen((prev) => !prev);
       }
     }
@@ -140,11 +150,27 @@ export function AiGenerateButton({
   // Still loading availability check
   if (available === null) return null;
 
+  function handleToggleOpen() {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const popoverWidth = 320; // w-80
+      let left = rect.left;
+      // Keep popover within viewport
+      if (left + popoverWidth > window.innerWidth - 16) {
+        left = window.innerWidth - popoverWidth - 16;
+      }
+      if (left < 16) left = 16;
+      setPopoverPos({ top: rect.bottom + 4, left });
+    }
+    setOpen(!open);
+  }
+
   return (
     <div className={`relative inline-flex ${className}`}>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggleOpen}
         className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-md transition-colors"
         title={enableShortcut ? `Generate with AI (${navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+J)` : "Generate with AI"}
       >
@@ -152,10 +178,11 @@ export function AiGenerateButton({
         {label}
       </button>
 
-      {open && (
+      {open && popoverPos && (
         <div
           ref={popoverRef}
-          className="absolute z-50 top-full left-0 mt-1 w-80 bg-white rounded-xl border border-slate-200 shadow-lg"
+          style={{ top: popoverPos.top, left: popoverPos.left }}
+          className="fixed z-[9999] w-80 bg-white rounded-xl border border-slate-200 shadow-lg"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">

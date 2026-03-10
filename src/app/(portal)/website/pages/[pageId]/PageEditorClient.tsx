@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Save, Eye, ExternalLink, Loader2, Check, AlertCircle, ChevronDown, Plus, Settings, Trash2, X } from "@/components/icons";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { WebSection, WebsiteTheme } from "@/lib/website-sections/types";
 import { SectionEditor } from "../../section-editor/SectionEditor";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import type { ProductData } from "@/app/w/[domain]/_components/sections/FeaturedProductsSection";
+import { NewPageModal } from "../NewPageModal";
 
 interface PageEditorClientProps {
   pageId: string;
@@ -25,6 +25,7 @@ interface PageEditorClientProps {
   metaTitle?: string;
   metaDescription?: string;
   products?: ProductData[];
+  marketingTier?: string;
 }
 
 export function PageEditorClient({
@@ -43,6 +44,7 @@ export function PageEditorClient({
   metaTitle: initialMetaTitle = "",
   metaDescription: initialMetaDescription = "",
   products,
+  marketingTier,
 }: PageEditorClientProps) {
   const router = useRouter();
   const [sections, setSections] = useState<WebSection[]>(initialSections);
@@ -67,6 +69,9 @@ export function PageEditorClient({
   // Delete state
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // New page modal
+  const [newPageModalOpen, setNewPageModalOpen] = useState(false);
 
   // Close page dropdown on outside click
   useEffect(() => {
@@ -255,13 +260,13 @@ export function PageEditorClient({
           </button>
 
           {/* Add Page */}
-          <Link
-            href="/website/pages/new"
+          <button
+            onClick={() => setNewPageModalOpen(true)}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
             title="Add new page"
           >
             <Plus className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           {/* Save status */}
@@ -294,17 +299,28 @@ export function PageEditorClient({
             </a>
           )}
 
-          <button
-            onClick={handleTogglePublish}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              published
-                ? "bg-green-50 text-green-700 hover:bg-green-100"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            {published ? "Published" : "Draft"}
-          </button>
+          {published ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-green-50 text-green-700">
+                <Eye className="w-3.5 h-3.5" />
+                Published
+              </span>
+              <button
+                onClick={handleTogglePublish}
+                className="text-xs text-slate-400 hover:text-red-600 transition-colors"
+              >
+                Unpublish
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleTogglePublish}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Publish
+            </button>
+          )}
           <button
             onClick={handleManualSave}
             disabled={saving || !hasChanges}
@@ -476,7 +492,12 @@ export function PageEditorClient({
         )}
       </div>
 
-      {/* Delete confirmation is handled inline in the settings panel */}
+      {/* New page modal */}
+      <NewPageModal
+        open={newPageModalOpen}
+        onClose={() => setNewPageModalOpen(false)}
+        marketingTier={marketingTier}
+      />
     </div>
   );
 }

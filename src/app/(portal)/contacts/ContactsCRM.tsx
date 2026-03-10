@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { WholesaleBuyersPage } from "../wholesale-buyers/WholesaleBuyersPage";
 import {
   Users,
   ShoppingBag,
@@ -48,12 +47,6 @@ interface Counts {
   lead: number;
 }
 
-interface ContactsCRMProps {
-  buyers: unknown[];
-  autoApprove: boolean;
-  roasterId: string;
-}
-
 const TABS = [
   { id: "all", label: "All", icon: Users, typeFilter: "" },
   { id: "wholesale", label: "Wholesale", icon: Users, typeFilter: "wholesale" },
@@ -85,7 +78,7 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
   lost: "bg-red-50 text-red-600",
 };
 
-export function ContactsCRM({ buyers, autoApprove, roasterId }: ContactsCRMProps) {
+export function ContactsCRM() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabId) || "all";
@@ -330,17 +323,6 @@ export function ContactsCRM({ buyers, autoApprove, roasterId }: ContactsCRMProps
           );
         })}
       </div>
-
-      {/* Wholesale tab: Show applications section then contacts list */}
-      {activeTab === "wholesale" && (
-        <div className="mb-8">
-          <WholesaleBuyersPage
-            buyers={buyers as Parameters<typeof WholesaleBuyersPage>[0]["buyers"]}
-            autoApprove={autoApprove}
-            roasterId={roasterId}
-          />
-        </div>
-      )}
 
       {/* Search + Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">

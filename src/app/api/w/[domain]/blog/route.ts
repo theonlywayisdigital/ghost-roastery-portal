@@ -20,12 +20,16 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const limitParam = request.nextUrl.searchParams.get("limit");
+  const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10) || 50, 1), 50) : 50;
+
   const { data: posts, error } = await supabase
     .from("blog_posts")
     .select("id, title, slug, excerpt, featured_image_url, published_at, author_name")
     .eq("roaster_id", roaster.id)
     .eq("is_published", true)
-    .order("published_at", { ascending: false });
+    .order("published_at", { ascending: false })
+    .limit(limit);
 
   if (error) {
     return NextResponse.json({ error: "Failed to fetch blog posts" }, { status: 500 });

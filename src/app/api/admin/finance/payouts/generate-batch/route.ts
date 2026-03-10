@@ -165,6 +165,7 @@ export async function POST() {
     );
 
     // Update orders: set payout_status, batch_id, and item_id
+    const failedOrderIds: string[] = [];
     for (const order of orders) {
       const payoutItemId = itemMap.get(order.id);
       const { error: updateError } = await supabase
@@ -177,14 +178,12 @@ export async function POST() {
         .eq("id", order.id);
 
       if (updateError) {
-        console.error(
-          `Error updating order ${order.id}:`,
-          updateError
-        );
+        failedOrderIds.push(order.id);
       }
     }
 
     return NextResponse.json({
+      ...(failedOrderIds.length > 0 ? { warning: `${failedOrderIds.length} order(s) failed to update`, failedOrderIds } : {}),
       batch: {
         ...batch,
         items: createdItems,

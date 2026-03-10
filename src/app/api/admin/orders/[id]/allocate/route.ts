@@ -65,11 +65,16 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   // Create roaster_order entry
-  await supabase.from("roaster_orders").insert({
+  const { error: roasterOrderError } = await supabase.from("roaster_orders").insert({
     order_id: id,
     roaster_id: partnerId,
     status: "pending",
   });
+
+  if (roasterOrderError) {
+    console.error("Failed to create roaster_order entry:", roasterOrderError);
+    return NextResponse.json({ error: "Failed to create roaster order entry" }, { status: 500 });
+  }
 
   // Log activity + fetch partner details for notifications
   const { data: roaster } = await supabase

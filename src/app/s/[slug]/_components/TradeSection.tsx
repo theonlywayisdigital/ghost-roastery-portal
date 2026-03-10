@@ -4,7 +4,7 @@ import { useStorefront } from "./StorefrontProvider";
 import { MotionSection } from "./MotionWrapper";
 
 export function TradeSection() {
-  const { primary, showWholesale } = useStorefront();
+  const { primary, slug, showWholesale } = useStorefront();
 
   if (!showWholesale) return null;
 
@@ -22,7 +22,7 @@ export function TradeSection() {
           wholesale account to access trade pricing and dedicated support.
         </p>
         <a
-          href="/wholesale"
+          href={`/s/${slug}/wholesale`}
           className="inline-block px-8 py-3.5 rounded-lg font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
           style={{ color: primary }}
         >

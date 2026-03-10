@@ -48,13 +48,11 @@ export async function createNotification(
       .single();
 
     if (error) {
-      console.error("Failed to create notification:", error);
       return null;
     }
 
     return data;
-  } catch (err) {
-    console.error("Failed to create notification:", err);
+  } catch {
     return null;
   }
 }
@@ -82,13 +80,11 @@ export async function createBulkNotifications(
     const { error } = await supabase.from("notifications").insert(rows);
 
     if (error) {
-      console.error("Failed to create bulk notifications:", error);
       return 0;
     }
 
     return notifications.length;
-  } catch (err) {
-    console.error("Failed to create bulk notifications:", err);
+  } catch {
     return 0;
   }
 }

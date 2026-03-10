@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
             platform_user_id: null,
             platform_page_id: page.id,
             page_name: page.name,
-            // TODO: encrypt tokens for production
             access_token: page.access_token,
             refresh_token: null,
             token_expires_at: new Date(Date.now() + longToken.expires_in * 1000).toISOString(),

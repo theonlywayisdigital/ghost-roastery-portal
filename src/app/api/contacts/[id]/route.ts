@@ -217,6 +217,22 @@ export async function PUT(
       });
     }
 
+    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
+      await supabase.from("contact_activity").insert({
+        contact_id: id,
+        activity_type: "lead_status_changed",
+        description: `Lead status changed from ${existing.lead_status || "none"} to ${body.lead_status}`,
+        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
+      });
+
+      fireAutomationTrigger({
+        trigger_type: "lead_status_changed",
+        roaster_id: roaster.id as string,
+        contact_id: id,
+        event_data: { new_status: body.lead_status, old_status: existing.lead_status },
+      }).catch(() => {});
+    }
+
     if ("types" in body) {
       const oldTypes = (existing.types as string[]) || [];
       const newTypes = (body.types as string[]) || [];

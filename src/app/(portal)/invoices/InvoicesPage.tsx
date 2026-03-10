@@ -24,6 +24,7 @@ export function InvoicesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
 
   const loadInvoices = useCallback(async () => {
@@ -37,10 +38,11 @@ export function InvoicesPage() {
 
       const res = await fetch(`/api/invoices?${params}`);
       const data = await res.json();
+      setError(null);
       setInvoices(data.data || []);
       setTotal(data.total || 0);
-    } catch (error) {
-      console.error("Failed to load invoices:", error);
+    } catch {
+      setError("Failed to load invoices");
     }
     setLoading(false);
   }, [page, pageSize, statusFilter]);
@@ -87,6 +89,12 @@ export function InvoicesPage() {
           Create Invoice
         </a>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (

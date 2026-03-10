@@ -43,22 +43,11 @@ export function InstagramFeedSection({ data, theme, isEditor }: InstagramFeedSec
           )}
         </div>
 
-        {/* Placeholder grid — real integration would use Instagram API */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div
-              key={i}
-              className="aspect-square rounded-lg"
-              style={{ backgroundColor: `${theme.primaryColor}${(10 + i * 3).toString(16).padStart(2, "0")}` }}
-            />
-          ))}
-        </div>
-
-        {!data.handle && (
-          <p className="text-center text-sm opacity-40 mt-4" style={{ color: theme.textColor }}>
-            Add your Instagram handle to connect your feed
+        <div className="text-center py-12 rounded-xl" style={{ backgroundColor: `${theme.textColor}06` }}>
+          <p className="text-sm opacity-50" style={{ color: theme.textColor }}>
+            Connect your Instagram account in Marketing settings to display your feed here.
           </p>
-        )}
+        </div>
       </div>
     </Container>
   );

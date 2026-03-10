@@ -69,8 +69,10 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [orders, setOrders] = useState<RoasterOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<RoasterOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [activeTab, setActiveTab] = useState<TabValue>(
     (searchParams.get("tab") as TabValue) || "all"
   );
@@ -111,7 +113,8 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
       try {
         const res = await fetch(`/api/orders/all?${params.toString()}`);
         const data = await res.json();
-        setOrders(data.data || []);
+        setAllOrders(data.data || []);
+        setPage(1);
       } catch {
         console.error("Failed to fetch orders");
       } finally {
@@ -123,13 +126,16 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, searchParams.toString()]);
 
+  // Client-side pagination
+  const orders = allOrders.slice((page - 1) * pageSize, page * pageSize);
+
   // Summary stats from loaded data
-  const totalOrders = orders.length;
-  const openOrders = orders.filter(
+  const totalOrders = allOrders.length;
+  const openOrders = allOrders.filter(
     (o) => !["delivered", "Delivered", "cancelled", "Cancelled"].includes(o.status)
   ).length;
   const now = new Date();
-  const thisMonthRevenue = orders
+  const thisMonthRevenue = allOrders
     .filter((o) => {
       const d = new Date(o.date);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -285,7 +291,7 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
       </div>
 
       {/* Table */}
-      {!isLoading && orders.length === 0 && !Object.values(filterValues).some((v) => v) ? (
+      {!isLoading && allOrders.length === 0 && !Object.values(filterValues).some((v) => v) ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
           <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <p className="text-slate-500">
@@ -303,13 +309,18 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
       )}
 
       {/* Pagination */}
-      <Pagination
-        page={1}
-        pageSize={orders.length || 25}
-        total={orders.length}
-        onPageChange={() => {}}
-        onPageSizeChange={() => {}}
-      />
+      {allOrders.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={allOrders.length}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      )}
     </div>
   );
 }

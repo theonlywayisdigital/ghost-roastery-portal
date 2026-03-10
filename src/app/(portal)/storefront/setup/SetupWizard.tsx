@@ -102,7 +102,8 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
       setStripeStatus(data);
       setStripeConnected(data.connected);
     } catch {
-      // Silent fail
+      setStripeStatus(null);
+      setStripeConnected(false);
     }
   }, []);
 

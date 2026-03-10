@@ -33,6 +33,8 @@ interface SectionRendererProps {
   theme?: WebsiteTheme;
   isEditor?: boolean;
   products?: ProductData[];
+  domain?: string;
+  basePath?: string;
 }
 
 function buildBgStyles(bg: SectionBg): React.CSSProperties {
@@ -55,7 +57,7 @@ function buildBgStyles(bg: SectionBg): React.CSSProperties {
   }
 }
 
-export function SectionRenderer({ section, theme: themeProp, isEditor, products }: SectionRendererProps) {
+export function SectionRenderer({ section, theme: themeProp, isEditor, products, domain, basePath }: SectionRendererProps) {
   const theme = themeProp ?? defaultTheme;
   if (!section.visible && !isEditor) return null;
 
@@ -68,9 +70,9 @@ export function SectionRenderer({ section, theme: themeProp, isEditor, products 
       case "hero_split":
         return <HeroSplitSection data={section} theme={theme} isEditor={isEditor} />;
       case "featured_products":
-        return <FeaturedProductsSection data={section} theme={theme} isEditor={isEditor} products={products} />;
+        return <FeaturedProductsSection data={section} theme={theme} isEditor={isEditor} products={products} basePath={basePath} />;
       case "all_products":
-        return <AllProductsSection data={section} theme={theme} isEditor={isEditor} products={products} />;
+        return <AllProductsSection data={section} theme={theme} isEditor={isEditor} products={products} basePath={basePath} />;
       case "about":
         return <AboutSection data={section} theme={theme} isEditor={isEditor} />;
       case "about_team":
@@ -86,13 +88,13 @@ export function SectionRenderer({ section, theme: themeProp, isEditor, products 
       case "faq":
         return <FaqSection data={section} theme={theme} isEditor={isEditor} />;
       case "contact_form":
-        return <ContactFormSection data={section} theme={theme} isEditor={isEditor} />;
+        return <ContactFormSection data={section} theme={theme} isEditor={isEditor} domain={domain} />;
       case "newsletter":
-        return <NewsletterSection data={section} theme={theme} isEditor={isEditor} />;
+        return <NewsletterSection data={section} theme={theme} isEditor={isEditor} domain={domain} />;
       case "instagram_feed":
         return <InstagramFeedSection data={section} theme={theme} isEditor={isEditor} />;
       case "blog_latest":
-        return <BlogLatestSection data={section} theme={theme} isEditor={isEditor} />;
+        return <BlogLatestSection data={section} theme={theme} isEditor={isEditor} domain={domain} basePath={basePath} />;
       case "wholesale_info":
         return <WholesaleInfoSection data={section} theme={theme} isEditor={isEditor} />;
       case "custom_html":

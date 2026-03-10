@@ -8,9 +8,11 @@ import type { ProductData } from "./sections/FeaturedProductsSection";
 interface WebPageRendererProps {
   sections: WebSection[];
   products?: ProductData[];
+  domain?: string;
+  basePath?: string;
 }
 
-export function WebPageRenderer({ sections, products }: WebPageRendererProps) {
+export function WebPageRenderer({ sections, products, domain, basePath }: WebPageRendererProps) {
   const theme = useWebsiteTheme();
 
   if (!sections || sections.length === 0) {
@@ -26,7 +28,7 @@ export function WebPageRenderer({ sections, products }: WebPageRendererProps) {
       {sections
         .filter((s) => s.visible !== false)
         .map((section) => (
-          <SectionRenderer key={section.id} section={section} theme={theme} isEditor={false} products={products} />
+          <SectionRenderer key={section.id} section={section} theme={theme} isEditor={false} products={products} domain={domain} basePath={basePath} />
         ))}
     </div>
   );

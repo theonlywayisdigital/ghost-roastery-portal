@@ -266,7 +266,7 @@ export async function POST(request: Request) {
         type: "wholesale_application",
         title: "New wholesale application",
         body: `${businessName} has applied for wholesale access.`,
-        link: "/contacts?tab=wholesale",
+        link: "/wholesale-buyers",
         metadata: { business_name: businessName, applicant_email: email },
       });
     }

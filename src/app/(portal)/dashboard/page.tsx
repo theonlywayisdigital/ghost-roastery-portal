@@ -58,6 +58,40 @@ export default async function DashboardPage() {
     customerOrderCount = count || 0;
   }
 
+  // Revenue this month
+  let monthlyRevenue = 0;
+  if (isRoaster && user.roaster) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    // Wholesale/storefront revenue
+    const { data: wsOrders } = await supabase
+      .from("wholesale_orders")
+      .select("roaster_payout, subtotal")
+      .eq("roaster_id", user.roaster.id)
+      .gte("created_at", startOfMonth.toISOString())
+      .not("status", "eq", "cancelled");
+
+    for (const wo of wsOrders || []) {
+      monthlyRevenue += wo.roaster_payout || wo.subtotal || 0;
+    }
+
+    // Ghost Roastery partner payouts
+    if (user.roaster.is_ghost_roaster) {
+      const { data: ghostOrders } = await supabase
+        .from("orders")
+        .select("partner_payout_total")
+        .eq("partner_roaster_id", user.roaster.id)
+        .gte("created_at", startOfMonth.toISOString())
+        .not("order_status", "eq", "Cancelled");
+
+      for (const go of ghostOrders || []) {
+        monthlyRevenue += go.partner_payout_total || 0;
+      }
+    }
+  }
+
   // Wholesale buyer stats
   let wholesaleAccountCount = 0;
   if (user.roles.includes("wholesale_buyer")) {
@@ -157,7 +191,9 @@ export default async function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">This Month</p>
-                  <p className="text-2xl font-bold text-slate-900">£0.00</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(monthlyRevenue)}
+                  </p>
                 </div>
               </div>
               <Link
@@ -237,7 +273,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <Link
-              href="/apply"
+              href="/wholesale/apply"
               className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
             >
               Apply now <ArrowRight className="w-4 h-4" />

@@ -58,6 +58,25 @@ export const TRIGGER_DEFINITIONS: TriggerDefinition[] = [
     filterFields: CONTACT_FILTERS,
   },
   {
+    type: "lead_status_changed",
+    label: "Lead Status Changed",
+    description: "When a contact or business pipeline stage changes",
+    icon: "Funnel",
+    color: "text-teal-600",
+    bg: "bg-teal-50",
+    category: "event",
+    configFields: [
+      { key: "new_status", label: "New Status", type: "select", placeholder: "Any status", options: [
+        { value: "new", label: "New" },
+        { value: "contacted", label: "Contacted" },
+        { value: "qualified", label: "Qualified" },
+        { value: "won", label: "Won" },
+        { value: "lost", label: "Lost" },
+      ]},
+    ],
+    filterFields: CONTACT_FILTERS,
+  },
+  {
     type: "business_type_changed",
     label: "Business Type Changed",
     description: "When a business type is updated",
@@ -303,9 +322,9 @@ export function getTriggersByCategory() {
 export function getPrimaryTriggers(): TriggerDefinition[] {
   const newTriggerTypes = new Set([
     "form_submitted", "contact_created", "contact_type_changed",
-    "business_type_changed", "business_created", "order_placed",
-    "order_status_changed", "discount_code_redeemed", "email_engagement",
-    "no_activity", "date_based", "custom_webhook",
+    "lead_status_changed", "business_type_changed", "business_created",
+    "order_placed", "order_status_changed", "discount_code_redeemed",
+    "email_engagement", "no_activity", "date_based", "custom_webhook",
   ]);
   // Show new triggers + legacy triggers that don't overlap
   return TRIGGER_DEFINITIONS.filter((d) => newTriggerTypes.has(d.type));

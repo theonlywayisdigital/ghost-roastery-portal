@@ -6,6 +6,13 @@ const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
 
 export { type EmailBranding } from "@/lib/email-template";
 
+function getFromEmail(branding?: EmailBranding | null): string {
+  if (branding?.businessName) {
+    return `${branding.businessName} <noreply@ghostroastery.com>`;
+  }
+  return FROM_EMAIL;
+}
+
 export async function sendEmailConfirmation(
   email: string,
   contactName: string,
@@ -184,7 +191,7 @@ export async function sendWholesaleApproved(
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to: email,
     subject: `Wholesale account approved — ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -237,24 +244,20 @@ export async function sendWholesaleAccountSetup(
   branding?: EmailBranding | null
 ) {
   const body = `
-    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Set Up Your Account</h1>
-    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;ve Been Invited</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">${roasterName} Wholesale</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Thanks for applying for a wholesale account with <strong>${roasterName}</strong>. We&rsquo;ve created a portal account for you &mdash; click below to set your password and sign in.
+      You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>. Create your password to get started.
     </p>
 
-    ${emailButton({ href: setupUrl, label: "Set Your Password", branding })}
-
-    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Your application is now being reviewed. We&rsquo;ll notify you once it&rsquo;s been processed &mdash; usually within 1&ndash;2 business days.
-    </p>
+    ${emailButton({ href: setupUrl, label: "Create Password", branding })}
 
     <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
-      This link expires in 48 hours. If you didn&rsquo;t apply for a wholesale account, you can safely ignore this email.
+      This link expires in 48 hours. If you weren&rsquo;t expecting this, you can safely ignore this email.
     </p>
 
     <p style="color:#94a3b8;font-size:12px;margin-top:32px;word-break:break-all;text-align:left;">
@@ -263,9 +266,53 @@ export async function sendWholesaleAccountSetup(
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to: email,
-    subject: `Set up your account — ${roasterName}`,
+    subject: `Set up your account — ${roasterName} Wholesale`,
+    html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
+  });
+}
+
+export async function sendWholesaleWelcome(
+  email: string,
+  contactName: string,
+  roasterName: string,
+  paymentTerms: string,
+  wholesaleUrl: string,
+  branding?: EmailBranding | null
+) {
+  const termsLabels: Record<string, string> = {
+    prepay: "Prepay",
+    net7: "Net 7 days",
+    net14: "Net 14 days",
+    net30: "Net 30 days",
+  };
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Welcome to ${roasterName} Wholesale</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Wholesale Trade Account</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>. You can now log in to browse the catalogue and place orders.
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Payment Terms:</strong> ${termsLabels[paymentTerms] || paymentTerms}</p>
+    </div>
+
+    ${emailButton({ href: wholesaleUrl, label: "View Wholesale Catalogue", branding })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, reply to this email.
+    </p>`;
+
+  await resend.emails.send({
+    from: getFromEmail(branding),
+    to: email,
+    subject: `You've been added to ${roasterName}'s wholesale account`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }

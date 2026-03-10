@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import {
-  sendWholesaleApproved,
+  sendWholesaleWelcome,
   sendWholesaleAccountSetup,
+  type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
     // Get roaster details for emails
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, user_id, business_name, email")
+      .select("id, user_id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roasterId)
       .single();
 
@@ -277,6 +278,17 @@ export async function POST(request: Request) {
     // Send emails
     try {
       const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+      const wholesaleUrl = `${portalUrl}/wholesale`;
+
+      const branding: EmailBranding = {
+        logoUrl: roaster.brand_logo_url,
+        primaryColour: roaster.brand_primary_colour || undefined,
+        accentColour: roaster.brand_accent_colour || undefined,
+        headingFont: roaster.brand_heading_font || undefined,
+        bodyFont: roaster.brand_body_font || undefined,
+        businessName: roaster.business_name,
+        tagline: roaster.brand_tagline || undefined,
+      };
 
       if (isNewUser) {
         const token = crypto.randomBytes(32).toString("hex");
@@ -291,11 +303,11 @@ export async function POST(request: Request) {
         const setupUrl = `${portalUrl}/setup-password?token=${token}`;
 
         await Promise.all([
-          sendWholesaleApproved(email, name, roaster.business_name, "standard", terms),
-          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl),
+          sendWholesaleWelcome(email, name, roaster.business_name, terms, wholesaleUrl, branding),
+          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, branding),
         ]);
       } else {
-        await sendWholesaleApproved(email, name, roaster.business_name, "standard", terms);
+        await sendWholesaleWelcome(email, name, roaster.business_name, terms, wholesaleUrl, branding);
       }
     } catch (emailErr) {
       console.error("Failed to send emails:", emailErr);

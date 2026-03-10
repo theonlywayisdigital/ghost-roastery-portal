@@ -11,7 +11,8 @@ interface Product {
   unit: string;
   image_url: string | null;
   sort_order: number;
-  product_type: string;
+  is_retail: boolean;
+  is_wholesale: boolean;
   retail_price: number | null;
   is_purchasable: boolean;
   retail_stock_count: number | null;

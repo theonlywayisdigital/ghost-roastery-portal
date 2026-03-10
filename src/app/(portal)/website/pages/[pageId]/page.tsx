@@ -135,7 +135,7 @@ export default async function WebsitePageEditorRoute({
     .select("id, name, description, price, image_url, sort_order")
     .eq("roaster_id", user.roaster.id)
     .eq("is_active", true)
-    .in("product_type", ["retail", "both"])
+    .eq("is_retail", true)
     .order("sort_order", { ascending: true });
 
   const products = (productsData ?? []).map((p) => ({

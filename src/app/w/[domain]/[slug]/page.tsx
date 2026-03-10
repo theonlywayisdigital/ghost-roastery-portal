@@ -101,7 +101,7 @@ export default async function WebsitePage({ params }: PageProps) {
       .select("id, name, description, price, image_url, sort_order")
       .eq("roaster_id", roaster.id)
       .eq("is_active", true)
-      .in("product_type", ["retail", "both"])
+      .eq("is_retail", true)
       .order("sort_order", { ascending: true });
 
     products = (dbProducts ?? []).map((p) => ({

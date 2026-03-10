@@ -26,7 +26,6 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
-  product_type: string | null;
   is_retail?: boolean;
   is_wholesale?: boolean;
   product_variants: ProductVariant[] | null;
@@ -49,8 +48,8 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
   const filteredProducts = activeTab === "all"
     ? products
     : activeTab === "retail"
-      ? products.filter((p) => p.is_retail ?? (p.product_type === "retail" || p.product_type === "both"))
-      : products.filter((p) => p.is_wholesale ?? (p.product_type === "wholesale" || p.product_type === "both"));
+      ? products.filter((p) => p.is_retail)
+      : products.filter((p) => p.is_wholesale);
 
   function getPriceDisplay(product: Product): string {
     const variants = product.product_variants?.filter((v) => v.is_active) || [];

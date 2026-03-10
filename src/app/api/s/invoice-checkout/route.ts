@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("wholesale_products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, product_type, track_stock, retail_stock_count, unit, wholesale_price"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -177,10 +177,7 @@ export async function POST(request: Request) {
         );
       }
 
-      if (
-        product.product_type !== "wholesale" &&
-        product.product_type !== "both"
-      ) {
+      if (!product.is_wholesale) {
         return NextResponse.json(
           {
             error: `"${product.name}" is not available for wholesale purchase.`,

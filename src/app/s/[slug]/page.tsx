@@ -27,11 +27,11 @@ export default async function StorefrontPageRoute({
     .from("wholesale_products")
     .select(
       `id, name, description, price, unit, image_url, sort_order,
-       product_type, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
     )
     .eq("roaster_id", roaster.id)
     .eq("is_active", true)
-    .in("product_type", ["retail", "both"])
+    .eq("is_retail", true)
     .order("sort_order", { ascending: true });
 
   return <StorefrontPage products={(products as Product[]) || []} />;

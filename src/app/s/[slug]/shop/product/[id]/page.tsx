@@ -29,7 +29,7 @@ export default async function ProductDetailRoute({
     .from("wholesale_products")
     .select(
       `id, name, description, price, unit, image_url, sort_order,
-       product_type, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
     )
     .eq("id", id)
     .eq("roaster_id", roaster.id)
@@ -39,7 +39,7 @@ export default async function ProductDetailRoute({
   if (!product) notFound();
 
   // Block wholesale-only products unless viewer is an approved wholesale buyer
-  if (product.product_type === "wholesale") {
+  if (!product.is_retail && product.is_wholesale) {
     let isApprovedBuyer = false;
 
     try {
@@ -67,11 +67,11 @@ export default async function ProductDetailRoute({
     .from("wholesale_products")
     .select(
       `id, name, description, price, unit, image_url, sort_order,
-       product_type, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
     )
     .eq("roaster_id", roaster.id)
     .eq("is_active", true)
-    .in("product_type", ["retail", "both"])
+    .eq("is_retail", true)
     .neq("id", id)
     .order("sort_order", { ascending: true })
     .limit(4);

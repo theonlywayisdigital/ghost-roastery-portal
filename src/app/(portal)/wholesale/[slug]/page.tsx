@@ -50,11 +50,11 @@ export default async function WholesaleCataloguePage({
     .from("wholesale_products")
     .select(
       `id, name, description, image_url, unit, price, sort_order,
-       product_type, wholesale_price, minimum_wholesale_quantity, is_active`
+       wholesale_price, minimum_wholesale_quantity, is_active`
     )
     .eq("roaster_id", roaster.id)
     .eq("is_active", true)
-    .in("product_type", ["wholesale", "both"])
+    .eq("is_wholesale", true)
     .order("sort_order", { ascending: true });
 
   return (

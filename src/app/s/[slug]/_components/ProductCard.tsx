@@ -16,7 +16,7 @@ export function ProductCard({ product }: { product: Product }) {
   const canPurchase =
     retailEnabled &&
     product.is_purchasable &&
-    (product.product_type === "retail" || product.product_type === "both");
+    product.is_retail;
 
   const outOfStock =
     product.track_stock &&

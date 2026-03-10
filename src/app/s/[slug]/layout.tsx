@@ -49,7 +49,7 @@ export default async function StorefrontLayout({
        brand_heading_font, brand_body_font, brand_tagline, brand_hero_image_url, brand_about,
        brand_instagram, brand_facebook, brand_tiktok, storefront_type,
        minimum_wholesale_order, storefront_enabled, retail_enabled,
-       stripe_account_id`
+       stripe_account_id, storefront_logo_size`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)

@@ -16,6 +16,7 @@ export interface RoasterBranding {
   minimum_wholesale_order: number | null;
   retail_enabled: boolean;
   stripe_account_id: string | null;
+  storefront_logo_size: "small" | "medium" | "large" | null;
 }
 
 export interface Product {

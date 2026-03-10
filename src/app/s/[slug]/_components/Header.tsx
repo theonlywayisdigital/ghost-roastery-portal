@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useStorefront } from "./StorefrontProvider";
 import { useCart } from "./CartProvider";
@@ -26,6 +25,8 @@ export function Header() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
+
+  const logoSizePx = { small: 80, medium: 120, large: 160 }[roaster.storefront_logo_size || "medium"];
 
   if (embedded) return null;
 
@@ -87,12 +88,12 @@ export function Header() {
               className="flex items-center gap-2.5 md:mr-8"
             >
               {roaster.brand_logo_url && (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={roaster.brand_logo_url}
                   alt={roaster.business_name}
-                  width={36}
-                  height={36}
-                  className="object-contain w-auto"
+                  style={{ height: logoSizePx }}
+                  className="w-auto"
                 />
               )}
             </Link>

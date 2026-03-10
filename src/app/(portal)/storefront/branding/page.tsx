@@ -24,6 +24,7 @@ export default async function BrandingPage() {
     brand_instagram: (roaster.brand_instagram as string) || "",
     brand_facebook: (roaster.brand_facebook as string) || "",
     brand_tiktok: (roaster.brand_tiktok as string) || "",
+    storefront_logo_size: (roaster.storefront_logo_size as "small" | "medium" | "large") || "medium",
     business_name: roaster.business_name as string,
   };
 

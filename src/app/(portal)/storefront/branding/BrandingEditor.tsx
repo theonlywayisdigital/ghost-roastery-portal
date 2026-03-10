@@ -26,6 +26,7 @@ interface BrandingData {
   brand_instagram: string;
   brand_facebook: string;
   brand_tiktok: string;
+  storefront_logo_size: "small" | "medium" | "large";
   business_name: string;
 }
 
@@ -43,8 +44,8 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const bodyFamily = resolveFontFamily(branding.brand_body_font);
   const tagline = branding.brand_tagline;
 
-  // Logo size (local display preference only — not persisted)
-  const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">("medium");
+  // Logo size (persisted via API)
+  const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">(branding.storefront_logo_size);
   const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
 
   // Storefront-specific form state
@@ -107,6 +108,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           brand_instagram: instagram || null,
           brand_facebook: facebook || null,
           brand_tiktok: tiktok || null,
+          storefront_logo_size: logoSize,
           storefront_enabled: enabled,
         }),
       });
@@ -125,7 +127,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     } finally {
       setSaving(false);
     }
-  }, [heroImageUrl, about, instagram, facebook, tiktok, enabled, router]);
+  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, router]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
@@ -212,7 +214,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                 </div>
               )}
               <div className="flex items-center gap-2 mt-2">
-                <label className="text-[11px] text-slate-400">Preview size</label>
+                <label className="text-[11px] text-slate-400">Logo size</label>
                 <select
                   value={logoSize}
                   onChange={(e) => setLogoSize(e.target.value as "small" | "medium" | "large")}

@@ -28,6 +28,7 @@ export async function PUT(request: Request) {
   if ("minimum_wholesale_order" in body) updateData.minimum_wholesale_order = body.minimum_wholesale_order ?? 1;
   if ("storefront_seo_title" in body) updateData.storefront_seo_title = body.storefront_seo_title ?? null;
   if ("storefront_seo_description" in body) updateData.storefront_seo_description = body.storefront_seo_description ?? null;
+  if ("storefront_logo_size" in body) updateData.storefront_logo_size = body.storefront_logo_size || "medium";
   if ("storefront_enabled" in body) updateData.storefront_enabled = body.storefront_enabled ?? false;
 
   if (Object.keys(updateData).length === 0) {

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       account_deletion_requests: {
@@ -37,6 +62,33 @@ export type Database = {
           id?: string
           reason?: string | null
           status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      account_setup_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          token: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -382,6 +434,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "blog_posts_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      breakeven_calculations: {
+        Row: {
+          breakeven_revenue: number | null
+          breakeven_units: number | null
+          created_at: string
+          fixed_costs_monthly: number
+          id: string
+          name: string
+          notes: string | null
+          roaster_id: string
+          selling_price_per_unit: number
+          updated_at: string
+          variable_cost_per_unit: number
+        }
+        Insert: {
+          breakeven_revenue?: number | null
+          breakeven_units?: number | null
+          created_at?: string
+          fixed_costs_monthly: number
+          id?: string
+          name: string
+          notes?: string | null
+          roaster_id: string
+          selling_price_per_unit: number
+          updated_at?: string
+          variable_cost_per_unit: number
+        }
+        Update: {
+          breakeven_revenue?: number | null
+          breakeven_units?: number | null
+          created_at?: string
+          fixed_costs_monthly?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          roaster_id?: string
+          selling_price_per_unit?: number
+          updated_at?: string
+          variable_cost_per_unit?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "breakeven_calculations_roaster_id_fkey"
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
@@ -757,6 +859,68 @@ export type Database = {
           },
         ]
       }
+      certifications: {
+        Row: {
+          cert_name: string
+          cert_type: string | null
+          certificate_number: string | null
+          created_at: string
+          document_name: string | null
+          document_url: string | null
+          expiry_date: string | null
+          id: string
+          issue_date: string | null
+          issuing_body: string | null
+          notes: string | null
+          reminder_days: number
+          roaster_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cert_name: string
+          cert_type?: string | null
+          certificate_number?: string | null
+          created_at?: string
+          document_name?: string | null
+          document_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          issuing_body?: string | null
+          notes?: string | null
+          reminder_days?: number
+          roaster_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cert_name?: string
+          cert_type?: string | null
+          certificate_number?: string | null
+          created_at?: string
+          document_name?: string | null
+          document_url?: string | null
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          issuing_body?: string | null
+          notes?: string | null
+          reminder_days?: number
+          roaster_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certifications_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatbot_conversations: {
         Row: {
           created_at: string
@@ -998,38 +1162,292 @@ export type Database = {
           },
         ]
       }
+      cost_calculations: {
+        Row: {
+          bag_weight_grams: number
+          calculated_cost_per_unit: number | null
+          calculated_retail_price: number | null
+          calculated_wholesale_price: number | null
+          created_at: string
+          green_bean_id: string | null
+          green_cost_per_kg: number
+          id: string
+          is_template: boolean
+          label_cost_per_unit: number
+          labour_cost_per_hour: number
+          name: string
+          notes: string | null
+          overhead_per_unit: number
+          packaging_cost_per_unit: number
+          product_id: string | null
+          roast_loss_percent: number
+          roast_time_minutes: number
+          roaster_id: string
+          target_retail_margin_percent: number
+          target_wholesale_margin_percent: number
+          updated_at: string
+        }
+        Insert: {
+          bag_weight_grams?: number
+          calculated_cost_per_unit?: number | null
+          calculated_retail_price?: number | null
+          calculated_wholesale_price?: number | null
+          created_at?: string
+          green_bean_id?: string | null
+          green_cost_per_kg: number
+          id?: string
+          is_template?: boolean
+          label_cost_per_unit?: number
+          labour_cost_per_hour?: number
+          name: string
+          notes?: string | null
+          overhead_per_unit?: number
+          packaging_cost_per_unit?: number
+          product_id?: string | null
+          roast_loss_percent?: number
+          roast_time_minutes?: number
+          roaster_id: string
+          target_retail_margin_percent?: number
+          target_wholesale_margin_percent?: number
+          updated_at?: string
+        }
+        Update: {
+          bag_weight_grams?: number
+          calculated_cost_per_unit?: number | null
+          calculated_retail_price?: number | null
+          calculated_wholesale_price?: number | null
+          created_at?: string
+          green_bean_id?: string | null
+          green_cost_per_kg?: number
+          id?: string
+          is_template?: boolean
+          label_cost_per_unit?: number
+          labour_cost_per_hour?: number
+          name?: string
+          notes?: string | null
+          overhead_per_unit?: number
+          packaging_cost_per_unit?: number
+          product_id?: string | null
+          roast_loss_percent?: number
+          roast_time_minutes?: number
+          roaster_id?: string
+          target_retail_margin_percent?: number
+          target_wholesale_margin_percent?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_calculations_green_bean_id_fkey"
+            columns: ["green_bean_id"]
+            isOneToOne: false
+            referencedRelation: "green_beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_calculations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_calculations_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cupping_samples: {
+        Row: {
+          acidity: number | null
+          aftertaste: number | null
+          balance: number | null
+          body: number | null
+          clean_cup: number
+          created_at: string
+          defects_fault: number
+          defects_taint: number
+          flavour: number | null
+          flavour_tags: string[]
+          fragrance_aroma: number | null
+          green_bean_id: string | null
+          id: string
+          notes: string | null
+          overall: number | null
+          roast_log_id: string | null
+          roaster_id: string
+          sample_label: string | null
+          sample_number: number
+          session_id: string
+          sweetness: number
+          total_score: number | null
+          uniformity: number
+          updated_at: string
+        }
+        Insert: {
+          acidity?: number | null
+          aftertaste?: number | null
+          balance?: number | null
+          body?: number | null
+          clean_cup?: number
+          created_at?: string
+          defects_fault?: number
+          defects_taint?: number
+          flavour?: number | null
+          flavour_tags?: string[]
+          fragrance_aroma?: number | null
+          green_bean_id?: string | null
+          id?: string
+          notes?: string | null
+          overall?: number | null
+          roast_log_id?: string | null
+          roaster_id: string
+          sample_label?: string | null
+          sample_number: number
+          session_id: string
+          sweetness?: number
+          total_score?: number | null
+          uniformity?: number
+          updated_at?: string
+        }
+        Update: {
+          acidity?: number | null
+          aftertaste?: number | null
+          balance?: number | null
+          body?: number | null
+          clean_cup?: number
+          created_at?: string
+          defects_fault?: number
+          defects_taint?: number
+          flavour?: number | null
+          flavour_tags?: string[]
+          fragrance_aroma?: number | null
+          green_bean_id?: string | null
+          id?: string
+          notes?: string | null
+          overall?: number | null
+          roast_log_id?: string | null
+          roaster_id?: string
+          sample_label?: string | null
+          sample_number?: number
+          session_id?: string
+          sweetness?: number
+          total_score?: number | null
+          uniformity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cupping_samples_green_bean_id_fkey"
+            columns: ["green_bean_id"]
+            isOneToOne: false
+            referencedRelation: "green_beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupping_samples_roast_log_id_fkey"
+            columns: ["roast_log_id"]
+            isOneToOne: false
+            referencedRelation: "roast_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupping_samples_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cupping_samples_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cupping_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cupping_sessions: {
+        Row: {
+          created_at: string
+          cupper_name: string | null
+          id: string
+          notes: string | null
+          roaster_id: string
+          session_date: string
+          session_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cupper_name?: string | null
+          id?: string
+          notes?: string | null
+          roaster_id: string
+          session_date?: string
+          session_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cupper_name?: string | null
+          id?: string
+          notes?: string | null
+          roaster_id?: string
+          session_date?: string
+          session_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cupping_sessions_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_addresses: {
         Row: {
           city: string
+          country: string
           created_at: string
           id: string
           is_default: boolean | null
           label: string
           line1: string
           line2: string | null
-          postcode: string
+          name: string
+          postal_code: string
           user_id: string
         }
         Insert: {
           city: string
+          country?: string
           created_at?: string
           id?: string
           is_default?: boolean | null
           label: string
           line1: string
           line2?: string | null
-          postcode: string
+          name?: string
+          postal_code: string
           user_id: string
         }
         Update: {
           city?: string
+          country?: string
           created_at?: string
           id?: string
           is_default?: boolean | null
           label?: string
           line1?: string
           line2?: string | null
-          postcode?: string
+          name?: string
+          postal_code?: string
           user_id?: string
         }
         Relationships: [
@@ -1243,6 +1661,33 @@ export type Database = {
           },
         ]
       }
+      email_verification_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          token: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       form_submissions: {
         Row: {
           business_id: string | null
@@ -1427,6 +1872,160 @@ export type Database = {
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      green_bean_movements: {
+        Row: {
+          balance_after_kg: number
+          created_at: string
+          created_by: string | null
+          green_bean_id: string
+          id: string
+          movement_type: string
+          notes: string | null
+          quantity_kg: number
+          reference_id: string | null
+          reference_type: string | null
+          roaster_id: string
+          unit_cost: number | null
+        }
+        Insert: {
+          balance_after_kg: number
+          created_at?: string
+          created_by?: string | null
+          green_bean_id: string
+          id?: string
+          movement_type: string
+          notes?: string | null
+          quantity_kg: number
+          reference_id?: string | null
+          reference_type?: string | null
+          roaster_id: string
+          unit_cost?: number | null
+        }
+        Update: {
+          balance_after_kg?: number
+          created_at?: string
+          created_by?: string | null
+          green_bean_id?: string
+          id?: string
+          movement_type?: string
+          notes?: string | null
+          quantity_kg?: number
+          reference_id?: string | null
+          reference_type?: string | null
+          roaster_id?: string
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "green_bean_movements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "green_bean_movements_green_bean_id_fkey"
+            columns: ["green_bean_id"]
+            isOneToOne: false
+            referencedRelation: "green_beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "green_bean_movements_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      green_beans: {
+        Row: {
+          altitude_masl: number | null
+          arrival_date: string | null
+          cost_per_kg: number | null
+          created_at: string
+          cupping_score: number | null
+          current_stock_kg: number
+          harvest_year: string | null
+          id: string
+          is_active: boolean
+          lot_number: string | null
+          low_stock_threshold_kg: number | null
+          name: string
+          notes: string | null
+          origin_country: string | null
+          origin_region: string | null
+          process: string | null
+          roaster_id: string
+          supplier_id: string | null
+          tasting_notes: string | null
+          updated_at: string
+          variety: string | null
+        }
+        Insert: {
+          altitude_masl?: number | null
+          arrival_date?: string | null
+          cost_per_kg?: number | null
+          created_at?: string
+          cupping_score?: number | null
+          current_stock_kg?: number
+          harvest_year?: string | null
+          id?: string
+          is_active?: boolean
+          lot_number?: string | null
+          low_stock_threshold_kg?: number | null
+          name: string
+          notes?: string | null
+          origin_country?: string | null
+          origin_region?: string | null
+          process?: string | null
+          roaster_id: string
+          supplier_id?: string | null
+          tasting_notes?: string | null
+          updated_at?: string
+          variety?: string | null
+        }
+        Update: {
+          altitude_masl?: number | null
+          arrival_date?: string | null
+          cost_per_kg?: number | null
+          created_at?: string
+          cupping_score?: number | null
+          current_stock_kg?: number
+          harvest_year?: string | null
+          id?: string
+          is_active?: boolean
+          lot_number?: string | null
+          low_stock_threshold_kg?: number | null
+          name?: string
+          notes?: string | null
+          origin_country?: string | null
+          origin_region?: string | null
+          process?: string | null
+          roaster_id?: string
+          supplier_id?: string | null
+          tasting_notes?: string | null
+          updated_at?: string
+          variety?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "green_beans_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "green_beans_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -3219,6 +3818,171 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          compare_at_price: number | null
+          created_at: string | null
+          grind_type_id: string | null
+          id: string
+          is_active: boolean | null
+          product_id: string
+          retail_price: number | null
+          retail_stock_count: number | null
+          roaster_id: string
+          sku: string | null
+          sort_order: number | null
+          track_stock: boolean | null
+          unit: string | null
+          weight_grams: number | null
+          wholesale_price_preferred: number | null
+          wholesale_price_standard: number | null
+          wholesale_price_vip: number | null
+        }
+        Insert: {
+          compare_at_price?: number | null
+          created_at?: string | null
+          grind_type_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          product_id: string
+          retail_price?: number | null
+          retail_stock_count?: number | null
+          roaster_id: string
+          sku?: string | null
+          sort_order?: number | null
+          track_stock?: boolean | null
+          unit?: string | null
+          weight_grams?: number | null
+          wholesale_price_preferred?: number | null
+          wholesale_price_standard?: number | null
+          wholesale_price_vip?: number | null
+        }
+        Update: {
+          compare_at_price?: number | null
+          created_at?: string | null
+          grind_type_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          product_id?: string
+          retail_price?: number | null
+          retail_stock_count?: number | null
+          roaster_id?: string
+          sku?: string | null
+          sort_order?: number | null
+          track_stock?: boolean | null
+          unit?: string | null
+          weight_grams?: number | null
+          wholesale_price_preferred?: number | null
+          wholesale_price_standard?: number | null
+          wholesale_price_vip?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_grind_type_id_fkey"
+            columns: ["grind_type_id"]
+            isOneToOne: false
+            referencedRelation: "roaster_grind_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_plans: {
+        Row: {
+          created_at: string
+          expected_loss_percent: number
+          expected_roasted_kg: number | null
+          green_bean_id: string | null
+          green_bean_name: string | null
+          id: string
+          notes: string | null
+          planned_date: string
+          planned_weight_kg: number
+          priority: number
+          product_id: string | null
+          roast_log_id: string | null
+          roaster_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_loss_percent?: number
+          expected_roasted_kg?: number | null
+          green_bean_id?: string | null
+          green_bean_name?: string | null
+          id?: string
+          notes?: string | null
+          planned_date: string
+          planned_weight_kg: number
+          priority?: number
+          product_id?: string | null
+          roast_log_id?: string | null
+          roaster_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_loss_percent?: number
+          expected_roasted_kg?: number | null
+          green_bean_id?: string | null
+          green_bean_name?: string | null
+          id?: string
+          notes?: string | null
+          planned_date?: string
+          planned_weight_kg?: number
+          priority?: number
+          product_id?: string | null
+          roast_log_id?: string | null
+          roaster_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_plans_green_bean_id_fkey"
+            columns: ["green_bean_id"]
+            isOneToOne: false
+            referencedRelation: "green_beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_plans_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_plans_roast_log_id_fkey"
+            columns: ["roast_log_id"]
+            isOneToOne: false
+            referencedRelation: "roast_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_plans_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           associated_roaster_id: string | null
@@ -3329,6 +4093,118 @@ export type Database = {
           stripe_refund_id?: string | null
         }
         Relationships: []
+      }
+      roast_logs: {
+        Row: {
+          ambient_humidity_percent: number | null
+          ambient_temp_c: number | null
+          charge_temp_c: number | null
+          created_at: string
+          drop_temp_c: number | null
+          first_crack_temp_c: number | null
+          first_crack_time_seconds: number | null
+          green_bean_id: string | null
+          green_bean_name: string | null
+          green_weight_kg: number
+          id: string
+          notes: string | null
+          operator: string | null
+          product_id: string | null
+          quality_rating: number | null
+          roast_date: string
+          roast_level: string | null
+          roast_number: string | null
+          roast_time_seconds: number | null
+          roasted_weight_kg: number | null
+          roaster_id: string
+          roaster_machine: string | null
+          second_crack_temp_c: number | null
+          second_crack_time_seconds: number | null
+          status: string
+          updated_at: string
+          weight_loss_percent: number | null
+        }
+        Insert: {
+          ambient_humidity_percent?: number | null
+          ambient_temp_c?: number | null
+          charge_temp_c?: number | null
+          created_at?: string
+          drop_temp_c?: number | null
+          first_crack_temp_c?: number | null
+          first_crack_time_seconds?: number | null
+          green_bean_id?: string | null
+          green_bean_name?: string | null
+          green_weight_kg: number
+          id?: string
+          notes?: string | null
+          operator?: string | null
+          product_id?: string | null
+          quality_rating?: number | null
+          roast_date?: string
+          roast_level?: string | null
+          roast_number?: string | null
+          roast_time_seconds?: number | null
+          roasted_weight_kg?: number | null
+          roaster_id: string
+          roaster_machine?: string | null
+          second_crack_temp_c?: number | null
+          second_crack_time_seconds?: number | null
+          status?: string
+          updated_at?: string
+          weight_loss_percent?: number | null
+        }
+        Update: {
+          ambient_humidity_percent?: number | null
+          ambient_temp_c?: number | null
+          charge_temp_c?: number | null
+          created_at?: string
+          drop_temp_c?: number | null
+          first_crack_temp_c?: number | null
+          first_crack_time_seconds?: number | null
+          green_bean_id?: string | null
+          green_bean_name?: string | null
+          green_weight_kg?: number
+          id?: string
+          notes?: string | null
+          operator?: string | null
+          product_id?: string | null
+          quality_rating?: number | null
+          roast_date?: string
+          roast_level?: string | null
+          roast_number?: string | null
+          roast_time_seconds?: number | null
+          roasted_weight_kg?: number | null
+          roaster_id?: string
+          roaster_machine?: string | null
+          second_crack_temp_c?: number | null
+          second_crack_time_seconds?: number | null
+          status?: string
+          updated_at?: string
+          weight_loss_percent?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roast_logs_green_bean_id_fkey"
+            columns: ["green_bean_id"]
+            isOneToOne: false
+            referencedRelation: "green_beans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_logs_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       roast_profiles: {
         Row: {
@@ -3517,6 +4393,38 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "roaster_enquiries_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roaster_grind_types: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          roaster_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          roaster_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          roaster_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roaster_grind_types_roaster_id_fkey"
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
@@ -4002,6 +4910,68 @@ export type Database = {
           },
           {
             foreignKeyName: "subscription_events_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          contact_name: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          lead_time_days: number | null
+          min_order_kg: number | null
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          roaster_id: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number | null
+          min_order_kg?: number | null
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          roaster_id: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          contact_name?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          lead_time_days?: number | null
+          min_order_kg?: number | null
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          roaster_id?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_roaster_id_fkey"
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "partner_roasters"
@@ -4781,69 +5751,99 @@ export type Database = {
       }
       wholesale_products: {
         Row: {
+          brand: string | null
+          compare_at_price: number | null
           created_at: string | null
           description: string | null
+          google_product_category: string | null
+          gtin: string | null
           id: string
           image_url: string | null
           is_active: boolean | null
           is_purchasable: boolean | null
+          meta_description: string | null
           minimum_wholesale_quantity: number | null
           name: string
+          order_multiples: number | null
           price: number
           product_type: string
           retail_price: number | null
           retail_stock_count: number | null
           roaster_id: string
+          rrp: number | null
+          shipping_cost: number | null
           sku: string | null
           sort_order: number | null
+          subscription_frequency: string | null
           track_stock: boolean | null
           unit: string | null
+          vat_rate: number | null
           weight_grams: number | null
           wholesale_price_preferred: number | null
           wholesale_price_standard: number | null
           wholesale_price_vip: number | null
         }
         Insert: {
+          brand?: string | null
+          compare_at_price?: number | null
           created_at?: string | null
           description?: string | null
+          google_product_category?: string | null
+          gtin?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
           is_purchasable?: boolean | null
+          meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name: string
+          order_multiples?: number | null
           price: number
           product_type?: string
           retail_price?: number | null
           retail_stock_count?: number | null
           roaster_id: string
+          rrp?: number | null
+          shipping_cost?: number | null
           sku?: string | null
           sort_order?: number | null
+          subscription_frequency?: string | null
           track_stock?: boolean | null
           unit?: string | null
+          vat_rate?: number | null
           weight_grams?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
           wholesale_price_vip?: number | null
         }
         Update: {
+          brand?: string | null
+          compare_at_price?: number | null
           created_at?: string | null
           description?: string | null
+          google_product_category?: string | null
+          gtin?: string | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
           is_purchasable?: boolean | null
+          meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name?: string
+          order_multiples?: number | null
           price?: number
           product_type?: string
           retail_price?: number | null
           retail_stock_count?: number | null
           roaster_id?: string
+          rrp?: number | null
+          shipping_cost?: number | null
           sku?: string | null
           sort_order?: number | null
+          subscription_frequency?: string | null
           track_stock?: boolean | null
           unit?: string | null
+          vat_rate?: number | null
           weight_grams?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
@@ -5082,6 +6082,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

@@ -138,6 +138,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
           product_id: id,
           roaster_id: roaster.id,
           weight_grams: v.weight_grams != null ? parseInt(v.weight_grams) : null,
+          unit: v.unit ? String(v.unit) : null,
           grind_type_id: v.grind_type_id || null,
           sku: v.sku || null,
           retail_price: v.retail_price != null ? parseFloat(v.retail_price) : null,

@@ -59,6 +59,7 @@ interface GrindType {
 interface Variant {
   id?: string;
   weight_grams: number | null;
+  unit: string | null;
   grind_type_id: string | null;
   grind_type?: { id: string; name: string } | null;
   sku: string | null;
@@ -119,6 +120,7 @@ const SUBSCRIPTION_OPTIONS = [
 function emptyVariant(sortOrder: number): Variant {
   return {
     weight_grams: null,
+    unit: null,
     grind_type_id: null,
     sku: null,
     retail_price: null,
@@ -399,6 +401,7 @@ export function ProductForm({ product }: { product?: Product }) {
       body.variants = variants.map((v) => ({
         id: v.id || undefined,
         weight_grams: v.weight_grams,
+        unit: v.unit,
         grind_type_id: v.grind_type_id,
         sku: v.sku,
         retail_price: v.retail_price,
@@ -614,7 +617,7 @@ export function ProductForm({ product }: { product?: Product }) {
               </div>
 
               {/* SKU & Unit */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className={`grid ${variantsEnabled ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
                 <div>
                   <label className={labelClassName}>
                     SKU{" "}
@@ -628,16 +631,18 @@ export function ProductForm({ product }: { product?: Product }) {
                     className={inputClassName}
                   />
                 </div>
-                <div>
-                  <label className={labelClassName}>Unit</label>
-                  <input
-                    type="text"
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                    placeholder="250g"
-                    className={inputClassName}
-                  />
-                </div>
+                {!variantsEnabled && (
+                  <div>
+                    <label className={labelClassName}>Unit</label>
+                    <input
+                      type="text"
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                      placeholder="250g"
+                      className={inputClassName}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Weight & VAT */}
@@ -793,7 +798,7 @@ export function ProductForm({ product }: { product?: Product }) {
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                           <div className="text-sm">
                             <span className="font-medium text-slate-900">
-                              {v.weight_grams ? `${v.weight_grams}g` : "—"}
+                              {v.unit || (v.weight_grams ? `${v.weight_grams}g` : "—")}
                             </span>
                             <span className="text-slate-400 mx-2">·</span>
                             <span className="text-slate-600">
@@ -857,7 +862,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       {editingVariantIndex !== null ? "Edit Variant" : "Add Variant"}
                     </h4>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       {/* Weight */}
                       <div>
                         <label className={labelClassName}>Weight (grams)</label>
@@ -874,6 +879,26 @@ export function ProductForm({ product }: { product?: Product }) {
                           placeholder="250"
                           className={inputClassName}
                         />
+                      </div>
+
+                      {/* Unit label */}
+                      <div>
+                        <label className={labelClassName}>Unit Label</label>
+                        <input
+                          type="text"
+                          value={editingVariant.unit || ""}
+                          onChange={(e) =>
+                            setEditingVariant({
+                              ...editingVariant,
+                              unit: e.target.value || null,
+                            })
+                          }
+                          placeholder="e.g. 250g, 500g, 1kg"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Shown to customers as the variant size.
+                        </p>
                       </div>
 
                       {/* Grind Type */}

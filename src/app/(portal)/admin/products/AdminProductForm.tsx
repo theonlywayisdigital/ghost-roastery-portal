@@ -15,11 +15,10 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
-  product_type: "retail" | "wholesale" | "both";
+  is_retail: boolean;
+  is_wholesale: boolean;
   retail_price: number | null;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
+  wholesale_price: number | null;
   minimum_wholesale_quantity: number | null;
   sku: string | null;
   weight_grams: number | null;
@@ -69,18 +68,11 @@ export function AdminProductForm({ product }: { product?: Product }) {
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [sortOrder, setSortOrder] = useState(product?.sort_order?.toString() || "0");
 
-  const [productType, setProductType] = useState<"retail" | "wholesale" | "both">(
-    product?.product_type || "retail"
-  );
+  const [isRetail, setIsRetail] = useState(product?.is_retail ?? true);
+  const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? false);
   const [retailPrice, setRetailPrice] = useState(product?.retail_price?.toString() || "");
-  const [wholesalePriceStandard, setWholesalePriceStandard] = useState(
-    product?.wholesale_price_standard?.toString() || ""
-  );
-  const [wholesalePricePreferred, setWholesalePricePreferred] = useState(
-    product?.wholesale_price_preferred?.toString() || ""
-  );
-  const [wholesalePriceVip, setWholesalePriceVip] = useState(
-    product?.wholesale_price_vip?.toString() || ""
+  const [wholesalePrice, setWholesalePrice] = useState(
+    product?.wholesale_price?.toString() || ""
   );
   const [minWholesaleQty, setMinWholesaleQty] = useState(
     product?.minimum_wholesale_quantity?.toString() || "1"
@@ -98,8 +90,8 @@ export function AdminProductForm({ product }: { product?: Product }) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const showRetail = productType === "retail" || productType === "both";
-  const showWholesale = productType === "wholesale" || productType === "both";
+  const showRetail = isRetail;
+  const showWholesale = isWholesale;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const rawFile = e.target.files?.[0];
@@ -148,11 +140,10 @@ export function AdminProductForm({ product }: { product?: Product }) {
       image_url: imageUrl || null,
       is_active: isActive,
       sort_order: parseInt(sortOrder) || 0,
-      product_type: productType,
+      is_retail: isRetail,
+      is_wholesale: isWholesale,
       retail_price: showRetail && retailPrice ? parseFloat(retailPrice) : null,
-      wholesale_price_standard: showWholesale && wholesalePriceStandard ? parseFloat(wholesalePriceStandard) : null,
-      wholesale_price_preferred: showWholesale && wholesalePricePreferred ? parseFloat(wholesalePricePreferred) : null,
-      wholesale_price_vip: showWholesale && wholesalePriceVip ? parseFloat(wholesalePriceVip) : null,
+      wholesale_price: showWholesale && wholesalePrice ? parseFloat(wholesalePrice) : null,
       minimum_wholesale_quantity: showWholesale ? parseInt(minWholesaleQty) || 1 : 1,
       sku: sku || null,
       weight_grams: weightGrams ? parseInt(weightGrams) : null,
@@ -234,30 +225,20 @@ export function AdminProductForm({ product }: { product?: Product }) {
             />
           </div>
 
-          {/* Product Type */}
+          {/* Channels */}
           <div>
-            <label className={labelClassName}>Product Type</label>
+            <label className={labelClassName}>Channels</label>
             <div className="flex gap-4">
-              {(["retail", "wholesale", "both"] as const).map((type) => (
-                <label
-                  key={type}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    productType === type
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : "border-slate-300 text-slate-600 hover:border-slate-400"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="product_type"
-                    value={type}
-                    checked={productType === type}
-                    onChange={() => setProductType(type)}
-                    className="sr-only"
-                  />
-                  <span className="text-sm font-medium capitalize">{type}</span>
-                </label>
-              ))}
+              <Toggle
+                enabled={isRetail}
+                onToggle={() => setIsRetail(!isRetail)}
+                label="Retail"
+              />
+              <Toggle
+                enabled={isWholesale}
+                onToggle={() => setIsWholesale(!isWholesale)}
+                label="Wholesale"
+              />
             </div>
           </div>
 
@@ -308,58 +289,34 @@ export function AdminProductForm({ product }: { product?: Product }) {
             </div>
           </div>
 
-          {/* Wholesale Pricing Tiers */}
+          {/* Wholesale Pricing */}
           {showWholesale && (
             <div className="border border-slate-200 rounded-lg p-4 space-y-4">
               <h3 className="text-sm font-semibold text-slate-800">Wholesale Pricing</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClassName}>Standard (£)</label>
+                  <label className={labelClassName}>Wholesale Price (£)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    value={wholesalePriceStandard}
-                    onChange={(e) => setWholesalePriceStandard(e.target.value)}
+                    value={wholesalePrice}
+                    onChange={(e) => setWholesalePrice(e.target.value)}
                     placeholder="6.00"
                     className={inputClassName}
                   />
                 </div>
                 <div>
-                  <label className={labelClassName}>Preferred (£)</label>
+                  <label className={labelClassName}>Minimum Wholesale Quantity</label>
                   <input
                     type="number"
-                    step="0.01"
-                    min="0"
-                    value={wholesalePricePreferred}
-                    onChange={(e) => setWholesalePricePreferred(e.target.value)}
-                    placeholder="5.50"
-                    className={inputClassName}
+                    min="1"
+                    value={minWholesaleQty}
+                    onChange={(e) => setMinWholesaleQty(e.target.value)}
+                    placeholder="1"
+                    className={`${inputClassName} max-w-[120px]`}
                   />
                 </div>
-                <div>
-                  <label className={labelClassName}>VIP (£)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={wholesalePriceVip}
-                    onChange={(e) => setWholesalePriceVip(e.target.value)}
-                    placeholder="5.00"
-                    className={inputClassName}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={labelClassName}>Minimum Wholesale Quantity</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={minWholesaleQty}
-                  onChange={(e) => setMinWholesaleQty(e.target.value)}
-                  placeholder="1"
-                  className={`${inputClassName} max-w-[120px]`}
-                />
               </div>
             </div>
           )}

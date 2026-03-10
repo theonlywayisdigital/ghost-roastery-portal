@@ -11,7 +11,8 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Loader2, List, LayoutGrid, Plus, X, Building2, User } from "@/components/icons";
+import Link from "next/link";
+import { Loader2, List, LayoutGrid, Plus, X, Building2, User, Settings } from "@/components/icons";
 import { PipelineColumn } from "./PipelineColumn";
 import { PipelineCard, type PipelineItem } from "./PipelineCard";
 import { PipelineList } from "./PipelineList";
@@ -268,6 +269,13 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           {total} {total === 1 ? "lead" : "leads"} in pipeline
         </p>
         <div className="flex items-center gap-3">
+          <Link
+            href="/settings/pipeline-stages"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Manage Stages
+          </Link>
           <button
             onClick={() => {
               resetDealForm();

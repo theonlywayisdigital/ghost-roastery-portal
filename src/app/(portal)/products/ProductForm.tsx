@@ -7,11 +7,6 @@ import {
   ArrowLeft,
   X,
   ImageIcon,
-  Plus,
-  Pencil,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
 } from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
@@ -117,11 +112,26 @@ const SUBSCRIPTION_OPTIONS = [
   { value: "quarterly", label: "Quarterly" },
 ];
 
-function emptyVariant(sortOrder: number): Variant {
+interface WeightOption {
+  weight_grams: number;
+  unit: string;
+}
+
+interface MatrixCell {
+  id?: string;
+  sku: string | null;
+  retail_price: number | null;
+  compare_at_price: number | null;
+  wholesale_price_standard: number | null;
+  wholesale_price_preferred: number | null;
+  wholesale_price_vip: number | null;
+  retail_stock_count: number | null;
+  track_stock: boolean;
+  is_active: boolean;
+}
+
+function emptyCell(): MatrixCell {
   return {
-    weight_grams: null,
-    unit: null,
-    grind_type_id: null,
     sku: null,
     retail_price: null,
     compare_at_price: null,
@@ -131,8 +141,11 @@ function emptyVariant(sortOrder: number): Variant {
     retail_stock_count: null,
     track_stock: false,
     is_active: true,
-    sort_order: sortOrder,
   };
+}
+
+function cellKey(weightGrams: number, grindTypeId: string): string {
+  return `${weightGrams}:${grindTypeId}`;
 }
 
 const inputClassName =
@@ -200,13 +213,17 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
-  // Variant state
+  // Variant state — matrix model
   const [variantsEnabled, setVariantsEnabled] = useState(false);
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
-  const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
-  const [confirmDeleteVariant, setConfirmDeleteVariant] = useState<number | null>(null);
-  const [pricingOverrideOpen, setPricingOverrideOpen] = useState(false);
+  const [weightOptions, setWeightOptions] = useState<WeightOption[]>([]);
+  const [selectedGrindTypeIds, setSelectedGrindTypeIds] = useState<Set<string>>(new Set());
+  const [matrixCells, setMatrixCells] = useState<Record<string, MatrixCell>>({});
+  const [expandedCell, setExpandedCell] = useState<string | null>(null);
+  const [expandedSkuCell, setExpandedSkuCell] = useState<string | null>(null);
+
+  // Weight add form
+  const [newWeightGrams, setNewWeightGrams] = useState("");
+  const [newWeightUnit, setNewWeightUnit] = useState("");
 
   // Grind types
   const [grindTypes, setGrindTypes] = useState<GrindType[]>([]);
@@ -237,7 +254,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setGrindTypesLoading(false);
   }, []);
 
-  // Fetch existing variants when editing
+  // Fetch existing variants when editing — reconstruct matrix
   useEffect(() => {
     loadGrindTypes();
 
@@ -246,8 +263,48 @@ export function ProductForm({ product }: { product?: Product }) {
         .then((res) => res.json())
         .then((data) => {
           if (data.variants && data.variants.length > 0) {
-            setVariants(data.variants);
+            const variants: Variant[] = data.variants;
             setVariantsEnabled(true);
+
+            // Extract unique weight options
+            const weightMap = new Map<number, string>();
+            for (const v of variants) {
+              if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
+                weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+              }
+            }
+            const weights: WeightOption[] = Array.from(weightMap.entries()).map(
+              ([wg, u]) => ({ weight_grams: wg, unit: u })
+            );
+            setWeightOptions(weights);
+
+            // Extract unique grind type ids
+            const gtIds = new Set<string>();
+            for (const v of variants) {
+              if (v.grind_type_id) gtIds.add(v.grind_type_id);
+            }
+            setSelectedGrindTypeIds(gtIds);
+
+            // Populate matrix cells
+            const cells: Record<string, MatrixCell> = {};
+            for (const v of variants) {
+              if (v.weight_grams != null && v.grind_type_id) {
+                const key = cellKey(v.weight_grams, v.grind_type_id);
+                cells[key] = {
+                  id: v.id,
+                  sku: v.sku,
+                  retail_price: v.retail_price,
+                  compare_at_price: v.compare_at_price,
+                  wholesale_price_standard: v.wholesale_price_standard,
+                  wholesale_price_preferred: v.wholesale_price_preferred,
+                  wholesale_price_vip: v.wholesale_price_vip,
+                  retail_stock_count: v.retail_stock_count,
+                  track_stock: v.track_stock,
+                  is_active: v.is_active,
+                };
+              }
+            }
+            setMatrixCells(cells);
           }
         })
         .catch(() => {
@@ -270,10 +327,8 @@ export function ProductForm({ product }: { product?: Product }) {
         setGrindTypes((prev) => [...prev, data.grindType]);
         setNewGrindTypeName("");
         setShowInlineGrindAdd(false);
-        // Auto-select it in editing variant
-        if (editingVariant) {
-          setEditingVariant({ ...editingVariant, grind_type_id: data.grindType.id });
-        }
+        // Auto-select newly created grind type
+        setSelectedGrindTypeIds((prev) => new Set([...Array.from(prev), data.grindType.id]));
       }
     } catch {
       // Silently fail
@@ -281,48 +336,47 @@ export function ProductForm({ product }: { product?: Product }) {
     setAddingGrindType(false);
   }
 
-  function handleStartAddVariant() {
-    setEditingVariant(emptyVariant(variants.length));
-    setEditingVariantIndex(null);
-    setPricingOverrideOpen(false);
+  function handleAddWeight() {
+    const grams = parseInt(newWeightGrams);
+    if (!grams || grams <= 0) return;
+    const unitLabel = newWeightUnit.trim() || `${grams}g`;
+    // Prevent duplicate weight_grams
+    if (weightOptions.some((w) => w.weight_grams === grams)) return;
+    setWeightOptions((prev) => [...prev, { weight_grams: grams, unit: unitLabel }]);
+    setNewWeightGrams("");
+    setNewWeightUnit("");
   }
 
-  function handleStartEditVariant(index: number) {
-    setEditingVariant({ ...variants[index] });
-    setEditingVariantIndex(index);
-    // Open pricing section if any pricing values are set
-    const v = variants[index];
-    const hasPricing = v.retail_price != null || v.compare_at_price != null ||
-      v.wholesale_price_standard != null || v.wholesale_price_preferred != null ||
-      v.wholesale_price_vip != null || v.track_stock;
-    setPricingOverrideOpen(hasPricing);
+  function handleRemoveWeight(grams: number) {
+    setWeightOptions((prev) => prev.filter((w) => w.weight_grams !== grams));
   }
 
-  function handleSaveVariant() {
-    if (!editingVariant) return;
-    if (editingVariantIndex !== null) {
-      // Update existing
-      setVariants((prev) => prev.map((v, i) => (i === editingVariantIndex ? editingVariant : v)));
-    } else {
-      // Add new
-      setVariants((prev) => [...prev, editingVariant]);
-    }
-    setEditingVariant(null);
-    setEditingVariantIndex(null);
+  function handleToggleGrindType(gtId: string) {
+    setSelectedGrindTypeIds((prev) => {
+      const next = new Set(Array.from(prev));
+      if (next.has(gtId)) {
+        next.delete(gtId);
+      } else {
+        next.add(gtId);
+      }
+      return next;
+    });
   }
 
-  function handleDeleteVariant(index: number) {
-    setVariants((prev) => prev.filter((_, i) => i !== index));
-    setConfirmDeleteVariant(null);
+  function getCell(key: string): MatrixCell {
+    return matrixCells[key] || emptyCell();
   }
 
-  function getGrindTypeName(grindTypeId: string | null, variant?: Variant): string {
-    if (!grindTypeId) return "—";
-    // Check embedded grind_type first (from API response)
-    if (variant?.grind_type?.name) return variant.grind_type.name;
-    const gt = grindTypes.find((g) => g.id === grindTypeId);
-    return gt?.name || "—";
+  function updateCell(key: string, updates: Partial<MatrixCell>) {
+    setMatrixCells((prev) => ({
+      ...prev,
+      [key]: { ...getCell(key), ...updates },
+    }));
   }
+
+  // Get selected grind types in their original sort order
+  const selectedGrindTypes = grindTypes.filter((gt) => selectedGrindTypeIds.has(gt.id));
+  const showMatrix = weightOptions.length > 0 && selectedGrindTypes.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const rawFile = e.target.files?.[0];
@@ -396,24 +450,32 @@ export function ProductForm({ product }: { product?: Product }) {
       subscription_frequency: showRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
     };
 
-    // Include variants when enabled
-    if (variantsEnabled) {
-      body.variants = variants.map((v) => ({
-        id: v.id || undefined,
-        weight_grams: v.weight_grams,
-        unit: v.unit,
-        grind_type_id: v.grind_type_id,
-        sku: v.sku,
-        retail_price: v.retail_price,
-        compare_at_price: v.compare_at_price,
-        wholesale_price_standard: v.wholesale_price_standard,
-        wholesale_price_preferred: v.wholesale_price_preferred,
-        wholesale_price_vip: v.wholesale_price_vip,
-        retail_stock_count: v.retail_stock_count,
-        track_stock: v.track_stock,
-        is_active: v.is_active,
-        sort_order: v.sort_order,
-      }));
+    // Convert matrix to flat variants array
+    if (variantsEnabled && showMatrix) {
+      const flatVariants: Record<string, unknown>[] = [];
+      weightOptions.forEach((w, rowIdx) => {
+        selectedGrindTypes.forEach((gt, colIdx) => {
+          const key = cellKey(w.weight_grams, gt.id);
+          const cell = getCell(key);
+          flatVariants.push({
+            id: cell.id || undefined,
+            weight_grams: w.weight_grams,
+            unit: w.unit,
+            grind_type_id: gt.id,
+            sku: cell.sku,
+            retail_price: cell.retail_price,
+            compare_at_price: cell.compare_at_price,
+            wholesale_price_standard: cell.wholesale_price_standard,
+            wholesale_price_preferred: cell.wholesale_price_preferred,
+            wholesale_price_vip: cell.wholesale_price_vip,
+            retail_stock_count: cell.retail_stock_count,
+            track_stock: cell.track_stock,
+            is_active: cell.is_active,
+            sort_order: rowIdx * 100 + colIdx,
+          });
+        });
+      });
+      body.variants = flatVariants;
     } else if (isEditing) {
       // When variants are disabled on edit, send empty array to delete all
       body.variants = [];
@@ -739,201 +801,107 @@ export function ProductForm({ product }: { product?: Product }) {
               <h3 className="text-sm font-semibold text-slate-800">Variants</h3>
               <Toggle
                 enabled={variantsEnabled}
-                onToggle={() => {
-                  setVariantsEnabled(!variantsEnabled);
-                  if (!variantsEnabled) {
-                    setEditingVariant(null);
-                    setEditingVariantIndex(null);
-                  }
-                }}
+                onToggle={() => setVariantsEnabled(!variantsEnabled)}
                 label={variantsEnabled ? "Enabled" : "Disabled"}
               />
             </div>
             {variantsEnabled && (
-              <div className={sectionClassName}>
-                {/* Grind types notice / inline add */}
-                {!grindTypesLoading && grindTypes.length === 0 && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-800">
-                      No grind types set up. You can add them in{" "}
-                      <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
-                        Settings → Grind Types
-                      </Link>
-                      , or add one below.
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <input
-                        type="text"
-                        value={newGrindTypeName}
-                        onChange={(e) => setNewGrindTypeName(e.target.value)}
-                        placeholder="e.g. Whole Bean"
-                        className={`${inputClassName} max-w-[200px]`}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddGrindType();
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddGrindType}
-                        disabled={addingGrindType || !newGrindTypeName.trim()}
-                        className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                      >
-                        {addingGrindType ? "Adding..." : "Add"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Variant list */}
-                {variants.length > 0 && (
-                  <div className="space-y-2">
-                    {variants.map((v, index) => (
-                      <div
-                        key={v.id || index}
-                        className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white"
-                      >
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                          <div className="text-sm">
-                            <span className="font-medium text-slate-900">
-                              {v.unit || (v.weight_grams ? `${v.weight_grams}g` : "—")}
-                            </span>
-                            <span className="text-slate-400 mx-2">·</span>
-                            <span className="text-slate-600">
-                              {getGrindTypeName(v.grind_type_id, v)}
-                            </span>
-                            {v.sku && (
-                              <>
-                                <span className="text-slate-400 mx-2">·</span>
-                                <span className="text-slate-400">{v.sku}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${v.is_active ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"}`}>
-                            {v.is_active ? "Active" : "Inactive"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEditVariant(index)}
-                            className="p-1.5 text-slate-400 hover:text-slate-600"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          {confirmDeleteVariant === index ? (
-                            <div className="flex items-center gap-1">
+              <div className="space-y-5">
+                {/* ── Step 1: Define Options ── */}
+                <div className={sectionClassName}>
+                  <h4 className="text-sm font-semibold text-slate-800">Define Options</h4>
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Panel 1 — Weights */}
+                    <div className="space-y-3">
+                      <label className={labelClassName}>Weight options</label>
+                      {weightOptions.length > 0 && (
+                        <div className="space-y-1.5">
+                          {weightOptions.map((w) => (
+                            <div
+                              key={w.weight_grams}
+                              className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                            >
+                              <span className="text-sm text-slate-900">
+                                {w.unit}
+                                {w.unit !== `${w.weight_grams}g` && (
+                                  <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
+                                )}
+                              </span>
                               <button
                                 type="button"
-                                onClick={() => handleDeleteVariant(index)}
-                                className="px-2 py-1 text-xs bg-red-600 text-white rounded font-medium hover:bg-red-700"
+                                onClick={() => handleRemoveWeight(w.weight_grams)}
+                                className="p-0.5 text-slate-400 hover:text-red-500"
                               >
-                                Confirm
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDeleteVariant(null)}
-                                className="px-2 py-1 text-xs text-slate-500 hover:text-slate-700"
-                              >
-                                Cancel
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDeleteVariant(index)}
-                              className="p-1.5 text-slate-400 hover:text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add/Edit variant inline form */}
-                {editingVariant ? (
-                  <div className="border border-brand-200 bg-brand-50/30 rounded-lg p-4 space-y-4">
-                    <h4 className="text-sm font-semibold text-slate-800">
-                      {editingVariantIndex !== null ? "Edit Variant" : "Add Variant"}
-                    </h4>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      {/* Weight */}
-                      <div>
-                        <label className={labelClassName}>Weight (grams)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={editingVariant.weight_grams ?? ""}
-                          onChange={(e) =>
-                            setEditingVariant({
-                              ...editingVariant,
-                              weight_grams: e.target.value ? parseInt(e.target.value) : null,
-                            })
-                          }
-                          placeholder="250"
-                          className={inputClassName}
-                        />
-                      </div>
-
-                      {/* Unit label */}
-                      <div>
-                        <label className={labelClassName}>Unit Label</label>
-                        <input
-                          type="text"
-                          value={editingVariant.unit || ""}
-                          onChange={(e) =>
-                            setEditingVariant({
-                              ...editingVariant,
-                              unit: e.target.value || null,
-                            })
-                          }
-                          placeholder="e.g. 250g, 500g, 1kg"
-                          className={inputClassName}
-                        />
-                        <p className="text-xs text-slate-400 mt-1">
-                          Shown to customers as the variant size.
-                        </p>
-                      </div>
-
-                      {/* Grind Type */}
-                      <div>
-                        <label className={labelClassName}>Grind Type</label>
-                        <select
-                          value={editingVariant.grind_type_id || ""}
-                          onChange={(e) => {
-                            if (e.target.value === "__add_new__") {
-                              setShowInlineGrindAdd(true);
-                              return;
-                            }
-                            setEditingVariant({
-                              ...editingVariant,
-                              grind_type_id: e.target.value || null,
-                            });
-                          }}
-                          className={inputClassName}
-                        >
-                          <option value="">None</option>
-                          {grindTypes.map((gt) => (
-                            <option key={gt.id} value={gt.id}>
-                              {gt.name}
-                            </option>
                           ))}
-                          <option value="__add_new__">+ Add new grind type</option>
-                        </select>
-                        {showInlineGrindAdd && (
+                        </div>
+                      )}
+                      <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                          <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={newWeightGrams}
+                            onChange={(e) => setNewWeightGrams(e.target.value)}
+                            placeholder="250"
+                            className={inputClassName}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddWeight();
+                              }
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs text-slate-500 mb-1">Unit label</label>
+                          <input
+                            type="text"
+                            value={newWeightUnit}
+                            onChange={(e) => setNewWeightUnit(e.target.value)}
+                            placeholder="e.g. 250g, 1kg"
+                            className={inputClassName}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddWeight();
+                              }
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddWeight}
+                          disabled={!newWeightGrams || parseInt(newWeightGrams) <= 0}
+                          className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Panel 2 — Grind Types */}
+                    <div className="space-y-3">
+                      <label className={labelClassName}>Grind type options</label>
+                      {!grindTypesLoading && grindTypes.length === 0 ? (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-sm text-amber-800">
+                            No grind types set up. You can add them in{" "}
+                            <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
+                              Settings
+                            </Link>
+                            , or add one below.
+                          </p>
                           <div className="flex items-center gap-2 mt-2">
                             <input
                               type="text"
                               value={newGrindTypeName}
                               onChange={(e) => setNewGrindTypeName(e.target.value)}
-                              placeholder="e.g. Espresso"
-                              className={`${inputClassName} max-w-[180px]`}
+                              placeholder="e.g. Whole Bean"
+                              className={`${inputClassName} max-w-[200px]`}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
@@ -947,228 +915,345 @@ export function ProductForm({ product }: { product?: Product }) {
                               disabled={addingGrindType || !newGrindTypeName.trim()}
                               className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
                             >
-                              {addingGrindType ? "..." : "Add"}
+                              {addingGrindType ? "Adding..." : "Add"}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowInlineGrindAdd(false);
-                                setNewGrindTypeName("");
-                              }}
-                              className="text-slate-400 hover:text-slate-600"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* SKU */}
-                    <div>
-                      <label className={labelClassName}>
-                        SKU{" "}
-                        <span className="text-slate-400 font-normal">(optional)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={editingVariant.sku || ""}
-                        onChange={(e) =>
-                          setEditingVariant({ ...editingVariant, sku: e.target.value || null })
-                        }
-                        placeholder="GR-ETH-250-WB"
-                        className={`${inputClassName} max-w-[240px]`}
-                      />
-                    </div>
-
-                    {/* Active toggle */}
-                    <Toggle
-                      enabled={editingVariant.is_active}
-                      onToggle={() =>
-                        setEditingVariant({ ...editingVariant, is_active: !editingVariant.is_active })
-                      }
-                      label={editingVariant.is_active ? "Active" : "Inactive"}
-                    />
-
-                    {/* Pricing overrides — collapsible */}
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setPricingOverrideOpen(!pricingOverrideOpen)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <span>Override pricing for this variant</span>
-                        {pricingOverrideOpen ? (
-                          <ChevronUp className="w-4 h-4 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-slate-400" />
-                        )}
-                      </button>
-                      {pricingOverrideOpen && (
-                        <div className="px-4 pb-4 space-y-4 border-t border-slate-200 pt-4">
-                          {/* Retail pricing overrides */}
-                          {showRetail && (
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className={labelClassName}>Retail Price (£)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editingVariant.retail_price ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      retail_price: e.target.value ? parseFloat(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="Override"
-                                  className={inputClassName}
-                                />
-                              </div>
-                              <div>
-                                <label className={labelClassName}>Compare-at Price (£)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editingVariant.compare_at_price ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      compare_at_price: e.target.value ? parseFloat(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="Override"
-                                  className={inputClassName}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Wholesale pricing overrides */}
-                          {showWholesale && (
-                            <div className="grid grid-cols-3 gap-4">
-                              <div>
-                                <label className={labelClassName}>Standard (£)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editingVariant.wholesale_price_standard ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      wholesale_price_standard: e.target.value ? parseFloat(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="Override"
-                                  className={inputClassName}
-                                />
-                              </div>
-                              <div>
-                                <label className={labelClassName}>Preferred (£)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editingVariant.wholesale_price_preferred ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      wholesale_price_preferred: e.target.value ? parseFloat(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="Override"
-                                  className={inputClassName}
-                                />
-                              </div>
-                              <div>
-                                <label className={labelClassName}>VIP (£)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={editingVariant.wholesale_price_vip ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      wholesale_price_vip: e.target.value ? parseFloat(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="Override"
-                                  className={inputClassName}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Stock tracking override */}
-                          <div className="space-y-3">
-                            <Toggle
-                              enabled={editingVariant.track_stock}
-                              onToggle={() =>
-                                setEditingVariant({
-                                  ...editingVariant,
-                                  track_stock: !editingVariant.track_stock,
-                                })
-                              }
-                              label={editingVariant.track_stock ? "Stock tracking enabled" : "Stock tracking disabled"}
-                            />
-                            {editingVariant.track_stock && (
-                              <div>
-                                <label className={labelClassName}>Stock Count</label>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={editingVariant.retail_stock_count ?? ""}
-                                  onChange={(e) =>
-                                    setEditingVariant({
-                                      ...editingVariant,
-                                      retail_stock_count: e.target.value ? parseInt(e.target.value) : null,
-                                    })
-                                  }
-                                  placeholder="0"
-                                  className={`${inputClassName} max-w-[120px]`}
-                                />
-                              </div>
-                            )}
                           </div>
                         </div>
+                      ) : (
+                        <>
+                          <div className="space-y-1.5">
+                            {grindTypes.map((gt) => (
+                              <label
+                                key={gt.id}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedGrindTypeIds.has(gt.id)}
+                                  onChange={() => handleToggleGrindType(gt.id)}
+                                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                />
+                                <span className="text-sm text-slate-900">{gt.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                          {/* Inline add new grind type */}
+                          {showInlineGrindAdd ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={newGrindTypeName}
+                                onChange={(e) => setNewGrindTypeName(e.target.value)}
+                                placeholder="e.g. Espresso"
+                                className={`${inputClassName} max-w-[180px]`}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddGrindType();
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleAddGrindType}
+                                disabled={addingGrindType || !newGrindTypeName.trim()}
+                                className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                              >
+                                {addingGrindType ? "..." : "Add"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowInlineGrindAdd(false);
+                                  setNewGrindTypeName("");
+                                }}
+                                className="text-slate-400 hover:text-slate-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowInlineGrindAdd(true)}
+                              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                              + Add new grind type
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
+                  </div>
+                </div>
 
-                    {/* Save/Cancel buttons */}
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingVariant(null);
-                          setEditingVariantIndex(null);
-                          setShowInlineGrindAdd(false);
-                        }}
-                        className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveVariant}
-                        className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-                      >
-                        {editingVariantIndex !== null ? "Update Variant" : "Save Variant"}
-                      </button>
+                {/* ── Step 2: Combination Matrix ── */}
+                {showMatrix && (
+                  <div className={sectionClassName}>
+                    <h4 className="text-sm font-semibold text-slate-800">
+                      {`Combinations (${weightOptions.length * selectedGrindTypes.length})`}
+                    </h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200">
+                            <th className="text-left py-2 pr-4 font-medium text-slate-500 text-xs uppercase tracking-wide">
+                              Weight
+                            </th>
+                            {selectedGrindTypes.map((gt) => (
+                              <th
+                                key={gt.id}
+                                className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide"
+                              >
+                                {gt.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {weightOptions.map((w) => (
+                            <tr key={w.weight_grams} className="border-b border-slate-100 last:border-0">
+                              <td className="py-3 pr-4 font-medium text-slate-900 align-top whitespace-nowrap">
+                                {w.unit}
+                              </td>
+                              {selectedGrindTypes.map((gt) => {
+                                const key = cellKey(w.weight_grams, gt.id);
+                                const cell = getCell(key);
+                                const isExpanded = expandedCell === key;
+                                const isSkuExpanded = expandedSkuCell === key;
+                                return (
+                                  <td key={gt.id} className="py-3 px-3 align-top">
+                                    <div className="space-y-2">
+                                      {/* Active toggle */}
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateCell(key, { is_active: !cell.is_active })
+                                          }
+                                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                                            cell.is_active ? "bg-brand-600" : "bg-slate-200"
+                                          }`}
+                                        >
+                                          <span
+                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                                              cell.is_active
+                                                ? "translate-x-4"
+                                                : "translate-x-0"
+                                            }`}
+                                          />
+                                        </button>
+                                        <span className={`text-xs ${cell.is_active ? "text-green-700" : "text-slate-400"}`}>
+                                          {cell.is_active ? "Active" : "Off"}
+                                        </span>
+                                      </div>
+
+                                      {/* SKU link / field */}
+                                      {isSkuExpanded || cell.sku ? (
+                                        <input
+                                          type="text"
+                                          value={cell.sku || ""}
+                                          onChange={(e) =>
+                                            updateCell(key, {
+                                              sku: e.target.value || null,
+                                            })
+                                          }
+                                          placeholder="SKU"
+                                          className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                          onBlur={() => {
+                                            if (!cell.sku) setExpandedSkuCell(null);
+                                          }}
+                                        />
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedSkuCell(key)}
+                                          className="text-xs text-slate-400 hover:text-slate-600"
+                                        >
+                                          + SKU
+                                        </button>
+                                      )}
+
+                                      {/* Pricing link / panel */}
+                                      {isExpanded ? (
+                                        <div className="space-y-2 p-2 border border-slate-200 rounded-lg bg-slate-50/50">
+                                          {showRetail && (
+                                            <>
+                                              <div>
+                                                <label className="block text-xs text-slate-500 mb-0.5">
+                                                  Retail (£)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={cell.retail_price ?? ""}
+                                                  onChange={(e) =>
+                                                    updateCell(key, {
+                                                      retail_price: e.target.value
+                                                        ? parseFloat(e.target.value)
+                                                        : null,
+                                                    })
+                                                  }
+                                                  placeholder="Override"
+                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-xs text-slate-500 mb-0.5">
+                                                  Compare-at (£)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={cell.compare_at_price ?? ""}
+                                                  onChange={(e) =>
+                                                    updateCell(key, {
+                                                      compare_at_price: e.target.value
+                                                        ? parseFloat(e.target.value)
+                                                        : null,
+                                                    })
+                                                  }
+                                                  placeholder="Override"
+                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+                                          {showWholesale && (
+                                            <>
+                                              <div>
+                                                <label className="block text-xs text-slate-500 mb-0.5">
+                                                  Standard (£)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={
+                                                    cell.wholesale_price_standard ?? ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateCell(key, {
+                                                      wholesale_price_standard: e.target
+                                                        .value
+                                                        ? parseFloat(e.target.value)
+                                                        : null,
+                                                    })
+                                                  }
+                                                  placeholder="Override"
+                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-xs text-slate-500 mb-0.5">
+                                                  Preferred (£)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={
+                                                    cell.wholesale_price_preferred ?? ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateCell(key, {
+                                                      wholesale_price_preferred: e.target
+                                                        .value
+                                                        ? parseFloat(e.target.value)
+                                                        : null,
+                                                    })
+                                                  }
+                                                  placeholder="Override"
+                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-xs text-slate-500 mb-0.5">
+                                                  VIP (£)
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  step="0.01"
+                                                  min="0"
+                                                  value={
+                                                    cell.wholesale_price_vip ?? ""
+                                                  }
+                                                  onChange={(e) =>
+                                                    updateCell(key, {
+                                                      wholesale_price_vip: e.target.value
+                                                        ? parseFloat(e.target.value)
+                                                        : null,
+                                                    })
+                                                  }
+                                                  placeholder="Override"
+                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                                />
+                                              </div>
+                                            </>
+                                          )}
+                                          {/* Stock tracking */}
+                                          <div className="space-y-1.5">
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={cell.track_stock}
+                                                onChange={() =>
+                                                  updateCell(key, {
+                                                    track_stock: !cell.track_stock,
+                                                  })
+                                                }
+                                                className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                              />
+                                              <span className="text-xs text-slate-600">
+                                                Track stock
+                                              </span>
+                                            </div>
+                                            {cell.track_stock && (
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                value={cell.retail_stock_count ?? ""}
+                                                onChange={(e) =>
+                                                  updateCell(key, {
+                                                    retail_stock_count: e.target.value
+                                                      ? parseInt(e.target.value)
+                                                      : null,
+                                                  })
+                                                }
+                                                placeholder="Stock qty"
+                                                className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                              />
+                                            )}
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => setExpandedCell(null)}
+                                            className="w-full px-2 py-1 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                                          >
+                                            Done
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedCell(key)}
+                                          className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                        >
+                                          Pricing
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleStartAddVariant}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Variant
-                  </button>
                 )}
               </div>
             )}

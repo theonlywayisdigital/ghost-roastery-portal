@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   X,
   ImageIcon,
+  Copy,
 } from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
@@ -23,9 +24,12 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  is_retail: boolean;
+  is_wholesale: boolean;
   product_type: "retail" | "wholesale" | "both";
   retail_price: number | null;
   compare_at_price: number | null;
+  wholesale_price: number | null;
   wholesale_price_standard: number | null;
   wholesale_price_preferred: number | null;
   wholesale_price_vip: number | null;
@@ -39,7 +43,6 @@ interface Product {
   gtin: string | null;
   google_product_category: string | null;
   vat_rate: number | null;
-  shipping_cost: number | null;
   rrp: number | null;
   order_multiples: number | null;
   subscription_frequency: string | null;
@@ -60,6 +63,7 @@ interface Variant {
   sku: string | null;
   retail_price: number | null;
   compare_at_price: number | null;
+  wholesale_price: number | null;
   wholesale_price_standard: number | null;
   wholesale_price_preferred: number | null;
   wholesale_price_vip: number | null;
@@ -67,6 +71,7 @@ interface Variant {
   track_stock: boolean;
   is_active: boolean;
   sort_order: number;
+  channel: "retail" | "wholesale";
 }
 
 function Toggle({
@@ -122,9 +127,7 @@ interface MatrixCell {
   sku: string | null;
   retail_price: number | null;
   compare_at_price: number | null;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
+  wholesale_price: number | null;
   retail_stock_count: number | null;
   track_stock: boolean;
   is_active: boolean;
@@ -135,9 +138,7 @@ function emptyCell(): MatrixCell {
     sku: null,
     retail_price: null,
     compare_at_price: null,
-    wholesale_price_standard: null,
-    wholesale_price_preferred: null,
-    wholesale_price_vip: null,
+    wholesale_price: null,
     retail_stock_count: null,
     track_stock: false,
     is_active: true,
@@ -147,6 +148,8 @@ function emptyCell(): MatrixCell {
 function cellKey(weightGrams: number, grindTypeId: string): string {
   return `${weightGrams}:${grindTypeId}`;
 }
+
+type Tab = "overview" | "retail" | "wholesale";
 
 const inputClassName =
   "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
@@ -159,19 +162,20 @@ export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
   const isEditing = !!product;
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+
   // Universal fields
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
   const [metaDescription, setMetaDescription] = useState(product?.meta_description || "");
-  const [productType, setProductType] = useState<"retail" | "wholesale" | "both">(
-    product?.product_type || "retail"
-  );
+  const [isRetail, setIsRetail] = useState(product?.is_retail ?? true);
+  const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? false);
   const [imageUrl, setImageUrl] = useState(product?.image_url || "");
   const [sku, setSku] = useState(product?.sku || "");
   const [unit, setUnit] = useState(product?.unit || "250g");
   const [weightGrams, setWeightGrams] = useState(product?.weight_grams?.toString() || "");
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
-  const [shippingCost, setShippingCost] = useState(product?.shipping_cost?.toString() || "");
   const [sortOrder, setSortOrder] = useState(product?.sort_order?.toString() || "0");
   const [isActive, setIsActive] = useState(product?.is_active ?? true);
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
@@ -193,14 +197,8 @@ export function ProductForm({ product }: { product?: Product }) {
   );
 
   // Wholesale fields
-  const [wholesalePriceStandard, setWholesalePriceStandard] = useState(
-    product?.wholesale_price_standard?.toString() || ""
-  );
-  const [wholesalePricePreferred, setWholesalePricePreferred] = useState(
-    product?.wholesale_price_preferred?.toString() || ""
-  );
-  const [wholesalePriceVip, setWholesalePriceVip] = useState(
-    product?.wholesale_price_vip?.toString() || ""
+  const [wholesalePrice, setWholesalePrice] = useState(
+    product?.wholesale_price?.toString() || ""
   );
   const [rrp, setRrp] = useState(product?.rrp?.toString() || "");
   const [minWholesaleQty, setMinWholesaleQty] = useState(
@@ -213,11 +211,12 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
-  // Variant state — matrix model
+  // Variant state — separate matrices per channel
   const [variantsEnabled, setVariantsEnabled] = useState(false);
   const [weightOptions, setWeightOptions] = useState<WeightOption[]>([]);
   const [selectedGrindTypeIds, setSelectedGrindTypeIds] = useState<Set<string>>(new Set());
-  const [matrixCells, setMatrixCells] = useState<Record<string, MatrixCell>>({});
+  const [retailMatrixCells, setRetailMatrixCells] = useState<Record<string, MatrixCell>>({});
+  const [wholesaleMatrixCells, setWholesaleMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [expandedCell, setExpandedCell] = useState<string | null>(null);
   const [expandedSkuCell, setExpandedSkuCell] = useState<string | null>(null);
 
@@ -237,9 +236,6 @@ export function ProductForm({ product }: { product?: Product }) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const showRetail = productType === "retail" || productType === "both";
-  const showWholesale = productType === "wholesale" || productType === "both";
-
   // Fetch grind types on mount
   const loadGrindTypes = useCallback(async () => {
     try {
@@ -254,7 +250,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setGrindTypesLoading(false);
   }, []);
 
-  // Fetch existing variants when editing — reconstruct matrix
+  // Fetch existing variants when editing — reconstruct matrices
   useEffect(() => {
     loadGrindTypes();
 
@@ -285,26 +281,32 @@ export function ProductForm({ product }: { product?: Product }) {
             }
             setSelectedGrindTypeIds(gtIds);
 
-            // Populate matrix cells
-            const cells: Record<string, MatrixCell> = {};
+            // Populate matrix cells per channel
+            const retailCells: Record<string, MatrixCell> = {};
+            const wholesaleCells: Record<string, MatrixCell> = {};
             for (const v of variants) {
               if (v.weight_grams != null && v.grind_type_id) {
                 const key = cellKey(v.weight_grams, v.grind_type_id);
-                cells[key] = {
+                const cell: MatrixCell = {
                   id: v.id,
                   sku: v.sku,
                   retail_price: v.retail_price,
                   compare_at_price: v.compare_at_price,
-                  wholesale_price_standard: v.wholesale_price_standard,
-                  wholesale_price_preferred: v.wholesale_price_preferred,
-                  wholesale_price_vip: v.wholesale_price_vip,
+                  wholesale_price: v.wholesale_price,
                   retail_stock_count: v.retail_stock_count,
                   track_stock: v.track_stock,
                   is_active: v.is_active,
                 };
+                const channel = v.channel || "retail";
+                if (channel === "wholesale") {
+                  wholesaleCells[key] = cell;
+                } else {
+                  retailCells[key] = cell;
+                }
               }
             }
-            setMatrixCells(cells);
+            setRetailMatrixCells(retailCells);
+            setWholesaleMatrixCells(wholesaleCells);
           }
         })
         .catch(() => {
@@ -363,15 +365,28 @@ export function ProductForm({ product }: { product?: Product }) {
     });
   }
 
-  function getCell(key: string): MatrixCell {
-    return matrixCells[key] || emptyCell();
+  function getCell(channel: "retail" | "wholesale", key: string): MatrixCell {
+    const cells = channel === "retail" ? retailMatrixCells : wholesaleMatrixCells;
+    return cells[key] || emptyCell();
   }
 
-  function updateCell(key: string, updates: Partial<MatrixCell>) {
-    setMatrixCells((prev) => ({
+  function updateCell(channel: "retail" | "wholesale", key: string, updates: Partial<MatrixCell>) {
+    const setter = channel === "retail" ? setRetailMatrixCells : setWholesaleMatrixCells;
+    setter((prev) => ({
       ...prev,
-      [key]: { ...getCell(key), ...updates },
+      [key]: { ...getCell(channel, key), ...updates },
     }));
+  }
+
+  function handleCopyVariants(from: "retail" | "wholesale") {
+    const source = from === "retail" ? retailMatrixCells : wholesaleMatrixCells;
+    const setter = from === "retail" ? setWholesaleMatrixCells : setRetailMatrixCells;
+    // Deep copy, stripping IDs so new rows are created
+    const copied: Record<string, MatrixCell> = {};
+    for (const [key, cell] of Object.entries(source)) {
+      copied[key] = { ...cell, id: undefined };
+    }
+    setter(copied);
   }
 
   // Get selected grind types in their original sort order
@@ -428,53 +443,60 @@ export function ProductForm({ product }: { product?: Product }) {
       image_url: imageUrl || null,
       is_active: isActive,
       sort_order: parseInt(sortOrder) || 0,
-      product_type: productType,
-      retail_price: showRetail && retailPrice ? parseFloat(retailPrice) : null,
-      compare_at_price: showRetail && compareAtPrice ? parseFloat(compareAtPrice) : null,
-      wholesale_price_standard: showWholesale && wholesalePriceStandard ? parseFloat(wholesalePriceStandard) : null,
-      wholesale_price_preferred: showWholesale && wholesalePricePreferred ? parseFloat(wholesalePricePreferred) : null,
-      wholesale_price_vip: showWholesale && wholesalePriceVip ? parseFloat(wholesalePriceVip) : null,
-      minimum_wholesale_quantity: showWholesale ? parseInt(minWholesaleQty) || 1 : 1,
+      is_retail: isRetail,
+      is_wholesale: isWholesale,
+      retail_price: isRetail && retailPrice ? parseFloat(retailPrice) : null,
+      compare_at_price: isRetail && compareAtPrice ? parseFloat(compareAtPrice) : null,
+      wholesale_price: isWholesale && wholesalePrice ? parseFloat(wholesalePrice) : null,
+      minimum_wholesale_quantity: isWholesale ? parseInt(minWholesaleQty) || 1 : 1,
       sku: sku || null,
       weight_grams: weightGrams ? parseInt(weightGrams) : null,
       is_purchasable: isPurchasable,
       track_stock: trackStock,
       retail_stock_count: trackStock ? parseInt(stockCount) || 0 : null,
-      brand: showRetail ? brand || null : null,
-      gtin: showRetail ? gtin || null : null,
-      google_product_category: showRetail ? googleProductCategory || null : null,
+      brand: isRetail ? brand || null : null,
+      gtin: isRetail ? gtin || null : null,
+      google_product_category: isRetail ? googleProductCategory || null : null,
       vat_rate: parseFloat(vatRate) || 0,
-      shipping_cost: shippingCost ? parseFloat(shippingCost) : null,
-      rrp: showWholesale && rrp ? parseFloat(rrp) : null,
-      order_multiples: showWholesale && orderMultiples ? parseInt(orderMultiples) : null,
-      subscription_frequency: showRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
+      rrp: isWholesale && rrp ? parseFloat(rrp) : null,
+      order_multiples: isWholesale && orderMultiples ? parseInt(orderMultiples) : null,
+      subscription_frequency: isRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
     };
 
-    // Convert matrix to flat variants array
+    // Convert matrices to flat variants array
     if (variantsEnabled && showMatrix) {
       const flatVariants: Record<string, unknown>[] = [];
-      weightOptions.forEach((w, rowIdx) => {
-        selectedGrindTypes.forEach((gt, colIdx) => {
-          const key = cellKey(w.weight_grams, gt.id);
-          const cell = getCell(key);
-          flatVariants.push({
-            id: cell.id || undefined,
-            weight_grams: w.weight_grams,
-            unit: w.unit,
-            grind_type_id: gt.id,
-            sku: cell.sku,
-            retail_price: cell.retail_price,
-            compare_at_price: cell.compare_at_price,
-            wholesale_price_standard: cell.wholesale_price_standard,
-            wholesale_price_preferred: cell.wholesale_price_preferred,
-            wholesale_price_vip: cell.wholesale_price_vip,
-            retail_stock_count: cell.retail_stock_count,
-            track_stock: cell.track_stock,
-            is_active: cell.is_active,
-            sort_order: rowIdx * 100 + colIdx,
+
+      const addVariantsFromMatrix = (
+        cells: Record<string, MatrixCell>,
+        channel: "retail" | "wholesale"
+      ) => {
+        weightOptions.forEach((w, rowIdx) => {
+          selectedGrindTypes.forEach((gt, colIdx) => {
+            const key = cellKey(w.weight_grams, gt.id);
+            const cell = cells[key] || emptyCell();
+            flatVariants.push({
+              id: cell.id || undefined,
+              weight_grams: w.weight_grams,
+              unit: w.unit,
+              grind_type_id: gt.id,
+              sku: cell.sku,
+              retail_price: cell.retail_price,
+              compare_at_price: cell.compare_at_price,
+              wholesale_price: cell.wholesale_price,
+              retail_stock_count: cell.retail_stock_count,
+              track_stock: cell.track_stock,
+              is_active: cell.is_active,
+              sort_order: rowIdx * 100 + colIdx,
+              channel,
+            });
           });
         });
-      });
+      };
+
+      if (isRetail) addVariantsFromMatrix(retailMatrixCells, "retail");
+      if (isWholesale) addVariantsFromMatrix(wholesaleMatrixCells, "wholesale");
+
       body.variants = flatVariants;
     } else if (isEditing) {
       // When variants are disabled on edit, send empty array to delete all
@@ -506,6 +528,266 @@ export function ProductForm({ product }: { product?: Product }) {
     }
   }
 
+  // Tabs to show
+  const tabs: { key: Tab; label: string; show: boolean }[] = [
+    { key: "overview", label: "Overview", show: true },
+    { key: "retail", label: "Retail", show: isRetail },
+    { key: "wholesale", label: "Wholesale", show: isWholesale },
+  ];
+
+  // Reset to overview if current tab becomes hidden
+  useEffect(() => {
+    if (activeTab === "retail" && !isRetail) setActiveTab("overview");
+    if (activeTab === "wholesale" && !isWholesale) setActiveTab("overview");
+  }, [isRetail, isWholesale, activeTab]);
+
+  // ─── Variant Matrix Renderer ───
+  function renderMatrix(channel: "retail" | "wholesale") {
+    if (!showMatrix) return null;
+
+    const channelLabel = channel === "retail" ? "Retail" : "Wholesale";
+    const otherChannel = channel === "retail" ? "wholesale" : "retail";
+    const otherLabel = channel === "retail" ? "Wholesale" : "Retail";
+    const otherEnabled = channel === "retail" ? isWholesale : isRetail;
+    const cells = channel === "retail" ? retailMatrixCells : wholesaleMatrixCells;
+    const hasCells = Object.keys(cells).length > 0;
+
+    return (
+      <div className={sectionClassName}>
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-slate-800">
+            {`${channelLabel} Variants (${weightOptions.length * selectedGrindTypes.length})`}
+          </h4>
+          {otherEnabled && (
+            <button
+              type="button"
+              onClick={() => handleCopyVariants(otherChannel as "retail" | "wholesale")}
+              className="inline-flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {`Copy from ${otherLabel}`}
+            </button>
+          )}
+        </div>
+        {!hasCells && (
+          <p className="text-xs text-slate-500">
+            No variant overrides set yet. Click cells below to configure pricing, SKU, and stock for each combination.
+          </p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left py-2 pr-4 font-medium text-slate-500 text-xs uppercase tracking-wide">
+                  Weight
+                </th>
+                {selectedGrindTypes.map((gt) => (
+                  <th
+                    key={gt.id}
+                    className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide"
+                  >
+                    {gt.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {weightOptions.map((w) => (
+                <tr key={w.weight_grams} className="border-b border-slate-100 last:border-0">
+                  <td className="py-3 pr-4 font-medium text-slate-900 align-top whitespace-nowrap">
+                    {w.unit}
+                  </td>
+                  {selectedGrindTypes.map((gt) => {
+                    const key = cellKey(w.weight_grams, gt.id);
+                    const cell = getCell(channel, key);
+                    const cellExpandKey = `${channel}:${key}`;
+                    const isExpanded = expandedCell === cellExpandKey;
+                    const isSkuExpanded = expandedSkuCell === cellExpandKey;
+                    return (
+                      <td key={gt.id} className="py-3 px-3 align-top">
+                        <div className="space-y-2">
+                          {/* Active toggle */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateCell(channel, key, { is_active: !cell.is_active })
+                              }
+                              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                                cell.is_active ? "bg-brand-600" : "bg-slate-200"
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                                  cell.is_active
+                                    ? "translate-x-4"
+                                    : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                            <span className={`text-xs ${cell.is_active ? "text-green-700" : "text-slate-400"}`}>
+                              {cell.is_active ? "Active" : "Off"}
+                            </span>
+                          </div>
+
+                          {/* SKU link / field */}
+                          {isSkuExpanded || cell.sku ? (
+                            <input
+                              type="text"
+                              value={cell.sku || ""}
+                              onChange={(e) =>
+                                updateCell(channel, key, {
+                                  sku: e.target.value || null,
+                                })
+                              }
+                              placeholder="SKU"
+                              className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                              onBlur={() => {
+                                if (!cell.sku) setExpandedSkuCell(null);
+                              }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedSkuCell(cellExpandKey)}
+                              className="text-xs text-slate-400 hover:text-slate-600"
+                            >
+                              + SKU
+                            </button>
+                          )}
+
+                          {/* Pricing link / panel */}
+                          {isExpanded ? (
+                            <div className="space-y-2 p-2 border border-slate-200 rounded-lg bg-slate-50/50">
+                              {channel === "retail" ? (
+                                <>
+                                  <div>
+                                    <label className="block text-xs text-slate-500 mb-0.5">
+                                      Retail Price (£)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={cell.retail_price ?? ""}
+                                      onChange={(e) =>
+                                        updateCell(channel, key, {
+                                          retail_price: e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : null,
+                                        })
+                                      }
+                                      placeholder="Override"
+                                      className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-slate-500 mb-0.5">
+                                      Compare-at (£)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={cell.compare_at_price ?? ""}
+                                      onChange={(e) =>
+                                        updateCell(channel, key, {
+                                          compare_at_price: e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : null,
+                                        })
+                                      }
+                                      placeholder="Override"
+                                      className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                    />
+                                  </div>
+                                </>
+                              ) : (
+                                <div>
+                                  <label className="block text-xs text-slate-500 mb-0.5">
+                                    Wholesale Price (£)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={cell.wholesale_price ?? ""}
+                                    onChange={(e) =>
+                                      updateCell(channel, key, {
+                                        wholesale_price: e.target.value
+                                          ? parseFloat(e.target.value)
+                                          : null,
+                                      })
+                                    }
+                                    placeholder="Override"
+                                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                  />
+                                </div>
+                              )}
+                              {/* Stock tracking */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={cell.track_stock}
+                                    onChange={() =>
+                                      updateCell(channel, key, {
+                                        track_stock: !cell.track_stock,
+                                      })
+                                    }
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                  />
+                                  <span className="text-xs text-slate-600">
+                                    Track stock
+                                  </span>
+                                </div>
+                                {cell.track_stock && (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={cell.retail_stock_count ?? ""}
+                                    onChange={(e) =>
+                                      updateCell(channel, key, {
+                                        retail_stock_count: e.target.value
+                                          ? parseInt(e.target.value)
+                                          : null,
+                                      })
+                                    }
+                                    placeholder="Stock qty"
+                                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                                  />
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCell(null)}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedCell(cellExpandKey)}
+                              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                              Pricing
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -521,1003 +803,747 @@ export function ProductForm({ product }: { product?: Product }) {
         </h1>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-2xl">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="bg-white rounded-xl border border-slate-200 max-w-2xl">
+        {/* ─── Tab Navigation ─── */}
+        <div className="border-b border-slate-200 px-6">
+          <nav className="-mb-px flex gap-6">
+            {tabs.filter((t) => t.show).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "border-brand-600 text-brand-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-          {/* ─── Universal Section ─── */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">General</h3>
-            <div className={sectionClassName}>
-              {/* Product Name */}
-              <div>
-                <label className={labelClassName}>Product Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Ethiopian Yirgacheffe"
-                  required
-                  className={inputClassName}
-                />
-              </div>
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
 
-              {/* Description */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className={labelClassName}>
-                    Description{" "}
-                    <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <AiGenerateButton
-                    type="product_description"
-                    context={{ existingContent: description, productCategory: "coffee" }}
-                    onSelect={setDescription}
-                    enableShortcut
-                  />
-                </div>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tasting notes, origin details..."
-                  rows={3}
-                  className={inputClassName}
-                />
-              </div>
-
-              {/* Meta Description */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className={labelClassName}>
-                    Meta Description{" "}
-                    <span className="text-slate-400 font-normal">(SEO)</span>
-                  </label>
-                  <AiGenerateButton
-                    type="product_meta_description"
-                    context={{ existingContent: metaDescription, productCategory: "coffee" }}
-                    onSelect={setMetaDescription}
-                  />
-                </div>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  placeholder="Brief SEO description for search engines..."
-                  rows={2}
-                  maxLength={155}
-                  className={inputClassName}
-                />
-                <p className={`text-xs mt-1 ${metaDescription.length > 155 ? "text-red-500" : metaDescription.length > 120 ? "text-amber-500" : "text-slate-400"}`}>
-                  {`${metaDescription.length}/155 characters`}
-                </p>
-              </div>
-
-              {/* Product Type */}
-              <div>
-                <label className={labelClassName}>Product Type</label>
-                <div className="flex gap-4">
-                  {(["retail", "wholesale", "both"] as const).map((type) => (
-                    <label
-                      key={type}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                        productType === type
-                          ? "border-brand-500 bg-brand-50 text-brand-700"
-                          : "border-slate-300 text-slate-600 hover:border-slate-400"
-                      }`}
-                    >
+            {/* ═══════════════ OVERVIEW TAB ═══════════════ */}
+            {activeTab === "overview" && (
+              <>
+                {/* ─── General Section ─── */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">General</h3>
+                  <div className={sectionClassName}>
+                    {/* Product Name */}
+                    <div>
+                      <label className={labelClassName}>Product Name</label>
                       <input
-                        type="radio"
-                        name="product_type"
-                        value={type}
-                        checked={productType === type}
-                        onChange={() => setProductType(type)}
-                        className="sr-only"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Ethiopian Yirgacheffe"
+                        required
+                        className={inputClassName}
                       />
-                      <span className="text-sm font-medium capitalize">{type}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                    </div>
 
-              {/* Product Image */}
-              <div>
-                <label className={labelClassName}>
-                  Product Image{" "}
-                  <span className="text-slate-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                {imageUrl ? (
-                  <div className="relative inline-block">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imageUrl}
-                      alt="Product preview"
-                      className="w-40 h-40 object-cover rounded-lg border border-slate-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setImageUrl("")}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
-                    >
-                      Replace image
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="w-full border-2 border-dashed border-slate-300 rounded-lg py-8 px-4 flex flex-col items-center gap-2 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="w-8 h-8 animate-spin" />
-                        <span className="text-sm font-medium">Uploading…</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6" />
-                        </div>
-                        <span className="text-sm font-medium">Click to upload an image</span>
-                        <span className="text-xs">JPG, PNG or WebP — max 5MB</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+                    {/* Description */}
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className={labelClassName}>
+                          Description{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <AiGenerateButton
+                          type="product_description"
+                          context={{ existingContent: description, productCategory: "coffee" }}
+                          onSelect={setDescription}
+                          enableShortcut
+                        />
+                      </div>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Tasting notes, origin details..."
+                        rows={3}
+                        className={inputClassName}
+                      />
+                    </div>
 
-              {/* SKU & Unit */}
-              <div className={`grid ${variantsEnabled ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
-                <div>
-                  <label className={labelClassName}>
-                    SKU{" "}
-                    <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={sku}
-                    onChange={(e) => setSku(e.target.value)}
-                    placeholder="GR-ETH-250"
-                    className={inputClassName}
-                  />
-                </div>
-                {!variantsEnabled && (
-                  <div>
-                    <label className={labelClassName}>Unit</label>
-                    <input
-                      type="text"
-                      value={unit}
-                      onChange={(e) => setUnit(e.target.value)}
-                      placeholder="250g"
-                      className={inputClassName}
-                    />
-                  </div>
-                )}
-              </div>
+                    {/* Meta Description */}
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <label className={labelClassName}>
+                          Meta Description{" "}
+                          <span className="text-slate-400 font-normal">(SEO)</span>
+                        </label>
+                        <AiGenerateButton
+                          type="product_meta_description"
+                          context={{ existingContent: metaDescription, productCategory: "coffee" }}
+                          onSelect={setMetaDescription}
+                        />
+                      </div>
+                      <textarea
+                        value={metaDescription}
+                        onChange={(e) => setMetaDescription(e.target.value)}
+                        placeholder="Brief SEO description for search engines..."
+                        rows={2}
+                        maxLength={155}
+                        className={inputClassName}
+                      />
+                      <p className={`text-xs mt-1 ${metaDescription.length > 155 ? "text-red-500" : metaDescription.length > 120 ? "text-amber-500" : "text-slate-400"}`}>
+                        {`${metaDescription.length}/155 characters`}
+                      </p>
+                    </div>
 
-              {/* Weight & VAT */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClassName}>
-                    Weight (grams){" "}
-                    <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={weightGrams}
-                    onChange={(e) => setWeightGrams(e.target.value)}
-                    placeholder="250"
-                    className={inputClassName}
-                  />
-                </div>
-                <div>
-                  <label className={labelClassName}>VAT Rate</label>
-                  <select
-                    value={vatRate}
-                    onChange={(e) => setVatRate(e.target.value)}
-                    className={inputClassName}
-                  >
-                    {VAT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Shipping Cost & Sort Order */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClassName}>
-                    Shipping Cost (£){" "}
-                    <span className="text-slate-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={shippingCost}
-                    onChange={(e) => setShippingCost(e.target.value)}
-                    placeholder="3.50"
-                    className={inputClassName}
-                  />
-                </div>
-                <div>
-                  <label className={labelClassName}>Sort Order</label>
-                  <input
-                    type="number"
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    placeholder="0"
-                    className={inputClassName}
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Lower numbers appear first.
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-3 pt-1">
-                <Toggle
-                  enabled={isActive}
-                  onToggle={() => setIsActive(!isActive)}
-                  label={
-                    isActive
-                      ? "Active — visible to customers"
-                      : "Inactive — hidden from customers"
-                  }
-                />
-                <Toggle
-                  enabled={isPurchasable}
-                  onToggle={() => setIsPurchasable(!isPurchasable)}
-                  label={
-                    isPurchasable
-                      ? "Purchasable — customers can buy online"
-                      : "Not purchasable — enquiry only"
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ─── Variants Section ─── */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-800">Variants</h3>
-              <Toggle
-                enabled={variantsEnabled}
-                onToggle={() => setVariantsEnabled(!variantsEnabled)}
-                label={variantsEnabled ? "Enabled" : "Disabled"}
-              />
-            </div>
-            {variantsEnabled && (
-              <div className="space-y-5">
-                {/* ── Step 1: Define Options ── */}
-                <div className={sectionClassName}>
-                  <h4 className="text-sm font-semibold text-slate-800">Define Options</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    {/* Panel 1 — Weights */}
-                    <div className="space-y-3">
-                      <label className={labelClassName}>Weight options</label>
-                      {weightOptions.length > 0 && (
-                        <div className="space-y-1.5">
-                          {weightOptions.map((w) => (
-                            <div
-                              key={w.weight_grams}
-                              className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
-                            >
-                              <span className="text-sm text-slate-900">
-                                {w.unit}
-                                {w.unit !== `${w.weight_grams}g` && (
-                                  <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
-                                )}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveWeight(w.weight_grams)}
-                                className="p-0.5 text-slate-400 hover:text-red-500"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                    {/* Channel Toggles */}
+                    <div>
+                      <label className={labelClassName}>Channels</label>
+                      <div className="flex gap-4">
+                        <label
+                          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                            isRetail
+                              ? "border-brand-500 bg-brand-50 text-brand-700"
+                              : "border-slate-300 text-slate-600 hover:border-slate-400"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isRetail}
+                            onChange={() => setIsRetail(!isRetail)}
+                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          <span className="text-sm font-medium">Retail</span>
+                        </label>
+                        <label
+                          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                            isWholesale
+                              ? "border-brand-500 bg-brand-50 text-brand-700"
+                              : "border-slate-300 text-slate-600 hover:border-slate-400"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isWholesale}
+                            onChange={() => setIsWholesale(!isWholesale)}
+                            className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          />
+                          <span className="text-sm font-medium">Wholesale</span>
+                        </label>
+                      </div>
+                      {!isRetail && !isWholesale && (
+                        <p className="text-xs text-amber-600 mt-1.5">
+                          At least one channel should be selected.
+                        </p>
                       )}
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1">
-                          <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={newWeightGrams}
-                            onChange={(e) => setNewWeightGrams(e.target.value)}
-                            placeholder="250"
-                            className={inputClassName}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddWeight();
-                              }
-                            }}
+                    </div>
+
+                    {/* Product Image */}
+                    <div>
+                      <label className={labelClassName}>
+                        Product Image{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      {imageUrl ? (
+                        <div className="relative inline-block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={imageUrl}
+                            alt="Product preview"
+                            className="w-40 h-40 object-cover rounded-lg border border-slate-200"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setImageUrl("")}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                          >
+                            Replace image
+                          </button>
                         </div>
-                        <div className="flex-1">
-                          <label className="block text-xs text-slate-500 mb-1">Unit label</label>
-                          <input
-                            type="text"
-                            value={newWeightUnit}
-                            onChange={(e) => setNewWeightUnit(e.target.value)}
-                            placeholder="e.g. 250g, 1kg"
-                            className={inputClassName}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddWeight();
-                              }
-                            }}
-                          />
-                        </div>
+                      ) : (
                         <button
                           type="button"
-                          onClick={handleAddWeight}
-                          disabled={!newWeightGrams || parseInt(newWeightGrams) <= 0}
-                          className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="w-full border-2 border-dashed border-slate-300 rounded-lg py-8 px-4 flex flex-col items-center gap-2 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
                         >
-                          Add
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="w-8 h-8 animate-spin" />
+                              <span className="text-sm font-medium">Uploading…</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
+                                <ImageIcon className="w-6 h-6" />
+                              </div>
+                              <span className="text-sm font-medium">Click to upload an image</span>
+                              <span className="text-xs">JPG, PNG or WebP — max 5MB</span>
+                            </>
+                          )}
                         </button>
+                      )}
+                    </div>
+
+                    {/* SKU & Unit */}
+                    <div className={`grid ${variantsEnabled ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
+                      <div>
+                        <label className={labelClassName}>
+                          SKU{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={sku}
+                          onChange={(e) => setSku(e.target.value)}
+                          placeholder="GR-ETH-250"
+                          className={inputClassName}
+                        />
+                      </div>
+                      {!variantsEnabled && (
+                        <div>
+                          <label className={labelClassName}>Unit</label>
+                          <input
+                            type="text"
+                            value={unit}
+                            onChange={(e) => setUnit(e.target.value)}
+                            placeholder="250g"
+                            className={inputClassName}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Weight & VAT */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>
+                          Weight (grams){" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={weightGrams}
+                          onChange={(e) => setWeightGrams(e.target.value)}
+                          placeholder="250"
+                          className={inputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClassName}>VAT Rate</label>
+                        <select
+                          value={vatRate}
+                          onChange={(e) => setVatRate(e.target.value)}
+                          className={inputClassName}
+                        >
+                          {VAT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
-                    {/* Panel 2 — Grind Types */}
-                    <div className="space-y-3">
-                      <label className={labelClassName}>Grind type options</label>
-                      {!grindTypesLoading && grindTypes.length === 0 ? (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                          <p className="text-sm text-amber-800">
-                            No grind types set up. You can add them in{" "}
-                            <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
-                              Settings
-                            </Link>
-                            , or add one below.
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <input
-                              type="text"
-                              value={newGrindTypeName}
-                              onChange={(e) => setNewGrindTypeName(e.target.value)}
-                              placeholder="e.g. Whole Bean"
-                              className={`${inputClassName} max-w-[200px]`}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddGrindType();
-                                }
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={handleAddGrindType}
-                              disabled={addingGrindType || !newGrindTypeName.trim()}
-                              className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                            >
-                              {addingGrindType ? "Adding..." : "Add"}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="space-y-1.5">
-                            {grindTypes.map((gt) => (
-                              <label
-                                key={gt.id}
-                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={selectedGrindTypeIds.has(gt.id)}
-                                  onChange={() => handleToggleGrindType(gt.id)}
-                                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                                />
-                                <span className="text-sm text-slate-900">{gt.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                          {/* Inline add new grind type */}
-                          {showInlineGrindAdd ? (
-                            <div className="flex items-center gap-2">
+                    {/* Sort Order */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>Sort Order</label>
+                        <input
+                          type="number"
+                          value={sortOrder}
+                          onChange={(e) => setSortOrder(e.target.value)}
+                          placeholder="0"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Lower numbers appear first.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Toggles */}
+                    <div className="space-y-3 pt-1">
+                      <Toggle
+                        enabled={isActive}
+                        onToggle={() => setIsActive(!isActive)}
+                        label={
+                          isActive
+                            ? "Active — visible to customers"
+                            : "Inactive — hidden from customers"
+                        }
+                      />
+                      <Toggle
+                        enabled={isPurchasable}
+                        onToggle={() => setIsPurchasable(!isPurchasable)}
+                        label={
+                          isPurchasable
+                            ? "Purchasable — customers can buy online"
+                            : "Not purchasable — enquiry only"
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ─── Variants Section (shared options) ─── */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-800">Variants</h3>
+                    <Toggle
+                      enabled={variantsEnabled}
+                      onToggle={() => setVariantsEnabled(!variantsEnabled)}
+                      label={variantsEnabled ? "Enabled" : "Disabled"}
+                    />
+                  </div>
+                  {variantsEnabled && (
+                    <div className={sectionClassName}>
+                      <h4 className="text-sm font-semibold text-slate-800">Define Options</h4>
+                      <p className="text-xs text-slate-500">
+                        Weight and grind type options are shared across channels. Per-channel variant pricing is configured in the Retail and Wholesale tabs.
+                      </p>
+                      <div className="grid grid-cols-2 gap-6">
+                        {/* Panel 1 — Weights */}
+                        <div className="space-y-3">
+                          <label className={labelClassName}>Weight options</label>
+                          {weightOptions.length > 0 && (
+                            <div className="space-y-1.5">
+                              {weightOptions.map((w) => (
+                                <div
+                                  key={w.weight_grams}
+                                  className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
+                                >
+                                  <span className="text-sm text-slate-900">
+                                    {w.unit}
+                                    {w.unit !== `${w.weight_grams}g` && (
+                                      <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
+                                    )}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveWeight(w.weight_grams)}
+                                    className="p-0.5 text-slate-400 hover:text-red-500"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
                               <input
-                                type="text"
-                                value={newGrindTypeName}
-                                onChange={(e) => setNewGrindTypeName(e.target.value)}
-                                placeholder="e.g. Espresso"
-                                className={`${inputClassName} max-w-[180px]`}
+                                type="number"
+                                min="1"
+                                value={newWeightGrams}
+                                onChange={(e) => setNewWeightGrams(e.target.value)}
+                                placeholder="250"
+                                className={inputClassName}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    handleAddGrindType();
+                                    handleAddWeight();
                                   }
                                 }}
                               />
-                              <button
-                                type="button"
-                                onClick={handleAddGrindType}
-                                disabled={addingGrindType || !newGrindTypeName.trim()}
-                                className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-                              >
-                                {addingGrindType ? "..." : "Add"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowInlineGrindAdd(false);
-                                  setNewGrindTypeName("");
-                                }}
-                                className="text-slate-400 hover:text-slate-600"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
                             </div>
-                          ) : (
+                            <div className="flex-1">
+                              <label className="block text-xs text-slate-500 mb-1">Unit label</label>
+                              <input
+                                type="text"
+                                value={newWeightUnit}
+                                onChange={(e) => setNewWeightUnit(e.target.value)}
+                                placeholder="e.g. 250g, 1kg"
+                                className={inputClassName}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddWeight();
+                                  }
+                                }}
+                              />
+                            </div>
                             <button
                               type="button"
-                              onClick={() => setShowInlineGrindAdd(true)}
-                              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                              onClick={handleAddWeight}
+                              disabled={!newWeightGrams || parseInt(newWeightGrams) <= 0}
+                              className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
                             >
-                              + Add new grind type
+                              Add
                             </button>
+                          </div>
+                        </div>
+
+                        {/* Panel 2 — Grind Types */}
+                        <div className="space-y-3">
+                          <label className={labelClassName}>Grind type options</label>
+                          {!grindTypesLoading && grindTypes.length === 0 ? (
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <p className="text-sm text-amber-800">
+                                No grind types set up. You can add them in{" "}
+                                <Link href="/settings/grind-types" className="text-brand-600 hover:text-brand-700 font-medium">
+                                  Settings
+                                </Link>
+                                , or add one below.
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <input
+                                  type="text"
+                                  value={newGrindTypeName}
+                                  onChange={(e) => setNewGrindTypeName(e.target.value)}
+                                  placeholder="e.g. Whole Bean"
+                                  className={`${inputClassName} max-w-[200px]`}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      handleAddGrindType();
+                                    }
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleAddGrindType}
+                                  disabled={addingGrindType || !newGrindTypeName.trim()}
+                                  className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                                >
+                                  {addingGrindType ? "Adding..." : "Add"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-1.5">
+                                {grindTypes.map((gt) => (
+                                  <label
+                                    key={gt.id}
+                                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedGrindTypeIds.has(gt.id)}
+                                      onChange={() => handleToggleGrindType(gt.id)}
+                                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                    />
+                                    <span className="text-sm text-slate-900">{gt.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                              {/* Inline add new grind type */}
+                              {showInlineGrindAdd ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={newGrindTypeName}
+                                    onChange={(e) => setNewGrindTypeName(e.target.value)}
+                                    placeholder="e.g. Espresso"
+                                    className={`${inputClassName} max-w-[180px]`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleAddGrindType();
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleAddGrindType}
+                                    disabled={addingGrindType || !newGrindTypeName.trim()}
+                                    className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                                  >
+                                    {addingGrindType ? "..." : "Add"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setShowInlineGrindAdd(false);
+                                      setNewGrindTypeName("");
+                                    }}
+                                    className="text-slate-400 hover:text-slate-600"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowInlineGrindAdd(true)}
+                                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                                >
+                                  + Add new grind type
+                                </button>
+                              )}
+                            </>
                           )}
-                        </>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* ═══════════════ RETAIL TAB ═══════════════ */}
+            {activeTab === "retail" && isRetail && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Pricing</h3>
+                  <div className={sectionClassName}>
+                    {/* Retail Price & Compare-at */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>Retail Price (£)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={retailPrice}
+                          onChange={(e) => setRetailPrice(e.target.value)}
+                          placeholder="8.50"
+                          className={inputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClassName}>
+                          Compare-at Price (£){" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={compareAtPrice}
+                          onChange={(e) => setCompareAtPrice(e.target.value)}
+                          placeholder="10.00"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Shows as the original price with a strikethrough.
+                        </p>
+                      </div>
+                    </div>
+
+                    {variantsEnabled && (
+                      <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                        These prices are used as defaults. Set per-variant pricing in the matrix below to override.
+                      </p>
+                    )}
+
+                    {/* Brand & GTIN */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>
+                          Brand{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          placeholder="Your brand name"
+                          className={inputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClassName}>
+                          GTIN / Barcode{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={gtin}
+                          onChange={(e) => setGtin(e.target.value)}
+                          placeholder="0123456789012"
+                          className={inputClassName}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Google Product Category */}
+                    <div>
+                      <label className={labelClassName}>
+                        Google Product Category{" "}
+                        <span className="text-slate-400 font-normal">(for feeds)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={googleProductCategory}
+                        onChange={(e) => setGoogleProductCategory(e.target.value)}
+                        placeholder="Food, Beverages & Tobacco > Beverages > Coffee & Tea"
+                        className={inputClassName}
+                      />
+                    </div>
+
+                    {/* Subscription Frequency */}
+                    <div>
+                      <label className={labelClassName}>Subscription Frequency</label>
+                      <select
+                        value={subscriptionFrequency}
+                        onChange={(e) => setSubscriptionFrequency(e.target.value)}
+                        className={`${inputClassName} max-w-[200px]`}
+                      >
+                        {SUBSCRIPTION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Stock Tracking */}
+                    <div className="space-y-3">
+                      <Toggle
+                        enabled={trackStock}
+                        onToggle={() => setTrackStock(!trackStock)}
+                        label={trackStock ? "Stock tracking enabled" : "Stock tracking disabled"}
+                      />
+                      {trackStock && (
+                        <div>
+                          <label className={labelClassName}>Stock Count</label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={stockCount}
+                            onChange={(e) => setStockCount(e.target.value)}
+                            placeholder="0"
+                            className={`${inputClassName} max-w-[120px]`}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* ── Step 2: Combination Matrix ── */}
-                {showMatrix && (
-                  <div className={sectionClassName}>
-                    <h4 className="text-sm font-semibold text-slate-800">
-                      {`Combinations (${weightOptions.length * selectedGrindTypes.length})`}
-                    </h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200">
-                            <th className="text-left py-2 pr-4 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                              Weight
-                            </th>
-                            {selectedGrindTypes.map((gt) => (
-                              <th
-                                key={gt.id}
-                                className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide"
-                              >
-                                {gt.name}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {weightOptions.map((w) => (
-                            <tr key={w.weight_grams} className="border-b border-slate-100 last:border-0">
-                              <td className="py-3 pr-4 font-medium text-slate-900 align-top whitespace-nowrap">
-                                {w.unit}
-                              </td>
-                              {selectedGrindTypes.map((gt) => {
-                                const key = cellKey(w.weight_grams, gt.id);
-                                const cell = getCell(key);
-                                const isExpanded = expandedCell === key;
-                                const isSkuExpanded = expandedSkuCell === key;
-                                return (
-                                  <td key={gt.id} className="py-3 px-3 align-top">
-                                    <div className="space-y-2">
-                                      {/* Active toggle */}
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            updateCell(key, { is_active: !cell.is_active })
-                                          }
-                                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                                            cell.is_active ? "bg-brand-600" : "bg-slate-200"
-                                          }`}
-                                        >
-                                          <span
-                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                                              cell.is_active
-                                                ? "translate-x-4"
-                                                : "translate-x-0"
-                                            }`}
-                                          />
-                                        </button>
-                                        <span className={`text-xs ${cell.is_active ? "text-green-700" : "text-slate-400"}`}>
-                                          {cell.is_active ? "Active" : "Off"}
-                                        </span>
-                                      </div>
-
-                                      {/* SKU link / field */}
-                                      {isSkuExpanded || cell.sku ? (
-                                        <input
-                                          type="text"
-                                          value={cell.sku || ""}
-                                          onChange={(e) =>
-                                            updateCell(key, {
-                                              sku: e.target.value || null,
-                                            })
-                                          }
-                                          placeholder="SKU"
-                                          className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                          onBlur={() => {
-                                            if (!cell.sku) setExpandedSkuCell(null);
-                                          }}
-                                        />
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => setExpandedSkuCell(key)}
-                                          className="text-xs text-slate-400 hover:text-slate-600"
-                                        >
-                                          + SKU
-                                        </button>
-                                      )}
-
-                                      {/* Pricing link / panel */}
-                                      {isExpanded ? (
-                                        <div className="space-y-2 p-2 border border-slate-200 rounded-lg bg-slate-50/50">
-                                          {showRetail && (
-                                            <>
-                                              <div>
-                                                <label className="block text-xs text-slate-500 mb-0.5">
-                                                  Retail (£)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  min="0"
-                                                  value={cell.retail_price ?? ""}
-                                                  onChange={(e) =>
-                                                    updateCell(key, {
-                                                      retail_price: e.target.value
-                                                        ? parseFloat(e.target.value)
-                                                        : null,
-                                                    })
-                                                  }
-                                                  placeholder="Override"
-                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                                />
-                                              </div>
-                                              <div>
-                                                <label className="block text-xs text-slate-500 mb-0.5">
-                                                  Compare-at (£)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  min="0"
-                                                  value={cell.compare_at_price ?? ""}
-                                                  onChange={(e) =>
-                                                    updateCell(key, {
-                                                      compare_at_price: e.target.value
-                                                        ? parseFloat(e.target.value)
-                                                        : null,
-                                                    })
-                                                  }
-                                                  placeholder="Override"
-                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                                />
-                                              </div>
-                                            </>
-                                          )}
-                                          {showWholesale && (
-                                            <>
-                                              <div>
-                                                <label className="block text-xs text-slate-500 mb-0.5">
-                                                  Standard (£)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  min="0"
-                                                  value={
-                                                    cell.wholesale_price_standard ?? ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateCell(key, {
-                                                      wholesale_price_standard: e.target
-                                                        .value
-                                                        ? parseFloat(e.target.value)
-                                                        : null,
-                                                    })
-                                                  }
-                                                  placeholder="Override"
-                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                                />
-                                              </div>
-                                              <div>
-                                                <label className="block text-xs text-slate-500 mb-0.5">
-                                                  Preferred (£)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  min="0"
-                                                  value={
-                                                    cell.wholesale_price_preferred ?? ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateCell(key, {
-                                                      wholesale_price_preferred: e.target
-                                                        .value
-                                                        ? parseFloat(e.target.value)
-                                                        : null,
-                                                    })
-                                                  }
-                                                  placeholder="Override"
-                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                                />
-                                              </div>
-                                              <div>
-                                                <label className="block text-xs text-slate-500 mb-0.5">
-                                                  VIP (£)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  min="0"
-                                                  value={
-                                                    cell.wholesale_price_vip ?? ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateCell(key, {
-                                                      wholesale_price_vip: e.target.value
-                                                        ? parseFloat(e.target.value)
-                                                        : null,
-                                                    })
-                                                  }
-                                                  placeholder="Override"
-                                                  className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                                />
-                                              </div>
-                                            </>
-                                          )}
-                                          {/* Stock tracking */}
-                                          <div className="space-y-1.5">
-                                            <div className="flex items-center gap-2">
-                                              <input
-                                                type="checkbox"
-                                                checked={cell.track_stock}
-                                                onChange={() =>
-                                                  updateCell(key, {
-                                                    track_stock: !cell.track_stock,
-                                                  })
-                                                }
-                                                className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                                              />
-                                              <span className="text-xs text-slate-600">
-                                                Track stock
-                                              </span>
-                                            </div>
-                                            {cell.track_stock && (
-                                              <input
-                                                type="number"
-                                                min="0"
-                                                value={cell.retail_stock_count ?? ""}
-                                                onChange={(e) =>
-                                                  updateCell(key, {
-                                                    retail_stock_count: e.target.value
-                                                      ? parseInt(e.target.value)
-                                                      : null,
-                                                  })
-                                                }
-                                                placeholder="Stock qty"
-                                                className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                              />
-                                            )}
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => setExpandedCell(null)}
-                                            className="w-full px-2 py-1 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                                          >
-                                            Done
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => setExpandedCell(key)}
-                                          className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                                        >
-                                          Pricing
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                {/* Retail Variant Matrix */}
+                {variantsEnabled && renderMatrix("retail")}
               </div>
             )}
-          </div>
 
-          {/* ─── Retail Section ─── */}
-          {showRetail && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail</h3>
-              <div className={sectionClassName}>
-                {/* Retail Price & Compare-at */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClassName}>Retail Price (£)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={retailPrice}
-                      onChange={(e) => setRetailPrice(e.target.value)}
-                      placeholder="8.50"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>
-                      Compare-at Price (£){" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={compareAtPrice}
-                      onChange={(e) => setCompareAtPrice(e.target.value)}
-                      placeholder="10.00"
-                      className={inputClassName}
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                      Shows as the original price with a strikethrough.
-                    </p>
-                  </div>
-                </div>
-
-                {variantsEnabled && (
-                  <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                    These prices are used as defaults. Set per-variant pricing in the Variants section to override.
-                  </p>
-                )}
-
-                {/* Brand & GTIN */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClassName}>
-                      Brand{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={brand}
-                      onChange={(e) => setBrand(e.target.value)}
-                      placeholder="Your brand name"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>
-                      GTIN / Barcode{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={gtin}
-                      onChange={(e) => setGtin(e.target.value)}
-                      placeholder="0123456789012"
-                      className={inputClassName}
-                    />
-                  </div>
-                </div>
-
-                {/* Google Product Category */}
+            {/* ═══════════════ WHOLESALE TAB ═══════════════ */}
+            {activeTab === "wholesale" && isWholesale && (
+              <div className="space-y-6">
                 <div>
-                  <label className={labelClassName}>
-                    Google Product Category{" "}
-                    <span className="text-slate-400 font-normal">(for feeds)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={googleProductCategory}
-                    onChange={(e) => setGoogleProductCategory(e.target.value)}
-                    placeholder="Food, Beverages & Tobacco > Beverages > Coffee & Tea"
-                    className={inputClassName}
-                  />
-                </div>
-
-                {/* Subscription Frequency */}
-                <div>
-                  <label className={labelClassName}>Subscription Frequency</label>
-                  <select
-                    value={subscriptionFrequency}
-                    onChange={(e) => setSubscriptionFrequency(e.target.value)}
-                    className={`${inputClassName} max-w-[200px]`}
-                  >
-                    {SUBSCRIPTION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Stock Tracking */}
-                <div className="space-y-3">
-                  <Toggle
-                    enabled={trackStock}
-                    onToggle={() => setTrackStock(!trackStock)}
-                    label={trackStock ? "Stock tracking enabled" : "Stock tracking disabled"}
-                  />
-                  {trackStock && (
-                    <div>
-                      <label className={labelClassName}>Stock Count</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={stockCount}
-                        onChange={(e) => setStockCount(e.target.value)}
-                        placeholder="0"
-                        className={`${inputClassName} max-w-[120px]`}
-                      />
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Wholesale Pricing</h3>
+                  <div className={sectionClassName}>
+                    {/* Wholesale Price */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>Wholesale Price (£)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={wholesalePrice}
+                          onChange={(e) => setWholesalePrice(e.target.value)}
+                          placeholder="6.00"
+                          className={inputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClassName}>
+                          RRP (£){" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={rrp}
+                          onChange={(e) => setRrp(e.target.value)}
+                          placeholder="9.99"
+                          className={inputClassName}
+                        />
+                      </div>
                     </div>
-                  )}
+
+                    {variantsEnabled && (
+                      <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                        This price is used as the default. Set per-variant pricing in the matrix below to override.
+                      </p>
+                    )}
+
+                    {/* Min Qty & Order Multiples */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>Minimum Order Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={minWholesaleQty}
+                          onChange={(e) => setMinWholesaleQty(e.target.value)}
+                          placeholder="1"
+                          className={inputClassName}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClassName}>
+                          Order Multiples{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={orderMultiples}
+                          onChange={(e) => setOrderMultiples(e.target.value)}
+                          placeholder="e.g. 6"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Customers must order in multiples of this number.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Wholesale Variant Matrix */}
+                {variantsEnabled && renderMatrix("wholesale")}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ─── Wholesale Section ─── */}
-          {showWholesale && (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-4">Wholesale</h3>
-              <div className={sectionClassName}>
-                {/* 3-Tier Pricing */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelClassName}>Standard (£)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={wholesalePriceStandard}
-                      onChange={(e) => setWholesalePriceStandard(e.target.value)}
-                      placeholder="6.00"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>Preferred (£)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={wholesalePricePreferred}
-                      onChange={(e) => setWholesalePricePreferred(e.target.value)}
-                      placeholder="5.50"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>VIP (£)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={wholesalePriceVip}
-                      onChange={(e) => setWholesalePriceVip(e.target.value)}
-                      placeholder="5.00"
-                      className={inputClassName}
-                    />
-                  </div>
-                </div>
+            {error && <p className="text-red-600 text-sm">{error}</p>}
 
-                {variantsEnabled && (
-                  <p className="text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
-                    These prices are used as defaults. Set per-variant pricing in the Variants section to override.
-                  </p>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : isEditing ? (
+                  "Save Changes"
+                ) : (
+                  "Add Product"
                 )}
-
-                {/* RRP & Min Qty & Order Multiples */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelClassName}>
-                      RRP (£){" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={rrp}
-                      onChange={(e) => setRrp(e.target.value)}
-                      placeholder="9.99"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>Minimum Order Qty</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={minWholesaleQty}
-                      onChange={(e) => setMinWholesaleQty(e.target.value)}
-                      placeholder="1"
-                      className={inputClassName}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClassName}>
-                      Order Multiples{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={orderMultiples}
-                      onChange={(e) => setOrderMultiples(e.target.value)}
-                      placeholder="e.g. 6"
-                      className={inputClassName}
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                      Customers must order in multiples of this number.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              </button>
+              <Link
+                href="/products"
+                className="px-6 py-2.5 text-slate-600 rounded-lg font-medium hover:bg-slate-100 transition-colors"
+              >
+                Cancel
+              </Link>
             </div>
-          )}
-
-          {error && <p className="text-red-600 text-sm">{error}</p>}
-
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
-                </>
-              ) : isEditing ? (
-                "Save Changes"
-              ) : (
-                "Add Product"
-              )}
-            </button>
-            <Link
-              href="/products"
-              className="px-6 py-2.5 text-slate-600 rounded-lg font-medium hover:bg-slate-100 transition-colors"
-            >
-              Cancel
-            </Link>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       account_deletion_requests: {
@@ -3820,6 +3795,7 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          channel: string
           compare_at_price: number | null
           created_at: string | null
           grind_type_id: string | null
@@ -3834,11 +3810,13 @@ export type Database = {
           track_stock: boolean | null
           unit: string | null
           weight_grams: number | null
+          wholesale_price: number | null
           wholesale_price_preferred: number | null
           wholesale_price_standard: number | null
           wholesale_price_vip: number | null
         }
         Insert: {
+          channel?: string
           compare_at_price?: number | null
           created_at?: string | null
           grind_type_id?: string | null
@@ -3853,11 +3831,13 @@ export type Database = {
           track_stock?: boolean | null
           unit?: string | null
           weight_grams?: number | null
+          wholesale_price?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
           wholesale_price_vip?: number | null
         }
         Update: {
+          channel?: string
           compare_at_price?: number | null
           created_at?: string | null
           grind_type_id?: string | null
@@ -3872,6 +3852,7 @@ export type Database = {
           track_stock?: boolean | null
           unit?: string | null
           weight_grams?: number | null
+          wholesale_price?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
           wholesale_price_vip?: number | null
@@ -5761,6 +5742,8 @@ export type Database = {
           image_url: string | null
           is_active: boolean | null
           is_purchasable: boolean | null
+          is_retail: boolean
+          is_wholesale: boolean
           meta_description: string | null
           minimum_wholesale_quantity: number | null
           name: string
@@ -5771,7 +5754,6 @@ export type Database = {
           retail_stock_count: number | null
           roaster_id: string
           rrp: number | null
-          shipping_cost: number | null
           sku: string | null
           sort_order: number | null
           subscription_frequency: string | null
@@ -5779,6 +5761,7 @@ export type Database = {
           unit: string | null
           vat_rate: number | null
           weight_grams: number | null
+          wholesale_price: number | null
           wholesale_price_preferred: number | null
           wholesale_price_standard: number | null
           wholesale_price_vip: number | null
@@ -5794,6 +5777,8 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           is_purchasable?: boolean | null
+          is_retail?: boolean
+          is_wholesale?: boolean
           meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name: string
@@ -5804,7 +5789,6 @@ export type Database = {
           retail_stock_count?: number | null
           roaster_id: string
           rrp?: number | null
-          shipping_cost?: number | null
           sku?: string | null
           sort_order?: number | null
           subscription_frequency?: string | null
@@ -5812,6 +5796,7 @@ export type Database = {
           unit?: string | null
           vat_rate?: number | null
           weight_grams?: number | null
+          wholesale_price?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
           wholesale_price_vip?: number | null
@@ -5827,6 +5812,8 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean | null
           is_purchasable?: boolean | null
+          is_retail?: boolean
+          is_wholesale?: boolean
           meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name?: string
@@ -5837,7 +5824,6 @@ export type Database = {
           retail_stock_count?: number | null
           roaster_id?: string
           rrp?: number | null
-          shipping_cost?: number | null
           sku?: string | null
           sort_order?: number | null
           subscription_frequency?: string | null
@@ -5845,6 +5831,7 @@ export type Database = {
           unit?: string | null
           vat_rate?: number | null
           weight_grams?: number | null
+          wholesale_price?: number | null
           wholesale_price_preferred?: number | null
           wholesale_price_standard?: number | null
           wholesale_price_vip?: number | null
@@ -6082,9 +6069,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

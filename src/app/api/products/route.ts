@@ -47,11 +47,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       name, description, price, unit, image_url, is_active, sort_order,
-      product_type, retail_price, wholesale_price_standard, wholesale_price_preferred,
+      is_retail, is_wholesale, retail_price, wholesale_price,
+      wholesale_price_standard, wholesale_price_preferred,
       wholesale_price_vip, minimum_wholesale_quantity, sku, weight_grams,
       is_purchasable, track_stock, retail_stock_count,
       meta_description, compare_at_price, brand, gtin, google_product_category,
-      vat_rate, shipping_cost, rrp, order_multiples, subscription_frequency,
+      vat_rate, rrp, order_multiples, subscription_frequency,
       variants,
     } = body;
 
@@ -74,8 +75,10 @@ export async function POST(request: Request) {
         image_url: image_url || null,
         is_active: is_active ?? true,
         sort_order: sort_order ?? 0,
-        product_type: product_type || "retail",
+        is_retail: is_retail ?? true,
+        is_wholesale: is_wholesale ?? false,
         retail_price: retail_price != null ? parseFloat(retail_price) : null,
+        wholesale_price: wholesale_price != null ? parseFloat(wholesale_price) : null,
         wholesale_price_standard: wholesale_price_standard != null ? parseFloat(wholesale_price_standard) : null,
         wholesale_price_preferred: wholesale_price_preferred != null ? parseFloat(wholesale_price_preferred) : null,
         wholesale_price_vip: wholesale_price_vip != null ? parseFloat(wholesale_price_vip) : null,
@@ -91,7 +94,6 @@ export async function POST(request: Request) {
         gtin: gtin || null,
         google_product_category: google_product_category || "Food, Beverages & Tobacco > Beverages > Coffee & Tea",
         vat_rate: vat_rate != null ? parseFloat(vat_rate) : 0,
-        shipping_cost: shipping_cost != null ? parseFloat(shipping_cost) : null,
         rrp: rrp != null ? parseFloat(rrp) : null,
         order_multiples: order_multiples != null ? parseInt(order_multiples) : null,
         subscription_frequency: subscription_frequency || null,
@@ -118,6 +120,7 @@ export async function POST(request: Request) {
         sku: v.sku || null,
         retail_price: v.retail_price != null ? parseFloat(String(v.retail_price)) : null,
         compare_at_price: v.compare_at_price != null ? parseFloat(String(v.compare_at_price)) : null,
+        wholesale_price: v.wholesale_price != null ? parseFloat(String(v.wholesale_price)) : null,
         wholesale_price_standard: v.wholesale_price_standard != null ? parseFloat(String(v.wholesale_price_standard)) : null,
         wholesale_price_preferred: v.wholesale_price_preferred != null ? parseFloat(String(v.wholesale_price_preferred)) : null,
         wholesale_price_vip: v.wholesale_price_vip != null ? parseFloat(String(v.wholesale_price_vip)) : null,
@@ -125,6 +128,7 @@ export async function POST(request: Request) {
         track_stock: v.track_stock ?? false,
         is_active: v.is_active ?? true,
         sort_order: v.sort_order ?? 0,
+        channel: v.channel || "retail",
       }));
 
       const { error: variantError } = await supabase

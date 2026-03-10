@@ -190,54 +190,93 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create business record
-    const { data: business, error: bizError } = await supabase
+    // Find or create business record
+    let businessId: string | null = null;
+    const { data: existingBiz } = await supabase
       .from("businesses")
-      .insert({
-        name: businessName,
-        types: ["wholesale"],
-        industry: businessType || null,
-        address_line_1: businessAddress || null,
-        website: businessWebsite || null,
-        source: "wholesale_application",
-        roaster_id: roasterId,
-      })
       .select("id")
-      .single();
+      .eq("roaster_id", roasterId)
+      .ilike("name", businessName)
+      .maybeSingle();
 
-    if (bizError) {
-      console.error("Failed to create business:", bizError);
-      return NextResponse.json(
-        { error: "Failed to create business record." },
-        { status: 500 }
-      );
+    if (existingBiz) {
+      businessId = existingBiz.id;
+    } else {
+      const { data: newBiz, error: bizError } = await supabase
+        .from("businesses")
+        .insert({
+          name: businessName,
+          types: ["wholesale"],
+          industry: businessType || null,
+          address_line_1: businessAddress || null,
+          website: businessWebsite || null,
+          source: "wholesale_application",
+          roaster_id: roasterId,
+        })
+        .select("id")
+        .single();
+
+      if (bizError) {
+        console.error("Failed to create business:", bizError);
+        return NextResponse.json(
+          { error: "Failed to create business record." },
+          { status: 500 }
+        );
+      }
+
+      businessId = newBiz?.id || null;
     }
 
-    // Create contact record
+    // Find or create contact record
     const nameParts = name.split(" ");
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const { data: contact, error: contactError } = await supabase
+    let contactId: string | null = null;
+    const { data: existingContact } = await supabase
       .from("contacts")
-      .insert({
-        first_name: firstName,
-        last_name: lastName,
-        email: email.toLowerCase(),
-        phone: phone || null,
-        types: ["wholesale"],
-        source: "manual",
-        status: "active",
-        business_id: business.id,
-        business_name: businessName,
-        user_id: userId,
-        roaster_id: roasterId,
-      })
-      .select("id")
-      .single();
+      .select("id, types, business_id, user_id")
+      .eq("roaster_id", roasterId)
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
 
-    if (contactError) {
-      console.error("Failed to create contact:", contactError);
+    if (existingContact) {
+      contactId = existingContact.id;
+      const currentTypes = (existingContact.types as string[]) || [];
+      const contactUpdates: Record<string, unknown> = { status: "active" };
+      if (!currentTypes.includes("wholesale")) {
+        contactUpdates.types = [...currentTypes, "wholesale"];
+      }
+      if (!existingContact.business_id && businessId) {
+        contactUpdates.business_id = businessId;
+      }
+      if (!existingContact.user_id && userId) {
+        contactUpdates.user_id = userId;
+      }
+      await supabase.from("contacts").update(contactUpdates).eq("id", existingContact.id);
+    } else {
+      const { data: newContact, error: contactError } = await supabase
+        .from("contacts")
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          email: email.toLowerCase(),
+          phone: phone || null,
+          types: ["wholesale"],
+          source: "manual",
+          status: "active",
+          business_id: businessId,
+          business_name: businessName,
+          user_id: userId,
+          roaster_id: roasterId,
+        })
+        .select("id")
+        .single();
+
+      if (contactError) {
+        console.error("Failed to create contact:", contactError);
+      }
+      contactId = newContact?.id || null;
     }
 
     // Create wholesale_access record (auto-approved)
@@ -260,7 +299,7 @@ export async function POST(request: Request) {
           monthly_volume: monthlyVolume || null,
           notes: notes || null,
           payment_terms: terms,
-          business_id: business.id,
+          business_id: businessId,
           approved_by: user.id,
           approved_at: now,
           rejected_reason: null,
@@ -345,8 +384,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       wholesaleAccess: wholesaleAccess || null,
-      business: business || null,
-      contact: contact || null,
+      businessId: businessId || null,
+      contactId: contactId || null,
     });
   } catch (error) {
     console.error("Add wholesale customer error:", error);

@@ -112,7 +112,87 @@ export async function POST(request: Request) {
 
     // Ensure people record exists
     const nameParts = name.split(" ");
-    findOrCreatePerson(supabase, email, nameParts[0] || "", nameParts.slice(1).join(" ") || "", phone).catch(() => {});
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    const peopleId = await findOrCreatePerson(supabase, email, firstName, lastName, phone);
+
+    // Find or create business record
+    let businessId: string | null = null;
+    const { data: existingBiz } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("roaster_id", roasterId)
+      .ilike("name", businessName)
+      .maybeSingle();
+
+    if (existingBiz) {
+      businessId = existingBiz.id;
+    } else {
+      const { data: newBiz } = await supabase
+        .from("businesses")
+        .insert({
+          name: businessName,
+          types: ["wholesale"],
+          industry: businessType || null,
+          address_line_1: businessAddress || null,
+          website: businessWebsite || null,
+          source: "wholesale_application",
+          roaster_id: roasterId,
+        })
+        .select("id")
+        .single();
+
+      if (newBiz) businessId = newBiz.id;
+    }
+
+    // Find or create contact record
+    const { data: existingContact } = await supabase
+      .from("contacts")
+      .select("id, types, business_id, user_id")
+      .eq("roaster_id", roasterId)
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+
+    let contactId: string | null = null;
+
+    if (existingContact) {
+      contactId = existingContact.id;
+      const currentTypes = (existingContact.types as string[]) || [];
+      const updates: Record<string, unknown> = {};
+      if (!currentTypes.includes("wholesale")) {
+        updates.types = [...currentTypes, "wholesale"];
+      }
+      if (!existingContact.business_id && businessId) {
+        updates.business_id = businessId;
+      }
+      if (!existingContact.user_id && userId) {
+        updates.user_id = userId;
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("contacts").update(updates).eq("id", existingContact.id);
+      }
+    } else {
+      const { data: newContact } = await supabase
+        .from("contacts")
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          email: email.toLowerCase(),
+          phone: phone || null,
+          types: ["wholesale"],
+          source: "wholesale_application",
+          status: "lead",
+          business_id: businessId,
+          business_name: businessName,
+          user_id: userId,
+          roaster_id: roasterId,
+          people_id: peopleId,
+        })
+        .select("id")
+        .single();
+
+      if (newContact) contactId = newContact.id;
+    }
 
     // Check for existing wholesale_access record (prevent duplicates)
     const { data: existing } = await supabase
@@ -147,6 +227,7 @@ export async function POST(request: Request) {
           vat_number: vatNumber || null,
           monthly_volume: monthlyVolume || null,
           notes: notes || null,
+          business_id: businessId,
           rejected_reason: null,
           updated_at: new Date().toISOString(),
         })
@@ -174,6 +255,7 @@ export async function POST(request: Request) {
           vat_number: vatNumber || null,
           monthly_volume: monthlyVolume || null,
           notes: notes || null,
+          business_id: businessId,
         });
 
       if (insertError) {
@@ -212,6 +294,22 @@ export async function POST(request: Request) {
           user_id: userId,
           role_id: "wholesale_buyer",
         });
+      }
+
+      // Activate the contact record
+      if (contactId) {
+        const { data: contactForUpdate } = await supabase
+          .from("contacts")
+          .select("types")
+          .eq("id", contactId)
+          .single();
+
+        const contactTypes = (contactForUpdate?.types as string[]) || [];
+        const activateUpdates: Record<string, unknown> = { status: "active" };
+        if (!contactTypes.includes("wholesale")) {
+          activateUpdates.types = [...contactTypes, "wholesale"];
+        }
+        await supabase.from("contacts").update(activateUpdates).eq("id", contactId);
       }
 
       // Send approval email + account setup for new users

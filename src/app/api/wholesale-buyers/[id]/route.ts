@@ -26,15 +26,18 @@ export async function PATCH(
 
   const supabase = createServerClient();
 
+  const roasterId = user.roaster.id as string;
+
   // Verify the record belongs to this roaster
   const { data: record } = await supabase
     .from("wholesale_access")
     .select(
-      `id, status, user_id, business_name,
+      `id, status, user_id, business_name, business_type, business_address,
+       business_website, vat_number, business_id,
        users!wholesale_access_user_id_fkey(full_name, email)`
     )
     .eq("id", id)
-    .eq("roaster_id", user.roaster.id)
+    .eq("roaster_id", roasterId)
     .single();
 
   if (!record) {
@@ -81,6 +84,82 @@ export async function PATCH(
         await supabase.from("user_roles").insert({
           user_id: record.user_id,
           role_id: "wholesale_buyer",
+        });
+      }
+
+      // Ensure business record exists
+      let businessId = record.business_id as string | null;
+      if (!businessId && record.business_name) {
+        const { data: existingBiz } = await supabase
+          .from("businesses")
+          .select("id")
+          .eq("roaster_id", roasterId)
+          .ilike("name", record.business_name)
+          .maybeSingle();
+
+        if (existingBiz) {
+          businessId = existingBiz.id;
+        } else {
+          const { data: newBiz } = await supabase
+            .from("businesses")
+            .insert({
+              name: record.business_name,
+              types: ["wholesale"],
+              industry: record.business_type || null,
+              address_line_1: record.business_address || null,
+              website: record.business_website || null,
+              source: "wholesale_application",
+              roaster_id: roasterId,
+            })
+            .select("id")
+            .single();
+
+          if (newBiz) businessId = newBiz.id;
+        }
+
+        // Link business_id back to wholesale_access
+        if (businessId) {
+          await supabase
+            .from("wholesale_access")
+            .update({ business_id: businessId })
+            .eq("id", id);
+        }
+      }
+
+      // Ensure contact record exists and is active with wholesale type
+      const { data: existingContact } = await supabase
+        .from("contacts")
+        .select("id, types, business_id, user_id, status")
+        .eq("roaster_id", roasterId)
+        .or(`user_id.eq.${record.user_id}${contactEmail ? `,email.eq.${contactEmail}` : ""}`)
+        .maybeSingle();
+
+      if (existingContact) {
+        const currentTypes = (existingContact.types as string[]) || [];
+        const contactUpdates: Record<string, unknown> = { status: "active" };
+        if (!currentTypes.includes("wholesale")) {
+          contactUpdates.types = [...currentTypes, "wholesale"];
+        }
+        if (!existingContact.business_id && businessId) {
+          contactUpdates.business_id = businessId;
+        }
+        if (!existingContact.user_id) {
+          contactUpdates.user_id = record.user_id;
+        }
+        await supabase.from("contacts").update(contactUpdates).eq("id", existingContact.id);
+      } else if (contactEmail) {
+        const cNameParts = contactName.split(" ");
+        await supabase.from("contacts").insert({
+          first_name: cNameParts[0] || "",
+          last_name: cNameParts.slice(1).join(" ") || "",
+          email: contactEmail,
+          types: ["wholesale"],
+          source: "wholesale_application",
+          status: "active",
+          business_id: businessId,
+          business_name: record.business_name,
+          user_id: record.user_id,
+          roaster_id: roasterId,
         });
       }
 

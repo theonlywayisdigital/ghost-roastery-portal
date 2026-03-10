@@ -11,6 +11,7 @@ import {
   Bell,
   Crown,
   ShieldCheck,
+  Coffee,
 } from "@/components/icons";
 
 const settingsItems = [
@@ -53,6 +54,13 @@ const settingsItems = [
     label: "Shipping",
     description: "Shipping rates, zones, and dispatch times.",
     icon: Truck,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/grind-types",
+    label: "Grind Types",
+    description: "Manage grind options available for your products.",
+    icon: Coffee,
     roasterOnly: true,
   },
   {

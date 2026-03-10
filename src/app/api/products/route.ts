@@ -50,6 +50,8 @@ export async function POST(request: Request) {
       product_type, retail_price, wholesale_price_standard, wholesale_price_preferred,
       wholesale_price_vip, minimum_wholesale_quantity, sku, weight_grams,
       is_purchasable, track_stock, retail_stock_count,
+      meta_description, compare_at_price, brand, gtin, google_product_category,
+      vat_rate, shipping_cost, rrp, order_multiples, subscription_frequency,
     } = body;
 
     if (!name) {
@@ -82,6 +84,16 @@ export async function POST(request: Request) {
         is_purchasable: is_purchasable ?? true,
         track_stock: track_stock ?? false,
         retail_stock_count: retail_stock_count != null ? parseInt(retail_stock_count) : null,
+        meta_description: meta_description || null,
+        compare_at_price: compare_at_price != null ? parseFloat(compare_at_price) : null,
+        brand: brand || null,
+        gtin: gtin || null,
+        google_product_category: google_product_category || "Food, Beverages & Tobacco > Beverages > Coffee & Tea",
+        vat_rate: vat_rate != null ? parseFloat(vat_rate) : 0,
+        shipping_cost: shipping_cost != null ? parseFloat(shipping_cost) : null,
+        rrp: rrp != null ? parseFloat(rrp) : null,
+        order_multiples: order_multiples != null ? parseInt(order_multiples) : null,
+        subscription_frequency: subscription_frequency || null,
       })
       .select()
       .single();

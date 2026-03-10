@@ -10,6 +10,7 @@ export type GenerationType =
   | "social_caption"
   | "product_name"
   | "product_description"
+  | "product_meta_description"
   | "discount_description"
   | "form_description"
   | "form_success_message"
@@ -91,6 +92,12 @@ export function buildPrompt(
       return {
         system: BASE_SYSTEM + brand + "\nYou are writing a product description for a specialty coffee product. Keep it to 1-2 sentences. Highlight flavour notes, origin, or roast profile where relevant.",
         user: buildUserPrompt("product descriptions", userInstruction, context),
+      };
+
+    case "product_meta_description":
+      return {
+        system: BASE_SYSTEM + brand + "\nYou are writing an SEO meta description for a specialty coffee product page. Keep each option to 120-155 characters. Summarise the product's key selling points (origin, flavour, roast). Include a subtle call to action. These appear in search engine results beneath the product title.",
+        user: buildUserPrompt("product meta descriptions", userInstruction, context),
       };
 
     case "discount_description":

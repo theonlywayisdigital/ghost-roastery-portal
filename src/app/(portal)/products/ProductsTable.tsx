@@ -16,12 +16,26 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  product_type: string | null;
 }
+
+type TabValue = "all" | "retail" | "wholesale";
+
+const tabs: { value: TabValue; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "retail", label: "Retail" },
+  { value: "wholesale", label: "Wholesale" },
+];
 
 export function ProductsTable({ products: initial }: { products: Product[] }) {
   const router = useRouter();
   const [products, setProducts] = useState(initial);
+  const [activeTab, setActiveTab] = useState<TabValue>("all");
   const banner = useUpgradeBanner("products");
+
+  const filteredProducts = activeTab === "all"
+    ? products
+    : products.filter((p) => p.product_type === activeTab || p.product_type === "both");
 
   async function toggleActive(product: Product) {
     const newValue = !product.is_active;
@@ -88,7 +102,24 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
         </div>
       )}
 
-      {products.length === 0 ? (
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {tabs.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === tab.value
+                ? "bg-brand-600 text-white"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {filteredProducts.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
           <p className="text-slate-500 mb-4">
             No products yet — add your first product to get started.
@@ -125,7 +156,7 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">

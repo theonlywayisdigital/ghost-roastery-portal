@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStorefront } from "./StorefrontProvider";
@@ -41,25 +40,6 @@ export function HeroSection() {
             visible: { transition: { staggerChildren: 0.12 } },
           }}
         >
-          {roaster.brand_logo_url && (
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0 },
-              }}
-              transition={{ duration: 0.5 }}
-            >
-              <Image
-                src={roaster.brand_logo_url}
-                alt={`${roaster.business_name} logo`}
-                width={80}
-                height={80}
-                className="object-contain w-auto mb-6"
-                priority
-              />
-            </motion.div>
-          )}
-
           <motion.h1
             className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-4 max-w-3xl"
             style={{ fontFamily: "var(--sf-font)" }}

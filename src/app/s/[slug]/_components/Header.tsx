@@ -95,9 +95,6 @@ export function Header() {
                   className="object-contain w-auto"
                 />
               )}
-              <span className="text-white font-semibold text-sm md:text-base hidden sm:inline">
-                {roaster.business_name}
-              </span>
             </Link>
 
             {/* Desktop Nav */}

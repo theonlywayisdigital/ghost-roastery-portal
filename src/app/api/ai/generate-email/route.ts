@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   if (body.includeProducts && body.productIds?.length) {
     const { data: products } = await supabase
       .from("wholesale_products")
-      .select("id, name, description, retail_price, wholesale_price_standard")
+      .select("id, name, description, retail_price, wholesale_price")
       .eq("roaster_id", roaster.id)
       .in("id", body.productIds);
     if (products?.length) {

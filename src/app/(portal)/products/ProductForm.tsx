@@ -29,9 +29,6 @@ interface Product {
   product_type: "retail" | "wholesale" | "both";
   retail_price: number | null;
   wholesale_price: number | null;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
   minimum_wholesale_quantity: number | null;
   sku: string | null;
   weight_grams: number | null;
@@ -62,9 +59,6 @@ interface Variant {
   sku: string | null;
   retail_price: number | null;
   wholesale_price: number | null;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
   retail_stock_count: number | null;
   track_stock: boolean;
   is_active: boolean;

@@ -15,10 +15,7 @@ interface Product {
   unit: string;
   price: number;
   sort_order: number;
-  product_type: string;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
+  wholesale_price: number | null;
   minimum_wholesale_quantity: number;
 }
 
@@ -81,11 +78,10 @@ export function StorefrontWholesalePage({
           primaryColour={primary}
           initialAccess={initialAccess}
         >
-          {({ wholesaleAccessId, priceTier, paymentTerms }) => (
+          {({ wholesaleAccessId, paymentTerms }) => (
             <StorefrontWholesaleCatalogue
               roaster={roaster}
               products={products}
-              priceTier={priceTier}
               wholesaleAccessId={wholesaleAccessId}
               paymentTerms={paymentTerms}
               accentColour={accent}

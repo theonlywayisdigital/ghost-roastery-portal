@@ -50,8 +50,7 @@ export default async function WholesaleCataloguePage({
     .from("wholesale_products")
     .select(
       `id, name, description, image_url, unit, price, sort_order,
-       product_type, wholesale_price_standard, wholesale_price_preferred,
-       wholesale_price_vip, minimum_wholesale_quantity, is_active`
+       product_type, wholesale_price, minimum_wholesale_quantity, is_active`
     )
     .eq("roaster_id", roaster.id)
     .eq("is_active", true)
@@ -69,7 +68,6 @@ export default async function WholesaleCataloguePage({
         platformFeePercent: roaster.platform_fee_percent as number | null,
       }}
       products={products || []}
-      priceTier={access.price_tier}
       wholesaleAccessId={access.id}
       paymentTerms={access.payment_terms}
     />

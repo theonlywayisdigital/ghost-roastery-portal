@@ -12,10 +12,7 @@ interface Product {
   unit: string;
   price: number;
   sort_order: number;
-  product_type: string;
-  wholesale_price_standard: number | null;
-  wholesale_price_preferred: number | null;
-  wholesale_price_vip: number | null;
+  wholesale_price: number | null;
   minimum_wholesale_quantity: number;
 }
 
@@ -31,23 +28,6 @@ interface OrderItem {
 type CatalogueContext =
   | { type: "storefront"; slug: string }
   | { type: "website"; domain: string };
-
-const TIER_LABELS: Record<string, string> = {
-  standard: "Standard",
-  preferred: "Preferred",
-  vip: "VIP",
-};
-
-function getWholesalePrice(product: Product, tier: string): number {
-  switch (tier) {
-    case "vip":
-      return product.wholesale_price_vip ?? product.wholesale_price_preferred ?? product.wholesale_price_standard ?? product.price;
-    case "preferred":
-      return product.wholesale_price_preferred ?? product.wholesale_price_standard ?? product.price;
-    default:
-      return product.wholesale_price_standard ?? product.price;
-  }
-}
 
 export function StorefrontWholesaleCatalogue({
   roaster,
@@ -68,7 +48,6 @@ export function StorefrontWholesaleCatalogue({
     platformFeePercent: number | null;
   };
   products: Product[];
-  priceTier: string;
   wholesaleAccessId: string;
   paymentTerms: string;
   accentColour: string;
@@ -81,7 +60,7 @@ export function StorefrontWholesaleCatalogue({
   const [error, setError] = useState<string | null>(null);
 
   function addToOrder(product: Product) {
-    const price = getWholesalePrice(product, priceTier);
+    const price = product.wholesale_price ?? product.price;
     const min = product.minimum_wholesale_quantity || 1;
 
     setOrder((prev) => {
@@ -201,13 +180,13 @@ export function StorefrontWholesaleCatalogue({
 
   return (
     <>
-      {/* Tier badge */}
+      {/* Payment terms badge */}
       <div className="flex gap-2 mb-6">
         <span
           className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
           style={{ backgroundColor: `${accentColour}15`, color: accentColour }}
         >
-          {TIER_LABELS[priceTier] || priceTier} Pricing
+          Wholesale
         </span>
         <span className="text-xs text-slate-500">
           {paymentTerms === "prepay" ? "Prepay" : `${paymentTerms.replace("net", "Net ")} days`}
@@ -223,7 +202,7 @@ export function StorefrontWholesaleCatalogue({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-24">
           {products.map((product) => {
-            const price = getWholesalePrice(product, priceTier);
+            const price = product.wholesale_price ?? product.price;
             const inOrder = order.find((i) => i.productId === product.id);
 
             return (

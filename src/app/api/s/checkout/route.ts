@@ -73,7 +73,6 @@ export async function POST(request: Request) {
     const supabase = createServerClient();
 
     // Wholesale: verify access is approved and get buyer info + tier
-    let wholesaleTier: string | null = null;
     let wholesaleBuyerEmail: string | null = null;
     let wholesaleBuyerName: string | null = null;
     if (isWholesale) {
@@ -95,7 +94,6 @@ export async function POST(request: Request) {
         );
       }
 
-      wholesaleTier = access.price_tier;
       const usersRaw = access.users as unknown;
       const userInfo = Array.isArray(usersRaw) ? usersRaw[0] as { full_name: string | null; email: string } | undefined : usersRaw as { full_name: string | null; email: string } | null;
       wholesaleBuyerEmail = userInfo?.email || customerEmail || "";
@@ -122,7 +120,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("wholesale_products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, product_type, track_stock, retail_stock_count, unit, wholesale_price_standard, wholesale_price_preferred, wholesale_price_vip"
+        "id, name, retail_price, price, is_purchasable, is_active, product_type, track_stock, retail_stock_count, unit, wholesale_price"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -174,13 +172,8 @@ export async function POST(request: Request) {
       }
 
       let unitPrice: number;
-      if (isWholesale && wholesaleTier) {
-        const tierPriceMap: Record<string, number | null> = {
-          standard: (product as Record<string, unknown>).wholesale_price_standard as number | null,
-          preferred: (product as Record<string, unknown>).wholesale_price_preferred as number | null,
-          vip: (product as Record<string, unknown>).wholesale_price_vip as number | null,
-        };
-        unitPrice = tierPriceMap[wholesaleTier] ?? product.price;
+      if (isWholesale) {
+        unitPrice = (product as Record<string, unknown>).wholesale_price as number ?? product.price;
       } else {
         unitPrice = product.retail_price ?? product.price;
       }

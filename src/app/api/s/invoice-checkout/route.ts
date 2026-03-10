@@ -91,7 +91,6 @@ export async function POST(request: Request) {
     }
 
     const paymentTerms = access.payment_terms as string;
-    const wholesaleTier = access.price_tier as string;
 
     // If payment_terms is 'prepay', they should use regular Stripe checkout
     if (paymentTerms === "prepay") {
@@ -146,7 +145,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("wholesale_products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, product_type, track_stock, retail_stock_count, unit, wholesale_price_standard, wholesale_price_preferred, wholesale_price_vip"
+        "id, name, retail_price, price, is_purchasable, is_active, product_type, track_stock, retail_stock_count, unit, wholesale_price"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -190,17 +189,8 @@ export async function POST(request: Request) {
         );
       }
 
-      // Get tier-specific price
-      const tierPriceMap: Record<string, number | null> = {
-        standard: (product as Record<string, unknown>)
-          .wholesale_price_standard as number | null,
-        preferred: (product as Record<string, unknown>)
-          .wholesale_price_preferred as number | null,
-        vip: (product as Record<string, unknown>).wholesale_price_vip as
-          | number
-          | null,
-      };
-      const unitPrice = tierPriceMap[wholesaleTier] ?? product.price;
+      // Get wholesale price
+      const unitPrice = (product as Record<string, unknown>).wholesale_price as number ?? product.price;
 
       lineItems.push({
         name: product.name,

@@ -26,10 +26,6 @@ interface BrandingData {
   brand_instagram: string;
   brand_facebook: string;
   brand_tiktok: string;
-  storefront_type: string;
-  minimum_wholesale_order: number;
-  storefront_seo_title: string;
-  storefront_seo_description: string;
   business_name: string;
 }
 
@@ -47,16 +43,16 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const bodyFamily = resolveFontFamily(branding.brand_body_font);
   const tagline = branding.brand_tagline;
 
+  // Logo size (local display preference only — not persisted)
+  const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">("medium");
+  const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
+
   // Storefront-specific form state
   const [heroImageUrl, setHeroImageUrl] = useState(branding.brand_hero_image_url);
   const [about, setAbout] = useState(branding.brand_about);
   const [instagram, setInstagram] = useState(branding.brand_instagram);
   const [facebook, setFacebook] = useState(branding.brand_facebook);
   const [tiktok, setTiktok] = useState(branding.brand_tiktok);
-  const [storefrontType, setStorefrontType] = useState(branding.storefront_type);
-  const [minOrder, setMinOrder] = useState(branding.minimum_wholesale_order.toString());
-  const [seoTitle, setSeoTitle] = useState(branding.storefront_seo_title);
-  const [seoDescription, setSeoDescription] = useState(branding.storefront_seo_description);
   const [enabled, setEnabled] = useState(branding.storefront_enabled);
 
   // UI state
@@ -111,10 +107,6 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           brand_instagram: instagram || null,
           brand_facebook: facebook || null,
           brand_tiktok: tiktok || null,
-          storefront_type: storefrontType,
-          minimum_wholesale_order: parseInt(minOrder) || 1,
-          storefront_seo_title: seoTitle || null,
-          storefront_seo_description: seoDescription || null,
           storefront_enabled: enabled,
         }),
       });
@@ -133,10 +125,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     } finally {
       setSaving(false);
     }
-  }, [
-    heroImageUrl, about, instagram, facebook, tiktok,
-    storefrontType, minOrder, seoTitle, seoDescription, enabled, router,
-  ]);
+  }, [heroImageUrl, about, instagram, facebook, tiktok, enabled, router]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
@@ -207,20 +196,33 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
 
           <div className="grid grid-cols-2 gap-4">
             {/* Logo */}
-            <div>
+            <div className="col-span-2">
               <p className="text-xs font-medium text-slate-500 mb-1.5">Logo</p>
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoUrl}
-                  alt="Logo"
-                  className="w-12 h-12 object-contain rounded-lg border border-slate-200 bg-white"
+                  alt={branding.business_name}
+                  style={{ height: logoHeight }}
+                  className="w-auto"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-lg border border-dashed border-slate-300 flex items-center justify-center">
                   <span className="text-[10px] text-slate-400">None</span>
                 </div>
               )}
+              <div className="flex items-center gap-2 mt-2">
+                <label className="text-[11px] text-slate-400">Preview size</label>
+                <select
+                  value={logoSize}
+                  onChange={(e) => setLogoSize(e.target.value as "small" | "medium" | "large")}
+                  className="text-xs border border-slate-200 rounded px-1.5 py-1 text-slate-600"
+                >
+                  <option value="small">Small (80px)</option>
+                  <option value="medium">Medium (120px)</option>
+                  <option value="large">Large (160px)</option>
+                </select>
+              </div>
             </div>
             {/* Colours */}
             <div>
@@ -392,72 +394,6 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           </div>
         </div>
 
-        {/* Settings */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-4">
-            Settings
-          </h3>
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Storefront type
-              </label>
-              <select
-                value={storefrontType}
-                onChange={(e) => setStorefrontType(e.target.value)}
-                className={inputClassName}
-              >
-                <option value="wholesale">Wholesale only</option>
-                <option value="retail">Retail only</option>
-                <option value="both">Both wholesale and retail</option>
-              </select>
-            </div>
-
-            {(storefrontType === "wholesale" || storefrontType === "both") && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Minimum wholesale order (units)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={minOrder}
-                  onChange={(e) => setMinOrder(e.target.value)}
-                  className={`${inputClassName} max-w-[150px]`}
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                SEO title{" "}
-                <span className="text-slate-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={seoTitle}
-                onChange={(e) => setSeoTitle(e.target.value)}
-                placeholder={branding.business_name}
-                className={inputClassName}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                SEO description{" "}
-                <span className="text-slate-400 font-normal">(optional)</span>
-              </label>
-              <textarea
-                value={seoDescription}
-                onChange={(e) => setSeoDescription(e.target.value)}
-                placeholder="A short description for search engines…"
-                rows={2}
-                className={inputClassName}
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Save bar */}
         <div className="flex items-center gap-3">
           <button
@@ -512,8 +448,9 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={logoUrl}
-                    alt="Logo"
-                    className="w-10 h-10 object-contain rounded bg-white/90 p-1 mb-2"
+                    alt={branding.business_name}
+                    style={{ height: Math.min(logoHeight * 0.5, 60) }}
+                    className="w-auto mb-2"
                   />
                 )}
                 <h3

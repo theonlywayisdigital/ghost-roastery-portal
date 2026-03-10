@@ -24,10 +24,6 @@ export default async function BrandingPage() {
     brand_instagram: (roaster.brand_instagram as string) || "",
     brand_facebook: (roaster.brand_facebook as string) || "",
     brand_tiktok: (roaster.brand_tiktok as string) || "",
-    storefront_type: (roaster.storefront_type as string) || "wholesale",
-    minimum_wholesale_order: (roaster.minimum_wholesale_order as number) || 1,
-    storefront_seo_title: (roaster.storefront_seo_title as string) || "",
-    storefront_seo_description: (roaster.storefront_seo_description as string) || "",
     business_name: roaster.business_name as string,
   };
 

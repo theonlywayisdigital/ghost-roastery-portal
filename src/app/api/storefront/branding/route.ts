@@ -12,20 +12,27 @@ export async function PUT(request: Request) {
 
   // Brand identity (logo, colours, fonts, tagline) is managed via /api/settings/branding
   // This route only handles storefront-specific fields
-  const updateData: Record<string, unknown> = {
-    brand_hero_image_url: body.brand_hero_image_url ?? null,
-    brand_about: body.brand_about ?? null,
-    brand_instagram: body.brand_instagram ?? null,
-    brand_facebook: body.brand_facebook ?? null,
-    brand_tiktok: body.brand_tiktok ?? null,
-    storefront_type: body.storefront_type || "wholesale",
-    retail_enabled:
-      body.storefront_type === "retail" || body.storefront_type === "both",
-    minimum_wholesale_order: body.minimum_wholesale_order ?? 1,
-    storefront_seo_title: body.storefront_seo_title ?? null,
-    storefront_seo_description: body.storefront_seo_description ?? null,
-    storefront_enabled: body.storefront_enabled ?? false,
-  };
+  // Only update fields that are explicitly present in the request body
+  const updateData: Record<string, unknown> = {};
+
+  if ("brand_hero_image_url" in body) updateData.brand_hero_image_url = body.brand_hero_image_url ?? null;
+  if ("brand_about" in body) updateData.brand_about = body.brand_about ?? null;
+  if ("brand_instagram" in body) updateData.brand_instagram = body.brand_instagram ?? null;
+  if ("brand_facebook" in body) updateData.brand_facebook = body.brand_facebook ?? null;
+  if ("brand_tiktok" in body) updateData.brand_tiktok = body.brand_tiktok ?? null;
+  if ("storefront_type" in body) {
+    updateData.storefront_type = body.storefront_type || "wholesale";
+    updateData.retail_enabled =
+      body.storefront_type === "retail" || body.storefront_type === "both";
+  }
+  if ("minimum_wholesale_order" in body) updateData.minimum_wholesale_order = body.minimum_wholesale_order ?? 1;
+  if ("storefront_seo_title" in body) updateData.storefront_seo_title = body.storefront_seo_title ?? null;
+  if ("storefront_seo_description" in body) updateData.storefront_seo_description = body.storefront_seo_description ?? null;
+  if ("storefront_enabled" in body) updateData.storefront_enabled = body.storefront_enabled ?? false;
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
 
   const supabase = createServerClient();
 

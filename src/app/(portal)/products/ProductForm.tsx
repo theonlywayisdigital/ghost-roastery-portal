@@ -107,14 +107,6 @@ const VAT_OPTIONS = [
   { value: "5", label: "5% — Reduced rate" },
 ];
 
-const SUBSCRIPTION_OPTIONS = [
-  { value: "none", label: "None" },
-  { value: "weekly", label: "Weekly" },
-  { value: "fortnightly", label: "Fortnightly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "quarterly", label: "Quarterly" },
-];
-
 interface WeightOption {
   weight_grams: number;
   unit: string;
@@ -1267,22 +1259,6 @@ export function ProductForm({ product }: { product?: Product }) {
                         placeholder="Food, Beverages & Tobacco > Beverages > Coffee & Tea"
                         className={inputClassName}
                       />
-                    </div>
-
-                    {/* Subscription Frequency */}
-                    <div>
-                      <label className={labelClassName}>Subscription Frequency</label>
-                      <select
-                        value={subscriptionFrequency}
-                        onChange={(e) => setSubscriptionFrequency(e.target.value)}
-                        className={`${inputClassName} max-w-[200px]`}
-                      >
-                        {SUBSCRIPTION_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
                     </div>
 
                     {/* Stock Tracking */}

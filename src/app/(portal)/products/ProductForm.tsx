@@ -28,7 +28,6 @@ interface Product {
   is_wholesale: boolean;
   product_type: "retail" | "wholesale" | "both";
   retail_price: number | null;
-  compare_at_price: number | null;
   wholesale_price: number | null;
   wholesale_price_standard: number | null;
   wholesale_price_preferred: number | null;
@@ -62,7 +61,6 @@ interface Variant {
   grind_type?: { id: string; name: string } | null;
   sku: string | null;
   retail_price: number | null;
-  compare_at_price: number | null;
   wholesale_price: number | null;
   wholesale_price_standard: number | null;
   wholesale_price_preferred: number | null;
@@ -120,14 +118,12 @@ const SUBSCRIPTION_OPTIONS = [
 interface WeightOption {
   weight_grams: number;
   unit: string;
+  price: number | null;
 }
 
 interface MatrixCell {
   id?: string;
   sku: string | null;
-  retail_price: number | null;
-  compare_at_price: number | null;
-  wholesale_price: number | null;
   retail_stock_count: number | null;
   track_stock: boolean;
   is_active: boolean;
@@ -136,9 +132,6 @@ interface MatrixCell {
 function emptyCell(): MatrixCell {
   return {
     sku: null,
-    retail_price: null,
-    compare_at_price: null,
-    wholesale_price: null,
     retail_stock_count: null,
     track_stock: false,
     is_active: true,
@@ -182,7 +175,6 @@ export function ProductForm({ product }: { product?: Product }) {
 
   // Retail fields
   const [retailPrice, setRetailPrice] = useState(product?.retail_price?.toString() || "");
-  const [compareAtPrice, setCompareAtPrice] = useState(product?.compare_at_price?.toString() || "");
   const [brand, setBrand] = useState(product?.brand || "");
   const [gtin, setGtin] = useState(product?.gtin || "");
   const [googleProductCategory, setGoogleProductCategory] = useState(
@@ -220,7 +212,6 @@ export function ProductForm({ product }: { product?: Product }) {
   const [wholesaleSelectedGrindTypeIds, setWholesaleSelectedGrindTypeIds] = useState<Set<string>>(new Set());
   const [retailMatrixCells, setRetailMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [wholesaleMatrixCells, setWholesaleMatrixCells] = useState<Record<string, MatrixCell>>({});
-  const [expandedCell, setExpandedCell] = useState<string | null>(null);
   const [expandedSkuCell, setExpandedSkuCell] = useState<string | null>(null);
 
   // Weight add form — per channel
@@ -272,12 +263,12 @@ export function ProductForm({ product }: { product?: Product }) {
             // Reconstruct retail
             if (retailVars.length > 0) {
               setRetailVariantsEnabled(true);
-              const weightMap = new Map<number, string>();
+              const weightMap = new Map<number, { unit: string; price: number | null }>();
               const gtIds = new Set<string>();
               const cells: Record<string, MatrixCell> = {};
               for (const v of retailVars) {
                 if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
-                  weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+                  weightMap.set(v.weight_grams, { unit: v.unit || `${v.weight_grams}g`, price: v.retail_price });
                 }
                 if (v.grind_type_id) gtIds.add(v.grind_type_id);
                 if (v.weight_grams != null && v.grind_type_id) {
@@ -285,9 +276,6 @@ export function ProductForm({ product }: { product?: Product }) {
                   cells[key] = {
                     id: v.id,
                     sku: v.sku,
-                    retail_price: v.retail_price,
-                    compare_at_price: v.compare_at_price,
-                    wholesale_price: v.wholesale_price,
                     retail_stock_count: v.retail_stock_count,
                     track_stock: v.track_stock,
                     is_active: v.is_active,
@@ -295,7 +283,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 }
               }
               setRetailWeightOptions(
-                Array.from(weightMap.entries()).map(([wg, u]) => ({ weight_grams: wg, unit: u }))
+                Array.from(weightMap.entries()).map(([wg, info]) => ({ weight_grams: wg, unit: info.unit, price: info.price }))
               );
               setRetailSelectedGrindTypeIds(gtIds);
               setRetailMatrixCells(cells);
@@ -304,12 +292,12 @@ export function ProductForm({ product }: { product?: Product }) {
             // Reconstruct wholesale
             if (wholesaleVars.length > 0) {
               setWholesaleVariantsEnabled(true);
-              const weightMap = new Map<number, string>();
+              const weightMap = new Map<number, { unit: string; price: number | null }>();
               const gtIds = new Set<string>();
               const cells: Record<string, MatrixCell> = {};
               for (const v of wholesaleVars) {
                 if (v.weight_grams != null && !weightMap.has(v.weight_grams)) {
-                  weightMap.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+                  weightMap.set(v.weight_grams, { unit: v.unit || `${v.weight_grams}g`, price: v.wholesale_price });
                 }
                 if (v.grind_type_id) gtIds.add(v.grind_type_id);
                 if (v.weight_grams != null && v.grind_type_id) {
@@ -317,9 +305,6 @@ export function ProductForm({ product }: { product?: Product }) {
                   cells[key] = {
                     id: v.id,
                     sku: v.sku,
-                    retail_price: v.retail_price,
-                    compare_at_price: v.compare_at_price,
-                    wholesale_price: v.wholesale_price,
                     retail_stock_count: v.retail_stock_count,
                     track_stock: v.track_stock,
                     is_active: v.is_active,
@@ -327,7 +312,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 }
               }
               setWholesaleWeightOptions(
-                Array.from(weightMap.entries()).map(([wg, u]) => ({ weight_grams: wg, unit: u }))
+                Array.from(weightMap.entries()).map(([wg, info]) => ({ weight_grams: wg, unit: info.unit, price: info.price }))
               );
               setWholesaleSelectedGrindTypeIds(gtIds);
               setWholesaleMatrixCells(cells);
@@ -379,7 +364,7 @@ export function ProductForm({ product }: { product?: Product }) {
     if (!grams || grams <= 0) return;
     const unitLabel = newUnit.trim() || `${grams}g`;
     if (weightOpts.some((w) => w.weight_grams === grams)) return;
-    setter((prev) => [...prev, { weight_grams: grams, unit: unitLabel }]);
+    setter((prev) => [...prev, { weight_grams: grams, unit: unitLabel, price: null }]);
     setGrams("");
     setUnitVal("");
   }
@@ -417,13 +402,13 @@ export function ProductForm({ product }: { product?: Product }) {
 
   function handleCopyVariantConfig(from: "retail" | "wholesale") {
     if (from === "retail") {
-      // Copy retail config → wholesale
-      setWholesaleWeightOptions([...retailWeightOptions]);
+      // Copy retail config → wholesale (reset prices since channel differs)
+      setWholesaleWeightOptions(retailWeightOptions.map((w) => ({ ...w, price: null })));
       setWholesaleSelectedGrindTypeIds(new Set(Array.from(retailSelectedGrindTypeIds)));
       setWholesaleMatrixCells({});
     } else {
-      // Copy wholesale config → retail
-      setRetailWeightOptions([...wholesaleWeightOptions]);
+      // Copy wholesale config → retail (reset prices since channel differs)
+      setRetailWeightOptions(wholesaleWeightOptions.map((w) => ({ ...w, price: null })));
       setRetailSelectedGrindTypeIds(new Set(Array.from(wholesaleSelectedGrindTypeIds)));
       setRetailMatrixCells({});
     }
@@ -488,7 +473,6 @@ export function ProductForm({ product }: { product?: Product }) {
       is_retail: isRetail,
       is_wholesale: isWholesale,
       retail_price: isRetail && retailPrice ? parseFloat(retailPrice) : null,
-      compare_at_price: isRetail && compareAtPrice ? parseFloat(compareAtPrice) : null,
       wholesale_price: isWholesale && wholesalePrice ? parseFloat(wholesalePrice) : null,
       minimum_wholesale_quantity: isWholesale ? parseInt(minWholesaleQty) || 1 : 1,
       sku: sku || null,
@@ -519,9 +503,8 @@ export function ProductForm({ product }: { product?: Product }) {
             unit: w.unit,
             grind_type_id: gt.id,
             sku: cell.sku,
-            retail_price: cell.retail_price,
-            compare_at_price: cell.compare_at_price,
-            wholesale_price: cell.wholesale_price,
+            retail_price: w.price,
+            wholesale_price: null,
             retail_stock_count: cell.retail_stock_count,
             track_stock: cell.track_stock,
             is_active: cell.is_active,
@@ -543,9 +526,8 @@ export function ProductForm({ product }: { product?: Product }) {
             unit: w.unit,
             grind_type_id: gt.id,
             sku: cell.sku,
-            retail_price: cell.retail_price,
-            compare_at_price: cell.compare_at_price,
-            wholesale_price: cell.wholesale_price,
+            retail_price: null,
+            wholesale_price: w.price,
             retail_stock_count: cell.retail_stock_count,
             track_stock: cell.track_stock,
             is_active: cell.is_active,
@@ -634,26 +616,44 @@ export function ProductForm({ product }: { product?: Product }) {
             <label className={labelClassName}>Weight options</label>
             {weightOpts.length > 0 && (
               <div className="space-y-1.5">
-                {weightOpts.map((w) => (
-                  <div
-                    key={w.weight_grams}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200 bg-white"
-                  >
-                    <span className="text-sm text-slate-900">
-                      {w.unit}
-                      {w.unit !== `${w.weight_grams}g` && (
-                        <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveWeight(channel, w.weight_grams)}
-                      className="p-0.5 text-slate-400 hover:text-red-500"
+                {weightOpts.map((w, idx) => {
+                  const setter = channel === "retail" ? setRetailWeightOptions : setWholesaleWeightOptions;
+                  return (
+                    <div
+                      key={w.weight_grams}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white"
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <span className="text-sm text-slate-900 whitespace-nowrap">
+                        {w.unit}
+                        {w.unit !== `${w.weight_grams}g` && (
+                          <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <span className="text-xs text-slate-500">£</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={w.price ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value ? parseFloat(e.target.value) : null;
+                            setter((prev) => prev.map((opt, i) => i === idx ? { ...opt, price: val } : opt));
+                          }}
+                          placeholder="Price"
+                          className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveWeight(channel, w.weight_grams)}
+                        className="p-0.5 text-slate-400 hover:text-red-500 flex-shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="flex items-end gap-2">
@@ -826,7 +826,7 @@ export function ProductForm({ product }: { product?: Product }) {
         </h4>
         {!hasCells && (
           <p className="text-xs text-slate-500">
-            No variant overrides set yet. Click cells below to configure pricing, SKU, and stock for each combination.
+            Configure SKU and active status for each weight/grind combination. Pricing is set per weight above.
           </p>
         )}
         <div className="overflow-x-auto">
@@ -856,7 +856,6 @@ export function ProductForm({ product }: { product?: Product }) {
                     const key = cellKey(w.weight_grams, gt.id);
                     const cell = getCell(channel, key);
                     const cellExpandKey = `${channel}:${key}`;
-                    const isExpanded = expandedCell === cellExpandKey;
                     const isSkuExpanded = expandedSkuCell === cellExpandKey;
                     return (
                       <td key={gt.id} className="py-3 px-3 align-top">
@@ -908,126 +907,6 @@ export function ProductForm({ product }: { product?: Product }) {
                               className="text-xs text-slate-400 hover:text-slate-600"
                             >
                               + SKU
-                            </button>
-                          )}
-
-                          {/* Pricing link / panel */}
-                          {isExpanded ? (
-                            <div className="space-y-2 p-2 border border-slate-200 rounded-lg bg-slate-50/50">
-                              {channel === "retail" ? (
-                                <>
-                                  <div>
-                                    <label className="block text-xs text-slate-500 mb-0.5">
-                                      Retail Price (£)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={cell.retail_price ?? ""}
-                                      onChange={(e) =>
-                                        updateCell(channel, key, {
-                                          retail_price: e.target.value
-                                            ? parseFloat(e.target.value)
-                                            : null,
-                                        })
-                                      }
-                                      placeholder="Override"
-                                      className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs text-slate-500 mb-0.5">
-                                      Compare-at (£)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={cell.compare_at_price ?? ""}
-                                      onChange={(e) =>
-                                        updateCell(channel, key, {
-                                          compare_at_price: e.target.value
-                                            ? parseFloat(e.target.value)
-                                            : null,
-                                        })
-                                      }
-                                      placeholder="Override"
-                                      className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                    />
-                                  </div>
-                                </>
-                              ) : (
-                                <div>
-                                  <label className="block text-xs text-slate-500 mb-0.5">
-                                    Wholesale Price (£)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={cell.wholesale_price ?? ""}
-                                    onChange={(e) =>
-                                      updateCell(channel, key, {
-                                        wholesale_price: e.target.value
-                                          ? parseFloat(e.target.value)
-                                          : null,
-                                      })
-                                    }
-                                    placeholder="Override"
-                                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                  />
-                                </div>
-                              )}
-                              {/* Stock tracking */}
-                              <div className="space-y-1.5">
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={cell.track_stock}
-                                    onChange={() =>
-                                      updateCell(channel, key, {
-                                        track_stock: !cell.track_stock,
-                                      })
-                                    }
-                                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                                  />
-                                  <span className="text-xs text-slate-600">
-                                    Track stock
-                                  </span>
-                                </div>
-                                {cell.track_stock && (
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={cell.retail_stock_count ?? ""}
-                                    onChange={(e) =>
-                                      updateCell(channel, key, {
-                                        retail_stock_count: e.target.value
-                                          ? parseInt(e.target.value)
-                                          : null,
-                                      })
-                                    }
-                                    placeholder="Stock qty"
-                                    className="w-full px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                                  />
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setExpandedCell(null)}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                              >
-                                Done
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCell(cellExpandKey)}
-                              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                            >
-                              Pricing
                             </button>
                           )}
                         </div>
@@ -1359,38 +1238,18 @@ export function ProductForm({ product }: { product?: Product }) {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Pricing</h3>
                   <div className={sectionClassName}>
-                    {/* Retail Price & Compare-at */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClassName}>Retail Price (£)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={retailPrice}
-                          onChange={(e) => setRetailPrice(e.target.value)}
-                          placeholder="8.50"
-                          className={inputClassName}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClassName}>
-                          Compare-at Price (£){" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={compareAtPrice}
-                          onChange={(e) => setCompareAtPrice(e.target.value)}
-                          placeholder="10.00"
-                          className={inputClassName}
-                        />
-                        <p className="text-xs text-slate-400 mt-1">
-                          Shows as the original price with a strikethrough.
-                        </p>
-                      </div>
+                    {/* Retail Price */}
+                    <div>
+                      <label className={labelClassName}>Retail Price (£)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={retailPrice}
+                        onChange={(e) => setRetailPrice(e.target.value)}
+                        placeholder="8.50"
+                        className={`${inputClassName} max-w-[200px]`}
+                      />
                     </div>
 
                     {/* Brand & GTIN */}

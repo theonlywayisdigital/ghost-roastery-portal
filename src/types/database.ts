@@ -3796,7 +3796,6 @@ export type Database = {
       product_variants: {
         Row: {
           channel: string
-          compare_at_price: number | null
           created_at: string | null
           grind_type_id: string | null
           id: string
@@ -3817,7 +3816,6 @@ export type Database = {
         }
         Insert: {
           channel?: string
-          compare_at_price?: number | null
           created_at?: string | null
           grind_type_id?: string | null
           id?: string
@@ -3838,7 +3836,6 @@ export type Database = {
         }
         Update: {
           channel?: string
-          compare_at_price?: number | null
           created_at?: string | null
           grind_type_id?: string | null
           id?: string
@@ -5733,7 +5730,6 @@ export type Database = {
       wholesale_products: {
         Row: {
           brand: string | null
-          compare_at_price: number | null
           created_at: string | null
           description: string | null
           google_product_category: string | null
@@ -5768,7 +5764,6 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
-          compare_at_price?: number | null
           created_at?: string | null
           description?: string | null
           google_product_category?: string | null
@@ -5803,7 +5798,6 @@ export type Database = {
         }
         Update: {
           brand?: string | null
-          compare_at_price?: number | null
           created_at?: string | null
           description?: string | null
           google_product_category?: string | null

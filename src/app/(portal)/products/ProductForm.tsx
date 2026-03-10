@@ -1131,7 +1131,7 @@ export function ProductForm({ product }: { product?: Product }) {
                     )}
                   </div>
 
-                  {/* SKU & Unit */}
+                  {/* SKU & VAT */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelClassName}>
@@ -1143,34 +1143,6 @@ export function ProductForm({ product }: { product?: Product }) {
                         value={sku}
                         onChange={(e) => setSku(e.target.value)}
                         placeholder="GR-ETH-250"
-                        className={inputClassName}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClassName}>Unit</label>
-                      <input
-                        type="text"
-                        value={unit}
-                        onChange={(e) => setUnit(e.target.value)}
-                        placeholder="250g"
-                        className={inputClassName}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Weight & VAT */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClassName}>
-                        Weight (grams){" "}
-                        <span className="text-slate-400 font-normal">(optional)</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={weightGrams}
-                        onChange={(e) => setWeightGrams(e.target.value)}
-                        placeholder="250"
                         className={inputClassName}
                       />
                     </div>

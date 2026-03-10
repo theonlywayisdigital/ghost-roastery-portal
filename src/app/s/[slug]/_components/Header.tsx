@@ -92,7 +92,7 @@ export function Header() {
                   alt={roaster.business_name}
                   width={36}
                   height={36}
-                  className="rounded-lg bg-white/90 p-0.5 object-contain"
+                  className="object-contain w-auto"
                 />
               )}
               <span className="text-white font-semibold text-sm md:text-base hidden sm:inline">

@@ -54,7 +54,7 @@ export function HeroSection() {
                 alt={`${roaster.business_name} logo`}
                 width={80}
                 height={80}
-                className="rounded-xl bg-white/90 p-2 mb-6 object-contain"
+                className="object-contain w-auto mb-6"
                 priority
               />
             </motion.div>

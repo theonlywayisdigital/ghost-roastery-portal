@@ -7,6 +7,16 @@ import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 
+interface ProductVariant {
+  id: string;
+  weight_grams: number | null;
+  unit: string | null;
+  retail_price: number | null;
+  wholesale_price: number | null;
+  channel: string | null;
+  is_active: boolean | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -17,6 +27,9 @@ interface Product {
   is_active: boolean;
   sort_order: number;
   product_type: string | null;
+  is_retail?: boolean;
+  is_wholesale?: boolean;
+  product_variants: ProductVariant[] | null;
 }
 
 type TabValue = "all" | "retail" | "wholesale";
@@ -35,7 +48,44 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
 
   const filteredProducts = activeTab === "all"
     ? products
-    : products.filter((p) => p.product_type === activeTab || p.product_type === "both");
+    : activeTab === "retail"
+      ? products.filter((p) => p.is_retail ?? (p.product_type === "retail" || p.product_type === "both"))
+      : products.filter((p) => p.is_wholesale ?? (p.product_type === "wholesale" || p.product_type === "both"));
+
+  function getPriceDisplay(product: Product): string {
+    const variants = product.product_variants?.filter((v) => v.is_active) || [];
+    if (variants.length === 0) return `£${product.price.toFixed(2)}`;
+
+    const channel = activeTab === "wholesale" ? "wholesale" : "retail";
+    const channelVars = variants.filter((v) => v.channel === channel);
+    if (channelVars.length === 0) {
+      // Fall back to other channel or product price
+      const otherVars = variants.filter((v) => v.channel === (channel === "retail" ? "wholesale" : "retail"));
+      if (otherVars.length === 0) return `£${product.price.toFixed(2)}`;
+      const prices = otherVars
+        .map((v) => v.channel === "wholesale" ? v.wholesale_price : v.retail_price)
+        .filter((p): p is number => p != null);
+      if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+      const min = Math.min(...prices);
+      const max = Math.max(...prices);
+      return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
+    }
+
+    const prices = channelVars
+      .map((v) => channel === "wholesale" ? v.wholesale_price : v.retail_price)
+      .filter((p): p is number => p != null);
+    if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
+  }
+
+  function getUnitDisplay(product: Product): string {
+    const activeVars = product.product_variants?.filter((v) => v.is_active) || [];
+    if (activeVars.length === 0) return product.unit;
+    const units = Array.from(new Set(activeVars.map((v) => v.unit).filter((u): u is string => !!u)));
+    return units.length > 0 ? units.join(", ") : product.unit;
+  }
 
   async function toggleActive(product: Product) {
     const newValue = !product.is_active;
@@ -185,12 +235,12 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-900">
-                        {`£${product.price.toFixed(2)}`}
+                        {getPriceDisplay(product)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-500">
-                        {product.unit}
+                        {getUnitDisplay(product)}
                       </span>
                     </td>
                     <td className="px-6 py-4">

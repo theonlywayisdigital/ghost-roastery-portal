@@ -134,7 +134,7 @@ export function ProductCard({ product }: { product: Product }) {
               style={{ backgroundColor: accent, color: accentText }}
               className="w-full mt-3 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
             >
-              Enquire
+              Buy Now
             </button>
           )}
         </div>

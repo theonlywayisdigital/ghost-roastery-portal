@@ -12,6 +12,7 @@ import {
   Crown,
   ShieldCheck,
   Coffee,
+  Funnel,
 } from "@/components/icons";
 
 const settingsItems = [
@@ -61,6 +62,13 @@ const settingsItems = [
     label: "Grind Types",
     description: "Manage grind options available for your products.",
     icon: Coffee,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/pipeline-stages",
+    label: "Pipeline Stages",
+    description: "Customise your sales pipeline stages.",
+    icon: Funnel,
     roasterOnly: true,
   },
   {

@@ -182,6 +182,7 @@ import {
   Thermometer as _Thermometer,
   Scales as _Scales,
   Timer as _Timer,
+  Trophy as _Trophy,
 } from "@phosphor-icons/react";
 
 // ── Wrapper ──
@@ -405,3 +406,4 @@ export const Webhook = wrapIcon(_WebhooksLogo, "Webhook");
 export const Thermometer = wrapIcon(_Thermometer, "Thermometer");
 export const Scale = wrapIcon(_Scales, "Scale");
 export const Timer = wrapIcon(_Timer, "Timer");
+export const Trophy = wrapIcon(_Trophy, "Trophy");

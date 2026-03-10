@@ -15,8 +15,7 @@ import { Loader2, List, LayoutGrid, Plus, X, Building2, User } from "@/component
 import { PipelineColumn } from "./PipelineColumn";
 import { PipelineCard, type PipelineItem } from "./PipelineCard";
 import { PipelineList } from "./PipelineList";
-
-const STAGES = ["new", "contacted", "qualified", "won", "lost"] as const;
+import type { PipelineStage } from "@/lib/pipeline";
 
 interface PipelineBoardProps {
   apiBase: string;
@@ -27,6 +26,7 @@ interface PipelineBoardProps {
 export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: PipelineBoardProps) {
   const router = useRouter();
   const [items, setItems] = useState<PipelineItem[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeItem, setActiveItem] = useState<PipelineItem | null>(null);
   const [view, setView] = useState<"board" | "list">("board");
@@ -52,10 +52,18 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
 
   const loadPipeline = useCallback(async () => {
     try {
-      const res = await fetch(`${apiBase}/pipeline`);
-      if (res.ok) {
-        const data = await res.json();
+      const [pipelineRes, stagesRes] = await Promise.all([
+        fetch(`${apiBase}/pipeline`),
+        fetch("/api/pipeline-stages"),
+      ]);
+
+      if (pipelineRes.ok) {
+        const data = await pipelineRes.json();
         setItems(data.items || []);
+      }
+      if (stagesRes.ok) {
+        const data = await stagesRes.json();
+        setStages(data.stages || []);
       }
     } catch (err) {
       console.error("Failed to load pipeline:", err);
@@ -67,8 +75,11 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     loadPipeline();
   }, [loadPipeline]);
 
+  // Derive first non-loss stage slug for default lead_status
+  const defaultStageSlug = stages.find((s) => !s.is_loss)?.slug || "lead";
+
   function getItemsByStage(stage: string): PipelineItem[] {
-    return items.filter((item) => (item.leadStatus || "new") === stage);
+    return items.filter((item) => (item.leadStatus || defaultStageSlug) === stage);
   }
 
   function handleClickItem(item: PipelineItem) {
@@ -101,6 +112,10 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     // Don't update if same stage
     if (item.leadStatus === targetStage) return;
 
+    // Check if target stage is a win stage
+    const targetStageObj = stages.find((s) => s.slug === targetStage);
+    const isWinStage = targetStageObj?.is_win ?? false;
+
     // Optimistic update
     const prevItems = [...items];
     setItems((prev) =>
@@ -120,8 +135,8 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       // Build the update body
       const body: Record<string, unknown> = { lead_status: targetStage };
 
-      // If moving to "won", add "customer" to types if not already present
-      if (targetStage === "won" && !item.types.includes("customer")) {
+      // If moving to a win stage, add "customer" to types if not already present
+      if (isWinStage && !item.types.includes("customer")) {
         body.types = [...item.types, "customer"];
       }
 
@@ -133,7 +148,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
 
       if (!res.ok) {
         setItems(prevItems); // Revert on failure
-      } else if (targetStage === "won" && !item.types.includes("customer")) {
+      } else if (isWinStage && !item.types.includes("customer")) {
         // Update local types too
         setItems((prev) =>
           prev.map((i) =>
@@ -194,7 +209,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
             phone: dealForm.phone.trim() || null,
             business_name: dealForm.business_name.trim() || null,
             types: ["lead"],
-            lead_status: "new",
+            lead_status: defaultStageSlug,
             source: "pipeline",
           }),
         });
@@ -214,7 +229,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
             phone: dealForm.phone.trim() || null,
             industry: dealForm.industry.trim() || null,
             types: ["lead"],
-            lead_status: "new",
+            lead_status: defaultStageSlug,
             source: "pipeline",
           }),
         });
@@ -301,11 +316,13 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <div className="flex gap-3 overflow-x-auto pb-4">
-            {STAGES.map((stage) => (
+            {stages.map((stage) => (
               <PipelineColumn
-                key={stage}
-                stage={stage}
-                items={getItemsByStage(stage)}
+                key={stage.slug}
+                stage={stage.slug}
+                label={stage.name}
+                colour={stage.colour}
+                items={getItemsByStage(stage.slug)}
                 onClickItem={handleClickItem}
                 onDeleteItem={handleDeleteItem}
               />
@@ -485,7 +502,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
             </div>
 
             <p className="text-xs text-slate-400 mt-4">
-              Lead status will be set to &quot;New&quot; and will appear in the first column.
+              {`Lead will be added to the "${stages.find((s) => s.slug === defaultStageSlug)?.name || "first"}" stage.`}
             </p>
 
             <div className="flex gap-3 mt-5">

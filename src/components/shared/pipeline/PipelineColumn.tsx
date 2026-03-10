@@ -2,33 +2,20 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { PipelineCard, type PipelineItem } from "./PipelineCard";
-
-const STAGE_COLORS: Record<string, { bg: string; border: string; dot: string }> = {
-  new: { bg: "bg-blue-50", border: "border-blue-200", dot: "bg-blue-500" },
-  contacted: { bg: "bg-yellow-50", border: "border-yellow-200", dot: "bg-yellow-500" },
-  qualified: { bg: "bg-purple-50", border: "border-purple-200", dot: "bg-purple-500" },
-  won: { bg: "bg-green-50", border: "border-green-200", dot: "bg-green-500" },
-  lost: { bg: "bg-red-50", border: "border-red-200", dot: "bg-red-500" },
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  new: "New",
-  contacted: "Contacted",
-  qualified: "Qualified",
-  won: "Won",
-  lost: "Lost",
-};
+import { STAGE_COLOURS } from "@/lib/pipeline";
 
 interface PipelineColumnProps {
   stage: string;
+  label?: string;
+  colour?: string;
   items: PipelineItem[];
   onClickItem: (item: PipelineItem) => void;
   onDeleteItem?: (item: PipelineItem) => void;
 }
 
-export function PipelineColumn({ stage, items, onClickItem, onDeleteItem }: PipelineColumnProps) {
+export function PipelineColumn({ stage, label, colour, items, onClickItem, onDeleteItem }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
-  const colors = STAGE_COLORS[stage] || STAGE_COLORS.new;
+  const colors = STAGE_COLOURS[colour || "blue"] || STAGE_COLOURS.blue;
 
   return (
     <div
@@ -44,7 +31,7 @@ export function PipelineColumn({ stage, items, onClickItem, onDeleteItem }: Pipe
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
             <span className="text-sm font-semibold text-slate-700">
-              {STAGE_LABELS[stage] || stage}
+              {label || stage}
             </span>
           </div>
           <span className="text-xs font-medium text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">

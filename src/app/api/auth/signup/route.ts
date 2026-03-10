@@ -117,6 +117,11 @@ export async function POST(request: Request) {
       { onConflict: "user_id,role_id,roaster_id" }
     );
 
+    // Seed default pipeline stages for the new roaster (fire-and-forget)
+    serviceClient.rpc("seed_default_pipeline_stages", { p_roaster_id: roaster.id }).then(
+      ({ error: seedErr }) => { if (seedErr) console.error("Failed to seed pipeline stages:", seedErr); }
+    );
+
     // Create people record + profile + auto-link GR contact/business (fire-and-forget)
     (async () => {
       try {

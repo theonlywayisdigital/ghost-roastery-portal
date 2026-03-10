@@ -66,14 +66,17 @@ export async function GET() {
 
   const items = [...contactItems, ...businessItems];
 
-  // Count by stage
-  const counts = { new: 0, contacted: 0, qualified: 0, won: 0, lost: 0 };
+  // Count by stage — admin pipeline uses a static set since it spans all roasters
+  const stageSlugs = ["lead", "contacted", "access_granted", "won", "lost"];
+  const counts: Record<string, number> = {};
+  for (const slug of stageSlugs) {
+    counts[slug] = 0;
+  }
   for (const item of items) {
-    const stage = item.leadStatus as keyof typeof counts;
-    if (stage in counts) {
-      counts[stage]++;
+    if (item.leadStatus in counts) {
+      counts[item.leadStatus]++;
     } else {
-      counts.new++;
+      counts[stageSlugs[0]]++;
     }
   }
 

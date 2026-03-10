@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { fetchPipelineStages } from "@/lib/pipeline";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -9,6 +10,10 @@ export async function GET() {
   }
 
   const supabase = createServerClient();
+
+  // Fetch pipeline stages for this roaster
+  const stages = await fetchPipelineStages(supabase, roaster.id);
+  const defaultSlug = stages.find((s) => !s.is_loss)?.slug || "lead";
 
   // Fetch contacts with lead/wholesale/prospect types
   const { data: contacts, error: contactsErr } = await supabase
@@ -44,7 +49,7 @@ export async function GET() {
     email: c.email,
     businessName: c.business_name,
     source: c.source || "manual",
-    leadStatus: c.lead_status || "new",
+    leadStatus: c.lead_status || defaultSlug,
     totalSpend: c.total_spend || 0,
     types: (c.types as string[]) || [],
     createdAt: c.created_at,
@@ -58,7 +63,7 @@ export async function GET() {
     email: b.email,
     businessName: null,
     source: b.source || "manual",
-    leadStatus: b.lead_status || "new",
+    leadStatus: b.lead_status || defaultSlug,
     totalSpend: b.total_spend || 0,
     types: (b.types as string[]) || [],
     createdAt: b.created_at,
@@ -66,14 +71,16 @@ export async function GET() {
 
   const items = [...contactItems, ...businessItems];
 
-  // Count by stage
-  const counts = { new: 0, contacted: 0, qualified: 0, won: 0, lost: 0 };
+  // Count by stage (dynamic from DB stages)
+  const counts: Record<string, number> = {};
+  for (const stage of stages) {
+    counts[stage.slug] = 0;
+  }
   for (const item of items) {
-    const stage = item.leadStatus as keyof typeof counts;
-    if (stage in counts) {
-      counts[stage]++;
-    } else {
-      counts.new++;
+    if (item.leadStatus in counts) {
+      counts[item.leadStatus]++;
+    } else if (defaultSlug in counts) {
+      counts[defaultSlug]++;
     }
   }
 

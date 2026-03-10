@@ -40,6 +40,7 @@ import {
   Filter,
   Funnel,
 } from "@/components/icons";
+import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
 // ─── Types ───
 
@@ -158,14 +159,6 @@ const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-50 text-green-700",
   inactive: "bg-slate-100 text-slate-600",
   archived: "bg-red-50 text-red-600",
-};
-
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-700",
-  contacted: "bg-yellow-50 text-yellow-700",
-  qualified: "bg-purple-50 text-purple-700",
-  won: "bg-green-50 text-green-700",
-  lost: "bg-red-50 text-red-600",
 };
 
 const INDUSTRY_COLORS: Record<string, string> = {
@@ -308,6 +301,9 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
   const [creatingContact, setCreatingContact] = useState(false);
   const [addContactError, setAddContactError] = useState<string | null>(null);
 
+  // Pipeline stages
+  const [stages, setStages] = useState<PipelineStage[]>([]);
+
   // Activity filter
   const [activityFilter, setActivityFilter] = useState("all");
 
@@ -348,6 +344,9 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
         country: d.business.country || "UK",
         notes: d.business.notes || "",
       });
+      fetch("/api/pipeline-stages").then(res => res.ok ? res.json() : null).then(data => {
+        if (data?.stages) setStages(data.stages);
+      }).catch(() => {});
     } catch {
       setError("Failed to load business");
     }
@@ -480,10 +479,15 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
 
   async function handleLeadStatusChange(newStatus: string) {
     try {
+      const targetStage = stages.find((s) => s.slug === newStatus);
+      const body: Record<string, unknown> = { lead_status: newStatus };
+      if (targetStage?.is_win && data?.business && !data.business.types.includes("customer")) {
+        body.types = [...data.business.types, "customer"];
+      }
       await fetch(`/api/businesses/${businessId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_status: newStatus }),
+        body: JSON.stringify(body),
       });
       loadBusiness();
     } catch {
@@ -601,6 +605,11 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
     setContactResults([]);
     setNewContactForm({ first_name: "", last_name: "", email: "", phone: "", role: "" });
     setAddContactError(null);
+  }
+
+  function getStageBadgeClass(slug: string): string {
+    const stage = stages.find((s) => s.slug === slug);
+    return stage ? (STAGE_COLOURS[stage.colour]?.badge || "bg-slate-100 text-slate-600") : "bg-slate-100 text-slate-600";
   }
 
   // ─── Render ───
@@ -785,13 +794,11 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
                   <select
                     value={business.lead_status}
                     onChange={(e) => handleLeadStatusChange(e.target.value)}
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer ${LEAD_STATUS_COLORS[business.lead_status] || "bg-slate-100 text-slate-600"}`}
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer ${getStageBadgeClass(business.lead_status)}`}
                   >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
+                    {stages.map((s) => (
+                      <option key={s.slug} value={s.slug}>{s.name}</option>
+                    ))}
                   </select>
                 )}
               </div>
@@ -921,17 +928,17 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <h3 className="text-sm font-semibold text-slate-900 mb-3">Lead Pipeline</h3>
                   <div className="flex gap-1">
-                    {["new", "contacted", "qualified", "won", "lost"].map((stage) => (
+                    {stages.map((stage) => (
                       <button
-                        key={stage}
-                        onClick={() => handleLeadStatusChange(stage)}
-                        className={`flex-1 py-2 text-xs font-medium rounded-lg text-center capitalize transition-colors ${
-                          business.lead_status === stage
-                            ? LEAD_STATUS_COLORS[stage] || "bg-slate-100 text-slate-600"
+                        key={stage.slug}
+                        onClick={() => handleLeadStatusChange(stage.slug)}
+                        className={`flex-1 py-2 text-xs font-medium rounded-lg text-center transition-colors ${
+                          business.lead_status === stage.slug
+                            ? STAGE_COLOURS[stage.colour]?.badge || "bg-slate-100 text-slate-600"
                             : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                         }`}
                       >
-                        {stage}
+                        {stage.name}
                       </button>
                     ))}
                   </div>
@@ -1512,6 +1519,7 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
             <DealsTabContent
               leadStatus={business.lead_status}
               onLeadStatusChange={handleLeadStatusChange}
+              stages={stages}
               timeline={deduped}
               isReadOnly={false}
             />
@@ -2317,17 +2325,17 @@ function TimelineItem({ item }: { item: {
 
 // ─── Deals Tab Content ───
 
-const LEAD_STAGES = ["new", "contacted", "qualified", "won", "lost"] as const;
-
 function DealsTabContent({
   leadStatus,
   onLeadStatusChange,
+  stages,
   timeline,
   isReadOnly,
   readOnlyMessage,
 }: {
   leadStatus: string | null;
   onLeadStatusChange: (status: string) => void;
+  stages: PipelineStage[];
   timeline: { id: string; type: string; subtype: string; content: string; created_at: string }[];
   isReadOnly: boolean;
   readOnlyMessage?: string;
@@ -2340,16 +2348,16 @@ function DealsTabContent({
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <h3 className="text-sm font-semibold text-slate-900 mb-3">Pipeline Position</h3>
         <div className="flex gap-0.5 mb-4">
-          {LEAD_STAGES.map((stage) => (
+          {stages.map((stage) => (
             <div
-              key={stage}
-              className={`flex-1 py-1.5 text-[10px] font-medium text-center capitalize rounded ${
-                leadStatus === stage
-                  ? LEAD_STATUS_COLORS[stage] || "bg-slate-100 text-slate-600"
+              key={stage.slug}
+              className={`flex-1 py-1.5 text-[10px] font-medium text-center rounded ${
+                leadStatus === stage.slug
+                  ? STAGE_COLOURS[stage.colour]?.badge || "bg-slate-100 text-slate-600"
                   : "bg-slate-50 text-slate-300"
               }`}
             >
-              {stage}
+              {stage.name}
             </div>
           ))}
         </div>
@@ -2366,9 +2374,9 @@ function DealsTabContent({
               className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Select stage...</option>
-              {LEAD_STAGES.filter((s) => s !== leadStatus).map((stage) => (
-                <option key={stage} value={stage}>
-                  {stage.charAt(0).toUpperCase() + stage.slice(1)}
+              {stages.filter((s) => s.slug !== leadStatus).map((stage) => (
+                <option key={stage.slug} value={stage.slug}>
+                  {stage.name}
                 </option>
               ))}
             </select>
@@ -2420,9 +2428,9 @@ function DealsTabContent({
             </h3>
             <p className="text-sm text-slate-500 mb-1">
               {`Move from `}
-              <span className="font-medium text-slate-700 capitalize">{leadStatus || "none"}</span>
+              <span className="font-medium text-slate-700">{stages.find(s => s.slug === leadStatus)?.name || leadStatus || "none"}</span>
               {` to `}
-              <span className="font-medium text-slate-700 capitalize">{pendingStage}</span>
+              <span className="font-medium text-slate-700">{stages.find(s => s.slug === pendingStage)?.name || pendingStage}</span>
               {`.`}
             </p>
             <p className="text-xs text-slate-400 mb-6">

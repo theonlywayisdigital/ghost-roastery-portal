@@ -218,10 +218,20 @@ export async function PUT(
     }
 
     if ("lead_status" in body && body.lead_status !== existing.lead_status) {
+      // Fetch stage name for readable description
+      let stageName = body.lead_status;
+      const { data: stageRow } = await supabase
+        .from("pipeline_stages")
+        .select("name")
+        .eq("roaster_id", roaster.id)
+        .eq("slug", body.lead_status)
+        .maybeSingle();
+      if (stageRow) stageName = stageRow.name;
+
       await supabase.from("contact_activity").insert({
         contact_id: id,
         activity_type: "lead_status_changed",
-        description: `Lead status changed from ${existing.lead_status || "none"} to ${body.lead_status}`,
+        description: `Stage changed to ${stageName}`,
         metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
       });
 

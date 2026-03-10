@@ -33,6 +33,7 @@ export type LimitKey = SalesLimitKey | MarketingLimitKey | ToolsLimitKey;
 export type SalesFeatureKey =
   | "invoices"
   | "pipeline"
+  | "customPipelineStages"
   | "salesAnalyticsBasic"
   | "salesAnalyticsFull"
   | "crmEmailIntegration";
@@ -79,6 +80,7 @@ const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
 const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
   invoices:             { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   pipeline:             { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  customPipelineStages: { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   salesAnalyticsBasic:  { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   salesAnalyticsFull:   { free: false, starter: false, growth: true,  pro: true,  scale: true },
   crmEmailIntegration:  { free: false, starter: false, growth: true,  pro: true,  scale: true },
@@ -205,6 +207,7 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     // Sales features
     invoices: SALES_FEATURES.invoices[salesTier],
     pipeline: SALES_FEATURES.pipeline[salesTier],
+    customPipelineStages: SALES_FEATURES.customPipelineStages[salesTier],
     salesAnalyticsBasic: SALES_FEATURES.salesAnalyticsBasic[salesTier],
     salesAnalyticsFull: SALES_FEATURES.salesAnalyticsFull[salesTier],
     crmEmailIntegration: SALES_FEATURES.crmEmailIntegration[salesTier],
@@ -335,6 +338,7 @@ export const LIMIT_LABELS: Record<LimitKey, string> = {
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
   invoices: "Invoices",
   pipeline: "Sales Pipeline",
+  customPipelineStages: "Custom Pipeline Stages",
   salesAnalyticsBasic: "Basic Sales Analytics",
   salesAnalyticsFull: "Advanced Sales Analytics",
   crmEmailIntegration: "CRM Email Integration",

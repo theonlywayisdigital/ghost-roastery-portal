@@ -75,15 +75,20 @@ export function HeroSection() {
           >
             <Link
               href={`/s/${slug}/shop`}
-              style={{ backgroundColor: accent, color: accentText }}
-              className="px-7 py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: "var(--sf-btn-colour)",
+                color: "var(--sf-btn-text)",
+                borderRadius: "var(--sf-btn-radius)",
+              }}
+              className="px-7 py-3.5 font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               Shop Now
             </Link>
             {showWholesale && (
               <Link
                 href={`/s/${slug}/wholesale`}
-                className="px-7 py-3.5 rounded-lg font-semibold text-sm bg-white/15 text-white hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
+                className="px-7 py-3.5 font-semibold text-sm bg-white/15 text-white hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
+                style={{ borderRadius: "var(--sf-btn-radius)" }}
               >
                 Trade Enquiry
               </Link>

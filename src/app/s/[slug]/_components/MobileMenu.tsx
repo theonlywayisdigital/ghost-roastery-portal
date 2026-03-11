@@ -54,13 +54,14 @@ export function MobileMenu({
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed top-0 left-0 z-50 h-full w-72 shadow-xl flex flex-col"
-            style={{ backgroundColor: primary }}
+            style={{ backgroundColor: "var(--sf-nav-bg)" }}
           >
             {/* Close button */}
             <div className="flex items-center justify-end p-4">
               <button
                 onClick={onClose}
-                className="p-2 text-white/70 hover:text-white"
+                className="p-2 opacity-70 hover:opacity-100"
+                style={{ color: "var(--sf-nav-text)" }}
                 aria-label="Close menu"
               >
                 <svg
@@ -86,7 +87,8 @@ export function MobileMenu({
                   <button
                     key={link.label}
                     onClick={() => onNavClick(link.href)}
-                    className="block w-full text-left px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    className="block w-full text-left px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    style={{ color: "var(--sf-nav-text)" }}
                   >
                     {link.label}
                   </button>
@@ -95,7 +97,8 @@ export function MobileMenu({
                     key={link.label}
                     href={link.href}
                     onClick={onClose}
-                    className="block px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    style={{ color: "var(--sf-nav-text)" }}
                   >
                     {link.label}
                   </Link>
@@ -109,14 +112,16 @@ export function MobileMenu({
                   <Link
                     href={`/s/${slug}/orders`}
                     onClick={onClose}
-                    className="block px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    style={{ color: "var(--sf-nav-text)" }}
                   >
                     My Orders
                   </Link>
                   <Link
                     href={`/s/${slug}/account`}
                     onClick={onClose}
-                    className="block px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                    style={{ color: "var(--sf-nav-text)" }}
                   >
                     My Account
                   </Link>
@@ -148,7 +153,8 @@ export function MobileMenu({
                     onClose();
                     onSignOut();
                   }}
-                  className="w-full px-4 py-3 text-white/60 hover:text-white text-sm font-medium text-left hover:bg-white/10 rounded-lg transition-colors"
+                  className="w-full px-4 py-3 opacity-60 hover:opacity-100 text-sm font-medium text-left hover:bg-white/10 rounded-lg transition-colors"
+                  style={{ color: "var(--sf-nav-text)" }}
                 >
                   Sign Out
                 </button>

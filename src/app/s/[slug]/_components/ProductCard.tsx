@@ -117,10 +117,14 @@ export function ProductCard({ product }: { product: Product }) {
               disabled={outOfStock}
               style={
                 outOfStock
-                  ? undefined
-                  : { backgroundColor: accent, color: accentText }
+                  ? { borderRadius: "var(--sf-btn-radius)" }
+                  : {
+                      backgroundColor: "var(--sf-btn-colour)",
+                      color: "var(--sf-btn-text)",
+                      borderRadius: "var(--sf-btn-radius)",
+                    }
               }
-              className={`w-full mt-3 py-2.5 rounded-lg text-sm font-semibold transition-opacity ${
+              className={`w-full mt-3 py-2.5 text-sm font-semibold transition-opacity ${
                 outOfStock
                   ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                   : "hover:opacity-90"
@@ -131,8 +135,12 @@ export function ProductCard({ product }: { product: Product }) {
           ) : (
             <button
               onClick={handleEnquire}
-              style={{ backgroundColor: accent, color: accentText }}
-              className="w-full mt-3 py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+              style={{
+                backgroundColor: "var(--sf-btn-colour)",
+                color: "var(--sf-btn-text)",
+                borderRadius: "var(--sf-btn-radius)",
+              }}
+              className="w-full mt-3 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               Buy Now
             </button>

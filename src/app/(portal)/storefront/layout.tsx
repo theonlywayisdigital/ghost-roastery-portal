@@ -1,6 +1,8 @@
 import { getCurrentRoaster } from "@/lib/auth";
+import { createServerClient } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 import { StorefrontTabs } from "./StorefrontTabs";
+import { WebsiteBuilderBanner } from "./WebsiteBuilderBanner";
 
 export default async function StorefrontLayout({
   children,
@@ -13,6 +15,16 @@ export default async function StorefrontLayout({
   const isSetupComplete = roaster.storefront_setup_complete as boolean;
   const slug = roaster.storefront_slug as string | null;
 
+  // Check if roaster already has a website
+  const supabase = createServerClient();
+  const { data: website } = await supabase
+    .from("websites")
+    .select("id")
+    .eq("roaster_id", roaster.id)
+    .maybeSingle();
+
+  const hasWebsite = !!website;
+
   return (
     <div>
       <div className="mb-6">
@@ -23,6 +35,8 @@ export default async function StorefrontLayout({
           </p>
         )}
       </div>
+
+      {isSetupComplete && !hasWebsite && <WebsiteBuilderBanner />}
 
       {isSetupComplete && <StorefrontTabs />}
 

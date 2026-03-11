@@ -49,7 +49,10 @@ export default async function StorefrontLayout({
        brand_heading_font, brand_body_font, brand_tagline, brand_hero_image_url, brand_about,
        brand_instagram, brand_facebook, brand_tiktok, storefront_type,
        minimum_wholesale_order, storefront_enabled, retail_enabled,
-       stripe_account_id, storefront_logo_size`
+       stripe_account_id, storefront_logo_size,
+       storefront_nav_colour, storefront_nav_text_colour,
+       storefront_button_colour, storefront_button_text_colour,
+       storefront_bg_colour, storefront_text_colour, storefront_button_style`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
@@ -65,6 +68,15 @@ export default async function StorefrontLayout({
   const primary = roaster.brand_primary_colour || "#1e293b";
   const accent = roaster.brand_accent_colour || "#0083dc";
   const accentText = isLightColour(accent) ? "#1e293b" : "#ffffff";
+
+  const navBg = roaster.storefront_nav_colour || primary;
+  const navText = roaster.storefront_nav_text_colour || "#ffffff";
+  const btnColour = roaster.storefront_button_colour || accent;
+  const btnText = roaster.storefront_button_text_colour || "#ffffff";
+  const pageBg = roaster.storefront_bg_colour || "#ffffff";
+  const pageText = roaster.storefront_text_colour || "#0f172a";
+  const btnRadiusMap: Record<string, string> = { sharp: "0px", rounded: "8px", pill: "9999px" };
+  const btnRadius = btnRadiusMap[roaster.storefront_button_style || "rounded"] || "8px";
 
   return (
     <>
@@ -88,6 +100,15 @@ export default async function StorefrontLayout({
             "--sf-primary": primary,
             "--sf-accent": accent,
             "--sf-accent-text": accentText,
+            "--sf-nav-bg": navBg,
+            "--sf-nav-text": navText,
+            "--sf-btn-colour": btnColour,
+            "--sf-btn-text": btnText,
+            "--sf-bg": pageBg,
+            "--sf-text": pageText,
+            "--sf-btn-radius": btnRadius,
+            backgroundColor: pageBg,
+            color: pageText,
           } as React.CSSProperties
         }
       >

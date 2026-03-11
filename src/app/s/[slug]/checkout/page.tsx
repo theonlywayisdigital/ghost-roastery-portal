@@ -432,7 +432,12 @@ function CheckoutContent() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-50"
+                className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                style={{
+                  backgroundColor: "var(--sf-btn-colour)",
+                  color: "var(--sf-btn-text)",
+                  borderRadius: "var(--sf-btn-radius)",
+                }}
               >
                 {isSubmitting ? "Processing..." : `Pay \u00A3${totalPounds.toFixed(2)}`}
               </button>

@@ -26,6 +26,13 @@ export default async function BrandingPage() {
     brand_tiktok: (roaster.brand_tiktok as string) || "",
     storefront_logo_size: (roaster.storefront_logo_size as "small" | "medium" | "large") || "medium",
     business_name: roaster.business_name as string,
+    storefront_nav_colour: (roaster.storefront_nav_colour as string) || "",
+    storefront_nav_text_colour: (roaster.storefront_nav_text_colour as string) || "",
+    storefront_button_colour: (roaster.storefront_button_colour as string) || "",
+    storefront_button_text_colour: (roaster.storefront_button_text_colour as string) || "",
+    storefront_bg_colour: (roaster.storefront_bg_colour as string) || "",
+    storefront_text_colour: (roaster.storefront_text_colour as string) || "",
+    storefront_button_style: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
   };
 
   return <BrandingEditor branding={brandingData} />;

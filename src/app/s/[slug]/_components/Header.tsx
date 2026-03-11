@@ -116,7 +116,7 @@ export function Header() {
       <header
         className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         style={{
-          backgroundColor: scrolled ? primary : "transparent",
+          backgroundColor: scrolled ? "var(--sf-nav-bg)" : "transparent",
           backdropFilter: scrolled ? "none" : "blur(8px)",
         }}
       >
@@ -125,7 +125,8 @@ export function Header() {
             {/* Mobile: Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 -ml-2 text-white"
+              className="md:hidden p-2 -ml-2"
+              style={{ color: "var(--sf-nav-text)" }}
               aria-label="Open menu"
             >
               <svg
@@ -166,7 +167,8 @@ export function Header() {
                   <button
                     key={link.label}
                     onClick={() => handleNavClick(link.href)}
-                    className="px-3.5 py-2 text-sm font-medium text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className="px-3.5 py-2 text-sm font-medium rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ color: "var(--sf-nav-text)", opacity: 0.85 }}
                   >
                     {link.label}
                   </button>
@@ -174,7 +176,8 @@ export function Header() {
                   <Link
                     key={link.label}
                     href={link.href}
-                    className="px-3.5 py-2 text-sm font-medium text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className="px-3.5 py-2 text-sm font-medium rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ color: "var(--sf-nav-text)", opacity: 0.85 }}
                   >
                     {link.label}
                   </Link>
@@ -210,7 +213,8 @@ export function Header() {
                 <div className="relative hidden md:block" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen((o) => !o)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                    style={{ color: "var(--sf-nav-text)" }}
                   >
                     <span
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
@@ -279,7 +283,8 @@ export function Header() {
               {showRetail && (
                 <button
                   onClick={openCart}
-                  className="relative p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                  className="relative p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  style={{ color: "var(--sf-nav-text)" }}
                   aria-label="Open cart"
                 >
                   <svg

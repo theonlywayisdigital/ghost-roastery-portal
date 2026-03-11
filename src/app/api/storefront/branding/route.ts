@@ -30,6 +30,13 @@ export async function PUT(request: Request) {
   if ("storefront_seo_description" in body) updateData.storefront_seo_description = body.storefront_seo_description ?? null;
   if ("storefront_logo_size" in body) updateData.storefront_logo_size = body.storefront_logo_size || "medium";
   if ("storefront_enabled" in body) updateData.storefront_enabled = body.storefront_enabled ?? false;
+  if ("storefront_nav_colour" in body) updateData.storefront_nav_colour = body.storefront_nav_colour || null;
+  if ("storefront_nav_text_colour" in body) updateData.storefront_nav_text_colour = body.storefront_nav_text_colour || null;
+  if ("storefront_button_colour" in body) updateData.storefront_button_colour = body.storefront_button_colour || null;
+  if ("storefront_button_text_colour" in body) updateData.storefront_button_text_colour = body.storefront_button_text_colour || null;
+  if ("storefront_bg_colour" in body) updateData.storefront_bg_colour = body.storefront_bg_colour || null;
+  if ("storefront_text_colour" in body) updateData.storefront_text_colour = body.storefront_text_colour || null;
+  if ("storefront_button_style" in body) updateData.storefront_button_style = body.storefront_button_style || "rounded";
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });

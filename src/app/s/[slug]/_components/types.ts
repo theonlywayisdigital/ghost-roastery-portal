@@ -17,6 +17,13 @@ export interface RoasterBranding {
   retail_enabled: boolean;
   stripe_account_id: string | null;
   storefront_logo_size: "small" | "medium" | "large" | null;
+  storefront_nav_colour: string | null;
+  storefront_nav_text_colour: string | null;
+  storefront_button_colour: string | null;
+  storefront_button_text_colour: string | null;
+  storefront_bg_colour: string | null;
+  storefront_text_colour: string | null;
+  storefront_button_style: "sharp" | "rounded" | "pill";
 }
 
 export interface Product {

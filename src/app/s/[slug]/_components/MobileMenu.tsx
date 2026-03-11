@@ -16,13 +16,15 @@ export function MobileMenu({
   onClose,
   navLinks,
   onNavClick,
+  showWholesaleLogin,
 }: {
   isOpen: boolean;
   onClose: () => void;
   navLinks: NavLink[];
   onNavClick: (href: string) => void;
+  showWholesaleLogin: boolean;
 }) {
-  const { roaster, primary } = useStorefront();
+  const { roaster, slug, primary, accent, accentText } = useStorefront();
 
   return (
     <AnimatePresence>
@@ -91,6 +93,20 @@ export function MobileMenu({
                     {link.label}
                   </Link>
                 )
+              )}
+
+              {showWholesaleLogin && (
+                <Link
+                  href={`/s/${slug}/wholesale`}
+                  onClick={onClose}
+                  className="block mx-4 mt-3 px-4 py-3 text-center text-sm font-semibold rounded-lg border transition-colors"
+                  style={{
+                    borderColor: accent,
+                    color: accent,
+                  }}
+                >
+                  Wholesale Login
+                </Link>
               )}
             </nav>
 

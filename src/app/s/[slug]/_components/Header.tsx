@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useStorefront } from "./StorefrontProvider";
 import { useCart } from "./CartProvider";
 import { MobileMenu } from "./MobileMenu";
@@ -10,9 +11,12 @@ export function Header() {
   const { roaster, slug, primary, accent, accentText, showWholesale, embedded } =
     useStorefront();
   const { itemCount, openCart } = useCart();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const showWholesaleLogin = showWholesale && !pathname.startsWith(`/s/${slug}/wholesale`);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -33,7 +37,7 @@ export function Header() {
   const navLinks = [
     { label: "Shop", href: `/s/${slug}/shop` },
     ...(showWholesale
-      ? [{ label: "Trade", href: `/s/${slug}/wholesale` }]
+      ? [{ label: "Wholesale", href: `/s/${slug}/wholesale` }]
       : []),
     ...(roaster.brand_about ? [{ label: "About", href: `#about` }] : []),
     { label: "Contact", href: `#enquiry` },
@@ -121,6 +125,28 @@ export function Header() {
               )}
             </nav>
 
+            {/* Wholesale Login */}
+            {showWholesaleLogin && (
+              <Link
+                href={`/s/${slug}/wholesale`}
+                className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors mr-2"
+                style={{
+                  borderColor: accent,
+                  color: accent,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = accent;
+                  e.currentTarget.style.color = accentText;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = accent;
+                }}
+              >
+                Wholesale Login
+              </Link>
+            )}
+
             {/* Cart Icon */}
             <button
               onClick={openCart}
@@ -159,6 +185,7 @@ export function Header() {
         onClose={() => setMobileMenuOpen(false)}
         navLinks={navLinks}
         onNavClick={handleNavClick}
+        showWholesaleLogin={showWholesaleLogin}
       />
     </>
   );

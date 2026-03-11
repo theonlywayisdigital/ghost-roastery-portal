@@ -73,10 +73,10 @@ export function StorefrontWholesalePage({
           className="text-3xl md:text-4xl font-bold mb-2"
           style={{ color: primary }}
         >
-          Trade
+          Wholesale
         </h1>
         <p className="text-slate-500 mb-8">
-          Wholesale pricing for approved trade accounts.
+          Wholesale pricing and ordering for approved accounts.
         </p>
 
         <WholesaleAuthGate
@@ -86,6 +86,8 @@ export function StorefrontWholesalePage({
           accentText={accentText}
           primaryColour={primary}
           initialAccess={initialAccess}
+          logoUrl={roaster.logoUrl}
+          businessName={roaster.businessName}
         >
           {({ wholesaleAccessId, paymentTerms }) => (
             <StorefrontWholesaleCatalogue

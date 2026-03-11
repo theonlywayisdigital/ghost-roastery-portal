@@ -6,7 +6,9 @@ import { Package, Plus, Pencil } from "@/components/icons";
 
 interface ProductVariant {
   id: string;
+  retail_price: number | null;
   wholesale_price: number | null;
+  is_active: boolean | null;
 }
 
 interface Product {
@@ -59,6 +61,20 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
 
   function hasRetailPrice(product: Product): boolean {
     return product.retail_price != null && product.retail_price > 0;
+  }
+
+  function getPriceDisplay(product: Product): string {
+    const variants = product.product_variants?.filter((v) => v.is_active) || [];
+    if (variants.length === 0) return `£${product.price.toFixed(2)}`;
+
+    const prices = variants
+      .flatMap((v) => [v.retail_price, v.wholesale_price])
+      .filter((p): p is number => p != null && p > 0);
+    if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
   }
 
   if (products.length === 0) {
@@ -129,7 +145,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                   {product.name}
                 </h3>
                 <p className="text-sm text-slate-500">
-                  £{product.price.toFixed(2)} / {product.unit}
+                  {getPriceDisplay(product)} / {product.unit}
                 </p>
 
                 {/* Channel toggles */}

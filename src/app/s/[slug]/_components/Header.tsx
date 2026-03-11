@@ -14,7 +14,7 @@ interface AuthUser {
 }
 
 export function Header() {
-  const { roaster, slug, primary, accent, accentText, showWholesale, embedded } =
+  const { roaster, slug, primary, accent, accentText, showRetail, showWholesale, embedded } =
     useStorefront();
   const { itemCount, openCart } = useCart();
   const router = useRouter();
@@ -73,7 +73,9 @@ export function Header() {
   if (embedded) return null;
 
   const navLinks = [
-    { label: "Shop", href: `/s/${slug}/shop` },
+    ...(showRetail
+      ? [{ label: "Shop", href: `/s/${slug}/shop` }]
+      : []),
     ...(showWholesale
       ? [{ label: "Wholesale", href: `/s/${slug}/wholesale` }]
       : []),
@@ -273,34 +275,36 @@ export function Header() {
                 </div>
               )}
 
-              {/* Cart Icon */}
-              <button
-                onClick={openCart}
-                className="relative p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Open cart"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {/* Cart Icon — retail only */}
+              {showRetail && (
+                <button
+                  onClick={openCart}
+                  className="relative p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                  aria-label="Open cart"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  />
-                </svg>
-                {itemCount > 0 && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
-                    style={{ backgroundColor: accent, color: accentText }}
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    {itemCount}
-                  </span>
-                )}
-              </button>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
+                  </svg>
+                  {itemCount > 0 && (
+                    <span
+                      className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                      style={{ backgroundColor: accent, color: accentText }}
+                    >
+                      {itemCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import { StorefrontPage } from "./StorefrontPage";
 import type { Product } from "./_components/types";
@@ -16,12 +16,17 @@ export default async function StorefrontPageRoute({
   // Verify roaster exists and is enabled
   const { data: roaster } = await supabase
     .from("partner_roasters")
-    .select("id")
+    .select("id, storefront_type")
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
     .single();
 
   if (!roaster) notFound();
+
+  // Wholesale-only storefronts skip the retail homepage
+  if (roaster.storefront_type === "wholesale") {
+    redirect(`/s/${slug}/wholesale`);
+  }
 
   const { data: products } = await supabase
     .from("wholesale_products")

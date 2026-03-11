@@ -12,6 +12,7 @@ interface StorefrontContextValue {
   accent: string;
   accentText: string;
   retailEnabled: boolean;
+  showRetail: boolean;
   showWholesale: boolean;
   embedded: boolean;
 }
@@ -52,6 +53,9 @@ function StorefrontProviderInner({
   const accentText = isLightColour(accent) ? "#1e293b" : "#ffffff";
   const retailEnabled =
     roaster.retail_enabled && !!roaster.stripe_account_id;
+  const showRetail =
+    roaster.storefront_type === "retail" ||
+    roaster.storefront_type === "both";
   const showWholesale =
     roaster.storefront_type === "wholesale" ||
     roaster.storefront_type === "both";
@@ -65,6 +69,7 @@ function StorefrontProviderInner({
         accent,
         accentText,
         retailEnabled,
+        showRetail,
         showWholesale,
         embedded,
       }}

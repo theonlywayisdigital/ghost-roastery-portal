@@ -2,22 +2,48 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useStorefront } from "./StorefrontProvider";
 import { useCart } from "./CartProvider";
 import { MobileMenu } from "./MobileMenu";
+import { createBrowserClient } from "@/lib/supabase";
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
 
 export function Header() {
   const { roaster, slug, primary, accent, accentText, showWholesale, embedded } =
     useStorefront();
   const { itemCount, openCart } = useCart();
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const showWholesaleLogin = showWholesale && !pathname.startsWith(`/s/${slug}/wholesale`);
+  const showWholesaleLogin =
+    showWholesale &&
+    !pathname.startsWith(`/s/${slug}/wholesale`) &&
+    !user;
 
+  // Auth state detection
+  useEffect(() => {
+    const supabase = createBrowserClient();
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      if (authUser?.email) {
+        setUser({ id: authUser.id, email: authUser.email });
+      }
+      setAuthLoading(false);
+    });
+  }, []);
+
+  // Scroll detection
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -30,7 +56,25 @@ export function Header() {
     return () => observer.disconnect();
   }, []);
 
-  const logoSizePx = { small: 80, medium: 120, large: 160 }[roaster.storefront_logo_size || "medium"];
+  // Outside click to close dropdown
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [dropdownOpen]);
+
+  const logoSizePx =
+    { small: 80, medium: 120, large: 160 }[
+      roaster.storefront_logo_size || "medium"
+    ];
 
   if (embedded) return null;
 
@@ -50,6 +94,23 @@ export function Header() {
       el?.scrollIntoView({ behavior: "smooth" });
     }
   }
+
+  const displayName = user
+    ? user.email.split("@")[0]
+    : null;
+
+  const initial = displayName
+    ? displayName.charAt(0).toUpperCase()
+    : null;
+
+  async function handleSignOut() {
+    setDropdownOpen(false);
+    await fetch(`/api/auth/logout?redirect=/s/${slug}`, { method: "POST" });
+    setUser(null);
+    router.refresh();
+  }
+
+  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
 
   return (
     <>
@@ -125,56 +186,153 @@ export function Header() {
               )}
             </nav>
 
-            {/* Wholesale Login */}
-            {showWholesaleLogin && (
-              <Link
-                href={`/s/${slug}/wholesale/login`}
-                className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors mr-2"
-                style={{
-                  borderColor: accent,
-                  color: accent,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = accent;
-                  e.currentTarget.style.color = accentText;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = accent;
-                }}
-              >
-                Wholesale Login
-              </Link>
-            )}
+            {/* Right side: auth buttons + cart */}
+            <div className="flex items-center gap-1.5">
+              {!authLoading && !user && (
+                <>
+                  {/* Wholesale Login */}
+                  {showWholesaleLogin && (
+                    <Link
+                      href={`/s/${slug}/wholesale/login`}
+                      className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
+                      style={{
+                        borderColor: accent,
+                        color: accent,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = accent;
+                        e.currentTarget.style.color = accentText;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = accent;
+                      }}
+                    >
+                      Wholesale Login
+                    </Link>
+                  )}
 
-            {/* Cart Icon */}
-            <button
-              onClick={openCart}
-              className="relative p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-              aria-label="Open cart"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              {itemCount > 0 && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
-                  style={{ backgroundColor: accent, color: accentText }}
-                >
-                  {itemCount}
-                </span>
+                  {/* Sign In */}
+                  <Link
+                    href={`/s/${slug}/login`}
+                    className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
+                    style={{
+                      borderColor: accent,
+                      color: accent,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = accent;
+                      e.currentTarget.style.color = accentText;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.color = accent;
+                    }}
+                  >
+                    Sign In
+                  </Link>
+                </>
               )}
-            </button>
+
+              {/* Signed-in user dropdown */}
+              {!authLoading && user && (
+                <div className="relative hidden md:block" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen((o) => !o)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <span
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ backgroundColor: accent, color: accentText }}
+                    >
+                      {initial}
+                    </span>
+                    <span className="text-sm font-medium max-w-[120px] truncate">
+                      {displayName}
+                    </span>
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50">
+                      <Link
+                        href={`/s/${slug}/orders`}
+                        onClick={() => setDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href={`/s/${slug}/account`}
+                        onClick={() => setDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        My Account
+                      </Link>
+                      <div className="border-t border-slate-100 my-1" />
+                      <button
+                        onClick={handleSignOut}
+                        className="block w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        Sign Out
+                      </button>
+                      <div className="border-t border-slate-100 my-1" />
+                      {portalUrl && (
+                        <a
+                          href={portalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block px-4 py-2 text-[11px] text-slate-400 hover:text-slate-500 transition-colors"
+                        >
+                          Powered by Ghost Roastery
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cart Icon */}
+              <button
+                onClick={openCart}
+                className="relative p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Open cart"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                  />
+                </svg>
+                {itemCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold px-1"
+                    style={{ backgroundColor: accent, color: accentText }}
+                  >
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -186,6 +344,8 @@ export function Header() {
         navLinks={navLinks}
         onNavClick={handleNavClick}
         showWholesaleLogin={showWholesaleLogin}
+        user={user}
+        onSignOut={handleSignOut}
       />
     </>
   );

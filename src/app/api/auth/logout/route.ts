@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function POST() {
+export async function POST(request: Request) {
   const cookieStore = await cookies();
 
   const supabase = createServerClient(
@@ -27,8 +27,12 @@ export async function POST() {
   // Also clear legacy portal_session cookie in case it still exists
   cookieStore.set("portal_session", "", { path: "/", maxAge: 0 });
 
+  const url = new URL(request.url);
+  const redirectTo = url.searchParams.get("redirect");
+  const base = process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001";
+
   return NextResponse.redirect(
-    new URL("/login", process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"),
+    new URL(redirectTo || "/login", base),
     303
   );
 }

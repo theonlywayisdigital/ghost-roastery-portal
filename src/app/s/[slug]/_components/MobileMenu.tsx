@@ -11,20 +11,29 @@ interface NavLink {
   href: string;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
 export function MobileMenu({
   isOpen,
   onClose,
   navLinks,
   onNavClick,
   showWholesaleLogin,
+  user,
+  onSignOut,
 }: {
   isOpen: boolean;
   onClose: () => void;
   navLinks: NavLink[];
   onNavClick: (href: string) => void;
   showWholesaleLogin: boolean;
+  user: AuthUser | null;
+  onSignOut: () => void;
 }) {
-  const { roaster, slug, primary, accent, accentText } = useStorefront();
+  const { roaster, slug, primary, accent } = useStorefront();
 
   return (
     <AnimatePresence>
@@ -95,6 +104,28 @@ export function MobileMenu({
                 )
               )}
 
+              {/* Signed-in links */}
+              {user && (
+                <>
+                  <div className="border-t border-white/10 my-2" />
+                  <Link
+                    href={`/s/${slug}/orders`}
+                    onClick={onClose}
+                    className="block px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                  >
+                    My Orders
+                  </Link>
+                  <Link
+                    href={`/s/${slug}/account`}
+                    onClick={onClose}
+                    className="block px-4 py-3 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                  >
+                    My Account
+                  </Link>
+                </>
+              )}
+
+              {/* Wholesale Login (signed out only) */}
               {showWholesaleLogin && (
                 <Link
                   href={`/s/${slug}/wholesale/login`}
@@ -108,7 +139,38 @@ export function MobileMenu({
                   Wholesale Login
                 </Link>
               )}
+
+              {/* Sign In (signed out only) */}
+              {!user && (
+                <Link
+                  href={`/s/${slug}/login`}
+                  onClick={onClose}
+                  className="block mx-4 mt-3 px-4 py-3 text-center text-sm font-semibold rounded-lg border transition-colors"
+                  style={{
+                    borderColor: accent,
+                    color: accent,
+                  }}
+                >
+                  Sign In
+                </Link>
+              )}
             </nav>
+
+            {/* Bottom section */}
+            <div className="px-4 pb-2">
+              {/* Sign Out button for signed-in users */}
+              {user && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onSignOut();
+                  }}
+                  className="w-full px-4 py-3 text-white/60 hover:text-white text-sm font-medium text-left hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  Sign Out
+                </button>
+              )}
+            </div>
 
             {/* Social Links */}
             <div className="px-8 py-6 border-t border-white/10">

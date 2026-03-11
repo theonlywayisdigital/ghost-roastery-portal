@@ -69,14 +69,14 @@ export default async function StorefrontLayout({
   const accent = roaster.brand_accent_colour || "#0083dc";
   const accentText = isLightColour(accent) ? "#1e293b" : "#ffffff";
 
-  const navBg = roaster.storefront_nav_colour || primary;
-  const navText = roaster.storefront_nav_text_colour || "#ffffff";
-  const btnColour = roaster.storefront_button_colour || accent;
-  const btnText = roaster.storefront_button_text_colour || "#ffffff";
-  const pageBg = roaster.storefront_bg_colour || "#ffffff";
-  const pageText = roaster.storefront_text_colour || "#0f172a";
+  const navBg = roaster.storefront_nav_colour ?? primary;
+  const navText = roaster.storefront_nav_text_colour ?? "#ffffff";
+  const btnColour = roaster.storefront_button_colour ?? accent;
+  const btnText = roaster.storefront_button_text_colour ?? "#ffffff";
+  const pageBg = roaster.storefront_bg_colour ?? "#ffffff";
+  const pageText = roaster.storefront_text_colour ?? "#0f172a";
   const btnRadiusMap: Record<string, string> = { sharp: "0px", rounded: "8px", pill: "9999px" };
-  const btnRadius = btnRadiusMap[roaster.storefront_button_style || "rounded"] || "8px";
+  const btnRadius = btnRadiusMap[roaster.storefront_button_style ?? "rounded"] ?? "8px";
 
   return (
     <>

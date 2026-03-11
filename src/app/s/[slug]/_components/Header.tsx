@@ -79,8 +79,7 @@ export function Header() {
     ...(showWholesale
       ? [{ label: "Wholesale", href: `/s/${slug}/wholesale` }]
       : []),
-    ...(roaster.brand_about ? [{ label: "About", href: `#about` }] : []),
-    { label: "Contact", href: `#enquiry` },
+    { label: "Contact", href: `/s/${slug}/contact` },
   ];
 
   function handleNavClick(href: string) {

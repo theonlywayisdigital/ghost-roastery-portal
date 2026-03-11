@@ -15,6 +15,9 @@ export default async function SettingsPage() {
     minimum_wholesale_order: (roaster.minimum_wholesale_order as number) || 1,
     storefront_seo_title: (roaster.storefront_seo_title as string) || "",
     storefront_seo_description: (roaster.storefront_seo_description as string) || "",
+    storefront_contact_email: (roaster.storefront_contact_email as string) || "",
+    storefront_contact_phone: (roaster.storefront_contact_phone as string) || "",
+    storefront_contact_address: (roaster.storefront_contact_address as string) || "",
     business_name: roaster.business_name as string,
   };
 

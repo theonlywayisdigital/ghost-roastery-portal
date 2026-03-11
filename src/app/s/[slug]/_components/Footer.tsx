@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStorefront } from "./StorefrontProvider";
 import { SocialLinks } from "./SocialIcons";
 
+
 export function Footer() {
   const { roaster, slug, primary, showWholesale, embedded } = useStorefront();
 
@@ -75,16 +76,12 @@ export function Footer() {
             </h4>
             <ul className="space-y-2.5">
               <li>
-                <button
-                  onClick={() =>
-                    document
-                      .getElementById("enquiry")
-                      ?.scrollIntoView({ behavior: "smooth" })
-                  }
+                <Link
+                  href={`/s/${slug}/contact`}
                   className="text-sm text-white/60 hover:text-white transition-colors"
                 >
                   Get in Touch
-                </button>
+                </Link>
               </li>
             </ul>
           </div>

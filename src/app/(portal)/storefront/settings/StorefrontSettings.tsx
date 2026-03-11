@@ -9,6 +9,9 @@ interface SettingsData {
   minimum_wholesale_order: number;
   storefront_seo_title: string;
   storefront_seo_description: string;
+  storefront_contact_email: string;
+  storefront_contact_phone: string;
+  storefront_contact_address: string;
   business_name: string;
 }
 
@@ -25,6 +28,10 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
   const [minOrder, setMinOrder] = useState(settings.minimum_wholesale_order.toString());
   const [seoTitle, setSeoTitle] = useState(settings.storefront_seo_title);
   const [seoDescription, setSeoDescription] = useState(settings.storefront_seo_description);
+
+  const [contactEmail, setContactEmail] = useState(settings.storefront_contact_email);
+  const [contactPhone, setContactPhone] = useState(settings.storefront_contact_phone);
+  const [contactAddress, setContactAddress] = useState(settings.storefront_contact_address);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -44,6 +51,9 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
           minimum_wholesale_order: parseInt(minOrder) || 1,
           storefront_seo_title: seoTitle || null,
           storefront_seo_description: seoDescription || null,
+          storefront_contact_email: contactEmail || null,
+          storefront_contact_phone: contactPhone || null,
+          storefront_contact_address: contactAddress || null,
         }),
       });
 
@@ -61,7 +71,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
     } finally {
       setSaving(false);
     }
-  }, [storefrontType, minOrder, seoTitle, seoDescription, router]);
+  }, [storefrontType, minOrder, seoTitle, seoDescription, contactEmail, contactPhone, contactAddress, router]);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -141,6 +151,59 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
             <p className={`text-xs mt-1 ${seoDescription.length > SEO_DESCRIPTION_MAX ? "text-red-500" : "text-slate-400"}`}>
               {`${seoDescription.length} / ${SEO_DESCRIPTION_MAX} characters`}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact details */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h3 className="text-sm font-semibold text-slate-900 mb-1">
+          Contact details
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Displayed on your storefront contact page.
+        </p>
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Email{" "}
+              <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder="hello@yourbrand.com"
+              className={inputClassName}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Phone{" "}
+              <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <input
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              placeholder="07..."
+              className={inputClassName}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Address{" "}
+              <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={contactAddress}
+              onChange={(e) => setContactAddress(e.target.value)}
+              placeholder="Your business address"
+              rows={3}
+              className={inputClassName}
+            />
           </div>
         </div>
       </div>

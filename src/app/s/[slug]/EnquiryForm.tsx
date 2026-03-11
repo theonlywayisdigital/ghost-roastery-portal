@@ -60,7 +60,13 @@ export function EnquiryForm({
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+      <div
+        className="rounded-xl border p-8 text-center"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+          borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+        }}
+      >
         <div
           className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
           style={{ backgroundColor: accentColour + "20" }}
@@ -79,27 +85,43 @@ export function EnquiryForm({
             />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-2">
+        <h3
+          className="text-xl font-semibold mb-2"
+          style={{ color: "var(--sf-text)" }}
+        >
           Message Sent
         </h3>
-        <p className="text-slate-500">
+        <p style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
           Thanks for your enquiry! We&apos;ll get back to you soon.
         </p>
       </div>
     );
   }
 
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)",
+    borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)",
+    color: "var(--sf-text)",
+  };
+
   const inputClassName =
-    "w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent";
+    "w-full px-4 py-3 border rounded-lg placeholder:opacity-40 focus:outline-none focus:ring-2 focus:border-transparent";
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-xl border border-slate-200 p-6 md:p-8 space-y-4"
+      className="rounded-xl border p-6 md:p-8 space-y-4"
+      style={{
+        backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+        borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+      }}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label
+            className="block text-sm font-medium mb-1.5"
+            style={{ color: "var(--sf-text)" }}
+          >
             Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -109,13 +131,14 @@ export function EnquiryForm({
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
             className={inputClassName}
-            style={
-              { "--tw-ring-color": accentColour } as React.CSSProperties
-            }
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label
+            className="block text-sm font-medium mb-1.5"
+            style={{ color: "var(--sf-text)" }}
+          >
             Email <span className="text-red-500">*</span>
           </label>
           <input
@@ -125,18 +148,19 @@ export function EnquiryForm({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             className={inputClassName}
-            style={
-              { "--tw-ring-color": accentColour } as React.CSSProperties
-            }
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label
+            className="block text-sm font-medium mb-1.5"
+            style={{ color: "var(--sf-text)" }}
+          >
             Phone{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
+            <span className="font-normal opacity-50">(optional)</span>
           </label>
           <input
             type="tel"
@@ -144,16 +168,17 @@ export function EnquiryForm({
             onChange={(e) => setPhone(e.target.value)}
             placeholder="07..."
             className={inputClassName}
-            style={
-              { "--tw-ring-color": accentColour } as React.CSSProperties
-            }
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         {showBusinessField && (
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label
+              className="block text-sm font-medium mb-1.5"
+              style={{ color: "var(--sf-text)" }}
+            >
               Business name{" "}
-              <span className="text-slate-400 font-normal">(optional)</span>
+              <span className="font-normal opacity-50">(optional)</span>
             </label>
             <input
               type="text"
@@ -161,16 +186,17 @@ export function EnquiryForm({
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Your business"
               className={inputClassName}
-              style={
-                { "--tw-ring-color": accentColour } as React.CSSProperties
-              }
+              style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
             />
           </div>
         )}
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label
+          className="block text-sm font-medium mb-1.5"
+          style={{ color: "var(--sf-text)" }}
+        >
           Message <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -180,7 +206,7 @@ export function EnquiryForm({
           placeholder="Tell us what you're looking for..."
           rows={4}
           className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
         />
       </div>
 
@@ -191,8 +217,12 @@ export function EnquiryForm({
       <button
         type="submit"
         disabled={submitting}
-        style={{ backgroundColor: accentColour, color: accentText }}
-        className="w-full py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+        style={{
+          backgroundColor: "var(--sf-btn-colour)",
+          color: "var(--sf-btn-text)",
+          borderRadius: "var(--sf-btn-radius)",
+        }}
+        className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         {submitting ? "Sending..." : "Send Enquiry"}
       </button>

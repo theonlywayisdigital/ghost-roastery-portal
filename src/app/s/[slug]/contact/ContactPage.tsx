@@ -55,8 +55,17 @@ export function ContactPage({ roaster }: { roaster: ContactRoaster }) {
             {/* Contact details card */}
             {hasContactDetails && (
               <div className="md:col-span-2">
-                <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-                  <h2 className="text-lg font-semibold text-slate-900">
+                <div
+                  className="rounded-xl border p-6 space-y-5"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+                  }}
+                >
+                  <h2
+                    className="text-lg font-semibold"
+                    style={{ color: "var(--sf-text)" }}
+                  >
                     Get in Touch
                   </h2>
 
@@ -69,12 +78,16 @@ export function ContactPage({ roaster }: { roaster: ContactRoaster }) {
                         <Mail className="w-4.5 h-4.5" color={accent} />
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-slate-500 mb-0.5">
+                        <p
+                          className="text-xs font-medium mb-0.5"
+                          style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                        >
                           Email
                         </p>
                         <a
                           href={`mailto:${roaster.contactEmail}`}
-                          className="text-sm text-slate-900 hover:underline break-all"
+                          className="text-sm hover:underline break-all"
+                          style={{ color: "var(--sf-text)" }}
                         >
                           {roaster.contactEmail}
                         </a>
@@ -94,12 +107,16 @@ export function ContactPage({ roaster }: { roaster: ContactRoaster }) {
                         />
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-slate-500 mb-0.5">
+                        <p
+                          className="text-xs font-medium mb-0.5"
+                          style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                        >
                           Phone
                         </p>
                         <a
                           href={`tel:${roaster.contactPhone}`}
-                          className="text-sm text-slate-900 hover:underline"
+                          className="text-sm hover:underline"
+                          style={{ color: "var(--sf-text)" }}
                         >
                           {roaster.contactPhone}
                         </a>
@@ -119,10 +136,16 @@ export function ContactPage({ roaster }: { roaster: ContactRoaster }) {
                         />
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-slate-500 mb-0.5">
+                        <p
+                          className="text-xs font-medium mb-0.5"
+                          style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                        >
                           Address
                         </p>
-                        <p className="text-sm text-slate-900 whitespace-pre-line">
+                        <p
+                          className="text-sm whitespace-pre-line"
+                          style={{ color: "var(--sf-text)" }}
+                        >
                           {roaster.contactAddress}
                         </p>
                       </div>

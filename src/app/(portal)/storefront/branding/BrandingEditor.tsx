@@ -599,8 +599,15 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
             <div
               className="flex items-center justify-between px-3 py-2"
               style={{
-                backgroundColor: navColour || primaryColour,
+                backgroundColor: navTransparent
+                  ? "transparent"
+                  : (navColour || primaryColour),
                 color: navTextColour || "#ffffff",
+                position: navTransparent ? "absolute" : "relative",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 10,
               }}
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -613,9 +620,6 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                     className="w-auto"
                   />
                 )}
-                <span className="text-[10px] font-semibold truncate">
-                  {branding.business_name}
-                </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[9px] opacity-70">
@@ -646,15 +650,6 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
             >
               <div className="absolute inset-0 bg-black/30" />
               <div className="relative p-4">
-                {logoUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logoUrl}
-                    alt={branding.business_name}
-                    style={{ height: Math.min(logoHeight * 0.5, 60) }}
-                    className="w-auto mb-2"
-                  />
-                )}
                 <h3
                   className="text-white text-sm font-bold"
                   style={{ fontFamily: `"${headingFamily}", sans-serif` }}

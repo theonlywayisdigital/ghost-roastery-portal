@@ -48,10 +48,17 @@ export function ProductCard({ product }: { product: Product }) {
     >
       <Link
         href={`/s/${slug}/shop/product/${product.id}${embedded ? "?embedded=true" : ""}`}
-        className="block bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow"
+        className="block rounded-xl border overflow-hidden hover:shadow-lg transition-shadow"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+          borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+        }}
       >
         {/* Image */}
-        <div className="relative aspect-square bg-slate-100">
+        <div
+          className="relative aspect-square"
+          style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
+        >
           {product.image_url ? (
             <Image
               src={product.image_url}
@@ -63,7 +70,7 @@ export function ProductCard({ product }: { product: Product }) {
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <svg
-                className="w-12 h-12 text-slate-300"
+                className="w-12 h-12 opacity-30"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -93,19 +100,25 @@ export function ProductCard({ product }: { product: Product }) {
 
         {/* Details */}
         <div className="p-4">
-          <h3 className="font-semibold text-slate-900 mb-1">
+          <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
             {product.name}
           </h3>
           {product.description && (
-            <p className="text-sm text-slate-500 mb-3 line-clamp-2">
+            <p
+              className="text-sm mb-3 line-clamp-2"
+              style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+            >
               {product.description}
             </p>
           )}
           <div className="flex items-center justify-between mt-auto">
-            <span className="text-lg font-bold text-slate-900">
+            <span className="text-lg font-bold" style={{ color: "var(--sf-text)" }}>
               {"\u00A3"}
               {displayPrice.toFixed(2)}
-              <span className="text-sm font-normal text-slate-400 ml-1">
+              <span
+                className="text-sm font-normal ml-1"
+                style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+              >
                 / {product.unit}
               </span>
             </span>

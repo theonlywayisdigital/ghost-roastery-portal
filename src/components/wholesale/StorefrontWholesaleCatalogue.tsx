@@ -212,8 +212,14 @@ export function StorefrontWholesaleCatalogue({
       </div>
 
       {products.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <p className="text-slate-500">
+        <div
+          className="rounded-xl border p-12 text-center"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+            borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+          }}
+        >
+          <p style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
             No wholesale products available at the moment.
           </p>
         </div>
@@ -234,10 +240,17 @@ export function StorefrontWholesaleCatalogue({
             return (
               <div
                 key={product.id}
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+                className="rounded-xl border overflow-hidden"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+                }}
               >
                 {product.image_url ? (
-                  <div className="relative aspect-square bg-slate-50">
+                  <div
+                    className="relative aspect-square"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
+                  >
                     <Image
                       src={product.image_url}
                       alt={product.name}
@@ -246,16 +259,22 @@ export function StorefrontWholesaleCatalogue({
                     />
                   </div>
                 ) : (
-                  <div className="aspect-square bg-slate-50 flex items-center justify-center">
-                    <Package className="w-12 h-12 text-slate-300" />
+                  <div
+                    className="aspect-square flex items-center justify-center"
+                    style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
+                  >
+                    <Package className="w-12 h-12 opacity-30" />
                   </div>
                 )}
                 <div className="p-4">
-                  <h3 className="font-semibold text-slate-900 mb-1">
+                  <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
                     {product.name}
                   </h3>
                   {product.description && (
-                    <p className="text-sm text-slate-500 mb-3 line-clamp-2">
+                    <p
+                      className="text-sm mb-3 line-clamp-2"
+                      style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                    >
                       {product.description}
                     </p>
                   )}
@@ -270,10 +289,14 @@ export function StorefrontWholesaleCatalogue({
                         const label = [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ");
 
                         return (
-                          <div key={variant.id} className="flex items-center justify-between gap-2 py-1.5 border-t border-slate-100 first:border-t-0">
+                          <div
+                            key={variant.id}
+                            className="flex items-center justify-between gap-2 py-1.5 border-t first:border-t-0"
+                            style={{ borderColor: "color-mix(in srgb, var(--sf-text) 10%, transparent)" }}
+                          >
                             <div className="min-w-0">
-                              <span className="text-sm text-slate-700">{label}</span>
-                              <span className="text-sm font-semibold text-slate-900 ml-2">
+                              <span className="text-sm" style={{ color: "var(--sf-text)" }}>{label}</span>
+                              <span className="text-sm font-semibold ml-2" style={{ color: "var(--sf-text)" }}>
                                 {`\u00a3${vPrice.toFixed(2)}`}
                               </span>
                             </div>
@@ -281,18 +304,20 @@ export function StorefrontWholesaleCatalogue({
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 <button
                                   onClick={() => updateQuantity(itemKey, inVariantOrder.quantity - 1)}
-                                  className="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                                  className="w-7 h-7 rounded border flex items-center justify-center hover:opacity-80"
+                                  style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                                 >
-                                  <Minus className="w-3 h-3 text-slate-600" />
+                                  <Minus className="w-3 h-3 opacity-70" />
                                 </button>
-                                <span className="text-xs font-medium text-slate-900 w-6 text-center">
+                                <span className="text-xs font-medium w-6 text-center" style={{ color: "var(--sf-text)" }}>
                                   {inVariantOrder.quantity}
                                 </span>
                                 <button
                                   onClick={() => updateQuantity(itemKey, inVariantOrder.quantity + 1)}
-                                  className="w-7 h-7 rounded border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                                  className="w-7 h-7 rounded border flex items-center justify-center hover:opacity-80"
+                                  style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                                 >
-                                  <Plus className="w-3 h-3 text-slate-600" />
+                                  <Plus className="w-3 h-3 opacity-70" />
                                 </button>
                               </div>
                             ) : (
@@ -313,15 +338,21 @@ export function StorefrontWholesaleCatalogue({
                     <>
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <span className="text-lg font-bold text-slate-900">
+                          <span className="text-lg font-bold" style={{ color: "var(--sf-text)" }}>
                             {`\u00a3${basePrice.toFixed(2)}`}
                           </span>
-                          <span className="text-sm text-slate-500 ml-1">
+                          <span
+                            className="text-sm ml-1"
+                            style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                          >
                             {`/ ${product.unit}`}
                           </span>
                         </div>
                         {product.minimum_wholesale_quantity > 1 && (
-                          <span className="text-xs text-slate-400">
+                          <span
+                            className="text-xs"
+                            style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                          >
                             {`Min ${product.minimum_wholesale_quantity}`}
                           </span>
                         )}
@@ -335,11 +366,12 @@ export function StorefrontWholesaleCatalogue({
                                 inOrder.quantity - 1
                               )
                             }
-                            className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:opacity-80"
+                            style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                           >
-                            <Minus className="w-4 h-4 text-slate-600" />
+                            <Minus className="w-4 h-4 opacity-70" />
                           </button>
-                          <span className="text-sm font-medium text-slate-900 w-10 text-center">
+                          <span className="text-sm font-medium w-10 text-center" style={{ color: "var(--sf-text)" }}>
                             {inOrder.quantity}
                           </span>
                           <button
@@ -349,9 +381,10 @@ export function StorefrontWholesaleCatalogue({
                                 inOrder.quantity + 1
                               )
                             }
-                            className="w-9 h-9 rounded-lg border border-slate-300 flex items-center justify-center hover:bg-slate-50"
+                            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:opacity-80"
+                            style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                           >
-                            <Plus className="w-4 h-4 text-slate-600" />
+                            <Plus className="w-4 h-4 opacity-70" />
                           </button>
                         </div>
                       ) : (
@@ -374,7 +407,14 @@ export function StorefrontWholesaleCatalogue({
 
       {/* Floating order bar — no left offset (no sidebar) */}
       {order.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-30">
+        <div
+          className="fixed bottom-0 left-0 right-0 border-t shadow-lg z-30"
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+            borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+            backdropFilter: "blur(12px)",
+          }}
+        >
           <div className="max-w-5xl mx-auto px-6 py-4">
             {showOrder && (
               <div className="mb-4 space-y-2 max-h-48 overflow-y-auto">
@@ -386,15 +426,15 @@ export function StorefrontWholesaleCatalogue({
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => removeFromOrder(item.productId)}
-                        className="text-slate-400 hover:text-red-500"
+                        className="opacity-50 hover:text-red-500"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <span className="text-slate-700">
+                      <span style={{ color: "var(--sf-text)" }}>
                         {`${item.name} \u00d7 ${item.quantity}`}
                       </span>
                     </div>
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium" style={{ color: "var(--sf-text)" }}>
                       {`\u00a3${(item.price * item.quantity).toFixed(2)}`}
                     </span>
                   </div>
@@ -404,14 +444,15 @@ export function StorefrontWholesaleCatalogue({
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setShowOrder(!showOrder)}
-                className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+                className="flex items-center gap-2 text-sm hover:opacity-80"
+                style={{ color: "var(--sf-text)" }}
               >
                 <ShoppingCart className="w-5 h-5" />
                 <span className="font-medium">
                   {`${orderCount} item${orderCount !== 1 ? "s" : ""}`}
                 </span>
-                <span className="text-slate-400">|</span>
-                <span className="font-bold text-slate-900">
+                <span className="opacity-40">|</span>
+                <span className="font-bold">
                   {`\u00a3${orderTotal.toFixed(2)}`}
                 </span>
               </button>

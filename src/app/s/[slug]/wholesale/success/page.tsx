@@ -19,11 +19,15 @@ function SuccessContent() {
   const invoiceId = searchParams.get("invoice_id");
   const invoiceNumber = searchParams.get("invoice_number");
   const accessToken = searchParams.get("access_token");
+  const orderId = searchParams.get("order_id");
 
   const isInvoiceOrder = !!invoiceId && !sessionId;
 
   const [status, setStatus] = useState<"loading" | "confirmed" | "error">(
     isInvoiceOrder ? "confirmed" : "loading"
+  );
+  const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(
+    orderId || null
   );
 
   useEffect(() => {
@@ -39,8 +43,10 @@ function SuccessContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId }),
     })
-      .then((res) => {
+      .then(async (res) => {
         if (res.ok) {
+          const data = await res.json();
+          if (data.orderId) setConfirmedOrderId(data.orderId);
           setStatus("confirmed");
         } else {
           setStatus("error");
@@ -176,12 +182,28 @@ function SuccessContent() {
                     View Invoice
                   </Link>
                 )}
+                {confirmedOrderId && (
+                  <Link
+                    href={`/s/${slug}/orders/${confirmedOrderId}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    View Order
+                  </Link>
+                )}
                 <Link
                   href={backUrl}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: primary }}
                 >
                   Back to Catalogue
+                </Link>
+              </div>
+              <div className="mt-4">
+                <Link
+                  href={`/s/${slug}/orders`}
+                  className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  My Orders
                 </Link>
               </div>
             </>
@@ -216,13 +238,31 @@ function SuccessContent() {
                   Reference: {sessionId.slice(-8).toUpperCase()}
                 </p>
               )}
-              <Link
-                href={backUrl}
-                className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: primary }}
-              >
-                Back to Catalogue
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {confirmedOrderId && (
+                  <Link
+                    href={`/s/${slug}/orders/${confirmedOrderId}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
+                  >
+                    View Order
+                  </Link>
+                )}
+                <Link
+                  href={backUrl}
+                  className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: primary }}
+                >
+                  Back to Catalogue
+                </Link>
+              </div>
+              <div className="mt-4">
+                <Link
+                  href={`/s/${slug}/orders`}
+                  className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  My Orders
+                </Link>
+              </div>
             </>
           )}
         </div>

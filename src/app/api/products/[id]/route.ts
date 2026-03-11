@@ -173,6 +173,40 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
+export async function PATCH(request: Request, { params }: RouteParams) {
+  const roaster = await getCurrentRoaster();
+  if (!roaster) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const body = await request.json();
+
+  const allowed = ["is_active", "is_retail", "is_wholesale"];
+  const updateData: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (key in body) updateData[key] = body[key];
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  const supabase = createServerClient();
+  const { error } = await supabase
+    .from("wholesale_products")
+    .update(updateData)
+    .eq("id", id)
+    .eq("roaster_id", roaster.id);
+
+  if (error) {
+    console.error("Product patch error:", error);
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(_request: Request, { params }: RouteParams) {
   const roaster = await getCurrentRoaster();
   if (!roaster) {

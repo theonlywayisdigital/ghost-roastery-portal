@@ -4,6 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { Package, Plus, Pencil } from "@/components/icons";
 
+interface ProductVariant {
+  id: string;
+  wholesale_price: number | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -13,33 +18,47 @@ interface Product {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  is_retail: boolean;
+  is_wholesale: boolean;
+  retail_price: number | null;
+  product_variants: ProductVariant[];
 }
 
 export function StorefrontProducts({ products: initialProducts }: { products: Product[] }) {
   const [products, setProducts] = useState(initialProducts);
 
-  async function toggleActive(product: Product) {
-    const newValue = !product.is_active;
+  async function toggleField(product: Product, field: "is_active" | "is_retail" | "is_wholesale") {
+    const newValue = !product[field];
 
     // Optimistic update
     setProducts((prev) =>
-      prev.map((p) => (p.id === product.id ? { ...p, is_active: newValue } : p))
+      prev.map((p) => (p.id === product.id ? { ...p, [field]: newValue } : p))
     );
 
     const res = await fetch(`/api/products/${product.id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...product, is_active: newValue }),
+      body: JSON.stringify({ [field]: newValue }),
     });
 
     if (!res.ok) {
       // Revert on failure
       setProducts((prev) =>
         prev.map((p) =>
-          p.id === product.id ? { ...p, is_active: !newValue } : p
+          p.id === product.id ? { ...p, [field]: !newValue } : p
         )
       );
     }
+  }
+
+  function hasWholesalePrice(product: Product): boolean {
+    return product.product_variants?.some(
+      (v) => v.wholesale_price != null && v.wholesale_price > 0
+    ) ?? false;
+  }
+
+  function hasRetailPrice(product: Product): boolean {
+    return product.retail_price != null && product.retail_price > 0;
   }
 
   if (products.length === 0) {
@@ -81,65 +100,137 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <div
-            key={product.id}
-            className="bg-white rounded-xl border border-slate-200 overflow-hidden"
-          >
-            {/* Product image */}
-            {product.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full h-40 object-cover"
-              />
-            ) : (
-              <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
-                <Package className="w-8 h-8 text-slate-300" />
-              </div>
-            )}
+        {products.map((product) => {
+          const retailEnabled = hasRetailPrice(product);
+          const wholesaleEnabled = hasWholesalePrice(product);
 
-            {/* Product info */}
-            <div className="p-4">
-              <h3 className="text-sm font-medium text-slate-900 mb-0.5">
-                {product.name}
-              </h3>
-              <p className="text-sm text-slate-500">
-                £{product.price.toFixed(2)} / {product.unit}
-              </p>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(product)}
-                    className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                      product.is_active ? "bg-brand-600" : "bg-slate-200"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                        product.is_active ? "translate-x-4" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                  <span className="text-xs text-slate-500">
-                    {product.is_active ? "Active" : "Hidden"}
-                  </span>
+          return (
+            <div
+              key={product.id}
+              className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+            >
+              {/* Product image */}
+              {product.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  className="w-full h-40 object-cover"
+                />
+              ) : (
+                <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
+                  <Package className="w-8 h-8 text-slate-300" />
                 </div>
-                <Link
-                  href={`/products/${product.id}`}
-                  className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Edit
-                </Link>
+              )}
+
+              {/* Product info */}
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-slate-900 mb-0.5">
+                  {product.name}
+                </h3>
+                <p className="text-sm text-slate-500">
+                  £{product.price.toFixed(2)} / {product.unit}
+                </p>
+
+                {/* Channel toggles */}
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
+                  {/* Active toggle */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleField(product, "is_active")}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        product.is_active ? "bg-brand-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                          product.is_active ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      {product.is_active ? "Active" : "Hidden"}
+                    </span>
+                  </div>
+
+                  {/* Retail toggle */}
+                  <div className="flex flex-col">
+                    <div className={`flex items-center gap-1.5 ${!retailEnabled ? "opacity-40 cursor-not-allowed" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => retailEnabled && toggleField(product, "is_retail")}
+                        disabled={!retailEnabled}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                          !retailEnabled ? "bg-slate-200 cursor-not-allowed" :
+                          product.is_retail ? "bg-brand-600 cursor-pointer" : "bg-slate-200 cursor-pointer"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                            product.is_retail ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-slate-500">Retail</span>
+                    </div>
+                    {!retailEnabled && (
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="text-xs mt-0.5"
+                        style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
+                      >
+                        No retail price — edit in Products
+                      </Link>
+                    )}
+                  </div>
+
+                  {/* Wholesale toggle */}
+                  <div className="flex flex-col">
+                    <div className={`flex items-center gap-1.5 ${!wholesaleEnabled ? "opacity-40 cursor-not-allowed" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => wholesaleEnabled && toggleField(product, "is_wholesale")}
+                        disabled={!wholesaleEnabled}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                          !wholesaleEnabled ? "bg-slate-200 cursor-not-allowed" :
+                          product.is_wholesale ? "bg-brand-600 cursor-pointer" : "bg-slate-200 cursor-pointer"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                            product.is_wholesale ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-slate-500">Wholesale</span>
+                    </div>
+                    {!wholesaleEnabled && (
+                      <Link
+                        href={`/products/${product.id}`}
+                        className="text-xs mt-0.5"
+                        style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
+                      >
+                        No wholesale price — edit in Products
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                {/* Edit link */}
+                <div className="flex justify-end mt-2">
+                  <Link
+                    href={`/products/${product.id}`}
+                    className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Edit
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

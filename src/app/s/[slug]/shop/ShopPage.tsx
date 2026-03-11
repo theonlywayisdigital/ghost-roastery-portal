@@ -67,15 +67,15 @@ export function ShopPage({ products }: { products: Product[] }) {
 
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
+        <div className="flex items-center gap-2 text-sm mb-6" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>
           <Link
             href={`/s/${slug}${embedded ? "?embedded=true" : ""}`}
-            className="hover:text-slate-600 transition-colors"
+            className="hover:opacity-80 transition-opacity"
           >
             Home
           </Link>
           <span>/</span>
-          <span className="text-slate-700">Shop</span>
+          <span style={{ color: "var(--sf-text)" }}>Shop</span>
         </div>
 
         <h1
@@ -84,7 +84,7 @@ export function ShopPage({ products }: { products: Product[] }) {
         >
           Shop
         </h1>
-        <p className="text-slate-500 mb-8">
+        <p className="mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
           Browse our full selection of freshly roasted coffee.
         </p>
 
@@ -160,7 +160,7 @@ export function ShopPage({ products }: { products: Product[] }) {
                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
-            <p className="text-slate-500 font-medium">
+            <p className="font-medium" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
               No products available yet
             </p>
           </div>

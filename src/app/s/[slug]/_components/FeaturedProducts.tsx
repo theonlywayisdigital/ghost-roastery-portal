@@ -24,7 +24,7 @@ export function FeaturedProducts({ products }: { products: Product[] }) {
             >
               Our Coffees
             </h2>
-            <p className="text-slate-500">
+            <p style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
               Freshly roasted, ready to enjoy.
             </p>
           </div>

@@ -17,6 +17,7 @@ export function Header() {
   const { roaster, slug, primary, accent, accentText, showRetail, showWholesale, embedded } =
     useStorefront();
   const navFixed = roaster.storefront_nav_fixed !== false;
+  const navTransparent = navFixed && roaster.storefront_nav_transparent !== false;
   const { itemCount, openCart } = useCart();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -110,8 +111,8 @@ export function Header() {
 
   return (
     <>
-      {/* Sentinel for scroll detection (fixed nav only) */}
-      {navFixed && (
+      {/* Sentinel for scroll detection (transparent mode only) */}
+      {navTransparent && (
         <div ref={sentinelRef} className="absolute top-0 left-0 w-full h-1" />
       )}
 
@@ -122,7 +123,7 @@ export function Header() {
             : "relative z-50"
         }
         style={
-          navFixed
+          navTransparent
             ? {
                 backgroundColor: scrolled ? "var(--sf-nav-bg)" : "transparent",
                 backdropFilter: scrolled ? "none" : "blur(8px)",

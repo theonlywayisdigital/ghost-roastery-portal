@@ -25,6 +25,7 @@ export interface RoasterBranding {
   storefront_text_colour: string | null;
   storefront_button_style: "sharp" | "rounded" | "pill";
   storefront_nav_fixed: boolean;
+  storefront_nav_transparent: boolean;
 }
 
 export interface Product {

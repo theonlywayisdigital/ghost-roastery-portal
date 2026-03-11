@@ -36,6 +36,7 @@ interface BrandingData {
   storefront_text_colour: string;
   storefront_button_style: "sharp" | "rounded" | "pill";
   storefront_nav_fixed: boolean;
+  storefront_nav_transparent: boolean;
 }
 
 const inputClassName =
@@ -73,6 +74,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const [textColour, setTextColour] = useState(branding.storefront_text_colour || "#0f172a");
   const [buttonStyle, setButtonStyle] = useState<"sharp" | "rounded" | "pill">(branding.storefront_button_style);
   const [navFixed, setNavFixed] = useState(branding.storefront_nav_fixed);
+  const [navTransparent, setNavTransparent] = useState(branding.storefront_nav_transparent);
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -136,6 +138,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           storefront_text_colour: textColour || null,
           storefront_button_style: buttonStyle,
           storefront_nav_fixed: navFixed,
+          storefront_nav_transparent: navTransparent,
         }),
       });
 
@@ -153,7 +156,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     } finally {
       setSaving(false);
     }
-  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, navFixed, router]);
+  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, navFixed, navTransparent, router]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
@@ -268,6 +271,26 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                 <span
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
                     navFixed ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+            {/* Nav transparency toggle */}
+            <div className="col-span-2 flex items-center justify-between pt-2">
+              <div>
+                <p className="text-xs font-medium text-slate-700">Transparent on hero</p>
+                <p className="text-[11px] text-slate-400">Nav fades in as you scroll down</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNavTransparent(!navTransparent)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                  navTransparent ? "bg-brand-600" : "bg-slate-200"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                    navTransparent ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>

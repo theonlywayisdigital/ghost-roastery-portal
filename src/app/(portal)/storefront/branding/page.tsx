@@ -34,6 +34,7 @@ export default async function BrandingPage() {
     storefront_text_colour: (roaster.storefront_text_colour as string) || "",
     storefront_button_style: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
     storefront_nav_fixed: (roaster.storefront_nav_fixed as boolean) ?? true,
+    storefront_nav_transparent: (roaster.storefront_nav_transparent as boolean) ?? true,
   };
 
   return <BrandingEditor branding={brandingData} />;

@@ -214,7 +214,7 @@ export function StorefrontWholesalePage({
         <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
           <h1
             className="text-3xl md:text-4xl font-bold mb-2"
-            style={{ color: primary }}
+            style={{ color: "var(--sf-text)" }}
           >
             Wholesale
           </h1>
@@ -265,7 +265,7 @@ export function StorefrontWholesalePage({
           )}
           <h1
             className="text-3xl md:text-4xl font-bold mb-3"
-            style={{ color: primary }}
+            style={{ color: "var(--sf-text)" }}
           >
             {`${roaster.businessName} Wholesale`}
           </h1>

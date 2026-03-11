@@ -12,7 +12,7 @@ import type { Product } from "../_components/types";
 type SortOption = "featured" | "price-asc" | "price-desc" | "newest";
 
 export function ShopPage({ products }: { products: Product[] }) {
-  const { slug, primary, accent, accentText, embedded } = useStorefront();
+  const { slug, accent, accentText, embedded } = useStorefront();
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
   const [sort, setSort] = useState<SortOption>("featured");
 
@@ -80,7 +80,7 @@ export function ShopPage({ products }: { products: Product[] }) {
 
         <h1
           className="text-3xl md:text-4xl font-bold mb-2"
-          style={{ color: primary }}
+          style={{ color: "var(--sf-text)" }}
         >
           Shop
         </h1>

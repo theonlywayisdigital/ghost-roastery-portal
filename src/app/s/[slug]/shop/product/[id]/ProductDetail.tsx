@@ -18,7 +18,7 @@ export function ProductDetail({
   product: Product;
   relatedProducts: Product[];
 }) {
-  const { slug, primary, accent, accentText, embedded } = useStorefront();
+  const { slug, accent, accentText, embedded } = useStorefront();
   const qs = embedded ? "?embedded=true" : "";
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
@@ -46,7 +46,7 @@ export function ProductDetail({
   return (
     <div
       style={{ fontFamily: "var(--sf-font)" }}
-      className="min-h-screen bg-white"
+      className="min-h-screen"
     >
       <Header />
       <Cart />
@@ -56,22 +56,22 @@ export function ProductDetail({
 
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-8">
+        <div className="flex items-center gap-2 text-sm mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>
           <Link
             href={`/s/${slug}${qs}`}
-            className="hover:text-slate-600 transition-colors"
+            className="hover:opacity-80 transition-opacity"
           >
             Home
           </Link>
           <span>/</span>
           <Link
             href={`/s/${slug}/shop${qs}`}
-            className="hover:text-slate-600 transition-colors"
+            className="hover:opacity-80 transition-opacity"
           >
             Shop
           </Link>
           <span>/</span>
-          <span className="text-slate-700 truncate">{product.name}</span>
+          <span className="truncate" style={{ color: "var(--sf-text)" }}>{product.name}</span>
         </div>
 
         {/* Product */}
@@ -110,17 +110,17 @@ export function ProductDetail({
           <div>
             <h1
               className="text-2xl md:text-3xl font-bold mb-3"
-              style={{ color: primary }}
+              style={{ color: "var(--sf-text)" }}
             >
               {product.name}
             </h1>
 
             <div className="flex items-baseline gap-2 mb-4">
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-2xl font-bold" style={{ color: "var(--sf-text)" }}>
                 {"\u00A3"}
                 {displayPrice.toFixed(2)}
               </span>
-              <span className="text-sm text-slate-400">/ {product.unit}</span>
+              <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>/ {product.unit}</span>
             </div>
 
             {/* Stock status */}
@@ -145,7 +145,7 @@ export function ProductDetail({
 
             {/* Description */}
             {product.description && (
-              <p className="text-slate-600 leading-relaxed whitespace-pre-line mb-8">
+              <p className="leading-relaxed whitespace-pre-line mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}>
                 {product.description}
               </p>
             )}
@@ -154,7 +154,7 @@ export function ProductDetail({
             {!outOfStock && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: "var(--sf-text)" }}>
                     Quantity
                   </label>
                   <div className="inline-flex items-center border border-slate-300 rounded-lg">
@@ -193,7 +193,7 @@ export function ProductDetail({
           <div className="mt-16 md:mt-24">
             <h2
               className="text-xl md:text-2xl font-bold mb-8"
-              style={{ color: primary }}
+              style={{ color: "var(--sf-text)" }}
             >
               You Might Also Like
             </h2>

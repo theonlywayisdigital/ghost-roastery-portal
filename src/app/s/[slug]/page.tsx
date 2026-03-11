@@ -35,7 +35,7 @@ export default async function StorefrontPageRoute({
        is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
     )
     .eq("roaster_id", roaster.id)
-    .eq("is_active", true)
+    .eq("status", "published")
     .eq("is_retail", true)
     .order("sort_order", { ascending: true });
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus } from "@/components/icons";
+import { Pencil, Trash2, Plus, Check, ArrowDown } from "@/components/icons";
 import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
@@ -24,7 +24,7 @@ interface Product {
   price: number;
   unit: string;
   image_url: string | null;
-  is_active: boolean;
+  status: "draft" | "published";
   sort_order: number;
   is_retail?: boolean;
   is_wholesale?: boolean;
@@ -92,25 +92,25 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     return units.length > 0 ? units.join(", ") : product.unit;
   }
 
-  async function toggleActive(product: Product) {
-    const newValue = !product.is_active;
+  async function toggleStatus(product: Product) {
+    const newStatus = product.status === "published" ? "draft" : "published";
 
     // Optimistic update
     setProducts((prev) =>
-      prev.map((p) => (p.id === product.id ? { ...p, is_active: newValue } : p))
+      prev.map((p) => (p.id === product.id ? { ...p, status: newStatus } : p))
     );
 
     const res = await fetch(`/api/products/${product.id}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...product, is_active: newValue }),
+      body: JSON.stringify({ status: newStatus }),
     });
 
     if (!res.ok) {
       // Revert on failure
       setProducts((prev) =>
         prev.map((p) =>
-          p.id === product.id ? { ...p, is_active: !newValue } : p
+          p.id === product.id ? { ...p, status: product.status } : p
         )
       );
     }
@@ -249,19 +249,33 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => toggleActive(product)}
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                          product.is_active
-                            ? "bg-green-50 text-green-700 hover:bg-green-100"
-                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      <span
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          product.status === "published"
+                            ? "bg-green-50 text-green-700"
+                            : "bg-amber-50 text-amber-700"
                         }`}
                       >
-                        {product.is_active ? "Active" : "Inactive"}
-                      </button>
+                        {product.status === "published" ? "Published" : "Draft"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => toggleStatus(product)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            product.status === "draft"
+                              ? "text-green-500 hover:text-green-700 hover:bg-green-50"
+                              : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                          }`}
+                          title={product.status === "draft" ? "Publish" : "Unpublish"}
+                        >
+                          {product.status === "draft" ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <ArrowDown className="w-4 h-4" />
+                          )}
+                        </button>
                         <button
                           onClick={() =>
                             router.push(`/products/${product.id}`)

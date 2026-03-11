@@ -22,7 +22,7 @@ interface Product {
   price: number;
   unit: string;
   image_url: string | null;
-  is_active: boolean;
+  status: "draft" | "published";
   sort_order: number;
   is_retail: boolean;
   is_wholesale: boolean;
@@ -156,7 +156,7 @@ export function ProductForm({ product }: { product?: Product }) {
   const [weightGrams, setWeightGrams] = useState(product?.weight_grams?.toString() || "");
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
   const [sortOrder, setSortOrder] = useState(product?.sort_order?.toString() || "0");
-  const [isActive, setIsActive] = useState(product?.is_active ?? true);
+  const [status, setStatus] = useState<"draft" | "published">(product?.status ?? "published");
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
 
   // Retail fields
@@ -454,7 +454,7 @@ export function ProductForm({ product }: { product?: Product }) {
       price: parseFloat(price) || 0,
       unit,
       image_url: imageUrl || null,
-      is_active: isActive,
+      status,
       sort_order: parseInt(sortOrder) || 0,
       is_retail: isRetail,
       is_wholesale: isWholesale,
@@ -1168,12 +1168,12 @@ export function ProductForm({ product }: { product?: Product }) {
                   {/* Toggles */}
                   <div className="space-y-3 pt-1">
                     <Toggle
-                      enabled={isActive}
-                      onToggle={() => setIsActive(!isActive)}
+                      enabled={status === "published"}
+                      onToggle={() => setStatus(status === "published" ? "draft" : "published")}
                       label={
-                        isActive
-                          ? "Active — visible to customers"
-                          : "Inactive — hidden from customers"
+                        status === "published"
+                          ? "Published — visible to customers"
+                          : "Draft — hidden from customers"
                       }
                     />
                     <Toggle

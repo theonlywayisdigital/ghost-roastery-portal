@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const body = await request.json();
     const {
-      name, description, price, unit, image_url, is_active, sort_order,
+      name, description, price, unit, image_url, status, sort_order,
       is_retail, is_wholesale, retail_price, wholesale_price,
       minimum_wholesale_quantity, sku, weight_grams,
       is_purchasable, track_stock, retail_stock_count,
@@ -74,7 +74,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         price: price != null ? parseFloat(price) : 0,
         unit: unit || "250g",
         image_url: image_url || null,
-        is_active: is_active ?? true,
+        status: status || "published",
         sort_order: sort_order ?? 0,
         is_retail: is_retail ?? true,
         is_wholesale: is_wholesale ?? false,
@@ -182,7 +182,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const body = await request.json();
 
-  const allowed = ["is_active", "is_retail", "is_wholesale"];
+  const allowed = ["status", "is_retail", "is_wholesale"];
   const updateData: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updateData[key] = body[key];

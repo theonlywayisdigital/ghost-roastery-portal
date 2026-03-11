@@ -34,7 +34,7 @@ export default async function WholesalePageRoute({
     .from("wholesale_products")
     .select("id, name, description, image_url, unit, sort_order")
     .eq("roaster_id", roaster.id)
-    .eq("is_active", true)
+    .eq("status", "published")
     .eq("is_wholesale", true)
     .order("sort_order", { ascending: true });
 
@@ -95,7 +95,7 @@ export default async function WholesalePageRoute({
              product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name))`
           )
           .eq("roaster_id", roaster.id)
-          .eq("is_active", true)
+          .eq("status", "published")
           .eq("is_wholesale", true)
           .order("sort_order", { ascending: true });
 

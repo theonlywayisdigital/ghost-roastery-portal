@@ -20,7 +20,7 @@ interface Product {
   price: number;
   unit: string;
   image_url: string | null;
-  is_active: boolean;
+  status: "draft" | "published";
   sort_order: number;
   is_retail: boolean;
   is_wholesale: boolean;
@@ -131,27 +131,35 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {products.map((product) => {
-          const retailEnabled = hasRetailPrice(product);
-          const wholesaleEnabled = hasWholesalePrice(product);
+          const isDraft = product.status === "draft";
+          const retailEnabled = !isDraft && hasRetailPrice(product);
+          const wholesaleEnabled = !isDraft && hasWholesalePrice(product);
 
           return (
             <div
               key={product.id}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+              className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${isDraft ? "opacity-70" : ""}`}
             >
               {/* Product image */}
-              {product.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-40 object-cover"
-                />
-              ) : (
-                <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
-                  <Package className="w-8 h-8 text-slate-300" />
-                </div>
-              )}
+              <div className="relative">
+                {product.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full h-40 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
+                    <Package className="w-8 h-8 text-slate-300" />
+                  </div>
+                )}
+                {isDraft && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    Draft
+                  </span>
+                )}
+              </div>
 
               {/* Product info */}
               <div className="p-4">
@@ -185,13 +193,16 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                       <span className="text-xs text-slate-500">Retail</span>
                     </div>
                     {!retailEnabled && (
-                      <Link
-                        href={`/products/${product.id}`}
+                      <span
                         className="text-xs mt-0.5"
                         style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
                       >
-                        No retail price — edit in Products
-                      </Link>
+                        {isDraft ? "Publish product first" : (
+                          <Link href={`/products/${product.id}`}>
+                            No retail price — edit in Products
+                          </Link>
+                        )}
+                      </span>
                     )}
                   </div>
 
@@ -216,13 +227,16 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                       <span className="text-xs text-slate-500">Wholesale</span>
                     </div>
                     {!wholesaleEnabled && (
-                      <Link
-                        href={`/products/${product.id}`}
+                      <span
                         className="text-xs mt-0.5"
                         style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
                       >
-                        No wholesale price — edit in Products
-                      </Link>
+                        {isDraft ? "Publish product first" : (
+                          <Link href={`/products/${product.id}`}>
+                            No wholesale price — edit in Products
+                          </Link>
+                        )}
+                      </span>
                     )}
                   </div>
                 </div>

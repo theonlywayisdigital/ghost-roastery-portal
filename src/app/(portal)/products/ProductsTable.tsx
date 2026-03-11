@@ -28,6 +28,7 @@ interface Product {
   sort_order: number;
   is_retail?: boolean;
   is_wholesale?: boolean;
+  retail_price: number | null;
   product_variants: ProductVariant[] | null;
 }
 
@@ -51,20 +52,25 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
       ? products.filter((p) => p.is_retail)
       : products.filter((p) => p.is_wholesale);
 
+  function getBasePriceDisplay(product: Product): string {
+    if (product.retail_price != null && product.retail_price > 0) return `£${product.retail_price.toFixed(2)}`;
+    return `£${product.price.toFixed(2)}`;
+  }
+
   function getPriceDisplay(product: Product): string {
     const variants = product.product_variants?.filter((v) => v.is_active) || [];
-    if (variants.length === 0) return `£${product.price.toFixed(2)}`;
+    if (variants.length === 0) return getBasePriceDisplay(product);
 
     const channel = activeTab === "wholesale" ? "wholesale" : "retail";
     const channelVars = variants.filter((v) => v.channel === channel);
     if (channelVars.length === 0) {
       // Fall back to other channel or product price
       const otherVars = variants.filter((v) => v.channel === (channel === "retail" ? "wholesale" : "retail"));
-      if (otherVars.length === 0) return `£${product.price.toFixed(2)}`;
+      if (otherVars.length === 0) return getBasePriceDisplay(product);
       const prices = otherVars
         .map((v) => v.channel === "wholesale" ? v.wholesale_price : v.retail_price)
         .filter((p): p is number => p != null);
-      if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+      if (prices.length === 0) return getBasePriceDisplay(product);
       const min = Math.min(...prices);
       const max = Math.max(...prices);
       return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
@@ -73,7 +79,7 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     const prices = channelVars
       .map((v) => channel === "wholesale" ? v.wholesale_price : v.retail_price)
       .filter((p): p is number => p != null);
-    if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+    if (prices.length === 0) return getBasePriceDisplay(product);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;

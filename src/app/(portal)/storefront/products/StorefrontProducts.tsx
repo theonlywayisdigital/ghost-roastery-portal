@@ -72,14 +72,19 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
     return units.length > 0 ? units.join(", ") : product.unit;
   }
 
+  function getBasePriceDisplay(product: Product): string {
+    if (product.retail_price != null && product.retail_price > 0) return `£${product.retail_price.toFixed(2)}`;
+    return `£${product.price.toFixed(2)}`;
+  }
+
   function getPriceDisplay(product: Product): string {
     const variants = product.product_variants?.filter((v) => v.is_active) || [];
-    if (variants.length === 0) return `£${product.price.toFixed(2)}`;
+    if (variants.length === 0) return getBasePriceDisplay(product);
 
     const prices = variants
       .flatMap((v) => [v.retail_price, v.wholesale_price])
       .filter((p): p is number => p != null && p > 0);
-    if (prices.length === 0) return `£${product.price.toFixed(2)}`;
+    if (prices.length === 0) return getBasePriceDisplay(product);
 
     const min = Math.min(...prices);
     const max = Math.max(...prices);

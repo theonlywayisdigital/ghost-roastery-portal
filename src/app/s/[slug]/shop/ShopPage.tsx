@@ -57,7 +57,7 @@ export function ShopPage({ products }: { products: Product[] }) {
   return (
     <div
       style={{ fontFamily: "var(--sf-font)" }}
-      className="min-h-screen bg-white"
+      className="min-h-screen"
     >
       <Header />
       <Cart />
@@ -89,7 +89,7 @@ export function ShopPage({ products }: { products: Product[] }) {
         </p>
 
         {/* Filters */}
-        <div className={`sticky ${embedded ? "top-0" : "top-16 md:top-20"} z-30 bg-white border-b border-slate-100 -mx-6 px-6 py-3 mb-8 flex flex-wrap items-center gap-3`}>
+        <div className={`sticky ${embedded ? "top-0" : "top-16 md:top-20"} z-30 border-b border-slate-100 -mx-6 px-6 py-3 mb-8 flex flex-wrap items-center gap-3`} style={{ backgroundColor: "var(--sf-bg)" }}>
           {/* Unit chips */}
           <div className="flex flex-wrap items-center gap-2">
             <button

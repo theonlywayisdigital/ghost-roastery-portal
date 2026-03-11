@@ -52,7 +52,8 @@ export default async function StorefrontLayout({
        stripe_account_id, storefront_logo_size,
        storefront_nav_colour, storefront_nav_text_colour,
        storefront_button_colour, storefront_button_text_colour,
-       storefront_bg_colour, storefront_text_colour, storefront_button_style`
+       storefront_bg_colour, storefront_text_colour, storefront_button_style,
+       storefront_nav_fixed`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)

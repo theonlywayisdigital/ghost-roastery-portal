@@ -16,6 +16,7 @@ interface AuthUser {
 export function Header() {
   const { roaster, slug, primary, accent, accentText, showRetail, showWholesale, embedded } =
     useStorefront();
+  const navFixed = roaster.storefront_nav_fixed !== false;
   const { itemCount, openCart } = useCart();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -109,15 +110,27 @@ export function Header() {
 
   return (
     <>
-      {/* Sentinel for scroll detection */}
-      <div ref={sentinelRef} className="absolute top-0 left-0 w-full h-1" />
+      {/* Sentinel for scroll detection (fixed nav only) */}
+      {navFixed && (
+        <div ref={sentinelRef} className="absolute top-0 left-0 w-full h-1" />
+      )}
 
       <header
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-        style={{
-          backgroundColor: scrolled ? "var(--sf-nav-bg)" : "transparent",
-          backdropFilter: scrolled ? "none" : "blur(8px)",
-        }}
+        className={
+          navFixed
+            ? "fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+            : "relative z-50"
+        }
+        style={
+          navFixed
+            ? {
+                backgroundColor: scrolled ? "var(--sf-nav-bg)" : "transparent",
+                backdropFilter: scrolled ? "none" : "blur(8px)",
+              }
+            : {
+                backgroundColor: "var(--sf-nav-bg)",
+              }
+        }
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16 md:h-20">

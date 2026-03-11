@@ -35,6 +35,7 @@ interface BrandingData {
   storefront_bg_colour: string;
   storefront_text_colour: string;
   storefront_button_style: "sharp" | "rounded" | "pill";
+  storefront_nav_fixed: boolean;
 }
 
 const inputClassName =
@@ -71,6 +72,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const [bgColour, setBgColour] = useState(branding.storefront_bg_colour || "#ffffff");
   const [textColour, setTextColour] = useState(branding.storefront_text_colour || "#0f172a");
   const [buttonStyle, setButtonStyle] = useState<"sharp" | "rounded" | "pill">(branding.storefront_button_style);
+  const [navFixed, setNavFixed] = useState(branding.storefront_nav_fixed);
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -133,6 +135,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           storefront_bg_colour: bgColour || null,
           storefront_text_colour: textColour || null,
           storefront_button_style: buttonStyle,
+          storefront_nav_fixed: navFixed,
         }),
       });
 
@@ -150,7 +153,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     } finally {
       setSaving(false);
     }
-  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, router]);
+  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, navFixed, router]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
@@ -248,6 +251,26 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                   <option value="large">Large (160px)</option>
                 </select>
               </div>
+            </div>
+            {/* Fixed nav toggle */}
+            <div className="col-span-2 flex items-center justify-between pt-2">
+              <div>
+                <p className="text-xs font-medium text-slate-700">Fixed navigation bar</p>
+                <p className="text-[11px] text-slate-400">Nav bar stays visible when scrolling</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNavFixed(!navFixed)}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                  navFixed ? "bg-brand-600" : "bg-slate-200"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                    navFixed ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
             {/* Colours */}
             <div>
@@ -549,6 +572,40 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
             Preview
           </p>
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+            {/* Preview nav bar */}
+            <div
+              className="flex items-center justify-between px-3 py-2"
+              style={{
+                backgroundColor: navColour || primaryColour,
+                color: navTextColour || "#ffffff",
+              }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                {logoUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt={branding.business_name}
+                    style={{ height: Math.min(logoHeight * 0.3, 32) }}
+                    className="w-auto"
+                  />
+                )}
+                <span className="text-[10px] font-semibold truncate">
+                  {branding.business_name}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] opacity-70">
+                  Shop · Wholesale · Contact
+                </span>
+                {navFixed && (
+                  <span className="text-[8px] font-medium bg-white/20 rounded px-1 py-0.5 leading-none">
+                    Fixed
+                  </span>
+                )}
+              </div>
+            </div>
+
             {/* Hero area */}
             <div
               className="h-40 relative flex items-end"

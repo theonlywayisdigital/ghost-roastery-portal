@@ -37,6 +37,7 @@ export async function PUT(request: Request) {
   if ("storefront_bg_colour" in body) updateData.storefront_bg_colour = body.storefront_bg_colour || null;
   if ("storefront_text_colour" in body) updateData.storefront_text_colour = body.storefront_text_colour || null;
   if ("storefront_button_style" in body) updateData.storefront_button_style = body.storefront_button_style || "rounded";
+  if ("storefront_nav_fixed" in body) updateData.storefront_nav_fixed = body.storefront_nav_fixed ?? true;
   if ("storefront_contact_email" in body) updateData.storefront_contact_email = body.storefront_contact_email ?? null;
   if ("storefront_contact_phone" in body) updateData.storefront_contact_phone = body.storefront_contact_phone ?? null;
   if ("storefront_contact_address" in body) updateData.storefront_contact_address = body.storefront_contact_address ?? null;

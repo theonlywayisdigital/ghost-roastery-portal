@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useStorefront } from "./StorefrontProvider";
 import { useCart } from "./CartProvider";
 import { MobileMenu } from "./MobileMenu";
@@ -17,7 +17,6 @@ export function Header() {
   const { roaster, slug, primary, accent, accentText, showWholesale, embedded } =
     useStorefront();
   const { itemCount, openCart } = useCart();
-  const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -26,11 +25,6 @@ export function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
-
-  const showWholesaleLogin =
-    showWholesale &&
-    !pathname.startsWith(`/s/${slug}/wholesale`) &&
-    !user;
 
   // Auth state detection
   useEffect(() => {
@@ -189,49 +183,24 @@ export function Header() {
             {/* Right side: auth buttons + cart */}
             <div className="flex items-center gap-1.5">
               {!authLoading && !user && (
-                <>
-                  {/* Wholesale Login */}
-                  {showWholesaleLogin && (
-                    <Link
-                      href={`/s/${slug}/wholesale/login`}
-                      className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
-                      style={{
-                        borderColor: accent,
-                        color: accent,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = accent;
-                        e.currentTarget.style.color = accentText;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.color = accent;
-                      }}
-                    >
-                      Wholesale Login
-                    </Link>
-                  )}
-
-                  {/* Sign In */}
-                  <Link
-                    href={`/s/${slug}/login`}
-                    className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
-                    style={{
-                      borderColor: accent,
-                      color: accent,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = accent;
-                      e.currentTarget.style.color = accentText;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = accent;
-                    }}
-                  >
-                    Sign In
-                  </Link>
-                </>
+                <Link
+                  href={`/s/${slug}/login`}
+                  className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
+                  style={{
+                    borderColor: accent,
+                    color: accent,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = accent;
+                    e.currentTarget.style.color = accentText;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                    e.currentTarget.style.color = accent;
+                  }}
+                >
+                  Sign In
+                </Link>
               )}
 
               {/* Signed-in user dropdown */}
@@ -343,7 +312,6 @@ export function Header() {
         onClose={() => setMobileMenuOpen(false)}
         navLinks={navLinks}
         onNavClick={handleNavClick}
-        showWholesaleLogin={showWholesaleLogin}
         user={user}
         onSignOut={handleSignOut}
       />

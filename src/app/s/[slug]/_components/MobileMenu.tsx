@@ -21,7 +21,6 @@ export function MobileMenu({
   onClose,
   navLinks,
   onNavClick,
-  showWholesaleLogin,
   user,
   onSignOut,
 }: {
@@ -29,7 +28,6 @@ export function MobileMenu({
   onClose: () => void;
   navLinks: NavLink[];
   onNavClick: (href: string) => void;
-  showWholesaleLogin: boolean;
   user: AuthUser | null;
   onSignOut: () => void;
 }) {
@@ -123,21 +121,6 @@ export function MobileMenu({
                     My Account
                   </Link>
                 </>
-              )}
-
-              {/* Wholesale Login (signed out only) */}
-              {showWholesaleLogin && (
-                <Link
-                  href={`/s/${slug}/wholesale/login`}
-                  onClick={onClose}
-                  className="block mx-4 mt-3 px-4 py-3 text-center text-sm font-semibold rounded-lg border transition-colors"
-                  style={{
-                    borderColor: accent,
-                    color: accent,
-                  }}
-                >
-                  Wholesale Login
-                </Link>
               )}
 
               {/* Sign In (signed out only) */}

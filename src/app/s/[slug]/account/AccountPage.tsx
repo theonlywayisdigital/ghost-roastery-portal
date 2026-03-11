@@ -68,7 +68,7 @@ export function AccountPage({
       {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        <h1 className="text-2xl font-bold text-slate-900 mb-8">My Account</h1>
+        <h1 className="text-2xl font-bold mb-8" style={{ color: "var(--sf-text)" }}>My Account</h1>
 
         {/* Profile section */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
@@ -169,7 +169,8 @@ export function AccountPage({
         {/* Sign out */}
         <button
           onClick={handleSignOut}
-          className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+          className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50 transition-colors"
+          style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}
         >
           Sign Out
         </button>

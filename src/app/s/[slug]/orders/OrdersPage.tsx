@@ -90,7 +90,7 @@ export function OrdersPage({
       {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-        <h1 className="text-2xl font-bold text-slate-900 mb-8">My Orders</h1>
+        <h1 className="text-2xl font-bold mb-8" style={{ color: "var(--sf-text)" }}>My Orders</h1>
 
         {orders.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">

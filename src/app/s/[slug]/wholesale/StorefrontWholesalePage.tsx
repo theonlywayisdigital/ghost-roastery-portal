@@ -218,7 +218,7 @@ export function StorefrontWholesalePage({
           >
             Wholesale
           </h1>
-          <p className="text-slate-500 mb-8">
+          <p className="mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
             Wholesale pricing and ordering for approved accounts.
           </p>
 
@@ -270,7 +270,7 @@ export function StorefrontWholesalePage({
             {`${roaster.businessName} Wholesale`}
           </h1>
           {brandData.brand_about && (
-            <p className="text-slate-500 text-base md:text-lg max-w-xl mx-auto mb-6">
+            <p className="text-base md:text-lg max-w-xl mx-auto mb-6" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
               {brandData.brand_about}
             </p>
           )}

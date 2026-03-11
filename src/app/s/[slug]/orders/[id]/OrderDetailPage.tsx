@@ -122,7 +122,7 @@ export function OrderDetailPage({
   return (
     <div
       style={{ fontFamily: "var(--sf-font)" }}
-      className="min-h-screen bg-white"
+      className="min-h-screen"
     >
       <Header />
       <Cart />
@@ -132,7 +132,8 @@ export function OrderDetailPage({
         {/* Back link */}
         <Link
           href={`/s/${slug}/orders`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm mb-6 transition-opacity hover:opacity-80"
+          style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
         >
           <svg
             className="w-4 h-4"
@@ -152,7 +153,7 @@ export function OrderDetailPage({
 
         {/* Heading */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold" style={{ color: "var(--sf-text)" }}>
             {`Order #${orderRef}`}
           </h1>
           <span
@@ -378,7 +379,8 @@ export function OrderDetailPage({
               href={`${portalUrl}/my-orders`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-slate-400 hover:text-slate-500 transition-colors"
+              className="text-xs transition-opacity hover:opacity-80"
+              style={{ color: "color-mix(in srgb, var(--sf-text) 40%, transparent)" }}
             >
               {"Manage all your orders at Ghost Roastery \u2192"}
             </a>

@@ -27,7 +27,7 @@ interface Product {
 export function StorefrontProducts({ products: initialProducts }: { products: Product[] }) {
   const [products, setProducts] = useState(initialProducts);
 
-  async function toggleField(product: Product, field: "is_active" | "is_retail" | "is_wholesale") {
+  async function toggleField(product: Product, field: "is_retail" | "is_wholesale") {
     const newValue = !product[field];
 
     // Optimistic update
@@ -134,26 +134,6 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
 
                 {/* Channel toggles */}
                 <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
-                  {/* Active toggle */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => toggleField(product, "is_active")}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                        product.is_active ? "bg-brand-600" : "bg-slate-200"
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                          product.is_active ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
-                    <span className="text-xs text-slate-500">
-                      {product.is_active ? "Active" : "Hidden"}
-                    </span>
-                  </div>
-
                   {/* Retail toggle */}
                   <div className="flex flex-col">
                     <div className={`flex items-center gap-1.5 ${!retailEnabled ? "opacity-40 cursor-not-allowed" : ""}`}>

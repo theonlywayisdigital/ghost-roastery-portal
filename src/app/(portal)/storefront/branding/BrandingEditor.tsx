@@ -599,15 +599,8 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
             <div
               className="flex items-center justify-between px-3 py-2"
               style={{
-                backgroundColor: navTransparent
-                  ? "transparent"
-                  : (navColour || primaryColour),
+                backgroundColor: navColour || primaryColour,
                 color: navTextColour || "#ffffff",
-                position: navTransparent ? "absolute" : "relative",
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 10,
               }}
             >
               <div className="flex items-center gap-2 min-w-0">

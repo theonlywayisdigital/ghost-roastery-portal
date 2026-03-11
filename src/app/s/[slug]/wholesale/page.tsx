@@ -50,6 +50,8 @@ export default async function WholesalePageRoute({
       data: { user },
     } = await authClient.auth.getUser();
 
+    console.log("Wholesale auth user:", user?.id, "roaster:", roaster.id);
+
     if (user) {
       const { data: profile } = await supabase
         .from("users")
@@ -57,12 +59,14 @@ export default async function WholesalePageRoute({
         .eq("id", user.id)
         .single();
 
-      const { data: access } = await supabase
+      const { data: access, error: accessError } = await supabase
         .from("wholesale_access")
         .select("id, status, payment_terms")
         .eq("user_id", user.id)
         .eq("roaster_id", roaster.id)
         .single();
+
+      console.log("Wholesale access result:", access, accessError);
 
       initialAccess = {
         authenticated: true,
@@ -98,8 +102,8 @@ export default async function WholesalePageRoute({
         fullProducts = wholesaleProducts || [];
       }
     }
-  } catch {
-    // Auth check failed — user will see landing page
+  } catch (error) {
+    console.error("Wholesale auth check failed:", error);
   }
 
   return (

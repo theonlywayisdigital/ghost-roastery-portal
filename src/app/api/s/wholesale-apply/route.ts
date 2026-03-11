@@ -315,7 +315,7 @@ export async function POST(request: Request) {
       // Send approval email + account setup for new users
       try {
         const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-        const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
+        const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
 
         if (isNewUser && userId) {
           const token = crypto.randomBytes(32).toString("hex");
@@ -375,7 +375,7 @@ export async function POST(request: Request) {
 
     // Standard flow: send notification emails
     const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-    const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
+    const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
 
     try {
       // For new users, send account setup email (with password link) instead

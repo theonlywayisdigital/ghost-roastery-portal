@@ -29,10 +29,20 @@ export default async function WholesalePageRoute({
     notFound();
   }
 
+  // Always fetch preview products (no prices) for all visitors
+  const { data: previewProducts } = await supabase
+    .from("wholesale_products")
+    .select("id, name, description, image_url, unit, sort_order")
+    .eq("roaster_id", roaster.id)
+    .eq("is_active", true)
+    .eq("is_wholesale", true)
+    .order("sort_order", { ascending: true });
+
   // Optionally check auth SSR-side for initial access state
   let initialAccess = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let products: any[] = [];
+  let fullProducts: any[] = [];
+  let isApproved = false;
 
   try {
     const authClient = await createAuthServerClient();
@@ -70,8 +80,9 @@ export default async function WholesalePageRoute({
           : null,
       };
 
-      // Only fetch products if user has approved access
+      // Only fetch full product data (prices, variants) for approved users
       if (access?.status === "approved") {
+        isApproved = true;
         const { data: wholesaleProducts } = await supabase
           .from("wholesale_products")
           .select(
@@ -84,11 +95,11 @@ export default async function WholesalePageRoute({
           .eq("is_wholesale", true)
           .order("sort_order", { ascending: true });
 
-        products = wholesaleProducts || [];
+        fullProducts = wholesaleProducts || [];
       }
     }
   } catch {
-    // Auth check failed — user will see login form
+    // Auth check failed — user will see landing page
   }
 
   return (
@@ -101,8 +112,10 @@ export default async function WholesalePageRoute({
         stripeAccountId: roaster.stripe_account_id,
         platformFeePercent: roaster.platform_fee_percent as number | null,
       }}
-      products={products}
+      previewProducts={previewProducts || []}
+      products={fullProducts}
       initialAccess={initialAccess}
+      isApproved={isApproved}
     />
   );
 }

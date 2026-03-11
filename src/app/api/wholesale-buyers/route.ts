@@ -339,7 +339,7 @@ export async function POST(request: Request) {
     // Send emails
     try {
       const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-      const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
+      const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
 
       const branding: EmailBranding = {
         logoUrl: roaster.brand_logo_url,

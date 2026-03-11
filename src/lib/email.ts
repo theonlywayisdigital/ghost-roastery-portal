@@ -318,7 +318,7 @@ export async function sendWholesaleWelcome(
       Sign in to your Ghost Roastery account to browse their catalogue and place orders.
     </p>
 
-    ${emailButton({ href: wholesaleUrl, label: "Browse Catalogue", branding })}
+    ${emailButton({ href: wholesaleUrl, label: "Sign In to Wholesale", branding })}
 
     <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
       <p style="color:#334155;font-size:14px;margin:0;"><strong>Payment Terms:</strong> ${termsLabels[paymentTerms] || paymentTerms}</p>

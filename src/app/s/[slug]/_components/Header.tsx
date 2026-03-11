@@ -128,7 +128,7 @@ export function Header() {
             {/* Wholesale Login */}
             {showWholesaleLogin && (
               <Link
-                href={`/s/${slug}/wholesale`}
+                href={`/s/${slug}/wholesale/login`}
                 className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors mr-2"
                 style={{
                   borderColor: accent,

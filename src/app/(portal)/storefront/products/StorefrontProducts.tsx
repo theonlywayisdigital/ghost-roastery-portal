@@ -9,6 +9,8 @@ interface ProductVariant {
   retail_price: number | null;
   wholesale_price: number | null;
   is_active: boolean | null;
+  unit: string | null;
+  channel: string | null;
 }
 
 interface Product {
@@ -61,6 +63,13 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
 
   function hasRetailPrice(product: Product): boolean {
     return product.retail_price != null && product.retail_price > 0;
+  }
+
+  function getUnitDisplay(product: Product): string {
+    const activeVars = product.product_variants?.filter((v) => v.is_active) || [];
+    if (activeVars.length === 0) return product.unit;
+    const units = Array.from(new Set(activeVars.map((v) => v.unit).filter((u): u is string => !!u)));
+    return units.length > 0 ? units.join(", ") : product.unit;
   }
 
   function getPriceDisplay(product: Product): string {
@@ -145,7 +154,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                   {product.name}
                 </h3>
                 <p className="text-sm text-slate-500">
-                  {getPriceDisplay(product)} / {product.unit}
+                  {getPriceDisplay(product)} / {getUnitDisplay(product)}
                 </p>
 
                 {/* Channel toggles */}

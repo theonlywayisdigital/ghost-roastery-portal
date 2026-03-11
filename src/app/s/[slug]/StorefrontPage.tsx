@@ -5,7 +5,6 @@ import { Cart } from "./_components/Cart";
 import { HeroSection } from "./_components/HeroSection";
 import { FeaturedProducts } from "./_components/FeaturedProducts";
 import { TradeSection } from "./_components/TradeSection";
-import { InstagramSection } from "./_components/InstagramSection";
 import { Footer } from "./_components/Footer";
 import type { Product } from "./_components/types";
 
@@ -21,7 +20,6 @@ export function StorefrontPage({ products }: { products: Product[] }) {
       <HeroSection />
       <FeaturedProducts products={products} />
       <TradeSection />
-      <InstagramSection />
       <Footer />
     </div>
   );

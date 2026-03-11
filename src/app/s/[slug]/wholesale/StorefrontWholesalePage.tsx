@@ -90,7 +90,7 @@ export function StorefrontWholesalePage({
     return (
       <div
         style={{ fontFamily: "var(--sf-font)" }}
-        className="min-h-screen bg-white"
+        className="min-h-screen"
       >
         <Header />
         <Cart />
@@ -136,7 +136,7 @@ export function StorefrontWholesalePage({
     return (
       <div
         style={{ fontFamily: "var(--sf-font)" }}
-        className="min-h-screen bg-white"
+        className="min-h-screen"
       >
         <Header />
         <Cart />
@@ -179,7 +179,7 @@ export function StorefrontWholesalePage({
     return (
       <div
         style={{ fontFamily: "var(--sf-font)" }}
-        className="min-h-screen bg-white"
+        className="min-h-screen"
       >
         <Header />
         <Cart />
@@ -245,7 +245,7 @@ export function StorefrontWholesalePage({
   return (
     <div
       style={{ fontFamily: "var(--sf-font)" }}
-      className="min-h-screen bg-white"
+      className="min-h-screen"
     >
       <Header />
       <Cart />

@@ -62,7 +62,7 @@ export function AccountPage({
   }
 
   return (
-    <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen bg-white">
+    <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
       <Header />
       <Cart />
       {!embedded && <div className="h-16 md:h-20" />}

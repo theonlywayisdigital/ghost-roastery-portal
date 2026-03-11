@@ -26,7 +26,7 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center">
           <p className="text-slate-500">Loading...</p>
         </div>
       }
@@ -157,7 +157,7 @@ function CheckoutContent() {
 
   if (items.length === 0 || !roasterId) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-500">Loading...</p>
       </div>
     );
@@ -230,7 +230,7 @@ function CheckoutContent() {
   // Embedded Stripe Checkout — show inline payment form
   if (stripeClientSecret) {
     return (
-      <div className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--sf-font)" }}>
+      <div className="min-h-screen" style={{ fontFamily: "var(--sf-font)" }}>
         <div className="max-w-3xl mx-auto px-6 py-12">
           <h1 className="text-2xl font-bold text-slate-900 mb-8">Payment</h1>
           <EmbeddedCheckoutProvider
@@ -245,7 +245,7 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--sf-font)" }}>
+    <div className="min-h-screen" style={{ fontFamily: "var(--sf-font)" }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
         <Link
           href={`/s/${slug}/shop${qs}`}

@@ -143,8 +143,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Handle option types diff FIRST for "other" products — build value text→UUID lookup
-    const valueTextToId: Record<string, string> = {};
+    // Handle option types diff FIRST for "other" products — build value ID map
+    const valueIdMap: Record<string, string> = {};
     if (Array.isArray(option_types)) {
       // Get existing option types
       const { data: existingTypes } = await supabase
@@ -195,29 +195,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
         }
 
         if (typeId && Array.isArray(ot.values)) {
-          // Delete existing values for this type and re-insert
-          await supabase
+          // Diff option values: fetch existing, delete removed, update existing, insert new
+          const { data: existingValues } = await supabase
             .from("product_option_values")
-            .delete()
+            .select("id, value, sort_order")
             .eq("option_type_id", typeId)
             .eq("roaster_id", roaster.id);
 
-          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
-            option_type_id: typeId,
-            product_id: id,
-            roaster_id: roaster.id,
-            value: v.value,
-            sort_order: v.sort_order ?? vi,
-          }));
-          const { data: insertedValues } = await supabase
-            .from("product_option_values")
-            .insert(valueRows)
-            .select("id, value");
+          const existingValueIds = new Set((existingValues || []).map((v: { id: string }) => v.id));
+          const incomingValueIds = new Set(
+            ot.values.filter((v: { id?: string }) => v.id).map((v: { id: string }) => v.id)
+          );
 
-          // Build lookup: value text → real UUID
-          if (insertedValues) {
-            for (const iv of insertedValues) {
-              valueTextToId[iv.value] = iv.id;
+          // Delete values in DB but not in incoming (cascade cleans up junction rows)
+          const valuesToDelete = Array.from(existingValueIds).filter((eid) => !incomingValueIds.has(eid));
+          if (valuesToDelete.length > 0) {
+            await supabase
+              .from("product_option_values")
+              .delete()
+              .in("id", valuesToDelete)
+              .eq("roaster_id", roaster.id);
+          }
+
+          for (const [vi, v] of ot.values.entries()) {
+            const val = v as { id?: string; value: string; sort_order?: number };
+            if (val.id && existingValueIds.has(val.id)) {
+              // Update existing value (preserves UUID)
+              await supabase
+                .from("product_option_values")
+                .update({ value: val.value, sort_order: val.sort_order ?? vi })
+                .eq("id", val.id)
+                .eq("roaster_id", roaster.id);
+              valueIdMap[val.id] = val.id;
+            } else {
+              // Insert new value, collect fresh UUID
+              const { data: inserted } = await supabase
+                .from("product_option_values")
+                .insert({
+                  option_type_id: typeId,
+                  product_id: id,
+                  roaster_id: roaster.id,
+                  value: val.value,
+                  sort_order: val.sort_order ?? vi,
+                })
+                .select("id")
+                .single();
+              if (inserted) {
+                // Map both the temp key (text value) and any client-side id to the real UUID
+                valueIdMap[val.value] = inserted.id;
+                if (val.id) valueIdMap[val.id] = inserted.id;
+              }
             }
           }
         }
@@ -291,16 +318,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
             .delete()
             .eq("variant_id", variantId);
 
-          // Map option_value_ids to real UUIDs — prefer valueTextToId for text placeholders,
-          // pass through directly if already a valid UUID (from edit form)
+          // Resolve each option_value_id through the map — existing UUIDs pass through,
+          // new values and text placeholders get mapped to fresh UUIDs
           const realIds = (v.option_value_ids as string[])
-            .map((id: string) => {
-              if (id.length === 36 && id.includes("-")) {
-                return id; // already a real UUID from edit form
-              }
-              return valueTextToId[id] ?? null;
-            })
-            .filter((id: string | null): id is string => id != null);
+            .map((ovId: string) => valueIdMap[ovId] ?? ovId)
+            .filter((ovId: string) => ovId.length === 36 && ovId.includes("-"));
 
           if (realIds.length > 0) {
             const junctionRows = realIds.map((ovId: string) => ({

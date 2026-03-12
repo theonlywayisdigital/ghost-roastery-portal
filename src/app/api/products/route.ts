@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       is_purchasable, track_stock, retail_stock_count,
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,
-      variants,
+      variants, category, option_types,
     } = body;
 
     if (!name) {
@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       .insert({
         roaster_id: roaster.id,
         name,
+        category: category || "coffee",
         origin: origin || null,
         tasting_notes: tasting_notes || null,
         description: description || null,
@@ -124,12 +125,55 @@ export async function POST(request: Request) {
         channel: v.channel || "retail",
       }));
 
-      const { error: variantError } = await supabase
+      const { data: insertedVariants, error: variantError } = await supabase
         .from("product_variants")
-        .insert(variantRows);
+        .insert(variantRows)
+        .select("id");
 
       if (variantError) {
         console.error("Variant creation error:", variantError);
+      }
+
+      // Link "other" product variants to option values via junction table
+      if (category === "other" && insertedVariants) {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i] as Record<string, unknown>;
+          const optionValueIds = v.option_value_ids as string[] | undefined;
+          if (optionValueIds && optionValueIds.length > 0 && insertedVariants[i]) {
+            const junctionRows = optionValueIds.map((ovId: string) => ({
+              variant_id: insertedVariants[i].id,
+              option_value_id: ovId,
+            }));
+            await supabase.from("product_variant_option_values").insert(junctionRows);
+          }
+        }
+      }
+    }
+
+    // Insert option types + values for "other" products
+    if (category === "other" && Array.isArray(option_types) && option_types.length > 0) {
+      for (const ot of option_types) {
+        const { data: insertedType } = await supabase
+          .from("product_option_types")
+          .insert({
+            product_id: product.id,
+            roaster_id: roaster.id,
+            name: ot.name,
+            sort_order: ot.sort_order ?? 0,
+          })
+          .select()
+          .single();
+
+        if (insertedType && Array.isArray(ot.values)) {
+          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
+            option_type_id: insertedType.id,
+            product_id: product.id,
+            roaster_id: roaster.id,
+            value: v.value,
+            sort_order: v.sort_order ?? vi,
+          }));
+          await supabase.from("product_option_values").insert(valueRows);
+        }
       }
     }
 

@@ -5736,6 +5736,7 @@ export type Database = {
       products: {
         Row: {
           brand: string | null
+          category: string
           created_at: string | null
           description: string | null
           google_product_category: string | null
@@ -5770,6 +5771,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          category?: string
           created_at?: string | null
           description?: string | null
           google_product_category?: string | null
@@ -5804,6 +5806,7 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          category?: string
           created_at?: string | null
           description?: string | null
           google_product_category?: string | null

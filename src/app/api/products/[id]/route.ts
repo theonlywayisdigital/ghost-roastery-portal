@@ -26,16 +26,50 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  // Fetch variants with grind type name
+  // Fetch variants with grind type name and option value junctions
   const { data: variants } = await supabase
     .from("product_variants")
-    .select("*, grind_type:roaster_grind_types(id, name)")
+    .select("*, grind_type:roaster_grind_types(id, name), product_variant_option_values(option_value_id)")
     .eq("product_id", id)
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({ product, variants: variants || [] });
+  // Flatten option_value_ids for each variant
+  const variantsWithOptionIds = (variants || []).map((v) => ({
+    ...v,
+    option_value_ids: (v.product_variant_option_values || []).map(
+      (j: { option_value_id: string }) => j.option_value_id
+    ),
+    product_variant_option_values: undefined,
+  }));
+
+  // Fetch option types with values for "other" products
+  let option_types: { id: string; name: string; sort_order: number; values: { id: string; value: string; sort_order: number }[] }[] = [];
+  if (product.category === "other") {
+    const { data: types } = await supabase
+      .from("product_option_types")
+      .select("id, name, sort_order")
+      .eq("product_id", id)
+      .eq("roaster_id", roaster.id)
+      .order("sort_order", { ascending: true });
+
+    if (types && types.length > 0) {
+      const { data: values } = await supabase
+        .from("product_option_values")
+        .select("id, option_type_id, value, sort_order")
+        .eq("product_id", id)
+        .eq("roaster_id", roaster.id)
+        .order("sort_order", { ascending: true });
+
+      option_types = types.map((t) => ({
+        ...t,
+        values: (values || []).filter((v: { option_type_id: string }) => v.option_type_id === t.id),
+      }));
+    }
+  }
+
+  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
@@ -55,7 +89,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       is_purchasable, track_stock, retail_stock_count,
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,
-      variants,
+      variants, option_types,
     } = body;
 
     if (!name) {
@@ -149,6 +183,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
           channel: v.channel || "retail",
         };
 
+        let variantId = v.id;
+
         if (v.id && existingIds.has(v.id)) {
           // Update existing
           await supabase
@@ -158,9 +194,98 @@ export async function PUT(request: Request, { params }: RouteParams) {
             .eq("roaster_id", roaster.id);
         } else {
           // Insert new
-          await supabase
+          const { data: inserted } = await supabase
             .from("product_variants")
-            .insert(variantData);
+            .insert(variantData)
+            .select("id")
+            .single();
+          variantId = inserted?.id;
+        }
+
+        // Handle junction rows for "other" product variants
+        if (variantId && Array.isArray(v.option_value_ids) && v.option_value_ids.length > 0) {
+          // Delete existing junctions for this variant
+          await supabase
+            .from("product_variant_option_values")
+            .delete()
+            .eq("variant_id", variantId);
+
+          // Insert new junctions
+          const junctionRows = v.option_value_ids.map((ovId: string) => ({
+            variant_id: variantId,
+            option_value_id: ovId,
+          }));
+          await supabase.from("product_variant_option_values").insert(junctionRows);
+        }
+      }
+    }
+
+    // Handle option types diff for "other" products
+    if (Array.isArray(option_types)) {
+      // Get existing option types
+      const { data: existingTypes } = await supabase
+        .from("product_option_types")
+        .select("id")
+        .eq("product_id", id)
+        .eq("roaster_id", roaster.id);
+
+      const existingTypeIds = new Set((existingTypes || []).map((t: { id: string }) => t.id));
+      const incomingTypeIds = new Set(
+        option_types.filter((ot: { id?: string }) => ot.id).map((ot: { id: string }) => ot.id)
+      );
+
+      // Delete removed option types (cascades to values and junctions)
+      const typesToDelete = Array.from(existingTypeIds).filter((eid) => !incomingTypeIds.has(eid));
+      if (typesToDelete.length > 0) {
+        await supabase
+          .from("product_option_types")
+          .delete()
+          .in("id", typesToDelete)
+          .eq("roaster_id", roaster.id);
+      }
+
+      // Upsert option types + values
+      for (const ot of option_types) {
+        let typeId = ot.id;
+
+        if (ot.id && existingTypeIds.has(ot.id)) {
+          // Update existing type
+          await supabase
+            .from("product_option_types")
+            .update({ name: ot.name, sort_order: ot.sort_order ?? 0 })
+            .eq("id", ot.id)
+            .eq("roaster_id", roaster.id);
+        } else {
+          // Insert new type
+          const { data: inserted } = await supabase
+            .from("product_option_types")
+            .insert({
+              product_id: id,
+              roaster_id: roaster.id,
+              name: ot.name,
+              sort_order: ot.sort_order ?? 0,
+            })
+            .select("id")
+            .single();
+          typeId = inserted?.id;
+        }
+
+        if (typeId && Array.isArray(ot.values)) {
+          // Delete existing values for this type and re-insert
+          await supabase
+            .from("product_option_values")
+            .delete()
+            .eq("option_type_id", typeId)
+            .eq("roaster_id", roaster.id);
+
+          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
+            option_type_id: typeId,
+            product_id: id,
+            roaster_id: roaster.id,
+            value: v.value,
+            sort_order: v.sort_order ?? vi,
+          }));
+          await supabase.from("product_option_values").insert(valueRows);
         }
       }
     }

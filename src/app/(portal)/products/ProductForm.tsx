@@ -33,6 +33,7 @@ import { CSS } from "@dnd-kit/utilities";
 interface Product {
   id: string;
   name: string;
+  category: "coffee" | "other";
   origin: string | null;
   tasting_notes: string | null;
   description: string | null;
@@ -60,6 +61,29 @@ interface Product {
   rrp: number | null;
   order_multiples: number | null;
   subscription_frequency: string | null;
+}
+
+interface OptionValue {
+  id?: string;
+  value: string;
+}
+
+interface OptionType {
+  id?: string;
+  name: string;
+  values: OptionValue[];
+}
+
+interface OtherVariantCell {
+  id?: string;
+  label: string;
+  optionValueIds: string[];
+  retailPrice: string;
+  wholesalePrice: string;
+  sku: string;
+  trackStock: boolean;
+  stockCount: string;
+  isActive: boolean;
 }
 
 interface GrindType {
@@ -218,6 +242,9 @@ export function ProductForm({ product }: { product?: Product }) {
   const router = useRouter();
   const isEditing = !!product;
 
+  // Category (set on create, read-only on edit)
+  const [category, setCategory] = useState<"coffee" | "other">(product?.category ?? "coffee");
+
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
@@ -277,6 +304,10 @@ export function ProductForm({ product }: { product?: Product }) {
   const [retailMatrixCells, setRetailMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [wholesaleMatrixCells, setWholesaleMatrixCells] = useState<Record<string, MatrixCell>>({});
   const [expandedSkuCell, setExpandedSkuCell] = useState<string | null>(null);
+
+  // "Other" product option types & variant cells
+  const [optionTypes, setOptionTypes] = useState<OptionType[]>([]);
+  const [otherVariantCells, setOtherVariantCells] = useState<OtherVariantCell[]>([]);
 
   // Weight add form — per channel
   const [retailNewWeightGrams, setRetailNewWeightGrams] = useState("");
@@ -386,6 +417,36 @@ export function ProductForm({ product }: { product?: Product }) {
               );
               setWholesaleSelectedGrindTypeIds(gtIds);
               setWholesaleMatrixCells(cells);
+            }
+          }
+
+          // Reconstruct "other" product option types + variant cells
+          if (data.option_types && data.option_types.length > 0) {
+            const loadedTypes: OptionType[] = data.option_types.map(
+              (ot: { id: string; name: string; values: { id: string; value: string }[] }) => ({
+                id: ot.id,
+                name: ot.name,
+                values: ot.values.map((v) => ({ id: v.id, value: v.value })),
+              })
+            );
+            setOptionTypes(loadedTypes);
+
+            // Reconstruct variant cells from variants with option_value_ids
+            if (data.variants && data.variants.length > 0) {
+              const cells: OtherVariantCell[] = data.variants.map(
+                (v: Variant & { option_value_ids?: string[] }) => ({
+                  id: v.id,
+                  label: v.unit || "",
+                  optionValueIds: v.option_value_ids || [],
+                  retailPrice: v.retail_price?.toString() || "",
+                  wholesalePrice: v.wholesale_price?.toString() || "",
+                  sku: v.sku || "",
+                  trackStock: v.track_stock,
+                  stockCount: v.retail_stock_count?.toString() || "",
+                  isActive: v.is_active,
+                })
+              );
+              setOtherVariantCells(cells);
             }
           }
         })
@@ -549,6 +610,255 @@ export function ProductForm({ product }: { product?: Product }) {
     }
   }
 
+  // ─── Option Type Helpers (for "other" products) ───
+  function handleAddOptionType() {
+    if (optionTypes.length >= 3) return;
+    setOptionTypes((prev) => [...prev, { name: "", values: [] }]);
+  }
+
+  function handleRemoveOptionType(idx: number) {
+    setOptionTypes((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function handleOptionTypeName(idx: number, name: string) {
+    setOptionTypes((prev) => prev.map((ot, i) => (i === idx ? { ...ot, name } : ot)));
+  }
+
+  function handleAddOptionValue(typeIdx: number, value: string) {
+    if (!value.trim()) return;
+    setOptionTypes((prev) =>
+      prev.map((ot, i) =>
+        i === typeIdx ? { ...ot, values: [...ot.values, { value: value.trim() }] } : ot
+      )
+    );
+  }
+
+  function handleRemoveOptionValue(typeIdx: number, valIdx: number) {
+    setOptionTypes((prev) =>
+      prev.map((ot, i) =>
+        i === typeIdx ? { ...ot, values: ot.values.filter((_, vi) => vi !== valIdx) } : ot
+      )
+    );
+  }
+
+  // Build cartesian product of option values → variant cells
+  function rebuildOtherVariants() {
+    const validTypes = optionTypes.filter((ot) => ot.name.trim() && ot.values.length > 0);
+    if (validTypes.length === 0) {
+      setOtherVariantCells([]);
+      return;
+    }
+
+    // Cartesian product
+    let combos: { label: string; optionValueIds: string[] }[] = [{ label: "", optionValueIds: [] }];
+    for (const ot of validTypes) {
+      const next: { label: string; optionValueIds: string[] }[] = [];
+      for (const combo of combos) {
+        for (const val of ot.values) {
+          next.push({
+            label: combo.label ? `${combo.label} / ${val.value}` : val.value,
+            optionValueIds: [...combo.optionValueIds, val.id || val.value],
+          });
+        }
+      }
+      combos = next;
+    }
+
+    // Preserve existing cell data where label matches
+    const existingByLabel = new Map(otherVariantCells.map((c) => [c.label, c]));
+    setOtherVariantCells(
+      combos.map((combo) => {
+        const existing = existingByLabel.get(combo.label);
+        return existing
+          ? { ...existing, optionValueIds: combo.optionValueIds }
+          : {
+              label: combo.label,
+              optionValueIds: combo.optionValueIds,
+              retailPrice: "",
+              wholesalePrice: "",
+              sku: "",
+              trackStock: false,
+              stockCount: "",
+              isActive: true,
+            };
+      })
+    );
+  }
+
+  function updateOtherVariantCell(idx: number, updates: Partial<OtherVariantCell>) {
+    setOtherVariantCells((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
+  }
+
+  // ─── Option Builder Renderer ───
+  function renderOptionBuilder() {
+    return (
+      <div className={sectionClassName}>
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-slate-800">Option Types</h4>
+          {optionTypes.length < 3 && (
+            <button
+              type="button"
+              onClick={handleAddOptionType}
+              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+            >
+              + Add option type
+            </button>
+          )}
+        </div>
+        {optionTypes.length === 0 && (
+          <p className="text-sm text-slate-500">
+            Add option types (e.g. Size, Colour) to create product variants. Max 3.
+          </p>
+        )}
+        {optionTypes.map((ot, typeIdx) => (
+          <div key={typeIdx} className="border border-slate-200 rounded-lg p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={ot.name}
+                onChange={(e) => handleOptionTypeName(typeIdx, e.target.value)}
+                onBlur={rebuildOtherVariants}
+                placeholder="e.g. Size, Colour, Flavour"
+                className={`${inputClassName} flex-1`}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveOptionType(typeIdx);
+                  setTimeout(rebuildOtherVariants, 0);
+                }}
+                className="p-1.5 text-slate-400 hover:text-red-500"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {ot.values.map((val, valIdx) => (
+                <span
+                  key={valIdx}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-sm"
+                >
+                  {val.value}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleRemoveOptionValue(typeIdx, valIdx);
+                      setTimeout(rebuildOtherVariants, 0);
+                    }}
+                    className="text-slate-400 hover:text-red-500"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                placeholder="Type a value & press Enter"
+                className="px-2.5 py-1 border border-dashed border-slate-300 rounded-md text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-500 min-w-[160px]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const input = e.currentTarget;
+                    handleAddOptionValue(typeIdx, input.value);
+                    input.value = "";
+                    setTimeout(rebuildOtherVariants, 0);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ─── Other Variant Grid Renderer ───
+  function renderOtherVariantGrid(channel: "retail" | "wholesale" | "both") {
+    if (otherVariantCells.length === 0) return null;
+
+    return (
+      <div className={sectionClassName}>
+        <h4 className="text-sm font-semibold text-slate-800">
+          {`Variant Combinations (${otherVariantCells.length})`}
+        </h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left py-2 pr-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Variant</th>
+                {(channel === "retail" || channel === "both") && (
+                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Retail £</th>
+                )}
+                {(channel === "wholesale" || channel === "both") && (
+                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Wholesale £</th>
+                )}
+                <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
+                <th className="text-center py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              {otherVariantCells.map((cell, idx) => (
+                <tr key={cell.label} className="border-b border-slate-100 last:border-0">
+                  <td className="py-2.5 pr-3 font-medium text-slate-900 whitespace-nowrap">{cell.label}</td>
+                  {(channel === "retail" || channel === "both") && (
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cell.retailPrice}
+                        onChange={(e) => updateOtherVariantCell(idx, { retailPrice: e.target.value })}
+                        placeholder="0.00"
+                        className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </td>
+                  )}
+                  {(channel === "wholesale" || channel === "both") && (
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cell.wholesalePrice}
+                        onChange={(e) => updateOtherVariantCell(idx, { wholesalePrice: e.target.value })}
+                        placeholder="0.00"
+                        className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </td>
+                  )}
+                  <td className="py-2.5 px-3">
+                    <input
+                      type="text"
+                      value={cell.sku}
+                      onChange={(e) => updateOtherVariantCell(idx, { sku: e.target.value })}
+                      placeholder="SKU"
+                      className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                  </td>
+                  <td className="py-2.5 px-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => updateOtherVariantCell(idx, { isActive: !cell.isActive })}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                        cell.isActive ? "bg-brand-600" : "bg-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                          cell.isActive ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
@@ -556,8 +866,9 @@ export function ProductForm({ product }: { product?: Product }) {
 
     const body: Record<string, unknown> = {
       name,
-      origin: origin || null,
-      tasting_notes: tastingNotes || null,
+      ...(!isEditing && { category }),
+      origin: category === "coffee" ? origin || null : null,
+      tasting_notes: category === "coffee" ? tastingNotes || null : null,
       description: description || null,
       meta_description: metaDescription || null,
       price: parseFloat(price) || 0,
@@ -632,8 +943,45 @@ export function ProductForm({ product }: { product?: Product }) {
       });
     }
 
+    // "Other" products: build variants from option-based cells
+    if (category === "other" && otherVariantCells.length > 0) {
+      otherVariantCells.forEach((cell, idx) => {
+        flatVariants.push({
+          id: cell.id || undefined,
+          weight_grams: null,
+          unit: cell.label,
+          grind_type_id: null,
+          sku: cell.sku || null,
+          retail_price: cell.retailPrice ? parseFloat(cell.retailPrice) : null,
+          wholesale_price: cell.wholesalePrice ? parseFloat(cell.wholesalePrice) : null,
+          retail_stock_count: cell.trackStock ? parseInt(cell.stockCount) || 0 : null,
+          track_stock: cell.trackStock,
+          is_active: cell.isActive,
+          sort_order: idx,
+          channel: "retail",
+          option_value_ids: cell.optionValueIds,
+        });
+      });
+    }
+
     if (flatVariants.length > 0 || isEditing) {
       body.variants = flatVariants;
+    }
+
+    // Attach option types for "other" products
+    if (category === "other" && optionTypes.length > 0) {
+      body.option_types = optionTypes
+        .filter((ot) => ot.name.trim() && ot.values.length > 0)
+        .map((ot, idx) => ({
+          id: ot.id || undefined,
+          name: ot.name.trim(),
+          sort_order: idx,
+          values: ot.values.map((v, vi) => ({
+            id: v.id || undefined,
+            value: v.value,
+            sort_order: vi,
+          })),
+        }));
     }
 
     try {
@@ -1029,6 +1377,59 @@ export function ProductForm({ product }: { product?: Product }) {
         </h1>
       </div>
 
+      {/* ─── Category Selector ─── */}
+      {!isEditing ? (
+        <div className="max-w-2xl mb-4">
+          <label className={labelClassName}>Product Category</label>
+          <div className="grid grid-cols-2 gap-3 mt-1">
+            <button
+              type="button"
+              onClick={() => setCategory("coffee")}
+              className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+                category === "coffee"
+                  ? "border-brand-600 bg-brand-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <span className="text-2xl">☕</span>
+              <div>
+                <p className={`text-sm font-semibold ${category === "coffee" ? "text-brand-700" : "text-slate-900"}`}>
+                  Coffee
+                </p>
+                <p className="text-xs text-slate-500">Weight &amp; grind variants</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategory("other")}
+              className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-colors ${
+                category === "other"
+                  ? "border-brand-600 bg-brand-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <span className="text-2xl">📦</span>
+              <div>
+                <p className={`text-sm font-semibold ${category === "other" ? "text-brand-700" : "text-slate-900"}`}>
+                  Other
+                </p>
+                <p className="text-xs text-slate-500">Custom option types</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-2xl mb-4">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+            category === "coffee"
+              ? "bg-amber-50 text-amber-700 border border-amber-200"
+              : "bg-blue-50 text-blue-700 border border-blue-200"
+          }`}>
+            {category === "coffee" ? "☕ Coffee product" : "📦 Other product"}
+          </span>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 max-w-2xl">
         {/* ─── Tab Navigation ─── */}
         <div className="border-b border-slate-200 px-6">
@@ -1071,43 +1472,47 @@ export function ProductForm({ product }: { product?: Product }) {
                     />
                   </div>
 
-                  {/* Origin */}
-                  <div>
-                    <label className={labelClassName}>
-                      Origin{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value.slice(0, 50))}
-                      placeholder="e.g. Ethiopia Yirgacheffe"
-                      maxLength={50}
-                      className={inputClassName}
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                      {`${origin.length}/50`}
-                    </p>
-                  </div>
+                  {/* Origin — coffee only */}
+                  {category === "coffee" && (
+                    <div>
+                      <label className={labelClassName}>
+                        Origin{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={origin}
+                        onChange={(e) => setOrigin(e.target.value.slice(0, 50))}
+                        placeholder="e.g. Ethiopia Yirgacheffe"
+                        maxLength={50}
+                        className={inputClassName}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        {`${origin.length}/50`}
+                      </p>
+                    </div>
+                  )}
 
-                  {/* Tasting Notes */}
-                  <div>
-                    <label className={labelClassName}>
-                      Tasting Notes{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={tastingNotes}
-                      onChange={(e) => setTastingNotes(e.target.value.slice(0, 100))}
-                      placeholder="e.g. Milk chocolate, hazelnut & honey sweetness"
-                      maxLength={100}
-                      className={inputClassName}
-                    />
-                    <p className="text-xs text-slate-400 mt-1">
-                      {`${tastingNotes.length}/100`}
-                    </p>
-                  </div>
+                  {/* Tasting Notes — coffee only */}
+                  {category === "coffee" && (
+                    <div>
+                      <label className={labelClassName}>
+                        Tasting Notes{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={tastingNotes}
+                        onChange={(e) => setTastingNotes(e.target.value.slice(0, 100))}
+                        placeholder="e.g. Milk chocolate, hazelnut & honey sweetness"
+                        maxLength={100}
+                        className={inputClassName}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        {`${tastingNotes.length}/100`}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Full Description */}
                   <div>
@@ -1118,7 +1523,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       </label>
                       <AiGenerateButton
                         type="product_description"
-                        context={{ existingContent: description, productCategory: "coffee" }}
+                        context={{ existingContent: description, productCategory: category }}
                         onSelect={setDescription}
                         enableShortcut
                       />
@@ -1144,7 +1549,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       </label>
                       <AiGenerateButton
                         type="product_meta_description"
-                        context={{ existingContent: metaDescription, productCategory: "coffee" }}
+                        context={{ existingContent: metaDescription, productCategory: category }}
                         onSelect={setMetaDescription}
                       />
                     </div>
@@ -1416,22 +1821,30 @@ export function ProductForm({ product }: { product?: Product }) {
                 </div>
 
                 {/* Retail Variants */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-slate-800">Retail Variants</h3>
-                    <Toggle
-                      enabled={retailVariantsEnabled}
-                      onToggle={() => setRetailVariantsEnabled(!retailVariantsEnabled)}
-                      label={retailVariantsEnabled ? "Enabled" : "Disabled"}
-                    />
-                  </div>
-                  {retailVariantsEnabled && (
-                    <div className="space-y-5">
-                      {renderVariantOptions("retail")}
-                      {renderMatrix("retail")}
+                {category === "coffee" ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-semibold text-slate-800">Retail Variants</h3>
+                      <Toggle
+                        enabled={retailVariantsEnabled}
+                        onToggle={() => setRetailVariantsEnabled(!retailVariantsEnabled)}
+                        label={retailVariantsEnabled ? "Enabled" : "Disabled"}
+                      />
                     </div>
-                  )}
-                </div>
+                    {retailVariantsEnabled && (
+                      <div className="space-y-5">
+                        {renderVariantOptions("retail")}
+                        {renderMatrix("retail")}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <h3 className="text-sm font-semibold text-slate-800">Product Options &amp; Variants</h3>
+                    {renderOptionBuilder()}
+                    {renderOtherVariantGrid(isWholesale ? "both" : "retail")}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1507,22 +1920,35 @@ export function ProductForm({ product }: { product?: Product }) {
                 </div>
 
                 {/* Wholesale Variants */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
-                    <Toggle
-                      enabled={wholesaleVariantsEnabled}
-                      onToggle={() => setWholesaleVariantsEnabled(!wholesaleVariantsEnabled)}
-                      label={wholesaleVariantsEnabled ? "Enabled" : "Disabled"}
-                    />
-                  </div>
-                  {wholesaleVariantsEnabled && (
-                    <div className="space-y-5">
-                      {renderVariantOptions("wholesale")}
-                      {renderMatrix("wholesale")}
+                {category === "coffee" ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
+                      <Toggle
+                        enabled={wholesaleVariantsEnabled}
+                        onToggle={() => setWholesaleVariantsEnabled(!wholesaleVariantsEnabled)}
+                        label={wholesaleVariantsEnabled ? "Enabled" : "Disabled"}
+                      />
                     </div>
-                  )}
-                </div>
+                    {wholesaleVariantsEnabled && (
+                      <div className="space-y-5">
+                        {renderVariantOptions("wholesale")}
+                        {renderMatrix("wholesale")}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
+                    {optionTypes.length === 0 ? (
+                      <p className="text-sm text-slate-500">
+                        Add option types on the Retail tab to configure wholesale variant pricing.
+                      </p>
+                    ) : (
+                      renderOtherVariantGrid("wholesale")
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

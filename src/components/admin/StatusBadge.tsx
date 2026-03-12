@@ -182,7 +182,7 @@ const labelMap: Record<string, Record<string, string>> = {
   },
   orderType: {
     ghost: "Ghost Roastery",
-    storefront: "Storefront",
+    storefront: "Retail",
     wholesale: "Wholesale",
   },
   ticketStatus: {

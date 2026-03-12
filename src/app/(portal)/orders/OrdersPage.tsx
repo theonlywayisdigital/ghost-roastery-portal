@@ -86,7 +86,7 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
   const tabs: { label: string; value: TabValue }[] = [
     { label: "All", value: "all" },
     ...(isPartner ? [{ label: "Ghost Roastery", value: "ghost" as TabValue }] : []),
-    { label: "Storefront", value: "storefront" },
+    { label: "Retail", value: "storefront" },
     { label: "Wholesale", value: "wholesale" },
   ];
 

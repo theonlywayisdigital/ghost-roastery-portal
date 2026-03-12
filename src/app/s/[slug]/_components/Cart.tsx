@@ -105,7 +105,7 @@ export function Cart() {
                   <div className="space-y-4">
                     {items.map((item) => (
                       <div
-                        key={item.productId}
+                        key={`${item.productId}::${item.variantId ?? ""}`}
                         className="flex items-start gap-3 py-3 border-b border-slate-100 last:border-0"
                       >
                         {/* Thumbnail */}
@@ -142,6 +142,11 @@ export function Cart() {
                           <h3 className="font-medium text-slate-900 text-sm truncate">
                             {item.name}
                           </h3>
+                          {item.variantLabel && (
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {item.variantLabel}
+                            </p>
+                          )}
                           <p className="text-xs text-slate-500 mt-0.5">
                             {"\u00A3"}
                             {item.price.toFixed(2)} / {item.unit}
@@ -151,6 +156,7 @@ export function Cart() {
                               onClick={() =>
                                 updateQuantity(
                                   item.productId,
+                                  item.variantId,
                                   item.quantity - 1
                                 )
                               }
@@ -165,6 +171,7 @@ export function Cart() {
                               onClick={() =>
                                 updateQuantity(
                                   item.productId,
+                                  item.variantId,
                                   item.quantity + 1
                                 )
                               }
@@ -182,7 +189,7 @@ export function Cart() {
                             {(item.price * item.quantity).toFixed(2)}
                           </p>
                           <button
-                            onClick={() => removeItem(item.productId)}
+                            onClick={() => removeItem(item.productId, item.variantId)}
                             className="text-xs text-red-500 hover:text-red-700 mt-1"
                           >
                             Remove

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useStorefront } from "../../../_components/StorefrontProvider";
@@ -9,7 +9,7 @@ import { Header } from "../../../_components/Header";
 import { Cart } from "../../../_components/Cart";
 import { Footer } from "../../../_components/Footer";
 import { ProductCard } from "../../../_components/ProductCard";
-import type { Product } from "../../../_components/types";
+import type { Product, ProductVariant } from "../../../_components/types";
 
 export function ProductDetail({
   product,
@@ -23,16 +23,75 @@ export function ProductDetail({
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
 
-  // Variant prices take priority over product-level retail_price
-  const retailVariantPrices = (product.product_variants || [])
-    .filter((v) => v.is_active && v.channel === "retail" && v.retail_price != null && v.retail_price > 0)
-    .map((v) => v.retail_price as number);
+  // Active retail variants
+  const retailVariants = useMemo(
+    () =>
+      (product.product_variants || []).filter(
+        (v) => v.is_active && v.channel === "retail" && v.retail_price != null && v.retail_price > 0
+      ),
+    [product.product_variants]
+  );
+  const hasVariants = retailVariants.length > 0;
 
+  // Unique weight options (sorted ascending)
+  const weightOptions = useMemo(() => {
+    const weights = Array.from(
+      new Set(
+        retailVariants
+          .filter((v) => v.weight_grams != null)
+          .map((v) => v.weight_grams as number)
+      )
+    ).sort((a, b) => a - b);
+    return weights;
+  }, [retailVariants]);
+
+  // Unique grind options
+  const grindOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const v of retailVariants) {
+      if (v.grind_type) map.set(v.grind_type.id, v.grind_type.name);
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [retailVariants]);
+
+  // State for selected weight + grind
+  const [selectedWeight, setSelectedWeight] = useState<number | null>(
+    weightOptions.length > 0 ? weightOptions[0] : null
+  );
+  const [selectedGrindId, setSelectedGrindId] = useState<string | null>(
+    grindOptions.length > 0 ? grindOptions[0].id : null
+  );
+
+  // Resolve selected variant
+  const selectedVariant: ProductVariant | null = useMemo(() => {
+    if (!hasVariants) return null;
+    return (
+      retailVariants.find((v) => {
+        const weightMatch =
+          weightOptions.length === 0 || v.weight_grams === selectedWeight;
+        const grindMatch =
+          grindOptions.length === 0 || v.grind_type?.id === selectedGrindId;
+        return weightMatch && grindMatch;
+      }) || null
+    );
+  }, [retailVariants, selectedWeight, selectedGrindId, weightOptions.length, grindOptions.length, hasVariants]);
+
+  // Price display
+  const retailVariantPrices = retailVariants.map((v) => v.retail_price as number);
   const hasVariantPrices = retailVariantPrices.length > 0;
   const variantMin = hasVariantPrices ? Math.min(...retailVariantPrices) : 0;
   const variantMax = hasVariantPrices ? Math.max(...retailVariantPrices) : 0;
-  const displayPrice = hasVariantPrices ? variantMin : (product.retail_price ?? product.price);
-  const isRange = hasVariantPrices && variantMin !== variantMax;
+
+  // If a variant is selected, show its price; otherwise show range or product price
+  const displayPrice = selectedVariant
+    ? (selectedVariant.retail_price as number)
+    : hasVariantPrices
+      ? variantMin
+      : (product.retail_price ?? product.price);
+  const isRange = !selectedVariant && hasVariantPrices && variantMin !== variantMax;
+
+  // Unit: variant unit overrides product unit
+  const displayUnit = selectedVariant?.unit || product.unit;
 
   const outOfStock =
     product.track_stock &&
@@ -46,9 +105,7 @@ export function ProductDetail({
     product.retail_stock_count < 5;
 
   function handleAddToCart() {
-    for (let i = 0; i < quantity; i++) {
-      addItem(product);
-    }
+    addItem(product, quantity, selectedVariant ?? undefined);
     setQuantity(1);
   }
 
@@ -130,7 +187,7 @@ export function ProductDetail({
                   ? `\u00A3${variantMin.toFixed(2)} – \u00A3${variantMax.toFixed(2)}`
                   : `\u00A3${displayPrice.toFixed(2)}`}
               </span>
-              <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>/ {product.unit}</span>
+              <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>/ {displayUnit}</span>
             </div>
 
             {/* Stock status */}
@@ -158,6 +215,81 @@ export function ProductDetail({
               <p className="leading-relaxed whitespace-pre-line mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}>
                 {product.description}
               </p>
+            )}
+
+            {/* Variant selectors */}
+            {hasVariants && (
+              <div className="space-y-4 mb-6">
+                {weightOptions.length > 1 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ color: "var(--sf-text)" }}>
+                      Size
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {weightOptions.map((w) => {
+                        const label = w >= 1000 ? `${w / 1000}kg` : `${w}g`;
+                        const isSelected = selectedWeight === w;
+                        return (
+                          <button
+                            key={w}
+                            onClick={() => setSelectedWeight(w)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                              isSelected
+                                ? "border-transparent"
+                                : "border-slate-300 hover:border-slate-400"
+                            }`}
+                            style={
+                              isSelected
+                                ? { backgroundColor: accent, color: accentText }
+                                : { color: "var(--sf-text)" }
+                            }
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {grindOptions.length > 1 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ color: "var(--sf-text)" }}>
+                      Grind
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {grindOptions.map((g) => {
+                        const isSelected = selectedGrindId === g.id;
+                        return (
+                          <button
+                            key={g.id}
+                            onClick={() => setSelectedGrindId(g.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                              isSelected
+                                ? "border-transparent"
+                                : "border-slate-300 hover:border-slate-400"
+                            }`}
+                            style={
+                              isSelected
+                                ? { backgroundColor: accent, color: accentText }
+                                : { color: "var(--sf-text)" }
+                            }
+                          >
+                            {g.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* No matching variant warning */}
+                {hasVariants && !selectedVariant && (weightOptions.length > 1 || grindOptions.length > 1) && (
+                  <p className="text-sm text-amber-600">
+                    This combination is not available. Please select a different option.
+                  </p>
+                )}
+              </div>
             )}
 
             {/* Quantity + Add to Cart */}
@@ -188,8 +320,17 @@ export function ProductDetail({
 
                 <button
                   onClick={handleAddToCart}
-                  style={{ backgroundColor: accent, color: accentText }}
-                  className="w-full py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                  disabled={hasVariants && !selectedVariant}
+                  style={
+                    hasVariants && !selectedVariant
+                      ? undefined
+                      : { backgroundColor: accent, color: accentText }
+                  }
+                  className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-opacity ${
+                    hasVariants && !selectedVariant
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      : "hover:opacity-90"
+                  }`}
                 >
                   Add to Cart
                 </button>

@@ -6,6 +6,8 @@ import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 interface CheckoutItem {
   productId: string;
   quantity: number;
+  variantId?: string;
+  variantLabel?: string;
 }
 
 export async function POST(request: Request) {
@@ -140,8 +142,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch variant prices if any items reference a variant
+    const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId as string);
+    let variantMap: Record<string, { retail_price: number | null }> = {};
+    if (variantIds.length > 0) {
+      const { data: variants } = await supabase
+        .from("product_variants")
+        .select("id, retail_price")
+        .in("id", variantIds);
+      if (variants) {
+        for (const v of variants) {
+          variantMap[v.id] = { retail_price: v.retail_price };
+        }
+      }
+    }
+
     // Validate all products are purchasable and in stock
-    const lineItems: { name: string; unitAmount: number; quantity: number; productId: string; unit: string }[] = [];
+    const lineItems: { name: string; unitAmount: number; quantity: number; productId: string; unit: string; variantId?: string; variantLabel?: string }[] = [];
     for (const item of items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product || !product.is_active || !product.is_purchasable) {
@@ -182,6 +199,8 @@ export async function POST(request: Request) {
       let unitPrice: number;
       if (isWholesale) {
         unitPrice = (product as Record<string, unknown>).wholesale_price as number ?? product.price;
+      } else if (item.variantId && variantMap[item.variantId]?.retail_price != null) {
+        unitPrice = variantMap[item.variantId].retail_price as number;
       } else {
         unitPrice = product.retail_price ?? product.price;
       }
@@ -192,6 +211,8 @@ export async function POST(request: Request) {
         quantity: item.quantity,
         productId: product.id,
         unit: product.unit,
+        variantId: item.variantId,
+        variantLabel: item.variantLabel,
       });
     }
 
@@ -264,7 +285,9 @@ export async function POST(request: Request) {
         price_data: {
           currency: "gbp",
           product_data: {
-            name: item.name,
+            name: item.variantLabel
+              ? `${item.name} (${item.variantLabel})`
+              : item.name,
           },
           unit_amount: item.unitAmount,
         },
@@ -288,6 +311,8 @@ export async function POST(request: Request) {
             unitAmount: i.unitAmount,
             quantity: i.quantity,
             unit: i.unit,
+            ...(i.variantId ? { variantId: i.variantId } : {}),
+            ...(i.variantLabel ? { variantLabel: i.variantLabel } : {}),
           }))
         ),
         subtotal_pence: subtotalPence.toString(),

@@ -118,7 +118,7 @@ function CheckoutContent() {
           code: codeToValidate,
           customerEmail: email || undefined,
           subtotalPence,
-          items: items.map((item) => ({ productId: item.productId })),
+          items: items.map((item) => ({ productId: item.productId, variantId: item.variantId })),
         }),
       });
 
@@ -177,6 +177,8 @@ function CheckoutContent() {
           items: items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
+            variantId: item.variantId ?? undefined,
+            variantLabel: item.variantLabel ?? undefined,
           })),
           customerEmail: email,
           customerName: name,
@@ -453,11 +455,11 @@ function CheckoutContent() {
               <div className="space-y-3">
                 {items.map((item) => (
                   <div
-                    key={item.productId}
+                    key={`${item.productId}::${item.variantId ?? ""}`}
                     className="flex justify-between text-sm"
                   >
                     <span className="text-slate-600">
-                      {item.name} x{item.quantity}
+                      {item.name}{item.variantLabel ? ` (${item.variantLabel})` : ""} x{item.quantity}
                     </span>
                     <span className="font-medium text-slate-900">
                       {"\u00A3"}

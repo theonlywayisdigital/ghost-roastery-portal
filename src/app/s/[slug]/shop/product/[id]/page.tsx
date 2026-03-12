@@ -30,7 +30,7 @@ export default async function ProductDetailRoute({
     .select(
       `id, name, description, price, unit, image_url, sort_order,
        is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
-       product_variants(id, retail_price, is_active, channel)`
+       product_variants(id, retail_price, is_active, channel, unit, weight_grams, grind_type:roaster_grind_types(id, name))`
     )
     .eq("id", id)
     .eq("roaster_id", roaster.id)
@@ -80,7 +80,7 @@ export default async function ProductDetailRoute({
 
   return (
     <ProductDetail
-      product={product as Product}
+      product={product as unknown as Product}
       relatedProducts={(related as Product[]) || []}
     />
   );

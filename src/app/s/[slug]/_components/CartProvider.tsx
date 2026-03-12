@@ -8,16 +8,21 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import type { CartItem, Product } from "./types";
+import type { CartItem, Product, ProductVariant } from "./types";
+
+/** Unique key for a cart line: productId or productId::variantId */
+function cartKey(productId: string, variantId: string | null): string {
+  return variantId ? `${productId}::${variantId}` : productId;
+}
 
 interface CartContextValue {
   items: CartItem[];
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (product: Product) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  addItem: (product: Product, quantity?: number, variant?: ProductVariant) => void;
+  updateQuantity: (productId: string, variantId: string | null, quantity: number) => void;
+  removeItem: (productId: string, variantId: string | null) => void;
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
@@ -71,13 +76,38 @@ export function CartProvider({
   const closeCart = useCallback(() => setIsOpen(false), []);
 
   const addItem = useCallback(
-    (product: Product) => {
+    (product: Product, qty = 1, variant?: ProductVariant) => {
+      const variantId = variant?.id ?? null;
+
+      // Build variant label
+      let variantLabel: string | null = null;
+      if (variant) {
+        const parts: string[] = [];
+        if (variant.weight_grams) {
+          parts.push(
+            variant.weight_grams >= 1000
+              ? `${variant.weight_grams / 1000}kg`
+              : `${variant.weight_grams}g`
+          );
+        }
+        if (variant.grind_type) {
+          parts.push(variant.grind_type.name);
+        }
+        if (parts.length > 0) variantLabel = parts.join(" / ");
+      }
+
+      const price = variant?.retail_price ?? product.retail_price ?? product.price;
+      const unit = variant?.unit ?? product.unit;
+      const key = cartKey(product.id, variantId);
+
       setItems((prev) => {
-        const existing = prev.find((item) => item.productId === product.id);
+        const existing = prev.find(
+          (item) => cartKey(item.productId, item.variantId) === key
+        );
         if (existing) {
           return prev.map((item) =>
-            item.productId === product.id
-              ? { ...item, quantity: item.quantity + 1 }
+            cartKey(item.productId, item.variantId) === key
+              ? { ...item, quantity: item.quantity + qty }
               : item
           );
         }
@@ -86,10 +116,12 @@ export function CartProvider({
           {
             productId: product.id,
             name: product.name,
-            price: product.retail_price ?? product.price,
-            unit: product.unit,
-            quantity: 1,
+            price,
+            unit,
+            quantity: qty,
             imageUrl: product.image_url,
+            variantId,
+            variantLabel,
           },
         ];
       });
@@ -99,15 +131,18 @@ export function CartProvider({
   );
 
   const updateQuantity = useCallback(
-    (productId: string, quantity: number) => {
+    (productId: string, variantId: string | null, quantity: number) => {
+      const key = cartKey(productId, variantId);
       if (quantity <= 0) {
         setItems((prev) =>
-          prev.filter((item) => item.productId !== productId)
+          prev.filter((item) => cartKey(item.productId, item.variantId) !== key)
         );
       } else {
         setItems((prev) =>
           prev.map((item) =>
-            item.productId === productId ? { ...item, quantity } : item
+            cartKey(item.productId, item.variantId) === key
+              ? { ...item, quantity }
+              : item
           )
         );
       }
@@ -115,8 +150,9 @@ export function CartProvider({
     []
   );
 
-  const removeItem = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((item) => item.productId !== productId));
+  const removeItem = useCallback((productId: string, variantId: string | null) => {
+    const key = cartKey(productId, variantId);
+    setItems((prev) => prev.filter((item) => cartKey(item.productId, item.variantId) !== key));
   }, []);
 
   const clearCart = useCallback(() => {

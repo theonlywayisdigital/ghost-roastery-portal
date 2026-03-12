@@ -33,6 +33,9 @@ export interface ProductVariant {
   retail_price: number | null;
   is_active: boolean | null;
   channel: string | null;
+  unit: string | null;
+  weight_grams: number | null;
+  grind_type: { id: string; name: string } | null;
 }
 
 export interface Product {
@@ -59,4 +62,6 @@ export interface CartItem {
   unit: string;
   quantity: number;
   imageUrl: string | null;
+  variantId: string | null;
+  variantLabel: string | null;
 }

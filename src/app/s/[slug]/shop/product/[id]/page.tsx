@@ -30,7 +30,7 @@ export default async function ProductDetailRoute({
     .select(
       `id, name, category, origin, tasting_notes, description, price, unit, image_url, sort_order,
        is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
-       product_variants(id, retail_price, is_active, channel, unit, weight_grams, grind_type:roaster_grind_types(id, name),
+       product_variants(id, retail_price, is_active, channel, unit, weight_grams, track_stock, retail_stock_count, grind_type:roaster_grind_types(id, name),
          option_values:product_variant_option_values(option_value:product_option_values(id, value, option_type:product_option_types(id, name, sort_order)))
        )`
     )

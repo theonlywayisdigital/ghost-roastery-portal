@@ -31,7 +31,7 @@ export function ProductDetail({
   const retailVariants = useMemo(
     () =>
       (product.product_variants || []).filter(
-        (v) => v.is_active && v.channel === "retail" && v.retail_price != null && v.retail_price > 0
+        (v) => v.is_active && (v.channel === "retail" || v.channel === "both") && v.retail_price != null && v.retail_price > 0
       ),
     [product.product_variants]
   );
@@ -132,16 +132,25 @@ export function ProductDetail({
   // Unit: variant unit overrides product unit
   const displayUnit = selectedVariant?.unit || product.unit;
 
-  const outOfStock =
-    product.track_stock &&
-    product.retail_stock_count != null &&
-    product.retail_stock_count <= 0;
+  const outOfStock = isOther
+    ? (otherSelectedVariant?.track_stock &&
+       (otherSelectedVariant?.retail_stock_count ?? 1) <= 0)
+    : (product.track_stock &&
+       product.retail_stock_count != null &&
+       product.retail_stock_count <= 0);
 
-  const lowStock =
-    product.track_stock &&
-    product.retail_stock_count != null &&
-    product.retail_stock_count > 0 &&
-    product.retail_stock_count < 5;
+  const lowStock = isOther
+    ? (otherSelectedVariant?.track_stock &&
+       (otherSelectedVariant?.retail_stock_count ?? 1) > 0 &&
+       (otherSelectedVariant?.retail_stock_count ?? 1) < 5)
+    : (product.track_stock &&
+       product.retail_stock_count != null &&
+       product.retail_stock_count > 0 &&
+       product.retail_stock_count < 5);
+
+  const stockCount = isOther
+    ? otherSelectedVariant?.retail_stock_count
+    : product.retail_stock_count;
 
   // Build variant label for "other" products from selected option values
   const otherVariantLabel = useMemo(() => {
@@ -254,7 +263,7 @@ export function ProductDetail({
               ) : lowStock ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-600">
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  Low Stock &mdash; Only {product.retail_stock_count} left
+                  Low Stock &mdash; Only {stockCount} left
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">

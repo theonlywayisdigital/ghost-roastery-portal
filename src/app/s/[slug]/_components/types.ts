@@ -35,6 +35,8 @@ export interface ProductVariant {
   channel: string | null;
   unit: string | null;
   weight_grams: number | null;
+  track_stock: boolean | null;
+  retail_stock_count: number | null;
   grind_type: { id: string; name: string } | null;
   option_values?: Array<{
     option_value: {

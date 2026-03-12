@@ -291,10 +291,16 @@ export async function PUT(request: Request, { params }: RouteParams) {
             .delete()
             .eq("variant_id", variantId);
 
-          // Map text placeholders to real UUIDs via lookup
+          // Map option_value_ids to real UUIDs — prefer valueTextToId for text placeholders,
+          // pass through directly if already a valid UUID (from edit form)
           const realIds = (v.option_value_ids as string[])
-            .map((placeholder: string) => valueTextToId[placeholder] ?? placeholder)
-            .filter((oid: string) => oid.length === 36);
+            .map((id: string) => {
+              if (id.length === 36 && id.includes("-")) {
+                return id; // already a real UUID from edit form
+              }
+              return valueTextToId[id] ?? null;
+            })
+            .filter((id: string | null): id is string => id != null);
 
           if (realIds.length > 0) {
             const junctionRows = realIds.map((ovId: string) => ({
@@ -305,7 +311,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
               .from("product_variant_option_values")
               .insert(junctionRows);
             if (junctionError) {
-              console.error("Junction insert failed:", junctionError);
+              console.error("Junction insert error:", junctionError.message, junctionRows);
             }
           }
         }

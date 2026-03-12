@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   if (roasterIds.length > 0) {
     const { data: orderStats } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("roaster_id, subtotal")
       .in("roaster_id", roasterIds);
 

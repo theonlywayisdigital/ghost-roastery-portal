@@ -27,7 +27,7 @@ export default async function AdminCreateInvoiceFromOrderPage({
 
   if (isGhost) {
     const { data: order } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*")
       .eq("id", id)
       .single();
@@ -49,7 +49,7 @@ export default async function AdminCreateInvoiceFromOrderPage({
     };
   } else {
     const { data: order } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("*")
       .eq("id", id)
       .single();

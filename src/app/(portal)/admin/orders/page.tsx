@@ -13,8 +13,8 @@ export default async function AdminOrdersPage() {
   const supabase = createServerClient();
 
   const [ordersRes, wholesaleRes, roastersRes] = await Promise.all([
-    supabase.from("orders").select("id, order_status, total_price, payment_status"),
-    supabase.from("wholesale_orders").select("id, status, subtotal"),
+    supabase.from("ghost_orders").select("id, order_status, total_price, payment_status"),
+    supabase.from("orders").select("id, status, subtotal"),
     supabase
       .from("partner_roasters")
       .select("id, business_name")

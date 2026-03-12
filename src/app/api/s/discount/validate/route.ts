@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     // First order only check
     if (discountCode.first_order_only && customerEmail) {
       const { count } = await supabase
-        .from("wholesale_orders")
+        .from("orders")
         .select("*", { count: "exact", head: true })
         .eq("roaster_id", roasterId)
         .eq("customer_email", customerEmail.toLowerCase());

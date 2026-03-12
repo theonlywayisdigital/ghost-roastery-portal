@@ -51,14 +51,14 @@ export async function GET(req: NextRequest) {
 
       if (isGhost) {
         const { data } = await supabase
-          .from("orders")
+          .from("ghost_orders")
           .select("order_number, customer_name, customer_email")
           .eq("id", refund.order_id)
           .single();
         order = data;
       } else {
         const { data } = await supabase
-          .from("wholesale_orders")
+          .from("orders")
           .select("id, customer_name, customer_email")
           .eq("id", refund.order_id)
           .single();

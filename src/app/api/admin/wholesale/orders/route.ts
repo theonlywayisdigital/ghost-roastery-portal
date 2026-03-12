@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
 
   let query = supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("roaster_id", roasterId)
     .order("created_at", { ascending: false });

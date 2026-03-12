@@ -40,7 +40,7 @@ export default async function StorefrontOrdersRoute({
 
   // Fetch orders
   const { data: orders } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select(
       `id, created_at, status, subtotal, discount_amount, discount_code,
        items, order_channel, payment_method, payment_terms,

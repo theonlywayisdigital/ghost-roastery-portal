@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   const supabase = createServerClient();
   const isGhost = orderType === "ghost";
-  const table = isGhost ? "orders" : "wholesale_orders";
+  const table = isGhost ? "ghost_orders" : "orders";
 
   // Build update payload
   const updates: Record<string, unknown> = {};
@@ -161,7 +161,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       if (isGhost) {
         const { data: ghostOrder } = await supabase
-          .from("orders")
+          .from("ghost_orders")
           .select("customer_email, customer_name, order_number, partner_roaster_id")
           .eq("id", id)
           .single();
@@ -173,7 +173,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         }
       } else {
         const { data: wsOrder } = await supabase
-          .from("wholesale_orders")
+          .from("orders")
           .select("customer_email, customer_name, roaster_id, tracking_number, tracking_carrier")
           .eq("id", id)
           .single();

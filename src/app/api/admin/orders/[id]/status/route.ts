@@ -34,7 +34,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     // Get current order
     const { data: order } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("id, order_status")
       .eq("id", id)
       .single();
@@ -58,7 +58,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     const { error: updateError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .update({ order_status: newStatus })
       .eq("id", id);
 

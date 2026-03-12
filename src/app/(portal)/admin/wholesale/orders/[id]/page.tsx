@@ -18,7 +18,7 @@ export default async function AdminWholesaleOrderDetailPage({ params }: Props) {
 
   // Verify the order belongs to GR
   const { data: order } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roasterId)

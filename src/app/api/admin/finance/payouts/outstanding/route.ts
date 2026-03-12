@@ -13,7 +13,7 @@ export async function GET() {
   try {
     // Fetch all unpaid orders with a partner roaster
     const { data: orders, error: ordersError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("id, partner_roaster_id, partner_payout_total")
       .not("partner_roaster_id", "is", null)
       .eq("payout_status", "unpaid")

@@ -19,7 +19,7 @@ export default async function MyBrandsPage() {
 
   // Get distinct brands from orders
   const { data: orders } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("brand_name, label_file_url, mockup_image_url, bag_colour")
     .eq("user_id", user.id)
     .not("brand_name", "is", null)

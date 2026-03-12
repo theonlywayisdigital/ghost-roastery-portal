@@ -18,9 +18,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const orderType = req.nextUrl.searchParams.get("type") || "wholesale";
 
   if (orderType === "ghost") {
-    // Fetch from orders table
+    // Fetch from ghost_orders table
     const { data: order, error } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*")
       .eq("id", id)
       .eq("partner_roaster_id", roasterId)
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Wholesale/storefront order
   const { data: order, error } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roasterId)

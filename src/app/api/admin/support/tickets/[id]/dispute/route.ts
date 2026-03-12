@@ -49,7 +49,7 @@ export async function POST(
 
     // Update order with dispute info
     await supabase
-      .from("orders")
+      .from("ghost_orders")
       .update({
         dispute_status: "open",
         dispute_ticket_id: id,
@@ -125,7 +125,7 @@ export async function PUT(
 
     // Update order dispute status
     await supabase
-      .from("orders")
+      .from("ghost_orders")
       .update({ dispute_status: resolution })
       .eq("id", ticket.order_id);
 

@@ -324,7 +324,7 @@ export async function POST(request: Request) {
     }));
 
     const { data: order, error: orderError } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .insert({
         roaster_id: roasterId,
         customer_name: wholesaleBuyerName,

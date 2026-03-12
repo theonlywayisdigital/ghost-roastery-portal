@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const supabase = createServerClient();
 
   const { data: order, error } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roasterId)
@@ -50,7 +50,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   // Verify order belongs to GR
   const { data: existing } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("id, status")
     .eq("id", id)
     .eq("roaster_id", roasterId)
@@ -75,7 +75,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   if (tracking_url !== undefined) updates.tracking_url = tracking_url;
 
   const { data: order, error } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .update(updates)
     .eq("id", id)
     .select()

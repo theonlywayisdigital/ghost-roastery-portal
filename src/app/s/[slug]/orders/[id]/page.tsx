@@ -38,7 +38,7 @@ export default async function StorefrontOrderDetailRoute({
 
   // Fetch order — must belong to this user AND this roaster
   const { data: order } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", orderId)
     .eq("user_id", userId)

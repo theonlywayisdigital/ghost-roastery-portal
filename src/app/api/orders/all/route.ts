@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   // Fetch Ghost Roastery orders (if roaster is a partner)
   if (tab === "all" || tab === "ghost") {
     const { data: ghostOrders } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("id, order_number, customer_name, customer_email, brand_name, bag_size, bag_colour, roast_profile, grind, quantity, partner_payout_total, order_status, payment_status, created_at")
       .eq("partner_roaster_id", roasterId)
       .order("created_at", { ascending: false });
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
   // Fetch wholesale/storefront orders
   if (tab === "all" || tab === "storefront" || tab === "wholesale") {
     let query = supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("*")
       .eq("roaster_id", roasterId)
       .order("created_at", { ascending: false });

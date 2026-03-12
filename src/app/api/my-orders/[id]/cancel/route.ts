@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (isGhost) {
     // Ghost Roastery order — can only cancel if Pending
     const { data: order, error: fetchError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*")
       .eq("id", id)
       .eq("user_id", user.id)
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
     // Update order
     const { error: updateError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .update({
         order_status: "Cancelled",
         cancellation_reason: cancellationReason,
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   // Wholesale/storefront order — can only cancel if pending
   const { data: order, error: fetchError } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("customer_email", user.email)
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   // Update order
   const { error: updateError } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .update({
       status: "cancelled",
       cancelled_at: now,

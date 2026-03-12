@@ -12,14 +12,14 @@ export async function GET() {
 
   // Fetch Ghost Roastery orders
   const { data: ghostOrders } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("id, order_number, bag_size, bag_colour, roast_profile, grind, quantity, total_price, order_status, mockup_image_url, brand_name, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   // Fetch wholesale/storefront orders where customer email matches
   const { data: wholesaleOrders } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("id, order_channel, status, subtotal, customer_name, customer_email, items, created_at, roaster_id, tracking_number, tracking_carrier")
     .eq("customer_email", user.email)
     .order("created_at", { ascending: false });

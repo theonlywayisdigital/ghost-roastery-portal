@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // Idempotency: check if order already exists for this payment
     const { data: existingOrder } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id")
       .eq("stripe_payment_id", stripePaymentId)
       .maybeSingle();
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
 
     // Create order with discount fields
     const { data: order, error: orderError } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .insert({
         roaster_id: roasterId,
         customer_name: customerName,

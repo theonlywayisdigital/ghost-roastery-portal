@@ -13,7 +13,7 @@ export async function GET() {
   try {
     // Total revenue from Ghost Roastery orders
     const { data: ghostOrders } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("total_price")
       .eq("payment_status", "paid");
 
@@ -24,7 +24,7 @@ export async function GET() {
 
     // Total revenue from storefront/wholesale orders
     const { data: storefrontOrders } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("subtotal, platform_fee")
       .eq("status", "paid");
 
@@ -51,7 +51,7 @@ export async function GET() {
 
     // Outstanding payouts
     const { data: unpaidOrders } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("partner_payout_total")
       .eq("payout_status", "unpaid")
       .eq("payment_status", "paid")

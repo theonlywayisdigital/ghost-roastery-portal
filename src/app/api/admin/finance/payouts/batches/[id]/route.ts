@@ -64,7 +64,7 @@ export async function GET(
 
     // Fetch order numbers
     const { data: orders } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("id, order_number")
       .in("id", orderIds.length > 0 ? orderIds : ["none"]);
 
@@ -165,7 +165,7 @@ export async function DELETE(
     // Reset orders back to unpaid
     if (orderIds.length > 0) {
       const { error: updateError } = await supabase
-        .from("orders")
+        .from("ghost_orders")
         .update({
           payout_status: "unpaid",
           payout_batch_id: null,

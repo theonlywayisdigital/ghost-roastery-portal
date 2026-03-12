@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   );
 
   if (!orderType || orderType === "ghost") {
-    let query = supabase.from("orders").select("*");
+    let query = supabase.from("ghost_orders").select("*");
 
     if (search) query = query.or(`order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_email.ilike.%${search}%`);
     if (status) query = query.eq("order_status", status);
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!orderType || orderType === "storefront" || orderType === "wholesale") {
-    let query = supabase.from("wholesale_orders").select("*");
+    let query = supabase.from("orders").select("*");
 
     if (search) query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%`);
     if (status) query = query.eq("status", status);

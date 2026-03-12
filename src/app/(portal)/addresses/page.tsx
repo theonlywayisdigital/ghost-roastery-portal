@@ -11,7 +11,7 @@ export default async function AddressesPage() {
 
   // Get unique delivery addresses from orders
   const { data: orders } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("delivery_address")
     .eq("user_id", user.id)
     .not("delivery_address", "is", null)

@@ -113,7 +113,7 @@ export async function GET() {
 
   // 2. Sync from wholesale_orders — create businesses from customer_business
   const { data: orders } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("customer_email, customer_name, customer_business")
     .eq("roaster_id", roaster.id);
 
@@ -190,7 +190,7 @@ export async function GET() {
     if (!biz.email) continue;
 
     const { data: bizOrders } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id, subtotal")
       .eq("roaster_id", roaster.id)
       .eq("customer_email", biz.email);

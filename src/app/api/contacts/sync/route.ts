@@ -81,7 +81,7 @@ export async function GET() {
 
   // 2. Sync from wholesale_orders (customer emails)
   const { data: orders } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("customer_email, customer_name, customer_business")
     .eq("roaster_id", roaster.id);
 
@@ -175,7 +175,7 @@ export async function GET() {
     if (!contact.email) continue;
 
     const { data: contactOrders } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id, subtotal")
       .eq("roaster_id", roaster.id)
       .eq("customer_email", contact.email);

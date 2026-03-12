@@ -116,7 +116,7 @@ export async function POST(
 
         // Update order payout_status
         await supabase
-          .from("orders")
+          .from("ghost_orders")
           .update({ payout_status: "paid" })
           .eq("id", item.order_id);
 

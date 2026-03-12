@@ -73,7 +73,7 @@ export async function PUT(
 
     // Update the order payout_status
     const { error: orderError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .update({ payout_status: "paid" })
       .eq("id", item.order_id);
 

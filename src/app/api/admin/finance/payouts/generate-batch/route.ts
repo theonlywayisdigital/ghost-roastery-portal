@@ -13,7 +13,7 @@ export async function POST() {
   try {
     // Find all unpaid orders eligible for payout
     const { data: orders, error: ordersError } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*")
       .not("partner_roaster_id", "is", null)
       .eq("payout_status", "unpaid")
@@ -169,7 +169,7 @@ export async function POST() {
     for (const order of orders) {
       const payoutItemId = itemMap.get(order.id);
       const { error: updateError } = await supabase
-        .from("orders")
+        .from("ghost_orders")
         .update({
           payout_status: "batched",
           payout_batch_id: batch.id,

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch Ghost Roastery orders
   if (!orderType || orderType === "ghost") {
-    let query = supabase.from("orders").select("*");
+    let query = supabase.from("ghost_orders").select("*");
 
     if (search) {
       query = query.or(
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch Storefront & Wholesale orders
   if (!orderType || orderType === "storefront" || orderType === "wholesale") {
-    let query = supabase.from("wholesale_orders").select("*");
+    let query = supabase.from("orders").select("*");
 
     if (search) {
       query = query.or(
@@ -207,9 +207,9 @@ export async function PATCH(req: NextRequest) {
   if (action === "update_status" && value) {
     for (const id of orderIds) {
       if (orderType === "ghost") {
-        await supabase.from("orders").update({ order_status: value }).eq("id", id);
+        await supabase.from("ghost_orders").update({ order_status: value }).eq("id", id);
       } else {
-        await supabase.from("wholesale_orders").update({ status: value }).eq("id", id);
+        await supabase.from("orders").update({ status: value }).eq("id", id);
       }
 
       await supabase.from("order_activity_log").insert({
@@ -226,9 +226,9 @@ export async function PATCH(req: NextRequest) {
   if (action === "cancel") {
     for (const id of orderIds) {
       if (orderType === "ghost") {
-        await supabase.from("orders").update({ order_status: "Cancelled" }).eq("id", id);
+        await supabase.from("ghost_orders").update({ order_status: "Cancelled" }).eq("id", id);
       } else {
-        await supabase.from("wholesale_orders").update({ status: "cancelled" }).eq("id", id);
+        await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
       }
 
       await supabase.from("order_activity_log").insert({

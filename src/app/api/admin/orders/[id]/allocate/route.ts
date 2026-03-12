@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Get the order
   const { data: order } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("id, delivery_address, partner_roaster_id, order_status")
     .eq("id", id)
     .single();
@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Allocate partner to order
   const { error: updateError } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .update({
       partner_roaster_id: partnerId,
       order_status: "Allocated",
@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Fetch order number for notifications
   const { data: orderData } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("order_number")
     .eq("id", id)
     .single();

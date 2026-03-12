@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   if (type === "ghost") {
     const { data: order } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*")
       .eq("id", id)
       .eq("user_id", user.id)
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   // Wholesale / storefront
   const { data: order } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("customer_email", user.email)

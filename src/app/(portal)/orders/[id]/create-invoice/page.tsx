@@ -25,7 +25,7 @@ export default async function RoasterCreateInvoiceFromOrderPage({
 
   // Roasters can only create invoices for their own wholesale/storefront orders
   const { data: order } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roasterId)

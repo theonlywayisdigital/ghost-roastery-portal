@@ -11,11 +11,11 @@ export default async function AdminDashboardPage() {
   const supabase = createServerClient();
 
   const { count: orderCount } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("*", { count: "exact", head: true });
 
   const { count: pendingCount } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("*", { count: "exact", head: true })
     .eq("order_status", "Pending");
 

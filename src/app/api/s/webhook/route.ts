@@ -78,7 +78,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Idempotency: check if order already exists for this payment
   const { data: existingOrder } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("id")
     .eq("stripe_payment_id", stripePaymentId)
     .maybeSingle();
@@ -141,7 +141,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Create order with discount fields
   const { data: order, error: orderError } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .insert({
       roaster_id: roasterId,
       customer_name: customerName,

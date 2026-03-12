@@ -38,7 +38,7 @@ export async function GET() {
         .in("roaster_id", partnerIds.length > 0 ? partnerIds : ["__none__"])
         .eq("is_active", true),
       supabase
-        .from("orders")
+        .from("ghost_orders")
         .select("partner_roaster_id, fulfilment_type, order_status")
         .in("partner_roaster_id", partnerIds.length > 0 ? partnerIds : ["__none__"])
         .eq("fulfilment_type", "partner"),

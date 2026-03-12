@@ -39,7 +39,7 @@ export async function GET(
         .eq("roaster_id", roasterId)
         .order("bag_size"),
       supabase
-        .from("orders")
+        .from("ghost_orders")
         .select("id, order_number, bag_size, quantity, order_status, total_price, partner_rate_per_bag, partner_payout_total, fulfilment_type, created_at")
         .eq("partner_roaster_id", roasterId)
         .order("created_at", { ascending: false })

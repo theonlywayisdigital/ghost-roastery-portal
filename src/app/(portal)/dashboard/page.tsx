@@ -25,7 +25,7 @@ export default async function DashboardPage() {
 
   if (isRoaster && user.roaster) {
     const { count: wc } = await supabase
-      .from("wholesale_orders")
+      .from("ghost_orders")
       .select("*", { count: "exact", head: true })
       .eq("roaster_id", user.roaster.id)
       .eq("status", "pending");
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   let customerOrderCount = 0;
   if (isCustomer) {
     const { count } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id);
     customerOrderCount = count || 0;
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
 
     // Wholesale/storefront revenue
     const { data: wsOrders } = await supabase
-      .from("wholesale_orders")
+      .from("ghost_orders")
       .select("roaster_payout, subtotal")
       .eq("roaster_id", user.roaster.id)
       .gte("created_at", startOfMonth.toISOString())
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
     // Ghost Roastery partner payouts
     if (user.roaster.is_ghost_roaster) {
       const { data: ghostOrders } = await supabase
-        .from("orders")
+        .from("ghost_orders")
         .select("partner_payout_total")
         .eq("partner_roaster_id", user.roaster.id)
         .gte("created_at", startOfMonth.toISOString())

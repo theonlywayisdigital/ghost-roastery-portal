@@ -1584,7 +1584,7 @@ export type Database = {
             foreignKeyName: "discount_redemptions_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "wholesale_orders"
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -2626,7 +2626,7 @@ export type Database = {
         }
         Relationships: []
       }
-      orders: {
+      ghost_orders: {
         Row: {
           artwork_status: string | null
           bag_colour: string
@@ -3002,7 +3002,7 @@ export type Database = {
             foreignKeyName: "partner_payout_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "ghost_orders"
             referencedColumns: ["id"]
           },
           {
@@ -4508,7 +4508,7 @@ export type Database = {
             foreignKeyName: "roaster_orders_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "orders"
+            referencedRelation: "ghost_orders"
             referencedColumns: ["id"]
           },
           {
@@ -5605,7 +5605,7 @@ export type Database = {
           },
         ]
       }
-      wholesale_orders: {
+      orders: {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null

@@ -66,7 +66,7 @@ export async function GET(
   let orderInfo = null;
   if (ticket.order_id) {
     const { data: order } = await supabase
-      .from("orders")
+      .from("ghost_orders")
       .select("id, order_number, order_status, total_price, created_at")
       .eq("id", ticket.order_id)
       .single();

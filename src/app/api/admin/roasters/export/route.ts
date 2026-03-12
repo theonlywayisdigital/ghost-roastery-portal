@@ -27,7 +27,7 @@ export async function GET() {
 
     // Fetch order counts and revenue grouped by roaster
     const { data: orderStats } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("roaster_id, subtotal");
 
     // Aggregate order stats per roaster

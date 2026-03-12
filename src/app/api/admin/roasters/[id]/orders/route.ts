@@ -24,7 +24,7 @@ export async function GET(
     const to = from + limit - 1;
 
     let query = supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("*", { count: "exact" })
       .eq("roaster_id", id)
       .order("created_at", { ascending: false })

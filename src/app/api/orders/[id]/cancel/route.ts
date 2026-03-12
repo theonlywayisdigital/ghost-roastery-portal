@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   // Roasters can only cancel their own wholesale orders
   const { data: order, error: fetchError } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roaster.id)
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   // 1. Update order
   const { error: updateError } = await supabase
-    .from("wholesale_orders")
+    .from("orders")
     .update({
       status: "cancelled",
       cancelled_at: now,

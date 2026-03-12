@@ -67,7 +67,7 @@ export async function GET(
   let orders: unknown[] = [];
   if (business.email) {
     const { data: orderData } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id, customer_name, items, subtotal, total, status, created_at")
       .eq("roaster_id", roaster.id)
       .eq("customer_email", business.email)

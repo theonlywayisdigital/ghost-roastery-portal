@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   const supabase = createServerClient();
   const isGhost = orderType === "ghost_roastery";
-  const table = isGhost ? "orders" : "wholesale_orders";
+  const table = isGhost ? "ghost_orders" : "orders";
 
   // Fetch the order
   const { data: order, error: orderError } = await supabase
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         const proportionalPayout = order.partner_payout_total * (amount / orderTotal);
         const newPayoutTotal = Math.max(0, order.partner_payout_total - proportionalPayout);
         await supabase
-          .from("orders")
+          .from("ghost_orders")
           .update({ partner_payout_total: newPayoutTotal })
           .eq("id", id);
       }

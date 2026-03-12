@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     if (order_ids && order_ids.length > 0) {
       for (const oid of order_ids) {
         await supabase
-          .from("wholesale_orders")
+          .from("orders")
           .update({ invoice_id: invoice.id })
           .eq("id", oid);
       }

@@ -42,7 +42,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     // Get current order with ownership check
     const { data: order } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id, status, user_id, customer_name")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
@@ -81,7 +81,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     const { error: updateError } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .update(updatePayload)
       .eq("id", id)
       .eq("roaster_id", roaster.id);
@@ -127,7 +127,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
       if (!existingEmail) {
         const { data: orderForEmail } = await supabase
-          .from("wholesale_orders")
+          .from("orders")
           .select("customer_email, customer_name, tracking_number, tracking_carrier, order_channel")
           .eq("id", id)
           .single();
@@ -187,7 +187,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Fire automation trigger for order status change
     // Find contact by customer email
     const { data: orderFull } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("customer_email, subtotal")
       .eq("id", id)
       .single();
@@ -236,7 +236,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const supabase = createServerClient();
 
     const { data: order } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .select("id")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
@@ -255,7 +255,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const { error: updateError } = await supabase
-      .from("wholesale_orders")
+      .from("orders")
       .update(updatePayload)
       .eq("id", id)
       .eq("roaster_id", roaster.id);

@@ -13,7 +13,7 @@ export async function GET() {
 
   // Fetch orders assigned to this roaster
   const { data: orders, error } = await supabase
-    .from("orders")
+    .from("ghost_orders")
     .select("id, order_number, customer_name, customer_email, brand_name, bag_size, bag_colour, roast_profile, grind, quantity, total_price, price_per_bag, partner_payout_total, order_status, payment_status, artwork_status, label_file_url, mockup_image_url, delivery_address, created_at")
     .eq("partner_roaster_id", roasterId)
     .order("created_at", { ascending: false });

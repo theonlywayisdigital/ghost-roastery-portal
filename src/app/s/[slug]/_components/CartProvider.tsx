@@ -20,7 +20,7 @@ interface CartContextValue {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (product: Product, quantity?: number, variant?: ProductVariant) => void;
+  addItem: (product: Product, quantity?: number, variant?: ProductVariant, overrideLabel?: string) => void;
   updateQuantity: (productId: string, variantId: string | null, quantity: number) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   clearCart: () => void;
@@ -76,12 +76,14 @@ export function CartProvider({
   const closeCart = useCallback(() => setIsOpen(false), []);
 
   const addItem = useCallback(
-    (product: Product, qty = 1, variant?: ProductVariant) => {
+    (product: Product, qty = 1, variant?: ProductVariant, overrideLabel?: string) => {
       const variantId = variant?.id ?? null;
 
       // Build variant label
       let variantLabel: string | null = null;
-      if (variant) {
+      if (overrideLabel) {
+        variantLabel = overrideLabel;
+      } else if (variant) {
         const parts: string[] = [];
         if (variant.weight_grams) {
           parts.push(
@@ -93,7 +95,12 @@ export function CartProvider({
         if (variant.grind_type) {
           parts.push(variant.grind_type.name);
         }
-        if (parts.length > 0) variantLabel = parts.join(" / ");
+        // Fallback to variant.unit for "other" products (contains combo label e.g. "Medium / Blue")
+        if (parts.length === 0 && variant.unit) {
+          variantLabel = variant.unit;
+        } else if (parts.length > 0) {
+          variantLabel = parts.join(" / ");
+        }
       }
 
       const price = variant?.retail_price ?? product.retail_price ?? product.price;

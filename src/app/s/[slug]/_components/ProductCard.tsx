@@ -111,7 +111,7 @@ export function ProductCard({ product }: { product: Product }) {
           <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
             {product.name}
           </h3>
-          {(product.origin || product.tasting_notes) && (
+          {product.category !== "other" && (product.origin || product.tasting_notes) && (
             <div className="mb-3">
               {product.origin && (
                 <p

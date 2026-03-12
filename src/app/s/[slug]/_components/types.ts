@@ -36,11 +36,34 @@ export interface ProductVariant {
   unit: string | null;
   weight_grams: number | null;
   grind_type: { id: string; name: string } | null;
+  option_values?: Array<{
+    option_value: {
+      id: string;
+      value: string;
+      option_type: {
+        id: string;
+        name: string;
+        sort_order: number;
+      };
+    };
+  }>;
+}
+
+export interface StorefrontOptionType {
+  id: string;
+  name: string;
+  sort_order: number;
+  product_option_values: Array<{
+    id: string;
+    value: string;
+    sort_order: number;
+  }>;
 }
 
 export interface Product {
   id: string;
   name: string;
+  category: string;
   origin: string | null;
   tasting_notes: string | null;
   description: string | null;

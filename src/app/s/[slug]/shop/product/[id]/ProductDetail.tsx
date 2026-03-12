@@ -9,21 +9,25 @@ import { Header } from "../../../_components/Header";
 import { Cart } from "../../../_components/Cart";
 import { Footer } from "../../../_components/Footer";
 import { ProductCard } from "../../../_components/ProductCard";
-import type { Product, ProductVariant } from "../../../_components/types";
+import type { Product, ProductVariant, StorefrontOptionType } from "../../../_components/types";
 
 export function ProductDetail({
   product,
   relatedProducts,
+  optionTypes = [],
 }: {
   product: Product;
   relatedProducts: Product[];
+  optionTypes?: StorefrontOptionType[];
 }) {
   const { slug, accent, accentText, embedded } = useStorefront();
   const qs = embedded ? "?embedded=true" : "";
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
 
-  // Active retail variants
+  const isOther = product.category === "other";
+
+  // ── Coffee variant logic ──
   const retailVariants = useMemo(
     () =>
       (product.product_variants || []).filter(
@@ -31,10 +35,10 @@ export function ProductDetail({
       ),
     [product.product_variants]
   );
-  const hasVariants = retailVariants.length > 0;
 
-  // Unique weight options (sorted ascending)
+  // Unique weight options (sorted ascending) — coffee only
   const weightOptions = useMemo(() => {
+    if (isOther) return [];
     const weights = Array.from(
       new Set(
         retailVariants
@@ -43,18 +47,19 @@ export function ProductDetail({
       )
     ).sort((a, b) => a - b);
     return weights;
-  }, [retailVariants]);
+  }, [retailVariants, isOther]);
 
-  // Unique grind options
+  // Unique grind options — coffee only
   const grindOptions = useMemo(() => {
+    if (isOther) return [];
     const map = new Map<string, string>();
     for (const v of retailVariants) {
       if (v.grind_type) map.set(v.grind_type.id, v.grind_type.name);
     }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [retailVariants]);
+  }, [retailVariants, isOther]);
 
-  // State for selected weight + grind
+  // State for selected weight + grind — coffee only
   const [selectedWeight, setSelectedWeight] = useState<number | null>(
     weightOptions.length > 0 ? weightOptions[0] : null
   );
@@ -62,9 +67,38 @@ export function ProductDetail({
     grindOptions.length > 0 ? grindOptions[0].id : null
   );
 
-  // Resolve selected variant
-  const selectedVariant: ProductVariant | null = useMemo(() => {
-    if (!hasVariants) return null;
+  // ── "Other" variant logic ──
+  // Selected option values: option_type_id → option_value_id
+  const [selectedOptionValues, setSelectedOptionValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    for (const ot of optionTypes) {
+      if (ot.product_option_values.length > 0) {
+        const sorted = [...ot.product_option_values].sort((a, b) => a.sort_order - b.sort_order);
+        initial[ot.id] = sorted[0].id;
+      }
+    }
+    return initial;
+  });
+
+  // Resolve selected variant for "other" products by matching option_value_ids
+  const otherSelectedVariant: ProductVariant | null = useMemo(() => {
+    if (!isOther) return null;
+    const selectedIds = Object.values(selectedOptionValues);
+    if (selectedIds.length === 0) return null;
+    return (
+      retailVariants.find((v) => {
+        const variantValueIds = (v.option_values || []).map((ov) => ov.option_value.id);
+        return selectedIds.every((id) => variantValueIds.includes(id));
+      }) || null
+    );
+  }, [isOther, retailVariants, selectedOptionValues]);
+
+  // Unified variant reference
+  const hasVariants = retailVariants.length > 0;
+
+  // Resolve coffee selected variant
+  const coffeeSelectedVariant: ProductVariant | null = useMemo(() => {
+    if (isOther || !hasVariants) return null;
     return (
       retailVariants.find((v) => {
         const weightMatch =
@@ -74,7 +108,9 @@ export function ProductDetail({
         return weightMatch && grindMatch;
       }) || null
     );
-  }, [retailVariants, selectedWeight, selectedGrindId, weightOptions.length, grindOptions.length, hasVariants]);
+  }, [isOther, retailVariants, selectedWeight, selectedGrindId, weightOptions.length, grindOptions.length, hasVariants]);
+
+  const selectedVariant = isOther ? otherSelectedVariant : coffeeSelectedVariant;
 
   // Price display
   const retailVariantPrices = retailVariants.map((v) => v.retail_price as number);
@@ -104,8 +140,21 @@ export function ProductDetail({
     product.retail_stock_count > 0 &&
     product.retail_stock_count < 5;
 
+  // Build variant label for "other" products from selected option values
+  const otherVariantLabel = useMemo(() => {
+    if (!isOther) return null;
+    const sortedTypes = [...optionTypes].sort((a, b) => a.sort_order - b.sort_order);
+    const parts: string[] = [];
+    for (const ot of sortedTypes) {
+      const selectedValId = selectedOptionValues[ot.id];
+      const val = ot.product_option_values.find((v) => v.id === selectedValId);
+      if (val) parts.push(val.value);
+    }
+    return parts.length > 0 ? parts.join(" / ") : null;
+  }, [isOther, optionTypes, selectedOptionValues]);
+
   function handleAddToCart() {
-    addItem(product, quantity, selectedVariant ?? undefined);
+    addItem(product, quantity, selectedVariant ?? undefined, isOther ? (otherVariantLabel ?? undefined) : undefined);
     setQuantity(1);
   }
 
@@ -210,8 +259,8 @@ export function ProductDetail({
               )}
             </div>
 
-            {/* Origin & Tasting Notes */}
-            {(product.origin || product.tasting_notes) && (
+            {/* Origin & Tasting Notes — coffee only */}
+            {!isOther && (product.origin || product.tasting_notes) && (
               <div className="mb-6 space-y-3">
                 {product.origin && (
                   <div>
@@ -237,7 +286,7 @@ export function ProductDetail({
             )}
 
             {/* Variant selectors */}
-            {hasVariants && (
+            {hasVariants && !isOther && (
               <div className="space-y-4 mb-6">
                 {weightOptions.length > 1 && (
                   <div>
@@ -311,6 +360,62 @@ export function ProductDetail({
               </div>
             )}
 
+            {/* Option selectors — "other" products */}
+            {isOther && hasVariants && (
+              <div className="space-y-4 mb-6">
+                {[...optionTypes]
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .filter((ot) => ot.product_option_values.length > 1)
+                  .map((ot) => {
+                    const sortedValues = [...ot.product_option_values].sort(
+                      (a, b) => a.sort_order - b.sort_order
+                    );
+                    return (
+                      <div key={ot.id}>
+                        <label className="block text-sm font-medium mb-2" style={{ color: "var(--sf-text)" }}>
+                          {ot.name}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {sortedValues.map((val) => {
+                            const isSelected = selectedOptionValues[ot.id] === val.id;
+                            return (
+                              <button
+                                key={val.id}
+                                onClick={() =>
+                                  setSelectedOptionValues((prev) => ({
+                                    ...prev,
+                                    [ot.id]: val.id,
+                                  }))
+                                }
+                                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                                  isSelected
+                                    ? "border-transparent"
+                                    : "border-slate-300 hover:border-slate-400"
+                                }`}
+                                style={
+                                  isSelected
+                                    ? { backgroundColor: accent, color: accentText }
+                                    : { color: "var(--sf-text)" }
+                                }
+                              >
+                                {val.value}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {/* No matching variant warning */}
+                {!selectedVariant && (
+                  <p className="text-sm text-amber-600">
+                    This combination is not available. Please select a different option.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Quantity + Add to Cart */}
             {!outOfStock && (
               <div className="space-y-4">
@@ -365,7 +470,7 @@ export function ProductDetail({
               className="text-lg md:text-xl font-bold mb-4"
               style={{ color: "var(--sf-text)" }}
             >
-              About this coffee
+              {isOther ? "About this product" : "About this coffee"}
             </h2>
             <p
               className="leading-relaxed whitespace-pre-line max-w-2xl"

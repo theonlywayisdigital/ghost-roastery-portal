@@ -57,28 +57,26 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     return `£${product.price.toFixed(2)}`;
   }
 
-  function getPriceDisplay(product: Product): string {
-    const variants = product.product_variants?.filter((v) => v.is_active) || [];
-    if (variants.length === 0) return getBasePriceDisplay(product);
-
-    let prices: number[];
-
-    if (activeTab === "all") {
-      // Collect both retail_price and wholesale_price from all active variants
-      prices = variants
-        .flatMap((v) => [v.retail_price, v.wholesale_price])
-        .filter((p): p is number => p != null && p > 0);
-    } else {
-      const channelVars = variants.filter((v) => v.channel === activeTab);
-      prices = channelVars
-        .map((v) => activeTab === "wholesale" ? v.wholesale_price : v.retail_price)
-        .filter((p): p is number => p != null && p > 0);
-    }
-
-    if (prices.length === 0) return getBasePriceDisplay(product);
+  function formatRange(prices: number[]): string | null {
+    if (prices.length === 0) return null;
     const min = Math.min(...prices);
     const max = Math.max(...prices);
     return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
+  }
+
+  function getRetailPriceDisplay(product: Product): string {
+    const variants = product.product_variants?.filter((v) => v.is_active && v.channel === "retail") || [];
+    const prices = variants.map((v) => v.retail_price).filter((p): p is number => p != null && p > 0);
+    const range = formatRange(prices);
+    if (range) return range;
+    // Fallback to product-level retail_price then price
+    return getBasePriceDisplay(product);
+  }
+
+  function getWholesalePriceDisplay(product: Product): string {
+    const variants = product.product_variants?.filter((v) => v.is_active && v.channel === "wholesale") || [];
+    const prices = variants.map((v) => v.wholesale_price).filter((p): p is number => p != null && p > 0);
+    return formatRange(prices) || "—";
   }
 
   function getUnitDisplay(product: Product): string {
@@ -192,9 +190,20 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                     Product
                   </th>
-                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
-                    Price
-                  </th>
+                  {activeTab === "all" ? (
+                    <>
+                      <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
+                        Retail Price
+                      </th>
+                      <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
+                        Wholesale Price
+                      </th>
+                    </>
+                  ) : (
+                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
+                      Price
+                    </th>
+                  )}
                   <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                     Unit
                   </th>
@@ -234,11 +243,26 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-slate-900">
-                        {getPriceDisplay(product)}
-                      </span>
-                    </td>
+                    {activeTab === "all" ? (
+                      <>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-slate-900">
+                            {getRetailPriceDisplay(product)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-slate-900">
+                            {getWholesalePriceDisplay(product)}
+                          </span>
+                        </td>
+                      </>
+                    ) : (
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-900">
+                          {activeTab === "retail" ? getRetailPriceDisplay(product) : getWholesalePriceDisplay(product)}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <span className="text-sm text-slate-500">
                         {getUnitDisplay(product)}

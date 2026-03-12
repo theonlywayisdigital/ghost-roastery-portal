@@ -17,6 +17,8 @@ import { compressImage } from "@/lib/compress-image";
 interface Product {
   id: string;
   name: string;
+  origin: string | null;
+  tasting_notes: string | null;
   description: string | null;
   meta_description: string | null;
   price: number;
@@ -146,6 +148,8 @@ export function ProductForm({ product }: { product?: Product }) {
 
   // Universal fields
   const [name, setName] = useState(product?.name || "");
+  const [origin, setOrigin] = useState(product?.origin || "");
+  const [tastingNotes, setTastingNotes] = useState(product?.tasting_notes || "");
   const [description, setDescription] = useState(product?.description || "");
   const [metaDescription, setMetaDescription] = useState(product?.meta_description || "");
   const [isRetail, setIsRetail] = useState(product?.is_retail ?? true);
@@ -449,6 +453,8 @@ export function ProductForm({ product }: { product?: Product }) {
 
     const body: Record<string, unknown> = {
       name,
+      origin: origin || null,
+      tasting_notes: tastingNotes || null,
       description: description || null,
       meta_description: metaDescription || null,
       price: parseFloat(price) || 0,
@@ -965,11 +971,49 @@ export function ProductForm({ product }: { product?: Product }) {
                     />
                   </div>
 
-                  {/* Description */}
+                  {/* Origin */}
+                  <div>
+                    <label className={labelClassName}>
+                      Origin{" "}
+                      <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value.slice(0, 50))}
+                      placeholder="e.g. Ethiopia Yirgacheffe"
+                      maxLength={50}
+                      className={inputClassName}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      {`${origin.length}/50`}
+                    </p>
+                  </div>
+
+                  {/* Tasting Notes */}
+                  <div>
+                    <label className={labelClassName}>
+                      Tasting Notes{" "}
+                      <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={tastingNotes}
+                      onChange={(e) => setTastingNotes(e.target.value.slice(0, 100))}
+                      placeholder="e.g. Milk chocolate, hazelnut & honey sweetness"
+                      maxLength={100}
+                      className={inputClassName}
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      {`${tastingNotes.length}/100`}
+                    </p>
+                  </div>
+
+                  {/* Full Description */}
                   <div>
                     <div className="flex items-center justify-between">
                       <label className={labelClassName}>
-                        Description{" "}
+                        Full Description{" "}
                         <span className="text-slate-400 font-normal">(optional)</span>
                       </label>
                       <AiGenerateButton
@@ -982,10 +1026,13 @@ export function ProductForm({ product }: { product?: Product }) {
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Tasting notes, origin details..."
+                      placeholder="Tell the story behind this coffee..."
                       rows={3}
                       className={inputClassName}
                     />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Appears on the product page below the purchase section. Helps with SEO.
+                    </p>
                   </div>
 
                   {/* Meta Description */}

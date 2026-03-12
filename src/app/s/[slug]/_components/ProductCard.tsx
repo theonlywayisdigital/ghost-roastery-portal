@@ -111,13 +111,25 @@ export function ProductCard({ product }: { product: Product }) {
           <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
             {product.name}
           </h3>
-          {product.description && (
-            <p
-              className="text-sm mb-3 line-clamp-2"
-              style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
-            >
-              {product.description}
-            </p>
+          {(product.origin || product.tasting_notes) && (
+            <div className="mb-3">
+              {product.origin && (
+                <p
+                  className="text-xs truncate"
+                  style={{ color: "color-mix(in srgb, var(--sf-text) 40%, transparent)" }}
+                >
+                  {product.origin}
+                </p>
+              )}
+              {product.tasting_notes && (
+                <p
+                  className="text-sm truncate"
+                  style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                >
+                  {product.tasting_notes}
+                </p>
+              )}
+            </div>
           )}
           <div className="flex items-center justify-between mt-auto">
             <span className="text-lg font-bold" style={{ color: "var(--sf-text)" }}>

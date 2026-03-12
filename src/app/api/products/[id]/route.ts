@@ -49,7 +49,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const body = await request.json();
     const {
-      name, description, price, unit, image_url, status, sort_order,
+      name, description, origin, tasting_notes, price, unit, image_url, status, sort_order,
       is_retail, is_wholesale, retail_price, wholesale_price,
       minimum_wholesale_quantity, sku, weight_grams,
       is_purchasable, track_stock, retail_stock_count,
@@ -70,6 +70,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .from("wholesale_products")
       .update({
         name,
+        origin: origin || null,
+        tasting_notes: tasting_notes || null,
         description: description || null,
         price: price != null ? parseFloat(price) : 0,
         unit: unit || "250g",

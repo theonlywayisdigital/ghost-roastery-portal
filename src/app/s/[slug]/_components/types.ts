@@ -41,6 +41,8 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   name: string;
+  origin: string | null;
+  tasting_notes: string | null;
   description: string | null;
   price: number;
   unit: string;

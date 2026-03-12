@@ -210,11 +210,30 @@ export function ProductDetail({
               )}
             </div>
 
-            {/* Description */}
-            {product.description && (
-              <p className="leading-relaxed whitespace-pre-line mb-8" style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}>
-                {product.description}
-              </p>
+            {/* Origin & Tasting Notes */}
+            {(product.origin || product.tasting_notes) && (
+              <div className="mb-6 space-y-3">
+                {product.origin && (
+                  <div>
+                    <span className="block text-xs font-medium uppercase tracking-wide mb-0.5" style={{ color: "color-mix(in srgb, var(--sf-text) 40%, transparent)" }}>
+                      Origin
+                    </span>
+                    <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 75%, transparent)" }}>
+                      {product.origin}
+                    </span>
+                  </div>
+                )}
+                {product.tasting_notes && (
+                  <div>
+                    <span className="block text-xs font-medium uppercase tracking-wide mb-0.5" style={{ color: "color-mix(in srgb, var(--sf-text) 40%, transparent)" }}>
+                      Tasting notes
+                    </span>
+                    <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 75%, transparent)" }}>
+                      {product.tasting_notes}
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Variant selectors */}
@@ -338,6 +357,24 @@ export function ProductDetail({
             )}
           </div>
         </div>
+
+        {/* About this coffee */}
+        {product.description && (
+          <div className="mt-12 md:mt-16">
+            <h2
+              className="text-lg md:text-xl font-bold mb-4"
+              style={{ color: "var(--sf-text)" }}
+            >
+              About this coffee
+            </h2>
+            <p
+              className="leading-relaxed whitespace-pre-line max-w-2xl"
+              style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}
+            >
+              {product.description}
+            </p>
+          </div>
+        )}
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (

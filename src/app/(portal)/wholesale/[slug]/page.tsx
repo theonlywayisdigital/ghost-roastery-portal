@@ -47,7 +47,7 @@ export default async function WholesaleCataloguePage({
 
   // Fetch products (wholesale or both)
   const { data: products } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select(
       `id, name, description, image_url, unit, price, sort_order,
        wholesale_price, minimum_wholesale_quantity, is_active,

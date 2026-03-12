@@ -12,7 +12,7 @@ export default async function AdminProductsPage() {
   const supabase = createServerClient();
 
   const { data: products } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("*")
     .eq("roaster_id", roasterId)
     .order("sort_order", { ascending: true })

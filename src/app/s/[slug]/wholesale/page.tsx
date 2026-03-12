@@ -31,7 +31,7 @@ export default async function WholesalePageRoute({
 
   // Always fetch preview products (no prices) for all visitors
   const { data: previewProducts } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("id, name, description, image_url, unit, sort_order")
     .eq("roaster_id", roaster.id)
     .eq("status", "published")
@@ -88,7 +88,7 @@ export default async function WholesalePageRoute({
       if (access?.status === "approved") {
         isApproved = true;
         const { data: wholesaleProducts } = await supabase
-          .from("wholesale_products")
+          .from("products")
           .select(
             `id, name, description, image_url, unit, price, sort_order,
              wholesale_price, minimum_wholesale_quantity, is_active,

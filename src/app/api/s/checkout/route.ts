@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     // Fetch and validate products
     const productIds = items.map((i) => i.productId);
     const { data: products } = await supabase
-      .from("wholesale_products")
+      .from("products")
       .select(
         "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price"
       )

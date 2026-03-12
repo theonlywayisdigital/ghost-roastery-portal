@@ -131,7 +131,7 @@ export default async function WebsitePageEditorRoute({
 
   // Fetch products for preview
   const { data: productsData } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("id, name, description, price, image_url, sort_order")
     .eq("roaster_id", user.roaster.id)
     .eq("is_active", true)

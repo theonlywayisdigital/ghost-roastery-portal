@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
 
   // ── Gather roaster context ──────────────────────────────────
   const [productsRes, discountCodesRes, formsRes, contactTypesRes, existingAutosRes] = await Promise.all([
-    supabase.from("wholesale_products").select("id, name, description, retail_price").eq("roaster_id", roaster.id).eq("status", "active").limit(30),
+    supabase.from("products").select("id, name, description, retail_price").eq("roaster_id", roaster.id).eq("status", "active").limit(30),
     supabase.from("discount_codes").select("id, code, description, discount_type, discount_value").eq("roaster_id", roaster.id).in("status", ["active", "paused"]).limit(20),
     supabase.from("forms").select("id, name").eq("roaster_id", roaster.id).eq("status", "active"),
     supabase.from("contacts").select("types, source").eq("roaster_id", roaster.id).neq("status", "archived").limit(500),

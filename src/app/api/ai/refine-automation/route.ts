@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   // Fetch minimal context
   const [discountCodesRes, productsRes] = await Promise.all([
     supabase.from("discount_codes").select("code, discount_type, discount_value").eq("roaster_id", roaster.id).in("status", ["active", "paused"]).limit(10),
-    supabase.from("wholesale_products").select("id, name, retail_price").eq("roaster_id", roaster.id).eq("status", "active").limit(20),
+    supabase.from("products").select("id, name, retail_price").eq("roaster_id", roaster.id).eq("status", "active").limit(20),
   ]);
 
   const system = `You are an expert marketing automation editor for a specialty coffee roaster called "${roaster.business_name}".

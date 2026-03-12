@@ -34,7 +34,7 @@ export async function GET(
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", id),
     supabase
-      .from("wholesale_products")
+      .from("products")
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", id),
     supabase

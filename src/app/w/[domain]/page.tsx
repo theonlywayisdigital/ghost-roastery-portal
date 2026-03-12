@@ -100,7 +100,7 @@ export default async function WebsiteHomePage({ params }: PageProps) {
   let products;
   if (hasProductSection) {
     const { data: dbProducts } = await supabase
-      .from("wholesale_products")
+      .from("products")
       .select("id, name, description, price, image_url, sort_order")
       .eq("roaster_id", roaster.id)
       .eq("is_active", true)

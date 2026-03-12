@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const supabase = createServerClient();
 
   const { data: product, error } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roasterId)
@@ -58,7 +58,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     const supabase = createServerClient();
     const { data: product, error } = await supabase
-      .from("wholesale_products")
+      .from("products")
       .update({
         name,
         description: description || null,
@@ -111,7 +111,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
   const supabase = createServerClient();
 
   const { error } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .delete()
     .eq("id", id)
     .eq("roaster_id", roasterId);

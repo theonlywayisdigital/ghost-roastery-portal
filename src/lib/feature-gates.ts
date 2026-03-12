@@ -114,7 +114,7 @@ async function getCount(table: string, column: string, value: string, extraFilte
 async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterData: RoasterTiers): Promise<number> {
   switch (limitKey) {
     case "products":
-      return getCount("wholesale_products", "roaster_id", roasterId);
+      return getCount("products", "roaster_id", roasterId);
 
     case "wholesaleOrdersPerMonth":
       if (isNewMonth(roasterData.monthly_wholesale_orders_reset_at)) {

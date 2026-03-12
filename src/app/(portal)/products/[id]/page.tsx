@@ -15,7 +15,7 @@ export default async function EditProductPage({ params }: Props) {
   const supabase = createServerClient();
 
   const { data: product } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("*")
     .eq("id", id)
     .eq("roaster_id", roaster.id)

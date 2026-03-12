@@ -1225,7 +1225,7 @@ export type Database = {
             foreignKeyName: "cost_calculations_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "wholesale_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -3872,7 +3872,7 @@ export type Database = {
             foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "wholesale_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -3948,7 +3948,7 @@ export type Database = {
             foreignKeyName: "production_plans_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "wholesale_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -4178,7 +4178,7 @@ export type Database = {
             foreignKeyName: "roast_logs_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
-            referencedRelation: "wholesale_products"
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {
@@ -5733,7 +5733,7 @@ export type Database = {
           },
         ]
       }
-      wholesale_products: {
+      products: {
         Row: {
           brand: string | null
           created_at: string | null

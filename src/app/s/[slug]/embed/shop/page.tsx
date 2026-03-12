@@ -26,7 +26,7 @@ export default async function EmbedShopPage({
   if (!roaster) notFound();
 
   const { data: products } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select(
       `id, name, origin, tasting_notes, description, price, unit, image_url, sort_order,
        is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`

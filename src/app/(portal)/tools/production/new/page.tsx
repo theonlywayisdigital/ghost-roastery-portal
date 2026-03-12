@@ -17,7 +17,7 @@ export default async function NewProductionPlanPage() {
       .eq("is_active", true)
       .order("name"),
     supabase
-      .from("wholesale_products")
+      .from("products")
       .select("id, name")
       .eq("roaster_id", user.roaster.id)
       .eq("is_active", true)

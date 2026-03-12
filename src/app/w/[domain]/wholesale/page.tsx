@@ -72,7 +72,7 @@ export default async function WebsiteWholesalePageRoute({
 
       if (access?.status === "approved") {
         const { data: wholesaleProducts } = await supabase
-          .from("wholesale_products")
+          .from("products")
           .select(
             `id, name, description, image_url, unit, price, sort_order,
              wholesale_price, minimum_wholesale_quantity, is_active,

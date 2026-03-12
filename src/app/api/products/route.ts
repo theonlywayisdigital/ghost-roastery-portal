@@ -11,7 +11,7 @@ export async function GET() {
 
   const supabase = createServerClient();
   const { data: products, error } = await supabase
-    .from("wholesale_products")
+    .from("products")
     .select("*, product_variants(id, weight_grams, unit, retail_price, wholesale_price, channel, is_active)")
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true })
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     const supabase = createServerClient();
     const { data: product, error } = await supabase
-      .from("wholesale_products")
+      .from("products")
       .insert({
         roaster_id: roaster.id,
         name,

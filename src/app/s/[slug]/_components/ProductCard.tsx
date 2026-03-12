@@ -44,10 +44,9 @@ export function ProductCard({ product }: { product: Product }) {
     addItem(product);
   }
 
-  function handleEnquire(e: React.MouseEvent) {
-    e.preventDefault();
+  function handleViewProduct(e: React.MouseEvent) {
     e.stopPropagation();
-    document.getElementById("enquiry")?.scrollIntoView({ behavior: "smooth" });
+    // Let the parent <Link> handle navigation
   }
 
   return (
@@ -164,7 +163,7 @@ export function ProductCard({ product }: { product: Product }) {
             </button>
           ) : (
             <button
-              onClick={handleEnquire}
+              onClick={handleViewProduct}
               style={{
                 backgroundColor: "var(--sf-btn-colour)",
                 color: "var(--sf-btn-text)",

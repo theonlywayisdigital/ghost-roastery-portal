@@ -12,6 +12,22 @@ import {
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { compressImage } from "@/lib/compress-image";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 
 interface Product {
@@ -130,6 +146,65 @@ function cellKey(weightGrams: number, grindTypeId: string): string {
   return `${weightGrams}:${grindTypeId}`;
 }
 
+function SortableGrindItem({
+  gt,
+  checked,
+  onToggle,
+}: {
+  gt: GrindType;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: gt.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="shrink-0 w-5 h-5 flex items-center justify-center text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </button>
+      <label className="flex items-center gap-2.5 cursor-pointer flex-1">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span className="text-sm text-slate-900">{gt.name}</span>
+      </label>
+    </div>
+  );
+}
+
 type Tab = "overview" | "retail" | "wholesale";
 
 const inputClassName =
@@ -221,6 +296,12 @@ export function ProductForm({ product }: { product?: Product }) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // DnD sensors for grind type reorder
+  const grindSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   // Fetch grind types on mount
   const loadGrindTypes = useCallback(async () => {
@@ -375,6 +456,29 @@ export function ProductForm({ product }: { product?: Product }) {
       }
       return next;
     });
+  }
+
+  async function handleGrindDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = grindTypes.findIndex((gt) => gt.id === active.id);
+    const newIndex = grindTypes.findIndex((gt) => gt.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(grindTypes, oldIndex, newIndex);
+    setGrindTypes(reordered);
+
+    // Persist new sort_order for each affected item
+    const minIdx = Math.min(oldIndex, newIndex);
+    const maxIdx = Math.max(oldIndex, newIndex);
+    for (let i = minIdx; i <= maxIdx; i++) {
+      fetch(`/api/settings/grind-types/${reordered[i].id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: reordered[i].name, sort_order: i }),
+      });
+    }
   }
 
   function getCell(channel: "retail" | "wholesale", key: string): MatrixCell {
@@ -731,22 +835,20 @@ export function ProductForm({ product }: { product?: Product }) {
               </div>
             ) : (
               <>
-                <div className="space-y-1.5">
-                  {grindTypes.map((gt) => (
-                    <label
-                      key={gt.id}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-300 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedGtIds.has(gt.id)}
-                        onChange={() => handleToggleGrindType(channel, gt.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                      />
-                      <span className="text-sm text-slate-900">{gt.name}</span>
-                    </label>
-                  ))}
-                </div>
+                <DndContext sensors={grindSensors} collisionDetection={closestCenter} onDragEnd={handleGrindDragEnd}>
+                  <SortableContext items={grindTypes.map((gt) => gt.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-1.5">
+                      {grindTypes.map((gt) => (
+                        <SortableGrindItem
+                          key={gt.id}
+                          gt={gt}
+                          checked={selectedGtIds.has(gt.id)}
+                          onToggle={() => handleToggleGrindType(channel, gt.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
                 {/* Inline add new grind type */}
                 {showInlineGrindAdd ? (
                   <div className="flex items-center gap-2">

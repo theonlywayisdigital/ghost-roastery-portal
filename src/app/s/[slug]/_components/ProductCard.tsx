@@ -11,7 +11,16 @@ export function ProductCard({ product }: { product: Product }) {
   const { slug, accent, accentText, retailEnabled, embedded } = useStorefront();
   const { addItem } = useCart();
 
-  const displayPrice = product.retail_price ?? product.price;
+  // Variant prices take priority over product-level retail_price
+  const retailVariantPrices = (product.product_variants || [])
+    .filter((v) => v.is_active && v.channel === "retail" && v.retail_price != null && v.retail_price > 0)
+    .map((v) => v.retail_price as number);
+
+  const hasVariantPrices = retailVariantPrices.length > 0;
+  const variantMin = hasVariantPrices ? Math.min(...retailVariantPrices) : 0;
+  const variantMax = hasVariantPrices ? Math.max(...retailVariantPrices) : 0;
+  const displayPrice = hasVariantPrices ? variantMin : (product.retail_price ?? product.price);
+  const isRange = hasVariantPrices && variantMin !== variantMax;
 
   const canPurchase =
     retailEnabled &&
@@ -113,8 +122,16 @@ export function ProductCard({ product }: { product: Product }) {
           )}
           <div className="flex items-center justify-between mt-auto">
             <span className="text-lg font-bold" style={{ color: "var(--sf-text)" }}>
-              {"\u00A3"}
-              {displayPrice.toFixed(2)}
+              {isRange ? (
+                <>
+                  {`\u00A3${variantMin.toFixed(2)} – \u00A3${variantMax.toFixed(2)}`}
+                </>
+              ) : (
+                <>
+                  {"\u00A3"}
+                  {displayPrice.toFixed(2)}
+                </>
+              )}
               <span
                 className="text-sm font-normal ml-1"
                 style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}

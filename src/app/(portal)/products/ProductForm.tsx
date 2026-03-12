@@ -1206,8 +1206,14 @@ export function ProductForm({ product }: { product?: Product }) {
                         value={retailPrice}
                         onChange={(e) => setRetailPrice(e.target.value)}
                         placeholder="8.50"
-                        className={`${inputClassName} max-w-[200px]`}
+                        disabled={retailVariantsEnabled}
+                        className={`${inputClassName} max-w-[200px] ${retailVariantsEnabled ? "opacity-50 bg-slate-50" : ""}`}
                       />
+                      {retailVariantsEnabled && (
+                        <p className="text-xs text-slate-400 mt-1">
+                          Price is set per variant when variants are enabled
+                        </p>
+                      )}
                     </div>
 
                     {/* Brand & GTIN */}

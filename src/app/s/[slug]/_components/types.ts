@@ -28,6 +28,13 @@ export interface RoasterBranding {
   storefront_nav_transparent: boolean;
 }
 
+export interface ProductVariant {
+  id: string;
+  retail_price: number | null;
+  is_active: boolean | null;
+  channel: string | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -42,6 +49,7 @@ export interface Product {
   is_purchasable: boolean;
   retail_stock_count: number | null;
   track_stock: boolean;
+  product_variants?: ProductVariant[] | null;
 }
 
 export interface CartItem {

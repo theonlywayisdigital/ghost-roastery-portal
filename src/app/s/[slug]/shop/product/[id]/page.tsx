@@ -29,7 +29,8 @@ export default async function ProductDetailRoute({
     .from("wholesale_products")
     .select(
       `id, name, description, price, unit, image_url, sort_order,
-       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
+       product_variants(id, retail_price, is_active, channel)`
     )
     .eq("id", id)
     .eq("roaster_id", roaster.id)
@@ -67,7 +68,8 @@ export default async function ProductDetailRoute({
     .from("wholesale_products")
     .select(
       `id, name, description, price, unit, image_url, sort_order,
-       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
+       product_variants(id, retail_price, is_active, channel)`
     )
     .eq("roaster_id", roaster.id)
     .eq("status", "published")

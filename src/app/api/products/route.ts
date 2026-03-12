@@ -107,6 +107,44 @@ export async function POST(request: Request) {
       );
     }
 
+    // For "other" products: insert option types + values FIRST so we get real UUIDs
+    const valueTextToId: Record<string, string> = {};
+    if (category === "other" && Array.isArray(option_types) && option_types.length > 0) {
+      for (const ot of option_types) {
+        const { data: insertedType } = await supabase
+          .from("product_option_types")
+          .insert({
+            product_id: product.id,
+            roaster_id: roaster.id,
+            name: ot.name,
+            sort_order: ot.sort_order ?? 0,
+          })
+          .select()
+          .single();
+
+        if (insertedType && Array.isArray(ot.values)) {
+          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
+            option_type_id: insertedType.id,
+            product_id: product.id,
+            roaster_id: roaster.id,
+            value: v.value,
+            sort_order: v.sort_order ?? vi,
+          }));
+          const { data: insertedValues } = await supabase
+            .from("product_option_values")
+            .insert(valueRows)
+            .select("id, value");
+
+          // Build lookup: value text → real UUID
+          if (insertedValues) {
+            for (const iv of insertedValues) {
+              valueTextToId[iv.value] = iv.id;
+            }
+          }
+        }
+      }
+    }
+
     // Insert variants if provided
     if (Array.isArray(variants) && variants.length > 0) {
       const variantRows = variants.map((v: Record<string, unknown>) => ({
@@ -138,41 +176,25 @@ export async function POST(request: Request) {
       if (category === "other" && insertedVariants) {
         for (let i = 0; i < variants.length; i++) {
           const v = variants[i] as Record<string, unknown>;
-          const optionValueIds = v.option_value_ids as string[] | undefined;
-          if (optionValueIds && optionValueIds.length > 0 && insertedVariants[i]) {
-            const junctionRows = optionValueIds.map((ovId: string) => ({
-              variant_id: insertedVariants[i].id,
-              option_value_id: ovId,
-            }));
-            await supabase.from("product_variant_option_values").insert(junctionRows);
+          const rawIds = v.option_value_ids as string[] | undefined;
+          if (rawIds && rawIds.length > 0 && insertedVariants[i]) {
+            // Map text placeholders to real UUIDs via lookup
+            const realIds = rawIds
+              .map((placeholder: string) => valueTextToId[placeholder] ?? placeholder)
+              .filter((id: string) => id.length === 36);
+            if (realIds.length > 0) {
+              const junctionRows = realIds.map((ovId: string) => ({
+                variant_id: insertedVariants[i].id,
+                option_value_id: ovId,
+              }));
+              const { error: junctionError } = await supabase
+                .from("product_variant_option_values")
+                .insert(junctionRows);
+              if (junctionError) {
+                console.error("Junction insert failed:", junctionError);
+              }
+            }
           }
-        }
-      }
-    }
-
-    // Insert option types + values for "other" products
-    if (category === "other" && Array.isArray(option_types) && option_types.length > 0) {
-      for (const ot of option_types) {
-        const { data: insertedType } = await supabase
-          .from("product_option_types")
-          .insert({
-            product_id: product.id,
-            roaster_id: roaster.id,
-            name: ot.name,
-            sort_order: ot.sort_order ?? 0,
-          })
-          .select()
-          .single();
-
-        if (insertedType && Array.isArray(ot.values)) {
-          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
-            option_type_id: insertedType.id,
-            product_id: product.id,
-            roaster_id: roaster.id,
-            value: v.value,
-            sort_order: v.sort_order ?? vi,
-          }));
-          await supabase.from("product_option_values").insert(valueRows);
         }
       }
     }

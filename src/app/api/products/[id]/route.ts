@@ -143,6 +143,87 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Handle option types diff FIRST for "other" products — build value text→UUID lookup
+    const valueTextToId: Record<string, string> = {};
+    if (Array.isArray(option_types)) {
+      // Get existing option types
+      const { data: existingTypes } = await supabase
+        .from("product_option_types")
+        .select("id")
+        .eq("product_id", id)
+        .eq("roaster_id", roaster.id);
+
+      const existingTypeIds = new Set((existingTypes || []).map((t: { id: string }) => t.id));
+      const incomingTypeIds = new Set(
+        option_types.filter((ot: { id?: string }) => ot.id).map((ot: { id: string }) => ot.id)
+      );
+
+      // Delete removed option types (cascades to values and junctions)
+      const typesToDelete = Array.from(existingTypeIds).filter((eid) => !incomingTypeIds.has(eid));
+      if (typesToDelete.length > 0) {
+        await supabase
+          .from("product_option_types")
+          .delete()
+          .in("id", typesToDelete)
+          .eq("roaster_id", roaster.id);
+      }
+
+      // Upsert option types + values
+      for (const ot of option_types) {
+        let typeId = ot.id;
+
+        if (ot.id && existingTypeIds.has(ot.id)) {
+          // Update existing type
+          await supabase
+            .from("product_option_types")
+            .update({ name: ot.name, sort_order: ot.sort_order ?? 0 })
+            .eq("id", ot.id)
+            .eq("roaster_id", roaster.id);
+        } else {
+          // Insert new type
+          const { data: inserted } = await supabase
+            .from("product_option_types")
+            .insert({
+              product_id: id,
+              roaster_id: roaster.id,
+              name: ot.name,
+              sort_order: ot.sort_order ?? 0,
+            })
+            .select("id")
+            .single();
+          typeId = inserted?.id;
+        }
+
+        if (typeId && Array.isArray(ot.values)) {
+          // Delete existing values for this type and re-insert
+          await supabase
+            .from("product_option_values")
+            .delete()
+            .eq("option_type_id", typeId)
+            .eq("roaster_id", roaster.id);
+
+          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
+            option_type_id: typeId,
+            product_id: id,
+            roaster_id: roaster.id,
+            value: v.value,
+            sort_order: v.sort_order ?? vi,
+          }));
+          const { data: insertedValues } = await supabase
+            .from("product_option_values")
+            .insert(valueRows)
+            .select("id, value");
+
+          // Build lookup: value text → real UUID
+          if (insertedValues) {
+            for (const iv of insertedValues) {
+              valueTextToId[iv.value] = iv.id;
+            }
+          }
+        }
+      }
+    }
+
     // Handle variants diff if provided
     if (Array.isArray(variants)) {
       // Get existing variant IDs
@@ -210,82 +291,23 @@ export async function PUT(request: Request, { params }: RouteParams) {
             .delete()
             .eq("variant_id", variantId);
 
-          // Insert new junctions
-          const junctionRows = v.option_value_ids.map((ovId: string) => ({
-            variant_id: variantId,
-            option_value_id: ovId,
-          }));
-          await supabase.from("product_variant_option_values").insert(junctionRows);
-        }
-      }
-    }
+          // Map text placeholders to real UUIDs via lookup
+          const realIds = (v.option_value_ids as string[])
+            .map((placeholder: string) => valueTextToId[placeholder] ?? placeholder)
+            .filter((oid: string) => oid.length === 36);
 
-    // Handle option types diff for "other" products
-    if (Array.isArray(option_types)) {
-      // Get existing option types
-      const { data: existingTypes } = await supabase
-        .from("product_option_types")
-        .select("id")
-        .eq("product_id", id)
-        .eq("roaster_id", roaster.id);
-
-      const existingTypeIds = new Set((existingTypes || []).map((t: { id: string }) => t.id));
-      const incomingTypeIds = new Set(
-        option_types.filter((ot: { id?: string }) => ot.id).map((ot: { id: string }) => ot.id)
-      );
-
-      // Delete removed option types (cascades to values and junctions)
-      const typesToDelete = Array.from(existingTypeIds).filter((eid) => !incomingTypeIds.has(eid));
-      if (typesToDelete.length > 0) {
-        await supabase
-          .from("product_option_types")
-          .delete()
-          .in("id", typesToDelete)
-          .eq("roaster_id", roaster.id);
-      }
-
-      // Upsert option types + values
-      for (const ot of option_types) {
-        let typeId = ot.id;
-
-        if (ot.id && existingTypeIds.has(ot.id)) {
-          // Update existing type
-          await supabase
-            .from("product_option_types")
-            .update({ name: ot.name, sort_order: ot.sort_order ?? 0 })
-            .eq("id", ot.id)
-            .eq("roaster_id", roaster.id);
-        } else {
-          // Insert new type
-          const { data: inserted } = await supabase
-            .from("product_option_types")
-            .insert({
-              product_id: id,
-              roaster_id: roaster.id,
-              name: ot.name,
-              sort_order: ot.sort_order ?? 0,
-            })
-            .select("id")
-            .single();
-          typeId = inserted?.id;
-        }
-
-        if (typeId && Array.isArray(ot.values)) {
-          // Delete existing values for this type and re-insert
-          await supabase
-            .from("product_option_values")
-            .delete()
-            .eq("option_type_id", typeId)
-            .eq("roaster_id", roaster.id);
-
-          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
-            option_type_id: typeId,
-            product_id: id,
-            roaster_id: roaster.id,
-            value: v.value,
-            sort_order: v.sort_order ?? vi,
-          }));
-          await supabase.from("product_option_values").insert(valueRows);
+          if (realIds.length > 0) {
+            const junctionRows = realIds.map((ovId: string) => ({
+              variant_id: variantId,
+              option_value_id: ovId,
+            }));
+            const { error: junctionError } = await supabase
+              .from("product_variant_option_values")
+              .insert(junctionRows);
+            if (junctionError) {
+              console.error("Junction insert failed:", junctionError);
+            }
+          }
         }
       }
     }

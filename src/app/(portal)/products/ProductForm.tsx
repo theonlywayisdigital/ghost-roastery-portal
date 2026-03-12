@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -8,6 +8,8 @@ import {
   X,
   ImageIcon,
   Copy,
+  Coffee as CoffeeIcon,
+  Package,
 } from "@/components/icons";
 import Link from "next/link";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
@@ -641,15 +643,11 @@ export function ProductForm({ product }: { product?: Product }) {
     );
   }
 
-  // Build cartesian product of option values → variant cells
-  function rebuildOtherVariants() {
+  // Compute cartesian product combos from option types (always up-to-date via useMemo)
+  const otherVariantCombos = useMemo(() => {
     const validTypes = optionTypes.filter((ot) => ot.name.trim() && ot.values.length > 0);
-    if (validTypes.length === 0) {
-      setOtherVariantCells([]);
-      return;
-    }
+    if (validTypes.length === 0) return [];
 
-    // Cartesian product
     let combos: { label: string; optionValueIds: string[] }[] = [{ label: "", optionValueIds: [] }];
     for (const ot of validTypes) {
       const next: { label: string; optionValueIds: string[] }[] = [];
@@ -663,11 +661,15 @@ export function ProductForm({ product }: { product?: Product }) {
       }
       combos = next;
     }
+    return combos;
+  }, [optionTypes]);
 
-    // Preserve existing cell data where label matches
-    const existingByLabel = new Map(otherVariantCells.map((c) => [c.label, c]));
-    setOtherVariantCells(
-      combos.map((combo) => {
+  // Sync variant cells whenever combos change — preserves user-entered data by label
+  useEffect(() => {
+    setOtherVariantCells((prev) => {
+      if (otherVariantCombos.length === 0) return prev.length === 0 ? prev : [];
+      const existingByLabel = new Map(prev.map((c) => [c.label, c]));
+      return otherVariantCombos.map((combo) => {
         const existing = existingByLabel.get(combo.label);
         return existing
           ? { ...existing, optionValueIds: combo.optionValueIds }
@@ -679,11 +681,11 @@ export function ProductForm({ product }: { product?: Product }) {
               sku: "",
               trackStock: false,
               stockCount: "",
-              isActive: true,
+              isActive: false,
             };
-      })
-    );
-  }
+      });
+    });
+  }, [otherVariantCombos]);
 
   function updateOtherVariantCell(idx: number, updates: Partial<OtherVariantCell>) {
     setOtherVariantCells((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
@@ -717,16 +719,12 @@ export function ProductForm({ product }: { product?: Product }) {
                 type="text"
                 value={ot.name}
                 onChange={(e) => handleOptionTypeName(typeIdx, e.target.value)}
-                onBlur={rebuildOtherVariants}
                 placeholder="e.g. Size, Colour, Flavour"
                 className={`${inputClassName} flex-1`}
               />
               <button
                 type="button"
-                onClick={() => {
-                  handleRemoveOptionType(typeIdx);
-                  setTimeout(rebuildOtherVariants, 0);
-                }}
+                onClick={() => handleRemoveOptionType(typeIdx)}
                 className="p-1.5 text-slate-400 hover:text-red-500"
               >
                 <X className="w-4 h-4" />
@@ -741,10 +739,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   {val.value}
                   <button
                     type="button"
-                    onClick={() => {
-                      handleRemoveOptionValue(typeIdx, valIdx);
-                      setTimeout(rebuildOtherVariants, 0);
-                    }}
+                    onClick={() => handleRemoveOptionValue(typeIdx, valIdx)}
                     className="text-slate-400 hover:text-red-500"
                   >
                     <X className="w-3 h-3" />
@@ -761,7 +756,6 @@ export function ProductForm({ product }: { product?: Product }) {
                     const input = e.currentTarget;
                     handleAddOptionValue(typeIdx, input.value);
                     input.value = "";
-                    setTimeout(rebuildOtherVariants, 0);
                   }
                 }}
               />
@@ -1391,7 +1385,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
-              <span className="text-2xl">☕</span>
+              <CoffeeIcon className={`w-6 h-6 ${category === "coffee" ? "text-brand-600" : "text-slate-400"}`} />
               <div>
                 <p className={`text-sm font-semibold ${category === "coffee" ? "text-brand-700" : "text-slate-900"}`}>
                   Coffee
@@ -1408,7 +1402,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   : "border-slate-200 bg-white hover:border-slate-300"
               }`}
             >
-              <span className="text-2xl">📦</span>
+              <Package className={`w-6 h-6 ${category === "other" ? "text-brand-600" : "text-slate-400"}`} />
               <div>
                 <p className={`text-sm font-semibold ${category === "other" ? "text-brand-700" : "text-slate-900"}`}>
                   Other
@@ -1425,7 +1419,11 @@ export function ProductForm({ product }: { product?: Product }) {
               ? "bg-amber-50 text-amber-700 border border-amber-200"
               : "bg-blue-50 text-blue-700 border border-blue-200"
           }`}>
-            {category === "coffee" ? "☕ Coffee product" : "📦 Other product"}
+            {category === "coffee" ? (
+              <><CoffeeIcon className="w-3.5 h-3.5" /> Coffee product</>
+            ) : (
+              <><Package className="w-3.5 h-3.5" /> Other product</>
+            )}
           </span>
         </div>
       )}

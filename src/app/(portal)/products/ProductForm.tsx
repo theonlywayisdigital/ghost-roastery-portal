@@ -234,7 +234,6 @@ export function ProductForm({ product }: { product?: Product }) {
   const [unit, setUnit] = useState(product?.unit || "250g");
   const [weightGrams, setWeightGrams] = useState(product?.weight_grams?.toString() || "");
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
-  const [sortOrder, setSortOrder] = useState(product?.sort_order?.toString() || "0");
   const [status, setStatus] = useState<"draft" | "published">(product?.status ?? "published");
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
 
@@ -565,7 +564,6 @@ export function ProductForm({ product }: { product?: Product }) {
       unit,
       image_url: imageUrl || null,
       status,
-      sort_order: parseInt(sortOrder) || 0,
       is_retail: isRetail,
       is_wholesale: isWholesale,
       retail_price: isRetail && retailPrice ? parseFloat(retailPrice) : null,
@@ -1294,23 +1292,6 @@ export function ProductForm({ product }: { product?: Product }) {
                           </option>
                         ))}
                       </select>
-                    </div>
-                  </div>
-
-                  {/* Sort Order */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClassName}>Sort Order</label>
-                      <input
-                        type="number"
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value)}
-                        placeholder="0"
-                        className={inputClassName}
-                      />
-                      <p className="text-xs text-slate-400 mt-1">
-                        Lower numbers appear first.
-                      </p>
                     </div>
                   </div>
 

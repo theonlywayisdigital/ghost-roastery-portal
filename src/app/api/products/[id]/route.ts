@@ -184,7 +184,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { id } = await params;
   const body = await request.json();
 
-  const allowed = ["status", "is_retail", "is_wholesale"];
+  const allowed = ["status", "is_retail", "is_wholesale", "sort_order"];
   const updateData: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updateData[key] = body[key];

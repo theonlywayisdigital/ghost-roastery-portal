@@ -32,6 +32,7 @@ interface ProductVariant {
 interface Product {
   id: string;
   name: string;
+  category: string;
   description: string | null;
   price: number;
   unit: string;
@@ -145,7 +146,11 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
   }
 
   function hasRetailPrice(product: Product): boolean {
-    return product.retail_price != null && product.retail_price > 0;
+    if (product.retail_price != null && product.retail_price > 0) return true;
+    // For "other" products (and variants in general), check if any active variant has retail_price
+    return product.product_variants?.some(
+      (v) => v.is_active && v.retail_price != null && v.retail_price > 0
+    ) ?? false;
   }
 
   function getUnitDisplay(product: Product): string {
@@ -164,13 +169,14 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
     const variants = product.product_variants?.filter((v) => v.is_active) || [];
     if (variants.length === 0) return getBasePriceDisplay(product);
 
-    const prices = variants
-      .flatMap((v) => [v.retail_price, v.wholesale_price])
+    // Show only retail prices (not wholesale) for storefront display
+    const retailPrices = variants
+      .map((v) => v.retail_price)
       .filter((p): p is number => p != null && p > 0);
-    if (prices.length === 0) return getBasePriceDisplay(product);
+    if (retailPrices.length === 0) return getBasePriceDisplay(product);
 
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
+    const min = Math.min(...retailPrices);
+    const max = Math.max(...retailPrices);
     return min === max ? `£${min.toFixed(2)}` : `£${min.toFixed(2)} – £${max.toFixed(2)}`;
   }
 
@@ -252,7 +258,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                         {product.name}
                       </h3>
                       <p className="text-sm text-slate-500">
-                        {getPriceDisplay(product)} / {getUnitDisplay(product)}
+                        {getPriceDisplay(product)}{product.category !== "other" && ` / ${getUnitDisplay(product)}`}
                       </p>
 
                       {/* Channel toggles */}

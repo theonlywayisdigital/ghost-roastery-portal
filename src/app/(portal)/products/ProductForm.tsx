@@ -787,6 +787,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Wholesale £</th>
                 )}
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
+                <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Stock</th>
                 <th className="text-center py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Active</th>
               </tr>
             </thead>
@@ -828,6 +829,33 @@ export function ProductForm({ product }: { product?: Product }) {
                       placeholder="SKU"
                       className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
+                  </td>
+                  <td className="py-2.5 px-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateOtherVariantCell(idx, { trackStock: !cell.trackStock, stockCount: cell.trackStock ? "" : cell.stockCount })}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                          cell.trackStock ? "bg-brand-600" : "bg-slate-200"
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                            cell.trackStock ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      {cell.trackStock && (
+                        <input
+                          type="number"
+                          min="0"
+                          value={cell.stockCount}
+                          onChange={(e) => updateOtherVariantCell(idx, { stockCount: e.target.value })}
+                          placeholder="0"
+                          className="w-16 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="py-2.5 px-3 text-center">
                     <button

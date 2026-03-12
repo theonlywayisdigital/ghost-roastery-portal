@@ -87,8 +87,11 @@ export function ProductDetail({
     if (selectedIds.length === 0) return null;
     return (
       retailVariants.find((v) => {
-        const variantValueIds = (v.option_values || []).map((ov) => ov.option_value.id);
-        return selectedIds.every((id) => variantValueIds.includes(id));
+        const ovs = v.option_values || [];
+        if (ovs.length !== selectedIds.length) return false;
+        return selectedIds.every((id) =>
+          ovs.some((ov) => ov.option_value?.id === id)
+        );
       }) || null
     );
   }, [isOther, retailVariants, selectedOptionValues]);
@@ -236,7 +239,9 @@ export function ProductDetail({
                   ? `\u00A3${variantMin.toFixed(2)} – \u00A3${variantMax.toFixed(2)}`
                   : `\u00A3${displayPrice.toFixed(2)}`}
               </span>
-              <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>/ {displayUnit}</span>
+              {!isOther && (
+                <span className="text-sm" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>/ {displayUnit}</span>
+              )}
             </div>
 
             {/* Stock status */}

@@ -143,12 +143,14 @@ export function ProductCard({ product }: { product: Product }) {
                   {displayPrice.toFixed(2)}
                 </>
               )}
-              <span
-                className="text-sm font-normal ml-1"
-                style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
-              >
-                / {product.unit}
-              </span>
+              {product.category !== "other" && (
+                <span
+                  className="text-sm font-normal ml-1"
+                  style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                >
+                  / {product.unit}
+                </span>
+              )}
             </span>
           </div>
 

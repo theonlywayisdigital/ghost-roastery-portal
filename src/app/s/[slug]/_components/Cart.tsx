@@ -148,8 +148,7 @@ export function Cart() {
                             </p>
                           )}
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {"\u00A3"}
-                            {item.price.toFixed(2)} / {item.unit}
+                            {`\u00A3${item.price.toFixed(2)}${item.variantLabel ? ` / ${item.variantLabel}` : item.unit ? ` / ${item.unit}` : ""}`}
                           </p>
                           <div className="flex items-center gap-2 mt-2">
                             <button
@@ -164,7 +163,7 @@ export function Cart() {
                             >
                               -
                             </button>
-                            <span className="text-sm font-medium w-6 text-center">
+                            <span className="text-sm font-medium w-8 text-center text-slate-900">
                               {item.quantity}
                             </span>
                             <button

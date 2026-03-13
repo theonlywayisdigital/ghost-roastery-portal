@@ -4,16 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useStorefront } from "./StorefrontProvider";
-import { useCart } from "./CartProvider";
 import type { Product } from "./types";
 
 export function ProductCard({ product }: { product: Product }) {
-  const { slug, accent, accentText, retailEnabled, embedded } = useStorefront();
-  const { addItem } = useCart();
+  const { slug, embedded } = useStorefront();
 
   // Variant prices take priority over product-level retail_price
   const retailVariantPrices = (product.product_variants || [])
-    .filter((v) => v.is_active && v.channel === "retail" && v.retail_price != null && v.retail_price > 0)
+    .filter((v) => v.is_active && (v.channel === "retail" || v.channel === "both") && v.retail_price != null && v.retail_price > 0)
     .map((v) => v.retail_price as number);
 
   const hasVariantPrices = retailVariantPrices.length > 0;
@@ -21,11 +19,6 @@ export function ProductCard({ product }: { product: Product }) {
   const variantMax = hasVariantPrices ? Math.max(...retailVariantPrices) : 0;
   const displayPrice = hasVariantPrices ? variantMin : (product.retail_price ?? product.price);
   const isRange = hasVariantPrices && variantMin !== variantMax;
-
-  const canPurchase =
-    retailEnabled &&
-    product.is_purchasable &&
-    product.is_retail;
 
   const outOfStock =
     product.track_stock &&
@@ -37,17 +30,6 @@ export function ProductCard({ product }: { product: Product }) {
     product.retail_stock_count != null &&
     product.retail_stock_count > 0 &&
     product.retail_stock_count < 5;
-
-  function handleAddToCart(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem(product);
-  }
-
-  function handleViewProduct(e: React.MouseEvent) {
-    e.stopPropagation();
-    // Let the parent <Link> handle navigation
-  }
 
   return (
     <motion.div
@@ -154,40 +136,24 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           </div>
 
-          {canPurchase ? (
-            <button
-              onClick={handleAddToCart}
-              disabled={outOfStock}
-              style={
-                outOfStock
-                  ? { borderRadius: "var(--sf-btn-radius)" }
-                  : {
-                      backgroundColor: "var(--sf-btn-colour)",
-                      color: "var(--sf-btn-text)",
-                      borderRadius: "var(--sf-btn-radius)",
-                    }
-              }
-              className={`w-full mt-3 py-2.5 text-sm font-semibold transition-opacity ${
-                outOfStock
-                  ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                  : "hover:opacity-90"
-              }`}
-            >
-              {outOfStock ? "Sold Out" : "Add to Cart"}
-            </button>
-          ) : (
-            <button
-              onClick={handleViewProduct}
-              style={{
-                backgroundColor: "var(--sf-btn-colour)",
-                color: "var(--sf-btn-text)",
-                borderRadius: "var(--sf-btn-radius)",
-              }}
-              className="w-full mt-3 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              Buy Now
-            </button>
-          )}
+          <span
+            style={
+              outOfStock
+                ? { borderRadius: "var(--sf-btn-radius)" }
+                : {
+                    backgroundColor: "var(--sf-btn-colour)",
+                    color: "var(--sf-btn-text)",
+                    borderRadius: "var(--sf-btn-radius)",
+                  }
+            }
+            className={`block w-full mt-3 py-2.5 text-sm font-semibold text-center transition-opacity ${
+              outOfStock
+                ? "bg-slate-200 text-slate-400"
+                : "hover:opacity-90"
+            }`}
+          >
+            {outOfStock ? "Sold Out" : "View Product"}
+          </span>
         </div>
       </Link>
     </motion.div>

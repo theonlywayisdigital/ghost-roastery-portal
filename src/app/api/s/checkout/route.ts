@@ -126,16 +126,16 @@ export async function POST(request: Request) {
     }
 
     // Fetch and validate products
-    const productIds = items.map((i) => i.productId);
+    const productIds = Array.from(new Set(items.map((i) => i.productId)));
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, status"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
 
-    if (!products || products.length !== items.length) {
+    if (!products || products.length !== productIds.length) {
       return NextResponse.json(
         { error: "One or more products are unavailable." },
         { status: 400 }

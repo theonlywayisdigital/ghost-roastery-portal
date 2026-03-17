@@ -479,25 +479,14 @@ export async function POST(request: Request) {
     dueDate.setDate(dueDate.getDate() + dueDays);
     const paymentDueDate = dueDate.toISOString().split("T")[0];
 
-    // Look up customer (person) by email for buyer_id / customer_id
-    let customerId: string | null = personId;
-    if (!customerId) {
-      const { data: person } = await supabase
-        .from("people")
-        .select("id")
-        .eq("email", wholesaleBuyerEmail.toLowerCase())
-        .maybeSingle();
-      customerId = person?.id || null;
-    }
-
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert({
         invoice_number: invoiceNumber,
         owner_type: "roaster",
         roaster_id: roasterId,
-        buyer_id: customerId,
-        customer_id: customerId,
+        buyer_id: userId || null,
+        customer_id: personId || null,
         order_ids: [order.id],
         subtotal: invoiceSubtotal,
         discount_amount: validatedDiscountPence / 100,

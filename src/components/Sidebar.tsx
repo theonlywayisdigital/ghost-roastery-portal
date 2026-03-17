@@ -152,13 +152,12 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Products", href: "/products", icon: Package },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/storefront", icon: Store },
-      { label: "Wholesale", href: "/wholesale-buyers", icon: Handshake },
       { label: "Contacts", href: "/contacts", icon: Contact },
       { label: "Businesses", href: "/businesses", icon: Building2 },
       { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
-    activePrefixes: ["/products", "/orders", "/storefront", "/wholesale-buyers", "/contacts", "/businesses", "/invoices"],
+    activePrefixes: ["/products", "/orders", "/storefront", "/contacts", "/businesses", "/invoices"],
   };
 
   const marketingSuiteConfig: SuiteConfig = {

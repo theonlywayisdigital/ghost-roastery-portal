@@ -31,6 +31,7 @@ interface WholesaleSectionPageProps {
   autoApprove: boolean;
   wholesaleStripeEnabled: boolean;
   roasterId: string;
+  hideHeader?: boolean;
 }
 
 export function WholesaleSectionPage({
@@ -38,6 +39,7 @@ export function WholesaleSectionPage({
   autoApprove,
   wholesaleStripeEnabled,
   roasterId,
+  hideHeader = false,
 }: WholesaleSectionPageProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [buyers, setBuyers] = useState(initialBuyers);
@@ -56,13 +58,16 @@ export function WholesaleSectionPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
+      <div className={`${hideHeader ? "mb-4" : "mb-6"} flex items-start justify-between`}>
+        {!hideHeader && (
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Wholesale</h1>
           <p className="text-slate-500 mt-1">
             Manage wholesale applications, active buyers, and settings.
           </p>
         </div>
+        )}
+        <div className={hideHeader ? "ml-auto" : ""}>
         <button
           onClick={() => setShowAddModal(true)}
           className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
@@ -70,6 +75,7 @@ export function WholesaleSectionPage({
           <Plus className="w-4 h-4" />
           Add Wholesale Customer
         </button>
+        </div>
       </div>
 
       <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} roasterId={roasterId} />

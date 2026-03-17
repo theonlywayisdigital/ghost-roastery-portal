@@ -45,6 +45,8 @@ export interface ProcessOrderResult {
   orderId?: string;
   error?: string;
   alreadyExists?: boolean;
+  customerEmail?: string;
+  customerName?: string;
 }
 
 /**
@@ -125,7 +127,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     .maybeSingle();
 
   if (existingOrder) {
-    return { success: true, orderId: existingOrder.id, alreadyExists: true };
+    return { success: true, orderId: existingOrder.id, alreadyExists: true, customerEmail, customerName };
   }
 
   // 2. Link to existing user account if one exists (no auto-creation for guests)
@@ -194,7 +196,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
         .select("id")
         .eq("stripe_payment_id", stripePaymentId)
         .maybeSingle();
-      return { success: true, orderId: raceOrder?.id, alreadyExists: true };
+      return { success: true, orderId: raceOrder?.id, alreadyExists: true, customerEmail, customerName };
     }
     console.error("Failed to create order:", orderError);
     return { success: false, error: "Failed to create order." };
@@ -406,5 +408,5 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     }
   }
 
-  return { success: true, orderId: order.id };
+  return { success: true, orderId: order.id, customerEmail, customerName };
 }

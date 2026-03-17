@@ -27,6 +27,8 @@ function SuccessContent() {
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(
     orderId || null
   );
+  const [customerEmail, setCustomerEmail] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
 
   const stableClearCart = useCallback(clearCart, [clearCart]);
 
@@ -47,6 +49,8 @@ function SuccessContent() {
         if (res.ok) {
           const data = await res.json();
           if (data.orderId) setConfirmedOrderId(data.orderId);
+          if (data.customerEmail) setCustomerEmail(data.customerEmail);
+          if (data.customerName) setCustomerName(data.customerName);
           stableClearCart();
           setStatus("confirmed");
         } else {
@@ -245,6 +249,21 @@ function SuccessContent() {
         >
           Back to Store
         </Link>
+
+        {/* Account sign-up CTA — only for guest buyers */}
+        {customerEmail && (
+          <div className="mt-8 bg-white border border-slate-200 rounded-xl p-5 text-center">
+            <p className="text-sm text-slate-600 mb-3">
+              Want to track your order and reorder easily?
+            </p>
+            <Link
+              href={`/s/${slug}/register?email=${encodeURIComponent(customerEmail)}${customerName ? `&name=${encodeURIComponent(customerName)}` : ""}`}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-200 transition-colors"
+            >
+              Create a Free Account
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -43,7 +43,12 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, orderId: result.orderId });
+    return NextResponse.json({
+      success: true,
+      orderId: result.orderId,
+      customerEmail: result.customerEmail,
+      customerName: result.customerName,
+    });
   } catch (error) {
     console.error("Confirm order error:", error);
     return NextResponse.json(

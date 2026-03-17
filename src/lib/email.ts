@@ -511,7 +511,11 @@ export async function sendStorefrontOrderConfirmation(params: {
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       We&rsquo;ll send you another email with tracking details when your order is dispatched.
-    </p>`;
+    </p>
+
+    ${params.slug ? `<p style="color:#64748b;font-size:13px;margin-top:24px;text-align:center;">
+      Want to track your orders and reorder easily? <a href="${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${params.slug}/register" style="color:#0083dc;text-decoration:underline;">Create a free account</a>
+    </p>` : ""}`;
 
   await resend.emails.send({
     from: getFromEmail(branding),

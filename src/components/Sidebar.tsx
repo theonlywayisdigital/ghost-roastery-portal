@@ -57,6 +57,7 @@ import {
   type FeatureKey,
   type LimitKey,
 } from "@/lib/tier-config";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface SidebarUser {
   email: string;
@@ -171,8 +172,8 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Automations", href: "/marketing/automations", icon: Zap, requiredFeature: "automations" },
       { label: "Discount Codes", href: "/marketing/discount-codes", icon: Ticket },
       { label: "Forms", href: "/marketing/forms", icon: FileText },
-      { label: "Blog", href: "/marketing/blog", icon: BookOpen },
-      { label: "AI Studio", href: "/marketing/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" },
+      ...(RETAIL_ENABLED ? [{ label: "Blog", href: "/marketing/blog", icon: BookOpen }] : []),
+      { label: "AI Studio", href: "/marketing/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" as LimitKey },
     ],
     activePrefixes: ["/marketing"],
   };
@@ -207,7 +208,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     activePrefixes: ["/tools"],
   };
 
-  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(user.websiteSubscriptionActive ? [websiteSuiteConfig] : []), roasterToolsSuiteConfig];
+  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(RETAIL_ENABLED && user.websiteSubscriptionActive ? [websiteSuiteConfig] : []), roasterToolsSuiteConfig];
 
   function isSuiteActive(suite: SuiteConfig): boolean {
     return suite.activePrefixes.some(

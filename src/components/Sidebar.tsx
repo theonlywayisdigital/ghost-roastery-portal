@@ -151,7 +151,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     items: [
       { label: "Products", href: "/products", icon: Package },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
-      { label: "Storefront", href: "/storefront", icon: Store },
+      { label: "Wholesale Portal", href: "/storefront", icon: Store },
       { label: "Wholesale", href: "/wholesale-buyers", icon: Handshake },
       { label: "Contacts", href: "/contacts", icon: Contact },
       { label: "Businesses", href: "/businesses", icon: Building2 },

@@ -15,6 +15,8 @@ import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 interface CheckoutItem {
   productId: string;
   quantity: number;
+  variantId?: string | null;
+  variantLabel?: string | null;
 }
 
 const PAYMENT_TERMS_DAYS: Record<string, number> = {
@@ -158,6 +160,27 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch variant-level wholesale prices if any items have a variantId
+    const variantIds = items
+      .map((i) => i.variantId)
+      .filter(Boolean) as string[];
+
+    let variantMap: Record<string, { wholesale_price: number | null; unit: string | null }> = {};
+
+    if (variantIds.length > 0) {
+      const { data: variants } = await supabase
+        .from("product_variants")
+        .select("id, wholesale_price, unit")
+        .in("id", variantIds)
+        .eq("is_active", true);
+
+      if (variants) {
+        variantMap = Object.fromEntries(
+          variants.map((v) => [v.id, v])
+        );
+      }
+    }
+
     // Validate all products are purchasable and calculate line items
     const lineItems: {
       name: string;
@@ -187,15 +210,18 @@ export async function POST(request: Request) {
         );
       }
 
-      // Get wholesale price
-      const unitPrice = (product as Record<string, unknown>).wholesale_price as number ?? product.price;
+      // Get wholesale price — variant level takes priority over product level
+      const variant = item.variantId ? variantMap[item.variantId] : null;
+      const unitPrice = variant?.wholesale_price
+        ?? (product as Record<string, unknown>).wholesale_price as number
+        ?? product.price;
 
       lineItems.push({
         name: product.name,
         unitAmount: Math.round(unitPrice * 100),
         quantity: item.quantity,
         productId: product.id,
-        unit: product.unit,
+        unit: variant?.unit || product.unit || "",
       });
     }
 
@@ -315,12 +341,14 @@ export async function POST(request: Request) {
     }
 
     // ─── Create the wholesale order (payment_method: invoice, status: confirmed) ───
-    const orderItems = lineItems.map((i) => ({
+    const orderItems = lineItems.map((i, idx) => ({
       productId: i.productId,
       name: i.name,
       unitAmount: i.unitAmount,
       quantity: i.quantity,
       unit: i.unit,
+      variantId: items[idx].variantId || null,
+      variantLabel: items[idx].variantLabel || null,
     }));
 
     const { data: order, error: orderError } = await supabase
@@ -350,7 +378,7 @@ export async function POST(request: Request) {
     if (orderError) {
       console.error("Failed to create order:", orderError);
       return NextResponse.json(
-        { error: "Failed to create order." },
+        { error: "Failed to create order.", detail: orderError?.message ?? String(orderError) },
         { status: 500 }
       );
     }

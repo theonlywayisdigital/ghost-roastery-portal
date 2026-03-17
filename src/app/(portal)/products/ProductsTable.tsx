@@ -198,9 +198,11 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   </th>
                   {activeTab === "all" ? (
                     <>
+                      {RETAIL_ENABLED && (
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                         Retail Price
                       </th>
+                      )}
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                         Wholesale Price
                       </th>
@@ -251,11 +253,13 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                     </td>
                     {activeTab === "all" ? (
                       <>
+                        {RETAIL_ENABLED && (
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
                             {getRetailPriceDisplay(product)}
                           </span>
                         </td>
+                        )}
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
                             {getWholesalePriceDisplay(product)}

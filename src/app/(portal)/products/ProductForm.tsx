@@ -1568,6 +1568,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
 
                   {/* Meta Description */}
+                  {RETAIL_ENABLED && (
                   <div>
                     <div className="flex items-center justify-between">
                       <label className={labelClassName}>
@@ -1592,6 +1593,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       {`${metaDescription.length}/155 characters`}
                     </p>
                   </div>
+                  )}
 
                   {/* Channel Toggles */}
                   {RETAIL_ENABLED && (
@@ -1736,8 +1738,8 @@ export function ProductForm({ product }: { product?: Product }) {
                       onToggle={() => setStatus(status === "published" ? "draft" : "published")}
                       label={
                         status === "published"
-                          ? "Published — visible to customers"
-                          : "Draft — hidden from customers"
+                          ? `Published — visible to ${RETAIL_ENABLED ? "customers" : "buyers"}`
+                          : `Draft — hidden from ${RETAIL_ENABLED ? "customers" : "buyers"}`
                       }
                     />
                     <Toggle
@@ -1745,7 +1747,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       onToggle={() => setIsPurchasable(!isPurchasable)}
                       label={
                         isPurchasable
-                          ? "Purchasable — customers can buy online"
+                          ? `Purchasable — ${RETAIL_ENABLED ? "customers" : "buyers"} can buy online`
                           : "Not purchasable — enquiry only"
                       }
                     />
@@ -1941,7 +1943,7 @@ export function ProductForm({ product }: { product?: Product }) {
                           className={inputClassName}
                         />
                         <p className="text-xs text-slate-400 mt-1">
-                          Customers must order in multiples of this number.
+                          {`${RETAIL_ENABLED ? "Customers" : "Buyers"} must order in multiples of this number.`}
                         </p>
                       </div>
                     </div>
@@ -1971,7 +1973,9 @@ export function ProductForm({ product }: { product?: Product }) {
                     <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
                     {optionTypes.length === 0 ? (
                       <p className="text-sm text-slate-500">
-                        Add option types on the Retail tab to configure wholesale variant pricing.
+                        {RETAIL_ENABLED
+                          ? "Add option types on the Retail tab to configure wholesale variant pricing."
+                          : "Option types for non-coffee products are configured on the Retail tab (currently hidden)."}
                       </p>
                     ) : (
                       renderOtherVariantGrid("wholesale")

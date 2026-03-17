@@ -152,7 +152,32 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       });
 
     if (authError) {
-      console.error("Failed to create user:", authError);
+      if (
+        authError.message?.includes("already registered") ||
+        authError.message?.includes("email_exists")
+      ) {
+        // Auth user exists but not in users table
+        const { data: { users: authUsers } } =
+          await supabase.auth.admin.listUsers();
+        const existingAuthUser = authUsers?.find(
+          (u) => u.email?.toLowerCase() === customerEmail.toLowerCase()
+        );
+        if (existingAuthUser) {
+          userId = existingAuthUser.id;
+          await supabase.from("users").upsert(
+            {
+              id: existingAuthUser.id,
+              email: customerEmail.toLowerCase(),
+              full_name: customerName || null,
+            },
+            { onConflict: "id", ignoreDuplicates: true }
+          );
+          // If they've never signed in, they need account setup
+          isNewUser = !existingAuthUser.last_sign_in_at;
+        }
+      } else {
+        console.error("Failed to create user:", authError);
+      }
     } else if (authData.user) {
       userId = authData.user.id;
       isNewUser = true;

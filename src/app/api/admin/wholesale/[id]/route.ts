@@ -129,12 +129,24 @@ export async function PATCH(
       // Send approval email
       if (contactEmail) {
         try {
+          const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+          const { data: grRoaster } = await supabase
+            .from("partner_roasters")
+            .select("storefront_slug")
+            .eq("id", roasterId)
+            .single();
+
+          const catalogueUrl = grRoaster?.storefront_slug
+            ? `${portalUrl}/s/${grRoaster.storefront_slug}/wholesale`
+            : `${portalUrl}/wholesale`;
+
           await sendWholesaleApproved(
             contactEmail,
             contactName,
             "Ghost Roastery",
             tier,
-            terms
+            terms,
+            catalogueUrl
           );
         } catch (e) {
           console.error("Failed to send approval email:", e);

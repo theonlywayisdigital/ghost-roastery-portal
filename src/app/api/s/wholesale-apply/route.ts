@@ -5,6 +5,7 @@ import {
   sendWholesaleApplicationNotification,
   sendWholesaleApproved,
   sendWholesaleAccountSetup,
+  type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
     // Verify roaster exists and has storefront enabled
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, user_id, business_name, email, storefront_slug, storefront_enabled, auto_approve_wholesale")
+      .select("id, user_id, business_name, email, storefront_slug, storefront_enabled, auto_approve_wholesale, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -316,6 +317,17 @@ export async function POST(request: Request) {
       try {
         const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
         const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
+        const catalogueUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
+
+        const branding: EmailBranding = {
+          logoUrl: roaster.brand_logo_url,
+          primaryColour: roaster.brand_primary_colour || undefined,
+          accentColour: roaster.brand_accent_colour || undefined,
+          headingFont: roaster.brand_heading_font || undefined,
+          bodyFont: roaster.brand_body_font || undefined,
+          businessName: roaster.business_name,
+          tagline: roaster.brand_tagline || undefined,
+        };
 
         if (isNewUser && userId) {
           const token = crypto.randomBytes(32).toString("hex");
@@ -328,11 +340,11 @@ export async function POST(request: Request) {
             roaster_slug: roaster.storefront_slug || null,
           });
 
-          const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+          const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
 
           await Promise.all([
-            sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay"),
-            sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl),
+            sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay", catalogueUrl, branding),
+            sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, branding),
           ]);
         } else {
           await sendWholesaleApproved(
@@ -340,7 +352,9 @@ export async function POST(request: Request) {
             name,
             roaster.business_name,
             "standard",
-            "prepay"
+            "prepay",
+            catalogueUrl,
+            branding
           );
         }
       } catch (emailErr) {
@@ -377,6 +391,16 @@ export async function POST(request: Request) {
     const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
     const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
 
+    const stdBranding: EmailBranding = {
+      logoUrl: roaster.brand_logo_url,
+      primaryColour: roaster.brand_primary_colour || undefined,
+      accentColour: roaster.brand_accent_colour || undefined,
+      headingFont: roaster.brand_heading_font || undefined,
+      bodyFont: roaster.brand_body_font || undefined,
+      businessName: roaster.business_name,
+      tagline: roaster.brand_tagline || undefined,
+    };
+
     try {
       // For new users, send account setup email (with password link) instead
       // of the plain "application received" email
@@ -391,10 +415,10 @@ export async function POST(request: Request) {
           roaster_slug: roaster.storefront_slug || null,
         });
 
-        const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+        const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
 
         await Promise.all([
-          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl),
+          sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, stdBranding),
           sendWholesaleApplicationNotification(
             roaster.email,
             roaster.business_name,
@@ -404,7 +428,7 @@ export async function POST(request: Request) {
         ]);
       } else {
         await Promise.all([
-          sendWholesaleApplicationReceived(email, name, roaster.business_name),
+          sendWholesaleApplicationReceived(email, name, roaster.business_name, stdBranding),
           sendWholesaleApplicationNotification(
             roaster.email,
             roaster.business_name,

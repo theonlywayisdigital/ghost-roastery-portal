@@ -154,6 +154,7 @@ export async function sendWholesaleApproved(
   roasterName: string,
   priceTier: string,
   paymentTerms: string,
+  catalogueUrl: string,
   branding?: EmailBranding | null
 ) {
   const tierLabels: Record<string, string> = {
@@ -184,7 +185,7 @@ export async function sendWholesaleApproved(
       <p style="color:#334155;font-size:14px;margin:0;"><strong>Payment Terms:</strong> ${termsLabels[paymentTerms] || paymentTerms}</p>
     </div>
 
-    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/wholesale`, label: "Browse Catalogue", branding })}
+    ${emailButton({ href: catalogueUrl, label: "Browse Catalogue", branding })}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       If you have any questions, reply to this email.
@@ -468,8 +469,11 @@ export async function sendStorefrontOrderConfirmation(params: {
   total: number;
   roasterName: string;
   branding?: EmailBranding | null;
+  slug?: string;
+  orderId?: string;
+  showSetupCta?: boolean;
 }) {
-  const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
+  const { to, customerName, orderNumber, items, total, roasterName, branding, slug, orderId, showSetupCta } = params;
 
   const itemsHtml = items
     .map(
@@ -506,14 +510,18 @@ export async function sendStorefrontOrderConfirmation(params: {
       <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: &pound;${total.toFixed(2)}</strong></p>
     </div>
 
-    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
+    ${emailButton({ href: slug && orderId ? `${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${slug}/orders/${orderId}` : `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
+
+    ${showSetupCta ? `<p style="color:#334155;font-size:14px;line-height:1.6;text-align:center;margin-top:16px;">
+      We&rsquo;ve also created an account for you so you can track your orders and reorder easily. Check your inbox for a setup link.
+    </p>` : ""}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       We&rsquo;ll send you another email when your order is dispatched.
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to,
     subject: `Order confirmed — #${orderNumber}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -528,8 +536,10 @@ export async function sendWholesaleOrderConfirmation(params: {
   total: number;
   roasterName: string;
   branding?: EmailBranding | null;
+  slug?: string;
+  orderId?: string;
 }) {
-  const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
+  const { to, customerName, orderNumber, items, total, roasterName, branding, slug, orderId } = params;
 
   const itemsHtml = items
     .map(
@@ -566,14 +576,14 @@ export async function sendWholesaleOrderConfirmation(params: {
       <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: &pound;${total.toFixed(2)}</strong></p>
     </div>
 
-    ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
+    ${emailButton({ href: slug && orderId ? `${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${slug}/orders/${orderId}` : `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       We&rsquo;ll send you another email when your order is dispatched.
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to,
     subject: `Wholesale order confirmed — #${orderNumber}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),

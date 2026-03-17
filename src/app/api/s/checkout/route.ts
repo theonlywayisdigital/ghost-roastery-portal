@@ -142,17 +142,65 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch variant prices if any items reference a variant
+    // Fetch variant details if any items reference a variant
     const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId as string);
-    let variantMap: Record<string, { retail_price: number | null }> = {};
+    let variantMap: Record<string, { retail_price: number | null; product_id: string; is_active: boolean; channel: string | null; unit: string | null; track_stock: boolean; retail_stock_count: number | null }> = {};
     if (variantIds.length > 0) {
       const { data: variants } = await supabase
         .from("product_variants")
-        .select("id, retail_price")
-        .in("id", variantIds);
+        .select("id, retail_price, product_id, is_active, channel, unit, track_stock, retail_stock_count")
+        .in("id", variantIds)
+        .eq("is_active", true);
       if (variants) {
         for (const v of variants) {
-          variantMap[v.id] = { retail_price: v.retail_price };
+          variantMap[v.id] = {
+            retail_price: v.retail_price,
+            product_id: v.product_id,
+            is_active: v.is_active,
+            channel: v.channel,
+            unit: v.unit,
+            track_stock: v.track_stock ?? false,
+            retail_stock_count: v.retail_stock_count,
+          };
+        }
+      }
+
+      // Validate all requested variants were found (active)
+      for (const item of items) {
+        if (item.variantId && !variantMap[item.variantId]) {
+          return NextResponse.json(
+            { error: "One or more selected variants are unavailable." },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Validate variants belong to correct products and channels
+      for (const item of items) {
+        if (!item.variantId) continue;
+        const variant = variantMap[item.variantId];
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) continue;
+
+        if (variant.product_id !== item.productId) {
+          return NextResponse.json(
+            { error: `Variant does not belong to "${product.name}".` },
+            { status: 400 }
+          );
+        }
+
+        if (!isWholesale && variant.channel && !["retail", "both"].includes(variant.channel)) {
+          return NextResponse.json(
+            { error: `"${product.name}" variant is not available for retail purchase.` },
+            { status: 400 }
+          );
+        }
+
+        if (isWholesale && variant.channel && !["wholesale", "both"].includes(variant.channel)) {
+          return NextResponse.json(
+            { error: `"${product.name}" variant is not available for wholesale purchase.` },
+            { status: 400 }
+          );
         }
       }
     }
@@ -184,6 +232,7 @@ export async function POST(request: Request) {
         }
       }
 
+      // Product-level stock check
       if (
         !isWholesale &&
         product.track_stock &&
@@ -194,6 +243,17 @@ export async function POST(request: Request) {
           { error: `"${product.name}" only has ${product.retail_stock_count} in stock.` },
           { status: 400 }
         );
+      }
+
+      // Variant-level stock check
+      if (!isWholesale && item.variantId && variantMap[item.variantId]) {
+        const v = variantMap[item.variantId];
+        if (v.track_stock && v.retail_stock_count != null && v.retail_stock_count < item.quantity) {
+          return NextResponse.json(
+            { error: `"${product.name}" (${item.variantLabel || ""}) only has ${v.retail_stock_count} in stock.` },
+            { status: 400 }
+          );
+        }
       }
 
       let unitPrice: number;
@@ -210,7 +270,7 @@ export async function POST(request: Request) {
         unitAmount: Math.round(unitPrice * 100),
         quantity: item.quantity,
         productId: product.id,
-        unit: product.unit,
+        unit: (item.variantId && variantMap[item.variantId]?.unit) || product.unit,
         variantId: item.variantId,
         variantLabel: item.variantLabel,
       });
@@ -304,17 +364,30 @@ export async function POST(request: Request) {
         customer_name: effectiveName,
         customer_email: effectiveEmail,
         delivery_address: deliveryAddress ? JSON.stringify(deliveryAddress) : "",
-        items: JSON.stringify(
-          lineItems.map((i) => ({
-            productId: i.productId,
-            name: i.name,
-            unitAmount: i.unitAmount,
-            quantity: i.quantity,
-            unit: i.unit,
-            ...(i.variantId ? { variantId: i.variantId } : {}),
-            ...(i.variantLabel ? { variantLabel: i.variantLabel } : {}),
-          }))
-        ),
+        items: (() => {
+          // Use compact format to stay within Stripe's 500-char metadata limit
+          const compact = JSON.stringify(
+            lineItems.map((i) => ({
+              p: i.productId,
+              a: i.unitAmount,
+              q: i.quantity,
+              ...(i.variantId ? { v: i.variantId } : {}),
+              ...(i.variantLabel ? { l: i.variantLabel } : {}),
+            }))
+          );
+          // Fallback: if still too large, strip variant labels
+          if (compact.length > 490) {
+            return JSON.stringify(
+              lineItems.map((i) => ({
+                p: i.productId,
+                a: i.unitAmount,
+                q: i.quantity,
+                ...(i.variantId ? { v: i.variantId } : {}),
+              }))
+            );
+          }
+          return compact;
+        })(),
         subtotal_pence: subtotalPence.toString(),
         platform_fee_pence: platformFeePence.toString(),
         ...(isWholesale ? { wholesale: "true", wholesale_access_id: wholesaleAccessId } : {}),
@@ -360,9 +433,10 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ sessionUrl: session.url });
   } catch (error) {
-    console.error("Checkout error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Checkout error:", message, error);
     return NextResponse.json(
-      { error: "Failed to create checkout session." },
+      { error: `Failed to create checkout session.`, detail: message },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
@@ -43,7 +43,8 @@ function CheckoutContent() {
   const slug = params.slug as string;
   const embedded = searchParams.get("embedded") === "true";
   const qs = embedded ? "?embedded=true" : "";
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal } = useCart();
+  const checkoutStartedRef = useRef(false);
 
   const [roasterId, setRoasterId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -93,9 +94,9 @@ function CheckoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roasterId]);
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty (but not if checkout has already started)
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !checkoutStartedRef.current) {
       router.push(`/s/${slug}/shop${qs}`);
     }
   }, [items.length, slug, router, qs]);
@@ -167,6 +168,7 @@ function CheckoutContent() {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    checkoutStartedRef.current = true;
 
     try {
       const res = await fetch("/api/s/checkout", {
@@ -210,8 +212,6 @@ function CheckoutContent() {
         setIsSubmitting(false);
         return;
       }
-
-      clearCart();
 
       if (embedded && data.clientSecret) {
         // Show Stripe Embedded Checkout inline

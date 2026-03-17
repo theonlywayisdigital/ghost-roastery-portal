@@ -362,7 +362,7 @@ export async function POST(request: Request) {
           roaster_slug: roaster.storefront_slug || null,
         });
 
-        const setupUrl = `${portalUrl}/setup-password?token=${token}`;
+        const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
 
         await sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, branding);
       } else {

@@ -1,9 +1,10 @@
 "use client";
 
 import { useSearchParams, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { useCart } from "../_components/CartProvider";
 
 function SuccessContent() {
   const params = useParams();
@@ -18,6 +19,7 @@ function SuccessContent() {
   const qs = embedded ? "?embedded=true" : "";
 
   const isInvoiceOrder = !!invoiceId && !sessionId;
+  const { clearCart } = useCart();
 
   const [status, setStatus] = useState<"loading" | "confirmed" | "error">(
     isInvoiceOrder ? "confirmed" : "loading"
@@ -25,6 +27,8 @@ function SuccessContent() {
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(
     orderId || null
   );
+
+  const stableClearCart = useCallback(clearCart, [clearCart]);
 
   useEffect(() => {
     if (isInvoiceOrder) return; // Invoice orders are already confirmed
@@ -43,6 +47,7 @@ function SuccessContent() {
         if (res.ok) {
           const data = await res.json();
           if (data.orderId) setConfirmedOrderId(data.orderId);
+          stableClearCart();
           setStatus("confirmed");
         } else {
           setStatus("error");
@@ -51,7 +56,7 @@ function SuccessContent() {
       .catch(() => {
         setStatus("error");
       });
-  }, [sessionId, isInvoiceOrder]);
+  }, [sessionId, isInvoiceOrder, stableClearCart]);
 
   if (status === "loading") {
     return (

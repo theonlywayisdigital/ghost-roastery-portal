@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import {
   sendWholesaleApproved,
   sendWholesaleRejected,
+  type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 
@@ -166,12 +167,37 @@ export async function PATCH(
       // Send approval email
       if (contactEmail) {
         try {
+          const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+          const { data: roasterData } = await supabase
+            .from("partner_roasters")
+            .select("storefront_slug, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+            .eq("id", roasterId)
+            .single();
+
+          const catalogueUrl = roasterData?.storefront_slug
+            ? `${portalUrl}/s/${roasterData.storefront_slug}/wholesale`
+            : `${portalUrl}/wholesale`;
+
+          const branding: EmailBranding | undefined = roasterData
+            ? {
+                logoUrl: roasterData.brand_logo_url,
+                primaryColour: roasterData.brand_primary_colour || undefined,
+                accentColour: roasterData.brand_accent_colour || undefined,
+                headingFont: roasterData.brand_heading_font || undefined,
+                bodyFont: roasterData.brand_body_font || undefined,
+                businessName: user.roaster.business_name,
+                tagline: roasterData.brand_tagline || undefined,
+              }
+            : undefined;
+
           await sendWholesaleApproved(
             contactEmail,
             contactName,
             user.roaster.business_name,
             "standard",
-            terms
+            terms,
+            catalogueUrl,
+            branding
           );
         } catch (e) {
           console.error("Failed to send approval email:", e);

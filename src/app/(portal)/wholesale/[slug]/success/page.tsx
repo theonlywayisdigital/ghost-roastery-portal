@@ -39,6 +39,8 @@ function SuccessContent() {
     })
       .then((res) => {
         if (res.ok) {
+          // Clear wholesale cart from sessionStorage on success
+          try { sessionStorage.removeItem(`cart-${slug}`); } catch {}
           setStatus("confirmed");
         } else {
           setStatus("error");
@@ -47,7 +49,7 @@ function SuccessContent() {
       .catch(() => {
         setStatus("error");
       });
-  }, [sessionId, isInvoiceOrder]);
+  }, [sessionId, isInvoiceOrder, slug]);
 
   if (status === "loading") {
     return (

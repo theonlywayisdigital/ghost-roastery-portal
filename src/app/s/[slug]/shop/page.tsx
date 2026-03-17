@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import { ShopPage } from "./ShopPage";
 import type { Product } from "../_components/types";
 
@@ -22,8 +23,8 @@ export default async function ShopPageRoute({
 
   if (!roaster) notFound();
 
-  // Wholesale-only storefronts have no retail shop
-  if (roaster.storefront_type === "wholesale") {
+  // Retail shop is unavailable when retail is disabled or storefront is wholesale-only
+  if (!RETAIL_ENABLED || roaster.storefront_type === "wholesale") {
     redirect(`/s/${slug}/wholesale`);
   }
 

@@ -9,7 +9,7 @@ const veryMutedText = "color-mix(in srgb, var(--sf-nav-text) 40%, transparent)";
 const dividerColour = "color-mix(in srgb, var(--sf-nav-text) 10%, transparent)";
 
 export function Footer() {
-  const { roaster, slug, showWholesale, embedded } = useStorefront();
+  const { roaster, slug, showRetail, showWholesale, embedded } = useStorefront();
 
   const logoSizePx =
     { small: 80, medium: 120, large: 160 }[
@@ -52,9 +52,10 @@ export function Footer() {
               className="font-semibold text-sm uppercase tracking-wider mb-4"
               style={{ color: "var(--sf-nav-text)" }}
             >
-              Shop
+              {showRetail ? "Shop" : "Wholesale"}
             </h4>
             <ul className="space-y-2.5">
+              {showRetail && (
               <li>
                 <Link
                   href={`/s/${slug}/shop`}
@@ -64,6 +65,7 @@ export function Footer() {
                   All Products
                 </Link>
               </li>
+              )}
               {showWholesale && (
                 <li>
                   <Link
@@ -71,7 +73,18 @@ export function Footer() {
                     className="text-sm transition-opacity hover:opacity-100"
                     style={{ color: mutedText }}
                   >
-                    Wholesale
+                    {showRetail ? "Wholesale" : "Catalogue"}
+                  </Link>
+                </li>
+              )}
+              {!showRetail && showWholesale && (
+                <li>
+                  <Link
+                    href={`/s/${slug}/wholesale/apply`}
+                    className="text-sm transition-opacity hover:opacity-100"
+                    style={{ color: mutedText }}
+                  >
+                    Apply for Account
                   </Link>
                 </li>
               )}

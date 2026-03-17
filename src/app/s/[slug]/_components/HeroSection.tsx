@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useStorefront } from "./StorefrontProvider";
 
 export function HeroSection() {
-  const { roaster, slug, primary, accent, accentText, showWholesale } =
+  const { roaster, slug, primary, accent, accentText, showRetail, showWholesale } =
     useStorefront();
 
   return (
@@ -73,24 +73,47 @@ export function HeroSection() {
             }}
             transition={{ duration: 0.5 }}
           >
-            <Link
-              href={`/s/${slug}/shop`}
-              style={{
-                backgroundColor: "var(--sf-btn-colour)",
-                color: "var(--sf-btn-text)",
-                borderRadius: "var(--sf-btn-radius)",
-              }}
-              className="px-7 py-3.5 font-semibold text-sm hover:opacity-90 transition-opacity"
-            >
-              Shop Now
-            </Link>
-            {showWholesale && (
+            {showRetail ? (
+              <Link
+                href={`/s/${slug}/shop`}
+                style={{
+                  backgroundColor: "var(--sf-btn-colour)",
+                  color: "var(--sf-btn-text)",
+                  borderRadius: "var(--sf-btn-radius)",
+                }}
+                className="px-7 py-3.5 font-semibold text-sm hover:opacity-90 transition-opacity"
+              >
+                Shop Now
+              </Link>
+            ) : showWholesale ? (
+              <Link
+                href={`/s/${slug}/wholesale`}
+                style={{
+                  backgroundColor: "var(--sf-btn-colour)",
+                  color: "var(--sf-btn-text)",
+                  borderRadius: "var(--sf-btn-radius)",
+                }}
+                className="px-7 py-3.5 font-semibold text-sm hover:opacity-90 transition-opacity"
+              >
+                Browse Catalogue
+              </Link>
+            ) : null}
+            {showRetail && showWholesale && (
               <Link
                 href={`/s/${slug}/wholesale`}
                 className="px-7 py-3.5 font-semibold text-sm bg-white/15 text-white hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
                 style={{ borderRadius: "var(--sf-btn-radius)" }}
               >
                 Trade Enquiry
+              </Link>
+            )}
+            {!showRetail && showWholesale && (
+              <Link
+                href={`/s/${slug}/wholesale/apply`}
+                className="px-7 py-3.5 font-semibold text-sm bg-white/15 text-white hover:bg-white/25 transition-colors backdrop-blur-sm border border-white/20"
+                style={{ borderRadius: "var(--sf-btn-radius)" }}
+              >
+                Apply for Account
               </Link>
             )}
           </motion.div>

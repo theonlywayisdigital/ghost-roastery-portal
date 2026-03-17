@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import { EmbedShop } from "./EmbedShop";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,12 @@ export default async function EmbedShopPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+
+  // Embed shop is unavailable when retail is disabled
+  if (!RETAIL_ENABLED) {
+    redirect(`/s/${slug}/wholesale`);
+  }
+
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase

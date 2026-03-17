@@ -16,8 +16,11 @@ export function Cart() {
     removeItem,
     subtotal,
   } = useCart();
-  const { slug, accent, accentText, embedded } = useStorefront();
+  const { slug, accent, accentText, embedded, showRetail } = useStorefront();
   const router = useRouter();
+
+  // Cart is retail-only; wholesale has its own ordering flow
+  if (!showRetail) return null;
 
   function handleCheckout() {
     closeCart();

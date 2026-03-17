@@ -7,9 +7,10 @@ import { MotionSection } from "./MotionWrapper";
 import type { Product } from "./types";
 
 export function FeaturedProducts({ products }: { products: Product[] }) {
-  const { slug, primary } = useStorefront();
+  const { slug, primary, showRetail } = useStorefront();
 
-  if (products.length === 0) return null;
+  // Featured products are retail-only; homepage redirects when retail is disabled
+  if (!showRetail || products.length === 0) return null;
 
   const featured = products.slice(0, 6);
 

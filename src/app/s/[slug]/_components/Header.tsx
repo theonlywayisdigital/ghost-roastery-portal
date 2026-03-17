@@ -79,7 +79,10 @@ export function Header() {
       ? [{ label: "Shop", href: `/s/${slug}/shop` }]
       : []),
     ...(showWholesale
-      ? [{ label: "Wholesale", href: `/s/${slug}/wholesale` }]
+      ? [{ label: showRetail ? "Wholesale" : "Catalogue", href: `/s/${slug}/wholesale` }]
+      : []),
+    ...(!showRetail && showWholesale
+      ? [{ label: "Apply", href: `/s/${slug}/wholesale/apply` }]
       : []),
     { label: "Contact", href: `/s/${slug}/contact` },
   ];

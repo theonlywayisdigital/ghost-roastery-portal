@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import { StorefrontPage } from "./StorefrontPage";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import type { Product } from "./_components/types";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,8 @@ export default async function StorefrontPageRoute({
 
   if (!roaster) notFound();
 
-  // Wholesale-only storefronts skip the retail homepage
-  if (roaster.storefront_type === "wholesale") {
+  // When retail is disabled or storefront is wholesale-only, skip the retail homepage
+  if (!RETAIL_ENABLED || roaster.storefront_type === "wholesale") {
     redirect(`/s/${slug}/wholesale`);
   }
 

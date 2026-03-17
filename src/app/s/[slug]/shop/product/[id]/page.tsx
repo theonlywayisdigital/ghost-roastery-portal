@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import { createAuthServerClient } from "@/lib/supabase";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import { ProductDetail } from "./ProductDetail";
 import type { Product, StorefrontOptionType } from "../../../_components/types";
 
@@ -12,6 +13,12 @@ export default async function ProductDetailRoute({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
+
+  // Retail product pages are unavailable when retail is disabled
+  if (!RETAIL_ENABLED) {
+    redirect(`/s/${slug}/wholesale`);
+  }
+
   const supabase = createServerClient();
 
   // Verify roaster

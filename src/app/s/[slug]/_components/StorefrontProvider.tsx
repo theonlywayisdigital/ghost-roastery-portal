@@ -4,6 +4,7 @@ import { createContext, useContext, type ReactNode, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import type { RoasterBranding } from "./types";
 import { isLightColour } from "./utils";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface StorefrontContextValue {
   roaster: RoasterBranding;
@@ -52,11 +53,13 @@ function StorefrontProviderInner({
   const accent = roaster.brand_accent_colour || "#0083dc";
   const accentText = isLightColour(accent) ? "#1e293b" : "#ffffff";
   const retailEnabled =
-    roaster.retail_enabled && !!roaster.stripe_account_id;
+    RETAIL_ENABLED && roaster.retail_enabled && !!roaster.stripe_account_id;
   const showRetail =
-    roaster.storefront_type === "retail" ||
-    roaster.storefront_type === "both";
+    RETAIL_ENABLED &&
+    (roaster.storefront_type === "retail" ||
+    roaster.storefront_type === "both");
   const showWholesale =
+    !RETAIL_ENABLED ||
     roaster.storefront_type === "wholesale" ||
     roaster.storefront_type === "both";
 

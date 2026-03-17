@@ -44,7 +44,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
     setError(null);
 
     try {
-      const res = await fetch("/api/storefront/branding", {
+      const res = await fetch("/api/wholesale-portal/branding", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

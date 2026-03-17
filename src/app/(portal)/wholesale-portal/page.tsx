@@ -6,8 +6,8 @@ export default async function StorefrontPage() {
   if (!roaster) redirect("/login");
 
   if (!roaster.storefront_setup_complete) {
-    redirect("/storefront/setup");
+    redirect("/wholesale-portal/setup");
   }
 
-  redirect("/storefront/branding");
+  redirect("/wholesale-portal/content");
 }

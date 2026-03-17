@@ -188,7 +188,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
     setLoading(true);
     try {
       const [statusRes, payoutsRes, invoicesRes] = await Promise.all([
-        fetch("/api/storefront/stripe/status"),
+        fetch("/api/wholesale-portal/stripe/status"),
         fetch("/api/settings/billing/payouts"),
         fetch("/api/settings/billing/invoices"),
       ]);
@@ -223,7 +223,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
   async function handleConnect() {
     setConnecting(true);
     try {
-      const res = await fetch("/api/storefront/stripe/connect", {
+      const res = await fetch("/api/wholesale-portal/stripe/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -134,7 +134,7 @@ export async function sendWholesaleApplicationNotification(
       Log in to your portal to review the application and approve or reject it.
     </p>
 
-    ${emailButton({ href: `${portalUrl}/storefront/buyers`, label: "Review Application", branding })}
+    ${emailButton({ href: `${portalUrl}/wholesale-portal/buyers`, label: "Review Application", branding })}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       If you have any questions, reply to this email.

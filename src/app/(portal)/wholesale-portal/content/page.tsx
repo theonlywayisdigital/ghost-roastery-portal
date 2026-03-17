@@ -7,7 +7,7 @@ export default async function BrandingPage() {
   if (!roaster) redirect("/login");
 
   if (!roaster.storefront_setup_complete) {
-    redirect("/storefront/setup");
+    redirect("/wholesale-portal/setup");
   }
 
   const brandingData = {

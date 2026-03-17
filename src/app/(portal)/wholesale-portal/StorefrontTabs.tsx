@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { label: "Content", href: "/storefront/branding" },
-  { label: "Products", href: "/storefront/products" },
-  { label: "Buyers", href: "/storefront/buyers" },
-  { label: "Settings", href: "/storefront/settings" },
-  { label: "Embed", href: "/storefront/embed" },
+  { label: "Content", href: "/wholesale-portal/content" },
+  { label: "Products", href: "/wholesale-portal/products" },
+  { label: "Buyers", href: "/wholesale-portal/buyers" },
+  { label: "Settings", href: "/wholesale-portal/settings" },
+  { label: "Embed", href: "/wholesale-portal/embed" },
 ];
 
 export function StorefrontTabs() {

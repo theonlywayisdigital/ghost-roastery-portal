@@ -5,7 +5,7 @@ import { EmbedCodeGenerator } from "./EmbedCodeGenerator";
 export default async function StorefrontEmbedPage() {
   const roaster = await getCurrentRoaster();
   if (!roaster) redirect("/login");
-  if (!roaster.storefront_setup_complete) redirect("/storefront/setup");
+  if (!roaster.storefront_setup_complete) redirect("/wholesale-portal/setup");
 
   return (
     <EmbedCodeGenerator

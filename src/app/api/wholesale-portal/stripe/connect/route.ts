@@ -12,8 +12,8 @@ export async function POST(request: Request) {
   const supabase = createServerClient();
 
   // Optional: caller can specify return path
-  let returnPath = "/storefront/setup?stripe=complete";
-  let refreshPath = "/storefront/setup?stripe=refresh";
+  let returnPath = "/wholesale-portal/setup?stripe=complete";
+  let refreshPath = "/wholesale-portal/setup?stripe=refresh";
   try {
     const body = await request.json();
     if (body.returnPath) {

@@ -8,7 +8,7 @@ export default async function StorefrontProductsPage() {
   if (!roaster) redirect("/login");
 
   if (!roaster.storefront_setup_complete) {
-    redirect("/storefront/setup");
+    redirect("/wholesale-portal/setup");
   }
 
   const supabase = createServerClient();

@@ -7,7 +7,7 @@ export default async function SetupPage() {
   if (!roaster) redirect("/login");
 
   if (roaster.storefront_setup_complete) {
-    redirect("/storefront/branding");
+    redirect("/wholesale-portal/content");
   }
 
   const roasterData = {

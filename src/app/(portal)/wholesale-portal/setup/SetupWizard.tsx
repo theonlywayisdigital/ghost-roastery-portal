@@ -104,7 +104,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   // Check Stripe status on return from Stripe
   const checkStripeStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/storefront/stripe/status");
+      const res = await fetch("/api/wholesale-portal/stripe/status");
       const data = await res.json();
       setStripeStatus(data);
       setStripeConnected(data.connected);
@@ -135,7 +135,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     slugTimerRef.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/storefront/check-slug?slug=${encodeURIComponent(slug)}`
+          `/api/wholesale-portal/check-slug?slug=${encodeURIComponent(slug)}`
         );
         const data = await res.json();
         setSlugAvailable(data.available);
@@ -222,7 +222,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     }
 
     try {
-      const res = await fetch("/api/storefront/setup", {
+      const res = await fetch("/api/wholesale-portal/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ step, data: stepData }),
@@ -271,7 +271,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     const success = await saveStep();
     if (!success) return;
 
-    router.push("/storefront/branding");
+    router.push("/wholesale-portal/content");
     router.refresh();
   }
 
@@ -287,7 +287,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     setStripeLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/storefront/stripe/connect", {
+      const res = await fetch("/api/wholesale-portal/stripe/connect", {
         method: "POST",
       });
       const data = await res.json();

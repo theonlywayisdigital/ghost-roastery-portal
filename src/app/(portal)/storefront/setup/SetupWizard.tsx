@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "@/components/icons";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface RoasterData {
   id: string;
@@ -32,7 +33,11 @@ interface RoasterData {
   stripe_account_id: string;
 }
 
-const TOTAL_STEPS = 6;
+// When retail is disabled, skip step 2 (type selection) and step 5 (Stripe Connect)
+// Full steps: 1=slug, 2=type, 3=branding, 4=about, 5=stripe, 6=launch
+// Wholesale-only steps: 1=slug, 2=branding, 3=about, 4=launch
+const ALL_STEPS = RETAIL_ENABLED ? [1, 2, 3, 4, 5, 6] : [1, 3, 4, 6];
+const TOTAL_STEPS = ALL_STEPS.length;
 
 const inputClassName =
   "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
@@ -60,8 +65,10 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   const [checkingSlug, setCheckingSlug] = useState(false);
   const slugTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Step 2 — Type
-  const [storefrontType, setStorefrontType] = useState(roaster.storefront_type || "wholesale");
+  // Step 2 — Type (skipped when retail disabled; defaults to wholesale)
+  const [storefrontType, setStorefrontType] = useState(
+    RETAIL_ENABLED ? (roaster.storefront_type || "wholesale") : "wholesale"
+  );
 
   // Step 3 — Branding
   const [logoUrl, setLogoUrl] = useState(roaster.brand_logo_url);
@@ -237,6 +244,10 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     }
   }
 
+  // Map between display position (1-based index into ALL_STEPS) and internal step number
+  const displayStep = ALL_STEPS.indexOf(step) + 1;
+  const isLastStep = step === ALL_STEPS[ALL_STEPS.length - 1];
+
   async function handleNext() {
     if (step === 1 && !slugAvailable) {
       setError("Please choose an available subdomain");
@@ -249,8 +260,9 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
       if (!success) return;
     }
 
-    if (step < TOTAL_STEPS) {
-      setStep(step + 1);
+    const currentIndex = ALL_STEPS.indexOf(step);
+    if (currentIndex < ALL_STEPS.length - 1) {
+      setStep(ALL_STEPS[currentIndex + 1]);
       setError(null);
     }
   }
@@ -264,8 +276,9 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   }
 
   function handleBack() {
-    if (step > 1) {
-      setStep(step - 1);
+    const currentIndex = ALL_STEPS.indexOf(step);
+    if (currentIndex > 0) {
+      setStep(ALL_STEPS[currentIndex - 1]);
       setError(null);
     }
   }
@@ -297,14 +310,14 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const progressPercent = (step / TOTAL_STEPS) * 100;
+  const progressPercent = (displayStep / TOTAL_STEPS) * 100;
 
   return (
     <div className="max-w-2xl">
       {/* Progress bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between text-sm text-slate-500 mb-2">
-          <span>Step {step} of {TOTAL_STEPS}</span>
+          <span>Step {displayStep} of {TOTAL_STEPS}</span>
           <span>{Math.round(progressPercent)}% complete</span>
         </div>
         <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -323,8 +336,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               Choose your subdomain
             </h2>
             <p className="text-sm text-slate-500 mb-6">
-              This will be your storefront URL. Choose carefully — this cannot be
-              changed after going live.
+              {`This will be your ${RETAIL_ENABLED ? "storefront" : "wholesale portal"} URL. Choose carefully — this cannot be changed after going live.`}
             </p>
 
             <div className="flex items-center gap-0">
@@ -434,7 +446,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
         {step === 3 && (
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              Brand your storefront
+              {RETAIL_ENABLED ? "Brand your storefront" : "Brand your wholesale portal"}
             </h2>
             <p className="text-sm text-slate-500 mb-6">
               Customise the look and feel. You can update these anytime.
@@ -731,9 +743,8 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               Connect payments
             </h2>
             <p className="text-sm text-slate-500 mb-6">
-              Connect your Stripe account to accept payments through your
-              storefront. Funds go directly to you — Ghost Roastery takes a small
-              platform fee.
+              Connect your Stripe account to accept card payments. Funds go
+              directly to you — Ghost Roastery takes a small platform fee.
             </p>
 
             {stripeStatus?.onboarding_complete ? (
@@ -796,7 +807,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
         {step === 6 && (
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              Launch your storefront
+              {RETAIL_ENABLED ? "Launch your storefront" : "Launch your wholesale portal"}
             </h2>
             <p className="text-sm text-slate-500 mb-6">
               Review your setup and go live when you&apos;re ready.
@@ -810,6 +821,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                   {slug}.ghostroastery.com
                 </span>
               </div>
+              {RETAIL_ENABLED && (
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Type</span>
                 <span className="text-sm font-medium text-slate-900 capitalize">
@@ -818,6 +830,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                     : storefrontType}
                 </span>
               </div>
+              )}
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Font</span>
                 <span className="text-sm font-medium text-slate-900 capitalize">
@@ -837,6 +850,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                   />
                 </div>
               </div>
+              {RETAIL_ENABLED && (
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Stripe</span>
                 <span
@@ -851,11 +865,12 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                     : "Not connected"}
                 </span>
               </div>
+              )}
             </div>
 
             {/* Storefront URL */}
             <div className="bg-slate-50 rounded-lg p-4 mb-6">
-              <p className="text-xs text-slate-500 mb-1">Your storefront URL</p>
+              <p className="text-xs text-slate-500 mb-1">{RETAIL_ENABLED ? "Your storefront URL" : "Your wholesale portal URL"}</p>
               <div className="flex items-center gap-2">
                 <p className="text-base font-semibold text-slate-900">
                   {slug}.ghostroastery.com
@@ -892,8 +907,8 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               </button>
               <span className="text-sm text-slate-700">
                 {goLive
-                  ? "Storefront is live"
-                  : "Storefront is off — enable when ready"}
+                  ? RETAIL_ENABLED ? "Storefront is live" : "Wholesale portal is live"
+                  : RETAIL_ENABLED ? "Storefront is off — enable when ready" : "Wholesale portal is off — enable when ready"}
               </span>
             </div>
           </div>
@@ -905,7 +920,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
         {/* Navigation buttons */}
         <div className="flex items-center justify-between mt-8 pt-5 border-t border-slate-200">
           <div>
-            {step > 1 && (
+            {displayStep > 1 && (
               <button
                 type="button"
                 onClick={handleBack}
@@ -925,7 +940,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                 Skip — I&apos;ll do this later
               </button>
             )}
-            {step < TOTAL_STEPS ? (
+            {!isLastStep ? (
               <button
                 type="button"
                 onClick={handleNext}
@@ -943,7 +958,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                Launch Storefront
+                {RETAIL_ENABLED ? "Launch Storefront" : "Launch Wholesale Portal"}
               </button>
             )}
           </div>

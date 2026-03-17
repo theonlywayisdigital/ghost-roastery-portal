@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Code, ShoppingBag, FileText } from "@/components/icons";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 function CodeBlock({ code, label }: { code: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -50,7 +51,7 @@ export function EmbedCodeGenerator({
   storefrontType: string;
 }) {
   const portalUrl = typeof window !== "undefined" ? window.location.origin : "https://portal.ghostroastery.com";
-  const showShop = true; // Always show shop embed option
+  const showShop = RETAIL_ENABLED; // Only show retail shop embed when retail is enabled
   const showWholesale = storefrontType === "wholesale" || storefrontType === "both";
 
   const shopScript = `<script\n  src="${portalUrl}/embed.js"\n  data-roaster="${slug}"\n  data-type="shop">\n</script>`;
@@ -66,7 +67,9 @@ export function EmbedCodeGenerator({
           Embed Codes
         </h2>
         <p className="text-sm text-slate-500">
-          Add your storefront or wholesale application form to any website.
+          {RETAIL_ENABLED
+            ? "Add your storefront or wholesale application form to any website."
+            : "Add your wholesale application form to any website."}
         </p>
       </div>
 
@@ -156,7 +159,7 @@ export function EmbedCodeGenerator({
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <div>
               <p className="text-sm font-medium text-slate-700">
-                Full Storefront
+                {RETAIL_ENABLED ? "Full Storefront" : "Wholesale Portal"}
               </p>
               <p className="text-xs text-slate-500">
                 {`${portalUrl}/s/${slug}`}
@@ -165,6 +168,7 @@ export function EmbedCodeGenerator({
             <CopyButton text={`${portalUrl}/s/${slug}`} />
           </div>
 
+          {RETAIL_ENABLED && (
           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
             <div>
               <p className="text-sm font-medium text-slate-700">
@@ -176,6 +180,7 @@ export function EmbedCodeGenerator({
             </div>
             <CopyButton text={`${portalUrl}/s/${slug}/embed/shop`} />
           </div>
+          )}
 
           {showWholesale && (
             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">

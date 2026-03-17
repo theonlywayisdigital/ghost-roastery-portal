@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Check } from "@/components/icons";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface SettingsData {
   storefront_type: string;
@@ -78,9 +79,10 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
       {/* Storefront type */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <h3 className="text-sm font-semibold text-slate-900 mb-4">
-          Storefront type
+          {RETAIL_ENABLED ? "Storefront type" : "Wholesale settings"}
         </h3>
         <div className="space-y-5">
+          {RETAIL_ENABLED && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Type
@@ -95,6 +97,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
               <option value="both">Both wholesale and retail</option>
             </select>
           </div>
+          )}
 
           {(storefrontType === "wholesale" || storefrontType === "both") && (
             <div>
@@ -161,7 +164,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
           Contact details
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          Displayed on your storefront contact page.
+          {RETAIL_ENABLED ? "Displayed on your storefront contact page." : "Displayed on your wholesale portal contact page."}
         </p>
         <div className="space-y-5">
           <div>

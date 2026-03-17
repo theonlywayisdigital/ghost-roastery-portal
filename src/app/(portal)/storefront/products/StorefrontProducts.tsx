@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Package, Plus, Pencil } from "@/components/icons";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import {
   DndContext,
   closestCenter,
@@ -190,7 +191,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
           No products yet
         </h3>
         <p className="text-sm text-slate-500 mb-4">
-          Add your first product to get your storefront live.
+          {RETAIL_ENABLED ? "Add your first product to get your storefront live." : "Add your first product to get your wholesale portal live."}
         </p>
         <Link
           href="/products/new"
@@ -207,7 +208,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-slate-500">
-          These products appear on your storefront.
+          {RETAIL_ENABLED ? "These products appear on your storefront." : "These products appear on your wholesale portal."}
         </p>
         <Link
           href="/products/new"
@@ -264,6 +265,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                       {/* Channel toggles */}
                       <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
                         {/* Retail toggle */}
+                        {RETAIL_ENABLED && (
                         <div className="flex flex-col">
                           <div className={`flex items-center gap-1.5 ${!retailEnabled ? "opacity-40 cursor-not-allowed" : ""}`}>
                             <button
@@ -296,6 +298,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                             </span>
                           )}
                         </div>
+                        )}
 
                         {/* Wholesale toggle */}
                         <div className="flex flex-col">

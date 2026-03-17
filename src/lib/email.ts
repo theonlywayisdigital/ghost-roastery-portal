@@ -471,9 +471,8 @@ export async function sendStorefrontOrderConfirmation(params: {
   branding?: EmailBranding | null;
   slug?: string;
   orderId?: string;
-  showSetupCta?: boolean;
 }) {
-  const { to, customerName, orderNumber, items, total, roasterName, branding, slug, orderId, showSetupCta } = params;
+  const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
 
   const itemsHtml = items
     .map(
@@ -510,14 +509,8 @@ export async function sendStorefrontOrderConfirmation(params: {
       <p style="color:#0f172a;font-size:18px;font-weight:700;margin:0;"><strong>Total: &pound;${total.toFixed(2)}</strong></p>
     </div>
 
-    ${emailButton({ href: slug && orderId ? `${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${slug}/orders/${orderId}` : `${process.env.NEXT_PUBLIC_PORTAL_URL}/my-orders`, label: "View Your Order", branding })}
-
-    ${showSetupCta ? `<p style="color:#334155;font-size:14px;line-height:1.6;text-align:center;margin-top:16px;">
-      We&rsquo;ve also created an account for you so you can track your orders and reorder easily. Check your inbox for a setup link.
-    </p>` : ""}
-
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
-      We&rsquo;ll send you another email when your order is dispatched.
+      We&rsquo;ll send you another email with tracking details when your order is dispatched.
     </p>`;
 
   await resend.emails.send({

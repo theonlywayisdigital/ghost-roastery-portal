@@ -6,7 +6,6 @@ import {
   sendStorefrontOrderConfirmation,
   sendWholesaleOrderConfirmation,
   sendAdminNewOrderNotification,
-  sendWholesaleAccountSetup,
 } from "@/lib/email";
 import type { EmailBranding } from "@/lib/email";
 
@@ -129,85 +128,20 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     return { success: true, orderId: existingOrder.id, alreadyExists: true };
   }
 
-  // 2. Find or create user account
+  // 2. Link to existing user account if one exists (no auto-creation for guests)
   let userId: string | null = null;
-  let isNewUser = false;
 
   const { data: existingUser } = await supabase
     .from("users")
     .select("id")
     .eq("email", customerEmail.toLowerCase())
-    .single();
+    .maybeSingle();
 
   if (existingUser) {
     userId = existingUser.id;
-  } else {
-    const { data: authData, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: customerEmail,
-        email_confirm: true,
-        user_metadata: {
-          full_name: customerName,
-        },
-      });
-
-    if (authError) {
-      if (
-        authError.message?.includes("already registered") ||
-        authError.message?.includes("email_exists")
-      ) {
-        // Auth user exists but not in users table
-        const { data: { users: authUsers } } =
-          await supabase.auth.admin.listUsers();
-        const existingAuthUser = authUsers?.find(
-          (u) => u.email?.toLowerCase() === customerEmail.toLowerCase()
-        );
-        if (existingAuthUser) {
-          userId = existingAuthUser.id;
-          await supabase.from("users").upsert(
-            {
-              id: existingAuthUser.id,
-              email: customerEmail.toLowerCase(),
-              full_name: customerName || null,
-            },
-            { onConflict: "id", ignoreDuplicates: true }
-          );
-          // If they've never signed in, they need account setup
-          isNewUser = !existingAuthUser.last_sign_in_at;
-        }
-      } else {
-        console.error("Failed to create user:", authError);
-      }
-    } else if (authData.user) {
-      userId = authData.user.id;
-      isNewUser = true;
-
-      await supabase.from("users").insert({
-        id: userId,
-        email: customerEmail.toLowerCase(),
-        full_name: customerName,
-      });
-    }
   }
 
-  // Grant retail_buyer role
-  if (userId) {
-    const { data: existingRole } = await supabase
-      .from("user_roles")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("role_id", "retail_buyer")
-      .maybeSingle();
-
-    if (!existingRole) {
-      await supabase.from("user_roles").insert({
-        user_id: userId,
-        role_id: "retail_buyer",
-      });
-    }
-  }
-
-  // 3. Find or create person record (awaited, not fire-and-forget)
+  // 3. Find or create person/contact record
   if (customerEmail) {
     const nameParts = (customerName || "").split(" ");
     await findOrCreatePerson(
@@ -407,7 +341,6 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
         branding,
         slug: storefrontSlug,
         orderId: order.id,
-        ...(!isWholesaleChannel && isNewUser ? { showSetupCta: true } : {}),
       })
         .then(() => {
           supabase
@@ -440,33 +373,10 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
         }).catch((err) => console.error("Failed to send admin notification:", err));
       }
 
-      // 12. Send account setup email to new retail buyers
-      if (isNewUser && !isWholesaleChannel && userId && storefrontSlug) {
-        const crypto = await import("crypto");
-        const setupToken = crypto.randomUUID();
-
-        await supabase.from("account_setup_tokens").insert({
-          user_id: userId,
-          token: setupToken,
-          expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
-        });
-
-        const setupUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${storefrontSlug}/setup-password?token=${setupToken}`;
-        const ordersUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${storefrontSlug}/orders`;
-
-        sendWholesaleAccountSetup(
-          customerEmail,
-          customerName || "",
-          roasterName,
-          setupUrl,
-          ordersUrl,
-          branding,
-        ).catch((err) => console.error("Failed to send account setup email:", err));
-      }
     }
   }
 
-  // 13. Fire automation triggers + update contact activity
+  // 12. Fire automation triggers + update contact activity
   if (customerEmail) {
     const { data: contact } = await supabase
       .from("contacts")

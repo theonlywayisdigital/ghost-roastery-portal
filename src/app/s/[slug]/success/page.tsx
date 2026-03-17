@@ -239,30 +239,12 @@ function SuccessContent() {
             Reference: {sessionId.slice(-8).toUpperCase()}
           </p>
         )}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {confirmedOrderId && (
-            <Link
-              href={`/s/${slug}/orders/${confirmedOrderId}`}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
-            >
-              View Order
-            </Link>
-          )}
-          <Link
-            href={`/s/${slug}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors"
-          >
-            Back to Store
-          </Link>
-        </div>
-        <div className="mt-4">
-          <Link
-            href={`/s/${slug}/orders`}
-            className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            My Orders
-          </Link>
-        </div>
+        <Link
+          href={`/s/${slug}`}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-lg font-semibold text-sm hover:bg-slate-800 transition-colors"
+        >
+          Back to Store
+        </Link>
       </div>
     </div>
   );

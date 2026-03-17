@@ -6,6 +6,7 @@ import { Pencil, Trash2, Plus, Check, ArrowDown } from "@/components/icons";
 import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface ProductVariant {
   id: string;
@@ -34,11 +35,14 @@ interface Product {
 
 type TabValue = "all" | "retail" | "wholesale";
 
-const tabs: { value: TabValue; label: string }[] = [
+const allTabs: { value: TabValue; label: string }[] = [
   { value: "all", label: "All" },
   { value: "retail", label: "Retail" },
   { value: "wholesale", label: "Wholesale" },
 ];
+
+// When retail is disabled, all products are wholesale — no need for filter tabs
+const tabs = RETAIL_ENABLED ? allTabs : [];
 
 export function ProductsTable({ products: initial }: { products: Product[] }) {
   const router = useRouter();
@@ -152,6 +156,7 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
       )}
 
       {/* Tabs */}
+      {tabs.length > 0 && (
       <div className="flex gap-2 mb-4 flex-wrap">
         {tabs.map((tab) => (
           <button
@@ -167,6 +172,7 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
           </button>
         ))}
       </div>
+      )}
 
       {filteredProducts.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">

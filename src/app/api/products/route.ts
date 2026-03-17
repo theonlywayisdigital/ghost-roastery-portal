@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { checkLimit } from "@/lib/feature-gates";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -77,8 +78,8 @@ export async function POST(request: Request) {
         image_url: image_url || null,
         status: status || "published",
         sort_order: sort_order ?? 0,
-        is_retail: is_retail ?? true,
-        is_wholesale: is_wholesale ?? false,
+        is_retail: is_retail ?? RETAIL_ENABLED,
+        is_wholesale: is_wholesale ?? true,
         retail_price: retail_price != null ? parseFloat(retail_price) : null,
         wholesale_price: wholesale_price != null ? parseFloat(wholesale_price) : null,
         minimum_wholesale_quantity: minimum_wholesale_quantity ?? 1,

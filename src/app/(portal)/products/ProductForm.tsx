@@ -12,6 +12,7 @@ import {
   Package,
 } from "@/components/icons";
 import Link from "next/link";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { compressImage } from "@/lib/compress-image";
 import {
@@ -256,8 +257,8 @@ export function ProductForm({ product }: { product?: Product }) {
   const [tastingNotes, setTastingNotes] = useState(product?.tasting_notes || "");
   const [description, setDescription] = useState(product?.description || "");
   const [metaDescription, setMetaDescription] = useState(product?.meta_description || "");
-  const [isRetail, setIsRetail] = useState(product?.is_retail ?? true);
-  const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? false);
+  const [isRetail, setIsRetail] = useState(product?.is_retail ?? RETAIL_ENABLED);
+  const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? true);
   const [imageUrl, setImageUrl] = useState(product?.image_url || "");
   const [sku, setSku] = useState(product?.sku || "");
   const [unit, setUnit] = useState(product?.unit || "250g");
@@ -1034,7 +1035,7 @@ export function ProductForm({ product }: { product?: Product }) {
   // Tabs to show
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: "overview", label: "Overview", show: true },
-    { key: "retail", label: "Retail", show: isRetail },
+    { key: "retail", label: "Retail", show: RETAIL_ENABLED && isRetail },
     { key: "wholesale", label: "Wholesale", show: isWholesale },
   ];
 
@@ -1593,6 +1594,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
 
                   {/* Channel Toggles */}
+                  {RETAIL_ENABLED && (
                   <div>
                     <label className={labelClassName}>Channels</label>
                     <div className="flex gap-4">
@@ -1633,6 +1635,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       </p>
                     )}
                   </div>
+                  )}
 
                   {/* Product Image */}
                   <div>

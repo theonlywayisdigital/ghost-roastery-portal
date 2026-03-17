@@ -5,6 +5,7 @@ import { useStorefront } from "../_components/StorefrontProvider";
 import { Header } from "../_components/Header";
 import { Cart } from "../_components/Cart";
 import { Footer } from "../_components/Footer";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface OrderItem {
   name?: string;
@@ -137,7 +138,7 @@ export function OrdersPage({
                       {`#${order.id.slice(0, 8).toUpperCase()}`}
                     </span>
                     <StatusBadge status={order.status} />
-                    <ChannelBadge channel={order.order_channel} />
+                    {RETAIL_ENABLED && <ChannelBadge channel={order.order_channel} />}
                     {(order.refund_status === "partial" ||
                       order.refund_status === "full") && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 capitalize">

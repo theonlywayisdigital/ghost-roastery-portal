@@ -12,11 +12,12 @@ import {
 import type { Column } from "@/components/admin/DataTable";
 import type { FilterConfig } from "@/components/admin/FilterBar";
 import type { UnifiedOrder, OrderType } from "@/types/admin";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 const tabs: { label: string; value: OrderType | "" }[] = [
   { label: "All", value: "" },
   { label: "Ghost Roastery", value: "ghost" },
-  { label: "Storefront", value: "storefront" },
+  ...(RETAIL_ENABLED ? [{ label: "Storefront", value: "storefront" as OrderType }] : []),
   { label: "Wholesale", value: "wholesale" },
 ];
 
@@ -48,7 +49,7 @@ const ALL_STATUS_OPTIONS = [
   ...GHOST_STATUS_OPTIONS,
   { value: "confirmed", label: "Confirmed" },
   { value: "processing", label: "Processing" },
-  { value: "paid", label: "Paid (Storefront)" },
+  { value: "paid", label: RETAIL_ENABLED ? "Paid (Storefront)" : "Paid" },
 ];
 
 const PAYMENT_OPTIONS = [
@@ -181,11 +182,11 @@ export function OrdersClient({ roasters }: OrdersClientProps) {
         </span>
       ),
     },
-    {
-      key: "orderType",
+    ...(RETAIL_ENABLED ? [{
+      key: "orderType" as const,
       label: "Type",
-      render: (row) => <StatusBadge status={row.orderType} type="orderType" />,
-    },
+      render: (row: UnifiedOrder) => <StatusBadge status={row.orderType} type="orderType" />,
+    }] : []),
     {
       key: "customerName",
       label: "Customer",

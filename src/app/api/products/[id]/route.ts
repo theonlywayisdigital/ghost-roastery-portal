@@ -85,7 +85,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const {
       name, description, origin, tasting_notes, price, unit, image_url, status, sort_order,
       is_retail, is_wholesale, retail_price, wholesale_price,
-      minimum_wholesale_quantity, sku, weight_grams,
+      minimum_wholesale_quantity, sku, weight_grams, roasted_stock_id,
       is_purchasable, track_stock, retail_stock_count,
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,
@@ -130,6 +130,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         rrp: rrp != null ? parseFloat(rrp) : null,
         order_multiples: order_multiples != null ? parseInt(order_multiples) : null,
         subscription_frequency: subscription_frequency || null,
+        roasted_stock_id: roasted_stock_id || null,
       })
       .eq("id", id)
       .eq("roaster_id", roaster.id)

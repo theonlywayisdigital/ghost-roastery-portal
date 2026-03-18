@@ -10,6 +10,7 @@ import {
   Copy,
   Coffee as CoffeeIcon,
   Package,
+  Archive,
 } from "@/components/icons";
 import Link from "next/link";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
@@ -64,6 +65,16 @@ interface Product {
   rrp: number | null;
   order_multiples: number | null;
   subscription_frequency: string | null;
+  roasted_stock_id: string | null;
+}
+
+interface RoastedStockOption {
+  id: string;
+  name: string;
+  green_bean_id: string | null;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+  is_active: boolean;
 }
 
 interface OptionValue {
@@ -262,8 +273,12 @@ export function ProductForm({ product }: { product?: Product }) {
   const [imageUrl, setImageUrl] = useState(product?.image_url || "");
   const [sku, setSku] = useState(product?.sku || "");
   const [unit, setUnit] = useState(product?.unit || "250g");
-  const [weightGrams, setWeightGrams] = useState(product?.weight_grams?.toString() || "");
+  const [weightKg, setWeightKg] = useState(
+    product?.weight_grams ? (product.weight_grams / 1000).toString() : ""
+  );
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
+  const [roastedStockId, setRoastedStockId] = useState(product?.roasted_stock_id || "");
+  const [roastedStocks, setRoastedStocks] = useState<RoastedStockOption[]>([]);
   const [status, setStatus] = useState<"draft" | "published">(product?.status ?? "published");
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
 
@@ -349,6 +364,19 @@ export function ProductForm({ product }: { product?: Product }) {
     }
     setGrindTypesLoading(false);
   }, []);
+
+  // Fetch roasted stock records for coffee products
+  useEffect(() => {
+    if (category === "coffee") {
+      fetch("/api/tools/roasted-stock")
+        .then((res) => res.json())
+        .then((data) => {
+          const stocks = (data.roastedStock || []).filter((s: RoastedStockOption) => s.is_active);
+          setRoastedStocks(stocks);
+        })
+        .catch(() => {});
+    }
+  }, [category]);
 
   // Fetch existing variants when editing — reconstruct per-channel matrices
   useEffect(() => {
@@ -494,9 +522,10 @@ export function ProductForm({ product }: { product?: Product }) {
     const setGrams = channel === "retail" ? setRetailNewWeightGrams : setWholesaleNewWeightGrams;
     const setUnitVal = channel === "retail" ? setRetailNewWeightUnit : setWholesaleNewWeightUnit;
 
-    const grams = parseInt(newGrams);
-    if (!grams || grams <= 0) return;
-    const unitLabel = newUnit.trim() || `${grams}g`;
+    const kg = parseFloat(newGrams);
+    if (!kg || kg <= 0) return;
+    const grams = Math.round(kg * 1000);
+    const unitLabel = newUnit.trim() || (kg >= 1 ? `${kg}kg` : `${grams}g`);
     if (weightOpts.some((w) => w.weight_grams === grams)) return;
     setter((prev) => [...prev, { weight_grams: grams, unit: unitLabel, price: null }]);
     setGrams("");
@@ -904,7 +933,8 @@ export function ProductForm({ product }: { product?: Product }) {
       wholesale_price: isWholesale && wholesalePrice ? parseFloat(wholesalePrice) : null,
       minimum_wholesale_quantity: isWholesale ? parseInt(minWholesaleQty) || 1 : 1,
       sku: sku || null,
-      weight_grams: weightGrams ? parseInt(weightGrams) : null,
+      weight_grams: weightKg ? Math.round(parseFloat(weightKg) * 1000) : null,
+      roasted_stock_id: category === "coffee" && roastedStockId ? roastedStockId : null,
       is_purchasable: isPurchasable,
       track_stock: trackStock,
       retail_stock_count: trackStock ? parseInt(stockCount) || 0 : null,
@@ -1090,9 +1120,7 @@ export function ProductForm({ product }: { product?: Product }) {
                     >
                       <span className="text-sm text-slate-900 whitespace-nowrap">
                         {w.unit}
-                        {w.unit !== `${w.weight_grams}g` && (
-                          <span className="text-slate-400 ml-1.5">{`— ${w.weight_grams}g`}</span>
-                        )}
+                        <span className="text-slate-400 ml-1.5">{`— ${(w.weight_grams / 1000).toString()}kg`}</span>
                       </span>
                       <div className="flex items-center gap-1 ml-auto">
                         <span className="text-xs text-slate-500">£</span>
@@ -1123,13 +1151,14 @@ export function ProductForm({ product }: { product?: Product }) {
             )}
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <label className="block text-xs text-slate-500 mb-1">Weight (g)</label>
+                <label className="block text-xs text-slate-500 mb-1">Weight (kg)</label>
                 <input
                   type="number"
-                  min="1"
+                  min="0.001"
+                  step="0.001"
                   value={newWG}
                   onChange={(e) => setNewWG(e.target.value)}
-                  placeholder="250"
+                  placeholder="0.25"
                   className={inputClassName}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -1158,7 +1187,7 @@ export function ProductForm({ product }: { product?: Product }) {
               <button
                 type="button"
                 onClick={() => handleAddWeight(channel)}
-                disabled={!newWG || parseInt(newWG) <= 0}
+                disabled={!newWG || parseFloat(newWG) <= 0}
                 className="px-3 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
               >
                 Add
@@ -1538,6 +1567,44 @@ export function ProductForm({ product }: { product?: Product }) {
                       <p className="text-xs text-slate-400 mt-1">
                         {`${tastingNotes.length}/100`}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Roasted Stock Link — coffee only */}
+                  {category === "coffee" && (
+                    <div>
+                      <label className={labelClassName}>
+                        Roasted Stock{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <select
+                        value={roastedStockId}
+                        onChange={(e) => setRoastedStockId(e.target.value)}
+                        className={inputClassName}
+                      >
+                        <option value="">Not linked to stock</option>
+                        {roastedStocks.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({Number(s.current_stock_kg).toFixed(1)} kg)
+                          </option>
+                        ))}
+                      </select>
+                      {roastedStockId && (() => {
+                        const linkedStock = roastedStocks.find((s) => s.id === roastedStockId);
+                        if (!linkedStock) return null;
+                        const stockKg = Number(linkedStock.current_stock_kg);
+                        const isOut = stockKg <= 0;
+                        const isLow = linkedStock.low_stock_threshold_kg && stockKg <= Number(linkedStock.low_stock_threshold_kg);
+                        const statusColor = isOut ? "text-red-600 bg-red-50 border-red-200" : isLow ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
+                        const statusLabel = isOut ? "Out of stock" : isLow ? "Low stock" : "In stock";
+                        return (
+                          <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${statusColor}`}>
+                            <Archive className="w-4 h-4" />
+                            <span className="font-medium">{stockKg.toFixed(1)} kg available</span>
+                            <span className="text-xs opacity-75">({statusLabel})</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

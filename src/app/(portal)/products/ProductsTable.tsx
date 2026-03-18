@@ -18,6 +18,14 @@ interface ProductVariant {
   is_active: boolean | null;
 }
 
+interface RoastedStock {
+  id: string;
+  name: string;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+  is_active: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -31,6 +39,8 @@ interface Product {
   is_wholesale?: boolean;
   retail_price: number | null;
   product_variants: ProductVariant[] | null;
+  roasted_stock: RoastedStock | null;
+  category?: string;
 }
 
 type TabValue = "all" | "retail" | "wholesale";
@@ -81,6 +91,17 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     const variants = product.product_variants?.filter((v) => v.is_active && v.channel === "wholesale") || [];
     const prices = variants.map((v) => v.wholesale_price).filter((p): p is number => p != null && p > 0);
     return formatRange(prices) || "—";
+  }
+
+  function getStockBadge(product: Product): { label: string; className: string } | null {
+    const stock = product.roasted_stock;
+    if (!stock) return null;
+    const kg = Number(stock.current_stock_kg);
+    if (kg <= 0) return { label: "Out of stock", className: "bg-red-50 text-red-700" };
+    if (stock.low_stock_threshold_kg && kg <= Number(stock.low_stock_threshold_kg)) {
+      return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
+    }
+    return { label: "In stock", className: "bg-green-50 text-green-700" };
   }
 
   function getUnitDisplay(product: Product): string {
@@ -215,6 +236,9 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                     Unit
                   </th>
+                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3 hidden md:table-cell">
+                    Stock
+                  </th>
                   <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                     Status
                   </th>
@@ -277,6 +301,17 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                       <span className="text-sm text-slate-500">
                         {getUnitDisplay(product)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 hidden md:table-cell">
+                      {(() => {
+                        const badge = getStockBadge(product);
+                        if (!badge) return <span className="text-xs text-slate-300">—</span>;
+                        return (
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <span

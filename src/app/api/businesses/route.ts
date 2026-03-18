@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
   const counts = {
     all: 0,
     wholesale: 0,
-    customer: 0,
+    retail: 0,
     supplier: 0,
     lead: 0,
   };
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     counts.all++;
     const types = (b.types as string[]) || [];
     if (types.includes("wholesale")) counts.wholesale++;
-    if (types.includes("customer")) counts.customer++;
+    if (types.includes("retail")) counts.retail++;
     if (types.includes("supplier")) counts.supplier++;
     if (types.includes("lead") || types.includes("prospect")) counts.lead++;
   }
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const bizTypes = types || ["customer"];
+    const bizTypes = types || ["retail"];
     const { data: business, error } = await supabase
       .from("businesses")
       .insert({

@@ -112,7 +112,7 @@ interface ContactData {
 // ─── Constants ───
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -317,8 +317,8 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     try {
       const targetStage = stages.find((s) => s.slug === newStatus);
       const body: Record<string, unknown> = { lead_status: newStatus };
-      if (targetStage?.is_win && contact && !contact.types.includes("customer")) {
-        body.types = [...contact.types, "customer"];
+      if (targetStage?.is_win && contact && !contact.types.includes("retail")) {
+        body.types = [...contact.types, "retail"];
       }
       await fetch(`/api/contacts/${contactId}`, {
         method: "PUT",
@@ -1012,7 +1012,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                       key={type}
                       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                         type === "wholesale" ? "bg-purple-50 text-purple-700"
-                          : type === "customer" ? "bg-blue-50 text-blue-700"
+                          : type === "retail" ? "bg-blue-50 text-blue-700"
                           : type === "supplier" ? "bg-amber-50 text-amber-700"
                           : "bg-slate-100 text-slate-600"
                       }`}
@@ -1197,7 +1197,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                   Types
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "wholesale", "supplier", "lead"].map(
+                  {["retail", "wholesale", "supplier", "lead"].map(
                     (type) => (
                       <button
                         key={type}

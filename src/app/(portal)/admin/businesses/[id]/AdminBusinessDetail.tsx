@@ -150,7 +150,7 @@ interface BusinessData {
 // ─── Constants ───
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -577,7 +577,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
           role: newContactForm.role.trim() || null,
           business_id: businessId,
           business_name: data?.business.name || "",
-          types: data?.business.types || ["customer"],
+          types: data?.business.types || ["retail"],
           source: "manual",
           status: "active",
         }),
@@ -1882,7 +1882,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   Types
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "wholesale", "supplier", "lead", "prospect"].map(
+                  {["retail", "wholesale", "supplier", "lead", "prospect"].map(
                     (type) => (
                       <button
                         key={type}

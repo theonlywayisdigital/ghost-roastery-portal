@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
   const counts = {
     all: 0,
     wholesale: 0,
-    customer: 0,
+    retail: 0,
     supplier: 0,
     lead: 0,
   };
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     counts.all++;
     const types = (c.types as string[]) || [];
     if (types.includes("wholesale")) counts.wholesale++;
-    if (types.includes("customer")) counts.customer++;
+    if (types.includes("retail")) counts.retail++;
     if (types.includes("supplier")) counts.supplier++;
     if (types.includes("lead")) counts.lead++;
   }
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
       phone
     );
 
-    const contactTypes = types || ["customer"];
+    const contactTypes = types || ["retail"];
     const { data: contact, error } = await supabase
       .from("contacts")
       .insert({

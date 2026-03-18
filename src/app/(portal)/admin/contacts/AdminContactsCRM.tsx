@@ -41,7 +41,7 @@ interface Contact {
 
 interface Counts {
   all: number;
-  customer: number;
+  retail: number;
   lead: number;
   supplier: number;
   roaster: number;
@@ -62,7 +62,7 @@ type OwnerTab = "ghost_roastery" | "gr_wholesale" | "roaster";
 
 const GR_TABS = [
   { id: "all", label: "All", icon: Users, typeFilter: "" },
-  { id: "customers", label: "Customers", icon: ShoppingBag, typeFilter: "customer" },
+  { id: "retail", label: "Retail", icon: ShoppingBag, typeFilter: "retail" },
   { id: "leads", label: "Leads", icon: UserPlus, typeFilter: "lead" },
   { id: "suppliers", label: "Suppliers", icon: Truck, typeFilter: "supplier" },
   { id: "roasters", label: "Roasters", icon: Building2, typeFilter: "roaster" },
@@ -72,7 +72,7 @@ const GR_TABS = [
 type GRTabId = (typeof GR_TABS)[number]["id"];
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -100,7 +100,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
   const [activeTab, setActiveTab] = useState<GRTabId>("all");
 
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [counts, setCounts] = useState<Counts>({ all: 0, customer: 0, lead: 0, supplier: 0, roaster: 0, partner: 0, wholesale: 0 });
+  const [counts, setCounts] = useState<Counts>({ all: 0, retail: 0, lead: 0, supplier: 0, roaster: 0, partner: 0, wholesale: 0 });
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -207,12 +207,12 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
     try {
       let types = addForm.types;
       if (types.length === 0) {
-        if (activeTab === "customers") types = ["customer"];
+        if (activeTab === "retail") types = ["retail"];
         else if (activeTab === "leads") types = ["lead"];
         else if (activeTab === "suppliers") types = ["supplier"];
         else if (activeTab === "roasters") types = ["roaster"];
         else if (activeTab === "partners") types = ["partner"];
-        else types = ["customer"];
+        else types = ["retail"];
       }
 
       const res = await fetch("/api/admin/contacts", {
@@ -280,7 +280,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
           <button
             onClick={() => {
               const defaultTypes: string[] = [];
-              if (activeTab === "customers") defaultTypes.push("customer");
+              if (activeTab === "retail") defaultTypes.push("retail");
               else if (activeTab === "leads") defaultTypes.push("lead");
               else if (activeTab === "suppliers") defaultTypes.push("supplier");
               else if (activeTab === "roasters") defaultTypes.push("roaster");
@@ -665,7 +665,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "lead", "supplier", "roaster", "partner"].map((type) => (
+                  {["retail", "lead", "supplier", "roaster", "partner"].map((type) => (
                     <button
                       key={type}
                       onClick={() =>

@@ -36,12 +36,12 @@ export async function findOrCreatePerson(
 
 /**
  * Resolve the primary contact type from a types array.
- * Priority: wholesale > customer > supplier > lead > partner > roaster > prospect
+ * Priority: wholesale > retail > supplier > lead > partner > roaster > prospect
  */
 export function resolvePrimaryContactType(types: string[]): string {
   const priority = [
     "wholesale",
-    "customer",
+    "retail",
     "supplier",
     "lead",
     "partner",
@@ -51,7 +51,7 @@ export function resolvePrimaryContactType(types: string[]): string {
   for (const type of priority) {
     if (types.includes(type)) return type;
   }
-  return "customer";
+  return "retail";
 }
 
 /**

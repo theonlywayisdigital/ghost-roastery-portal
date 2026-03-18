@@ -98,7 +98,7 @@ interface ContactData {
 // ─── Constants ───
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -930,7 +930,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Types</label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "lead", "supplier", "roaster", "partner"].map((type) => (
+                  {["retail", "lead", "supplier", "roaster", "partner"].map((type) => (
                     <button
                       key={type}
                       onClick={() =>

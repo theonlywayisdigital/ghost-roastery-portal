@@ -13,7 +13,7 @@ import type {
 
 /**
  * Resolve a dotted field path from a context object.
- * e.g. "contact.types" from { contact: { types: ["customer"] } }
+ * e.g. "contact.types" from { contact: { types: ["retail"] } }
  */
 function resolveField(context: Record<string, unknown>, field: string): unknown {
   const parts = field.split(".");

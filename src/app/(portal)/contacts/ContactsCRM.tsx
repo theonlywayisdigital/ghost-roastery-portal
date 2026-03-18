@@ -42,7 +42,7 @@ interface Contact {
 interface Counts {
   all: number;
   wholesale: number;
-  customer: number;
+  retail: number;
   supplier: number;
   lead: number;
 }
@@ -50,7 +50,7 @@ interface Counts {
 const TABS = [
   { id: "all", label: "All", icon: Users, typeFilter: "" },
   { id: "wholesale", label: "Wholesale", icon: Users, typeFilter: "wholesale" },
-  { id: "customers", label: "Customers", icon: ShoppingBag, typeFilter: "customer" },
+  { id: "retail", label: "Retail", icon: ShoppingBag, typeFilter: "retail" },
   { id: "suppliers", label: "Suppliers", icon: Truck, typeFilter: "supplier" },
   { id: "leads", label: "Leads", icon: UserPlus, typeFilter: "lead" },
 ] as const;
@@ -58,7 +58,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -87,7 +87,7 @@ export function ContactsCRM() {
   );
 
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [counts, setCounts] = useState<Counts>({ all: 0, wholesale: 0, customer: 0, supplier: 0, lead: 0 });
+  const [counts, setCounts] = useState<Counts>({ all: 0, wholesale: 0, retail: 0, supplier: 0, lead: 0 });
   const [loading, setLoading] = useState(true);
   const banner = useUpgradeBanner("crmContacts");
   const [syncing, setSyncing] = useState(false);
@@ -204,11 +204,11 @@ export function ContactsCRM() {
       // Pre-select type based on current tab
       let types = addForm.types;
       if (types.length === 0) {
-        if (activeTab === "customers") types = ["customer"];
+        if (activeTab === "retail") types = ["retail"];
         else if (activeTab === "wholesale") types = ["wholesale"];
         else if (activeTab === "suppliers") types = ["supplier"];
         else if (activeTab === "leads") types = ["lead"];
-        else types = ["customer"];
+        else types = ["retail"];
       }
 
       const res = await fetch("/api/contacts", {
@@ -268,14 +268,14 @@ export function ContactsCRM() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
           <p className="text-slate-500 mt-1">
-            Manage your wholesale buyers, customers, suppliers, and leads.
+            Manage your wholesale buyers, retail contacts, suppliers, and leads.
           </p>
         </div>
         <button
           onClick={() => {
             // Pre-select type for current tab
             const defaultTypes: string[] = [];
-            if (activeTab === "customers") defaultTypes.push("customer");
+            if (activeTab === "retail") defaultTypes.push("retail");
             else if (activeTab === "wholesale") defaultTypes.push("wholesale");
             else if (activeTab === "suppliers") defaultTypes.push("supplier");
             else if (activeTab === "leads") defaultTypes.push("lead");
@@ -632,7 +632,7 @@ export function ContactsCRM() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "wholesale", "supplier", "lead"].map((type) => (
+                  {["retail", "wholesale", "supplier", "lead"].map((type) => (
                     <button
                       key={type}
                       onClick={() =>

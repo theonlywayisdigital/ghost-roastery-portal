@@ -163,9 +163,9 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       // Build the update body
       const body: Record<string, unknown> = { lead_status: targetStage };
 
-      // If moving to a win stage, add "customer" to types if not already present
-      if (isWinStage && !item.types.includes("customer")) {
-        body.types = [...item.types, "customer"];
+      // If moving to a win stage, add "retail" to types if not already present
+      if (isWinStage && !item.types.includes("retail")) {
+        body.types = [...item.types, "retail"];
       }
 
       const res = await fetch(endpoint, {
@@ -176,12 +176,12 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
 
       if (!res.ok) {
         setItems(prevItems); // Revert on failure
-      } else if (isWinStage && !item.types.includes("customer")) {
+      } else if (isWinStage && !item.types.includes("retail")) {
         // Update local types too
         setItems((prev) =>
           prev.map((i) =>
             i.id === id && i.itemType === itemType
-              ? { ...i, types: [...i.types, "customer"] }
+              ? { ...i, types: [...i.types, "retail"] }
               : i
           )
         );

@@ -108,10 +108,10 @@ export async function GET() {
 
     if (existing) {
       const types = (existing.types as string[]) || [];
-      if (!types.includes("customer")) {
+      if (!types.includes("retail")) {
         await supabase
           .from("contacts")
-          .update({ types: [...types, "customer"], updated_at: new Date().toISOString() })
+          .update({ types: [...types, "retail"], updated_at: new Date().toISOString() })
           .eq("id", existing.id);
         synced++;
       }
@@ -130,11 +130,11 @@ export async function GET() {
           last_name: lastName,
           email,
           business_name: info.business,
-          types: ["customer"],
+          types: ["retail"],
           source: "storefront_order",
           people_id: peopleId,
           owner_id: roaster.id,
-          contact_type: "customer",
+          contact_type: "retail",
         })
         .select("id")
         .single();

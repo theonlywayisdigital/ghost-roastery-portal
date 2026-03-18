@@ -41,7 +41,7 @@ interface Business {
 interface Counts {
   all: number;
   wholesale: number;
-  customer: number;
+  retail: number;
   supplier: number;
   lead: number;
 }
@@ -49,7 +49,7 @@ interface Counts {
 const TABS = [
   { id: "all", label: "All", icon: Building2, typeFilter: "" },
   { id: "wholesale", label: "Wholesale", icon: Users, typeFilter: "wholesale" },
-  { id: "customers", label: "Customers", icon: ShoppingBag, typeFilter: "customer" },
+  { id: "retail", label: "Retail", icon: ShoppingBag, typeFilter: "retail" },
   { id: "suppliers", label: "Suppliers", icon: Truck, typeFilter: "supplier" },
   { id: "leads", label: "Leads", icon: UserPlus, typeFilter: "lead" },
 ] as const;
@@ -57,7 +57,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -95,7 +95,7 @@ export function BusinessesCRM() {
   const [activeTab, setActiveTab] = useState<TabId>("all");
 
   const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [counts, setCounts] = useState<Counts>({ all: 0, wholesale: 0, customer: 0, supplier: 0, lead: 0 });
+  const [counts, setCounts] = useState<Counts>({ all: 0, wholesale: 0, retail: 0, supplier: 0, lead: 0 });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [synced, setSynced] = useState(false);
@@ -201,11 +201,11 @@ export function BusinessesCRM() {
     try {
       let types = addForm.types;
       if (types.length === 0) {
-        if (activeTab === "customers") types = ["customer"];
+        if (activeTab === "retail") types = ["retail"];
         else if (activeTab === "wholesale") types = ["wholesale"];
         else if (activeTab === "suppliers") types = ["supplier"];
         else if (activeTab === "leads") types = ["lead"];
-        else types = ["customer"];
+        else types = ["retail"];
       }
 
       const { contact_first_name, contact_last_name, contact_email, contact_phone, contact_role, ...bizFields } = addForm;
@@ -266,13 +266,13 @@ export function BusinessesCRM() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Businesses</h1>
           <p className="text-slate-500 mt-1">
-            Manage your wholesale accounts, customers, suppliers, and leads.
+            Manage your wholesale accounts, retail contacts, suppliers, and leads.
           </p>
         </div>
         <button
           onClick={() => {
             const defaultTypes: string[] = [];
-            if (activeTab === "customers") defaultTypes.push("customer");
+            if (activeTab === "retail") defaultTypes.push("retail");
             else if (activeTab === "wholesale") defaultTypes.push("wholesale");
             else if (activeTab === "suppliers") defaultTypes.push("supplier");
             else if (activeTab === "leads") defaultTypes.push("lead");
@@ -660,7 +660,7 @@ export function BusinessesCRM() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "wholesale", "supplier", "lead", "prospect"].map((type) => (
+                  {["retail", "wholesale", "supplier", "lead", "prospect"].map((type) => (
                     <button
                       key={type}
                       onClick={() =>

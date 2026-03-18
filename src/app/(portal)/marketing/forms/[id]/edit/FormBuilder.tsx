@@ -733,7 +733,7 @@ function FormSettings({
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="lead">Lead</option>
-            <option value="customer">Customer</option>
+            <option value="retail">Retail</option>
             <option value="wholesale">Wholesale</option>
           </select>
         </div>

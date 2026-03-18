@@ -143,7 +143,7 @@ export async function GET() {
         .insert({
           roaster_id: roaster.id,
           name: bizNameLower.charAt(0).toUpperCase() + bizNameLower.slice(1),
-          types: ["customer"],
+          types: ["retail"],
           email: info.email,
           source: "storefront_order",
           status: "active",

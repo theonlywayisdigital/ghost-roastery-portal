@@ -60,7 +60,7 @@ export async function POST(
     const audienceType = campaign.audience_type as string;
     if (audienceType !== "all") {
       const typeMap: Record<string, string> = {
-        customers: "customer",
+        customers: "retail",
         wholesale: "wholesale",
         suppliers: "supplier",
         leads: "lead",

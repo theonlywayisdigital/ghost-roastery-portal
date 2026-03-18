@@ -148,7 +148,7 @@ interface BusinessData {
 // ─── Constants ───
 
 const TYPE_COLORS: Record<string, string> = {
-  customer: "bg-blue-50 text-blue-700",
+  retail: "bg-blue-50 text-blue-700",
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
@@ -481,8 +481,8 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
     try {
       const targetStage = stages.find((s) => s.slug === newStatus);
       const body: Record<string, unknown> = { lead_status: newStatus };
-      if (targetStage?.is_win && data?.business && !data.business.types.includes("customer")) {
-        body.types = [...data.business.types, "customer"];
+      if (targetStage?.is_win && data?.business && !data.business.types.includes("retail")) {
+        body.types = [...data.business.types, "retail"];
       }
       await fetch(`/api/businesses/${businessId}`, {
         method: "PUT",
@@ -571,7 +571,7 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
           role: newContactForm.role.trim() || null,
           business_id: businessId,
           business_name: data?.business.name || "",
-          types: data?.business.types || ["customer"],
+          types: data?.business.types || ["retail"],
           source: "manual",
           status: "active",
         }),
@@ -1811,7 +1811,7 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
                   Types
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["customer", "wholesale", "supplier", "lead", "prospect"].map(
+                  {["retail", "wholesale", "supplier", "lead", "prospect"].map(
                     (type) => (
                       <button
                         key={type}

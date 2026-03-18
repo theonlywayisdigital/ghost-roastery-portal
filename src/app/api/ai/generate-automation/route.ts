@@ -177,7 +177,7 @@ ${JSON.stringify(triggerDefs, null, 2)}
 
 ## Available filter fields for trigger_filters groups:
 Each group has conditions that are OR'd. Groups are AND'd together.
-Filter condition format: { "id": "random", "field": "contact.types", "operator": "equals", "value": "customer" }
+Filter condition format: { "id": "random", "field": "contact.types", "operator": "equals", "value": "retail" }
 Valid fields: contact.types, contact.status, contact.lead_status, contact.source, contact.total_spend, contact.order_count, contact.email, contact.business_name
 Valid operators: equals, not_equals, contains, not_contains, greater_than, less_than, is_set, is_not_set, in, not_in
 

@@ -17,7 +17,7 @@ const USER_ID = "1c1507c4-7033-41a4-80fd-91b485a9fc30"; // author for notes/acti
 const BUSINESSES = [
   {
     name: "The Grind House",
-    types: ["wholesale", "customer"],
+    types: ["wholesale", "retail"],
     industry: "cafe",
     status: "active",
     email: "orders@thegrindhouse.co.uk",
@@ -53,7 +53,7 @@ const BUSINESSES = [
   },
   {
     name: "FitBrew Gyms",
-    types: ["wholesale", "customer"],
+    types: ["wholesale", "retail"],
     industry: "gym",
     status: "active",
     email: "procurement@fitbrewgyms.co.uk",
@@ -89,7 +89,7 @@ const BUSINESSES = [
   },
   {
     name: "Bloom & Brew",
-    types: ["customer"],
+    types: ["retail"],
     industry: "cafe",
     status: "active",
     email: "hello@bloomandbrew.co.uk",
@@ -105,7 +105,7 @@ const BUSINESSES = [
   },
   {
     name: "Workspace Coffee Co",
-    types: ["wholesale", "customer"],
+    types: ["wholesale", "retail"],
     industry: "coworking",
     status: "active",
     email: "ops@workspacecoffee.co",
@@ -123,7 +123,7 @@ const BUSINESSES = [
   },
   {
     name: "Green & Wild Events",
-    types: ["customer"],
+    types: ["retail"],
     industry: "events",
     status: "active",
     email: "bookings@greenandwild.events",
@@ -142,7 +142,7 @@ const BUSINESSES = [
   },
   {
     name: "Daily Dose Retail",
-    types: ["customer", "supplier"],
+    types: ["retail", "supplier"],
     industry: "retail",
     status: "active",
     email: "buying@dailydose.shop",
@@ -265,7 +265,7 @@ const BUSINESSES = [
   },
   {
     name: "CoWork Central",
-    types: ["customer"],
+    types: ["retail"],
     industry: "office",
     status: "active",
     email: "admin@coworkcentral.io",
@@ -286,30 +286,30 @@ const BUSINESSES = [
 // businessIndex: maps to BUSINESSES array index (null = no business link)
 const CONTACTS = [
   // The Grind House team
-  { first_name: "Sarah", last_name: "Mitchell", email: "sarah@thegrindhouse.co.uk", phone: "07700 900100", types: ["wholesale", "customer"], source: "wholesale_application", role: "Owner", businessIndex: 0, total_spend: 2400, order_count: 6 },
+  { first_name: "Sarah", last_name: "Mitchell", email: "sarah@thegrindhouse.co.uk", phone: "07700 900100", types: ["wholesale", "retail"], source: "wholesale_application", role: "Owner", businessIndex: 0, total_spend: 2400, order_count: 6 },
   { first_name: "Tom", last_name: "Wright", email: "tom@thegrindhouse.co.uk", phone: "07700 900101", types: ["wholesale"], source: "wholesale_application", role: "Head Barista", businessIndex: 0, total_spend: 2420, order_count: 6 },
 
   // Copper & Bean
   { first_name: "James", last_name: "Chen", email: "james@copperandbean.com", phone: "07700 900102", types: ["wholesale"], source: "wholesale_application", role: "Head Chef", businessIndex: 1, total_spend: 3250.50, order_count: 8 },
 
   // FitBrew Gyms
-  { first_name: "Priya", last_name: "Sharma", email: "priya@fitbrewgyms.co.uk", phone: "07700 900103", types: ["wholesale", "customer"], source: "enquiry_form", role: "Procurement Manager", businessIndex: 2, total_spend: 6100, order_count: 18 },
+  { first_name: "Priya", last_name: "Sharma", email: "priya@fitbrewgyms.co.uk", phone: "07700 900103", types: ["wholesale", "retail"], source: "enquiry_form", role: "Procurement Manager", businessIndex: 2, total_spend: 6100, order_count: 18 },
   { first_name: "Dan", last_name: "Okafor", email: "dan@fitbrewgyms.co.uk", phone: "07700 900104", types: ["wholesale"], source: "enquiry_form", role: "Operations Director", businessIndex: 2, total_spend: 0, order_count: 0 },
 
   // The Harbour Hotel
   { first_name: "Emma", last_name: "Richardson", email: "emma@harbourhotel.co.uk", phone: "07700 900105", types: ["wholesale"], source: "wholesale_application", role: "F&B Manager", businessIndex: 3, total_spend: 8940, order_count: 22 },
 
   // Bloom & Brew
-  { first_name: "Isla", last_name: "MacGregor", email: "isla@bloomandbrew.co.uk", phone: "07700 900106", types: ["customer"], source: "storefront_order", role: "Owner", businessIndex: 4, total_spend: 1240, order_count: 5 },
+  { first_name: "Isla", last_name: "MacGregor", email: "isla@bloomandbrew.co.uk", phone: "07700 900106", types: ["retail"], source: "storefront_order", role: "Owner", businessIndex: 4, total_spend: 1240, order_count: 5 },
 
   // Workspace Coffee Co
-  { first_name: "Marcus", last_name: "Ali", email: "marcus@workspacecoffee.co", phone: "07700 900107", types: ["wholesale", "customer"], source: "manual", role: "CEO", businessIndex: 5, total_spend: 5600, order_count: 14 },
+  { first_name: "Marcus", last_name: "Ali", email: "marcus@workspacecoffee.co", phone: "07700 900107", types: ["wholesale", "retail"], source: "manual", role: "CEO", businessIndex: 5, total_spend: 5600, order_count: 14 },
 
   // Green & Wild Events
-  { first_name: "Lucy", last_name: "Thornton", email: "lucy@greenandwild.events", phone: "07700 900108", types: ["customer"], source: "enquiry_form", role: "Event Director", businessIndex: 6, total_spend: 980, order_count: 3 },
+  { first_name: "Lucy", last_name: "Thornton", email: "lucy@greenandwild.events", phone: "07700 900108", types: ["retail"], source: "enquiry_form", role: "Event Director", businessIndex: 6, total_spend: 980, order_count: 3 },
 
   // Daily Dose Retail
-  { first_name: "Raj", last_name: "Patel", email: "raj@dailydose.shop", phone: "07700 900109", types: ["customer", "supplier"], source: "manual", role: "Owner", businessIndex: 7, total_spend: 3400, order_count: 9 },
+  { first_name: "Raj", last_name: "Patel", email: "raj@dailydose.shop", phone: "07700 900109", types: ["retail", "supplier"], source: "manual", role: "Owner", businessIndex: 7, total_spend: 3400, order_count: 9 },
 
   // Bean There Café (lead)
   { first_name: "Katie", last_name: "Evans", email: "katie@beanthere.cafe", phone: "07700 900110", types: ["lead"], source: "enquiry_form", lead_status: "contacted", role: "Owner", businessIndex: 8, total_spend: 0, order_count: 0 },
@@ -324,13 +324,13 @@ const CONTACTS = [
   { first_name: "Fiona", last_name: "Douglas", email: "fiona@velvetcup.co.uk", phone: "07700 900113", types: ["wholesale"], source: "wholesale_application", role: "Manager", businessIndex: 13, total_spend: 2100, order_count: 6 },
 
   // CoWork Central
-  { first_name: "Nathan", last_name: "Cole", email: "nathan@coworkcentral.io", phone: "07700 900114", types: ["customer"], source: "storefront_order", role: "Office Manager", businessIndex: 14, total_spend: 760, order_count: 4 },
+  { first_name: "Nathan", last_name: "Cole", email: "nathan@coworkcentral.io", phone: "07700 900114", types: ["retail"], source: "storefront_order", role: "Office Manager", businessIndex: 14, total_spend: 760, order_count: 4 },
 
   // Standalone contacts (no business)
-  { first_name: "Alex", last_name: "Turner", email: "alex.turner@gmail.com", phone: "07700 900115", types: ["customer"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 89.50, order_count: 2 },
-  { first_name: "Sophie", last_name: "Williams", email: "sophie.w@outlook.com", phone: "07700 900116", types: ["customer"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 156.00, order_count: 4 },
+  { first_name: "Alex", last_name: "Turner", email: "alex.turner@gmail.com", phone: "07700 900115", types: ["retail"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 89.50, order_count: 2 },
+  { first_name: "Sophie", last_name: "Williams", email: "sophie.w@outlook.com", phone: "07700 900116", types: ["retail"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 156.00, order_count: 4 },
   { first_name: "Chris", last_name: "Baker", email: "chris.baker@hotmail.co.uk", phone: null, types: ["lead"], source: "enquiry_form", lead_status: "new", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
-  { first_name: "Mel", last_name: "Okonkwo", email: "mel@okonkwo.design", phone: "07700 900118", types: ["customer"], source: "manual", businessIndex: null, business_name: "Okonkwo Design Studio", total_spend: 245.00, order_count: 3 },
+  { first_name: "Mel", last_name: "Okonkwo", email: "mel@okonkwo.design", phone: "07700 900118", types: ["retail"], source: "manual", businessIndex: null, business_name: "Okonkwo Design Studio", total_spend: 245.00, order_count: 3 },
   { first_name: "Harry", last_name: "Jacobs", email: "harry.j@yahoo.co.uk", phone: null, types: ["lead"], source: "enquiry_form", lead_status: "lost", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
 ];
 

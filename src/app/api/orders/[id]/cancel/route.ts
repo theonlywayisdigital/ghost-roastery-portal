@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
+import { processStripeRefund } from "@/lib/refund";
 import {
   sendOrderCancellationEmail,
 } from "@/lib/email";
@@ -171,29 +172,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     if (remainingRefundable > 0) {
       const orderType = order.order_channel === "wholesale" ? "wholesale" : "storefront";
       try {
-        const refundRes = await fetch(
-          `${process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"}/api/admin/orders/${id}/refund`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              cookie: req.headers.get("cookie") || "",
-            },
-            body: JSON.stringify({
-              orderType,
-              refundType: "full",
-              amount: remainingRefundable,
-              reason: `Auto-refund: order cancelled by roaster. ${reason}`,
-              reasonCategory: "customer_request",
-            }),
-          }
-        );
-        if (!refundRes.ok) {
-          const refundError = await refundRes.json();
-          console.error("Auto-refund failed:", refundError);
+        const result = await processStripeRefund({
+          orderId: id,
+          orderType,
+          refundType: "full",
+          amount: remainingRefundable,
+          reason: `Auto-refund: order cancelled by roaster. ${reason}`,
+          reasonCategory: "customer_request",
+          actorId: (roaster.user_id as string) || "system",
+          actorName: roaster.business_name || "System",
+        });
+        if (!result.success) {
+          console.error("Auto-refund failed:", result.error);
         }
       } catch (err) {
-        console.error("Auto-refund request failed:", err);
+        console.error("Auto-refund failed:", err);
       }
     }
   }

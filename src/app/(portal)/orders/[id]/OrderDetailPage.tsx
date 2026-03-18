@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertCircle, FileText } from "@/components/icons";
+import { ArrowLeft, AlertCircle } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import {
@@ -95,6 +95,16 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
     }
   }
 
+  async function handleAddNote(text: string) {
+    const res = await fetch(`/api/orders/${orderId}/activity`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: text }),
+    });
+    const result = await res.json();
+    return result.activity;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -107,7 +117,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
     return <div className="text-center py-20 text-slate-400">Order not found</div>;
   }
 
-  const { order, orderType, roasterOrder, invoice, activities = [] } = data;
+  const { order, orderType, roasterOrder, invoice, activities = [], contactId } = data;
   const isGhost = orderType === "ghost";
   const orderNumber = isGhost ? order.order_number : order.id.slice(0, 8).toUpperCase();
   const customerName = order.customer_name;
@@ -116,6 +126,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const totalPrice = isGhost ? order.partner_payout_total : order.roaster_payout || order.subtotal;
   const transitions = isGhost ? [] : (VALID_TRANSITIONS[status] || []);
   const isCancelled = status === "cancelled" || status === "Cancelled";
+  const hasStatusActions = !isCancelled && !isGhost && transitions.length > 0;
 
   return (
     <div>
@@ -222,8 +233,8 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Actions */}
-          {!isCancelled && transitions.length > 0 && (
+          {/* Actions — status transitions + cancel */}
+          {hasStatusActions && (
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <h3 className="text-sm font-semibold text-slate-900 mb-4">Actions</h3>
               <div className="space-y-3">
@@ -246,7 +257,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
                         {s.charAt(0).toUpperCase() + s.slice(1)}
                       </button>
                     ))}
-                    {!isGhost && transitions.includes("cancelled") && (
+                    {transitions.includes("cancelled") && (
                       <button
                         onClick={() => setShowCancelDialog(true)}
                         disabled={updatingStatus}
@@ -257,35 +268,33 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
                     )}
                   </div>
                 </div>
-
-                {!isGhost && !invoice && (
-                  <Link
-                    href={`/orders/${orderId}/create-invoice?type=${orderType}`}
-                    className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    <FileText className="w-4 h-4" /> Create Invoice
-                  </Link>
-                )}
-
-                <Link
-                  href={`/support/tickets/new?orderId=${orderId}`}
-                  className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  <AlertCircle className="w-4 h-4" /> Report Issue
-                </Link>
               </div>
             </div>
+          )}
+
+          {/* Report Issue — always visible */}
+          {!isGhost && (
+            <Link
+              href={`/support/tickets/new?orderId=${orderId}`}
+              className="flex items-center gap-2 w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <AlertCircle className="w-4 h-4" /> Report Issue
+            </Link>
           )}
 
           <CustomerDetailsCard
             name={customerName}
             email={customerEmail}
             business={order.customer_business}
+            contactHref={contactId ? `/contacts/${contactId}` : null}
+            heading="Buyer"
           />
 
-          {activities.length > 0 && (
-            <ActivityTimeline activities={activities} />
-          )}
+          <ActivityTimeline
+            activities={activities}
+            allowNotes={!isGhost}
+            onAddNote={!isGhost ? handleAddNote : undefined}
+          />
         </div>
       </div>
 

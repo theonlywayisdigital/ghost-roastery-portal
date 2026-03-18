@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
+import { processStripeRefund } from "@/lib/refund";
 import {
   sendOrderCancellationEmail,
   sendOrderCancelledPartnerNotification,
@@ -266,39 +267,30 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       const refundOrderType = isGhost ? "ghost_roastery" : orderType;
 
       try {
-        const refundRes = await fetch(
-          `${process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"}/api/admin/orders/${id}/refund`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              cookie: req.headers.get("cookie") || "",
-            },
-            body: JSON.stringify({
-              orderType: refundOrderType,
-              refundType: "full",
-              amount: remainingRefundable,
-              reason: `Auto-refund: order cancelled. ${reason}`,
-              reasonCategory: "customer_request",
-            }),
-          }
-        );
+        const result = await processStripeRefund({
+          orderId: id,
+          orderType: refundOrderType,
+          refundType: "full",
+          amount: remainingRefundable,
+          reason: `Auto-refund: order cancelled. ${reason}`,
+          reasonCategory: "customer_request",
+          actorId: user.id,
+          actorName: user.email,
+        });
 
-        if (!refundRes.ok) {
-          const refundError = await refundRes.json();
-          console.error("Auto-refund failed:", refundError);
-          // Log activity about failed auto-refund
+        if (!result.success) {
+          console.error("Auto-refund failed:", result.error);
           await supabase.from("order_activity_log").insert({
             order_id: id,
             order_type: isGhost ? "ghost" : orderType,
             action: "note",
-            description: `Auto-refund failed: ${refundError.error || "Unknown error"}. Manual refund may be required.`,
+            description: `Auto-refund failed: ${result.error || "Unknown error"}. Manual refund may be required.`,
             actor_id: user.id,
             actor_name: user.email,
           });
         }
       } catch (err) {
-        console.error("Auto-refund request failed:", err);
+        console.error("Auto-refund failed:", err);
         await supabase.from("order_activity_log").insert({
           order_id: id,
           order_type: isGhost ? "ghost" : orderType,

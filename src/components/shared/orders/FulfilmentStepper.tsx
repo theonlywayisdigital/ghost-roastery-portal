@@ -16,8 +16,15 @@ interface FulfilmentStepperProps {
   cancellationReason?: string | null;
 }
 
+// Map statuses that aren't explicit steps to their nearest step equivalent
+const STATUS_ALIASES: Record<string, string> = {
+  paid: "pending",        // paid by Stripe but not yet confirmed — show as pending
+  processing: "confirmed", // legacy status — treat as confirmed
+};
+
 export function FulfilmentStepper({ steps, currentStatus, isCancelled, timestamps, cancellationReason }: FulfilmentStepperProps) {
-  const currentIdx = steps.findIndex((s) => s.key === currentStatus);
+  const effectiveStatus = STATUS_ALIASES[currentStatus] || currentStatus;
+  const currentIdx = steps.findIndex((s) => s.key === effectiveStatus);
 
   if (isCancelled) {
     return (
@@ -95,7 +102,8 @@ export const GHOST_STEPS: StepDef[] = [
 
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
-  confirmed: ["processing", "dispatched", "cancelled"],
-  processing: ["dispatched", "cancelled"],
+  paid: ["confirmed", "cancelled"],
+  confirmed: ["dispatched", "cancelled"],
+  processing: ["dispatched", "cancelled"],  // legacy — treat same as confirmed
   dispatched: ["delivered"],
 };

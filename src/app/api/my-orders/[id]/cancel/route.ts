@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
+import { processStripeRefund } from "@/lib/refund";
 import {
   sendOrderCancellationEmail,
   sendOrderCancelledPartnerNotification,
@@ -126,25 +127,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       const remainingRefundable = (order.total_price || 0) - (order.refund_total || 0);
       if (remainingRefundable > 0) {
         try {
-          await fetch(
-            `${process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"}/api/admin/orders/${id}/refund`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                cookie: req.headers.get("cookie") || "",
-              },
-              body: JSON.stringify({
-                orderType: "ghost_roastery",
-                refundType: "full",
-                amount: remainingRefundable,
-                reason: `Auto-refund: order cancelled by customer. ${reason}`,
-                reasonCategory: "customer_request",
-              }),
-            }
-          );
+          const result = await processStripeRefund({
+            orderId: id,
+            orderType: "ghost_roastery",
+            refundType: "full",
+            amount: remainingRefundable,
+            reason: `Auto-refund: order cancelled by customer. ${reason}`,
+            reasonCategory: "customer_request",
+            actorId: user.id,
+            actorName: user.email,
+          });
+          if (!result.success) {
+            console.error("Auto-refund failed:", result.error);
+          }
         } catch (err) {
-          console.error("Auto-refund request failed:", err);
+          console.error("Auto-refund failed:", err);
         }
       }
     }
@@ -307,25 +304,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const remainingRefundable = (order.subtotal || 0) - (order.refund_total || 0);
     if (remainingRefundable > 0) {
       try {
-        await fetch(
-          `${process.env.NEXT_PUBLIC_PORTAL_URL || "http://localhost:3001"}/api/admin/orders/${id}/refund`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              cookie: req.headers.get("cookie") || "",
-            },
-            body: JSON.stringify({
-              orderType: wsOrderType,
-              refundType: "full",
-              amount: remainingRefundable,
-              reason: `Auto-refund: order cancelled by customer. ${reason}`,
-              reasonCategory: "customer_request",
-            }),
-          }
-        );
+        const result = await processStripeRefund({
+          orderId: id,
+          orderType: wsOrderType,
+          refundType: "full",
+          amount: remainingRefundable,
+          reason: `Auto-refund: order cancelled by customer. ${reason}`,
+          reasonCategory: "customer_request",
+          actorId: user.id,
+          actorName: user.email,
+        });
+        if (!result.success) {
+          console.error("Auto-refund failed:", result.error);
+        }
       } catch (err) {
-        console.error("Auto-refund request failed:", err);
+        console.error("Auto-refund failed:", err);
       }
     }
   }

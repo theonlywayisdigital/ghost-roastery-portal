@@ -65,28 +65,35 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Fetch invoice if linked
-  let invoice = null;
-  if (order.invoice_id) {
-    const { data } = await supabase
-      .from("invoices")
-      .select("id, invoice_number, status, total, amount_paid, amount_due, payment_due_date")
-      .eq("id", order.invoice_id)
-      .single();
-    invoice = data;
-  }
-
-  // Fetch activity log
-  const { data: activities } = await supabase
-    .from("order_activity_log")
-    .select("*")
-    .eq("order_id", id)
-    .order("created_at", { ascending: false });
+  // Fetch invoice, activity log, and contact in parallel
+  const [invoiceRes, activitiesRes, contactRes] = await Promise.all([
+    order.invoice_id
+      ? supabase
+          .from("invoices")
+          .select("id, invoice_number, status, total, amount_paid, amount_due, payment_due_date")
+          .eq("id", order.invoice_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("order_activity_log")
+      .select("*")
+      .eq("order_id", id)
+      .order("created_at", { ascending: false }),
+    order.customer_email
+      ? supabase
+          .from("contacts")
+          .select("id")
+          .eq("roaster_id", roasterId)
+          .eq("email", order.customer_email.toLowerCase())
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
 
   return NextResponse.json({
     orderType: order.order_channel === "wholesale" ? "wholesale" : "storefront",
     order,
-    invoice,
-    activities: activities || [],
+    invoice: invoiceRes.data,
+    activities: activitiesRes.data || [],
+    contactId: contactRes.data?.id || null,
   });
 }

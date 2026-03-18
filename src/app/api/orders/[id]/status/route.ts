@@ -11,8 +11,9 @@ import type { EmailBranding } from "@/lib/email";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
-  confirmed: ["processing", "dispatched", "cancelled"],
-  processing: ["dispatched", "cancelled"],
+  paid: ["confirmed", "cancelled"],
+  confirmed: ["dispatched", "cancelled"],
+  processing: ["dispatched", "cancelled"],  // legacy — treat same as confirmed
   dispatched: ["delivered"],
 };
 
@@ -43,7 +44,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     // Get current order with ownership check
     const { data: order } = await supabase
       .from("orders")
-      .select("id, status, user_id, customer_name")
+      .select("id, status, user_id, customer_name, order_channel")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
       .single();
@@ -93,6 +94,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         { status: 500 }
       );
     }
+
+    // Log activity
+    const statusLabel = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+    await supabase.from("order_activity_log").insert({
+      order_id: id,
+      order_type: order.order_channel || "wholesale",
+      action: "status_change",
+      description: `Status changed to ${statusLabel} by ${roaster.business_name}`,
+      actor_id: roaster.user_id || null,
+      actor_name: roaster.business_name,
+    }).then(({ error: logError }) => {
+      if (logError) console.error("Failed to log status change:", logError);
+    });
 
     // Notify the customer about their order status update
     if (order.user_id) {

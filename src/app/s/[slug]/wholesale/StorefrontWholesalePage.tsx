@@ -28,6 +28,12 @@ interface ProductVariant {
   grind_type: { id: string; name: string } | null;
 }
 
+interface StockPool {
+  id: string;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -38,7 +44,10 @@ interface Product {
   sort_order: number;
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
+  weight_grams: number | null;
   product_variants?: ProductVariant[] | null;
+  roasted_stock?: StockPool | null;
+  green_beans?: StockPool | null;
 }
 
 interface AccessResponse {

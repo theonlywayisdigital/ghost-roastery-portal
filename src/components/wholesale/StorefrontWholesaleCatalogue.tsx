@@ -13,6 +13,12 @@ interface ProductVariant {
   grind_type: { id: string; name: string } | null;
 }
 
+interface StockPool {
+  id: string;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -23,7 +29,10 @@ interface Product {
   sort_order: number;
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
+  weight_grams: number | null;
   product_variants?: ProductVariant[] | null;
+  roasted_stock?: StockPool | null;
+  green_beans?: StockPool | null;
 }
 
 interface OrderItem {
@@ -68,6 +77,22 @@ export function StorefrontWholesaleCatalogue({
   const [showOrder, setShowOrder] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function getStockStatus(product: Product): "in" | "low" | "out" | null {
+    const pools: StockPool[] = [];
+    if (product.roasted_stock) pools.push(product.roasted_stock);
+    if (product.green_beans) pools.push(product.green_beans);
+    if (pools.length === 0) return null; // Not linked — unlimited availability
+    const levels = pools.map((p) => {
+      const kg = Number(p.current_stock_kg);
+      if (kg <= 0) return "out" as const;
+      if (p.low_stock_threshold_kg && kg <= Number(p.low_stock_threshold_kg)) return "low" as const;
+      return "in" as const;
+    });
+    if (levels.includes("out")) return "out";
+    if (levels.includes("low")) return "low";
+    return "in";
+  }
 
   function addToOrder(product: Product, variant?: ProductVariant) {
     const price = variant?.wholesale_price ?? product.wholesale_price ?? product.price;
@@ -231,6 +256,8 @@ export function StorefrontWholesaleCatalogue({
             );
             const hasVariants = wholesaleVariants.length > 0;
             const basePrice = product.wholesale_price ?? product.price;
+            const stockStatus = getStockStatus(product);
+            const isOutOfStock = stockStatus === "out";
 
             // For products without variants, check order by product.id
             const inOrder = !hasVariants
@@ -279,6 +306,20 @@ export function StorefrontWholesaleCatalogue({
                     </p>
                   )}
 
+                  {stockStatus && (
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mb-3 ${
+                        stockStatus === "out"
+                          ? "bg-red-100 text-red-700"
+                          : stockStatus === "low"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {stockStatus === "out" ? "Out of stock" : stockStatus === "low" ? "Low stock" : "In stock"}
+                    </span>
+                  )}
+
                   {hasVariants ? (
                     /* Variant list — each variant is individually orderable */
                     <div className="space-y-2">
@@ -323,10 +364,15 @@ export function StorefrontWholesaleCatalogue({
                             ) : (
                               <button
                                 onClick={() => addToOrder(product, variant)}
-                                style={{ backgroundColor: accentColour, color: accentText }}
-                                className="px-3 py-1.5 rounded-lg text-xs font-medium hover:opacity-90 transition-opacity flex-shrink-0"
+                                disabled={isOutOfStock}
+                                style={isOutOfStock ? {} : { backgroundColor: accentColour, color: accentText }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity flex-shrink-0 ${
+                                  isOutOfStock
+                                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                    : "hover:opacity-90"
+                                }`}
                               >
-                                Add
+                                {isOutOfStock ? "Unavailable" : "Add"}
                               </button>
                             )}
                           </div>
@@ -390,10 +436,15 @@ export function StorefrontWholesaleCatalogue({
                       ) : (
                         <button
                           onClick={() => addToOrder(product)}
-                          style={{ backgroundColor: accentColour, color: accentText }}
-                          className="w-full py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                          disabled={isOutOfStock}
+                          style={isOutOfStock ? {} : { backgroundColor: accentColour, color: accentText }}
+                          className={`w-full py-2.5 rounded-lg text-sm font-medium transition-opacity ${
+                            isOutOfStock
+                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : "hover:opacity-90"
+                          }`}
                         >
-                          Add to Order
+                          {isOutOfStock ? "Out of Stock" : "Add to Order"}
                         </button>
                       )}
                     </>
@@ -418,27 +469,35 @@ export function StorefrontWholesaleCatalogue({
           <div className="max-w-5xl mx-auto px-6 py-4">
             {showOrder && (
               <div className="mb-4 space-y-2 max-h-48 overflow-y-auto">
-                {order.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => removeFromOrder(item.productId)}
-                        className="opacity-50 hover:text-red-500"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <span style={{ color: "var(--sf-text)" }}>
-                        {`${item.name} \u00d7 ${item.quantity}`}
+                {order.map((item) => {
+                  const baseProductId = item.productId.split(":")[0];
+                  const cartProduct = products.find((p) => p.id === baseProductId);
+                  const cartItemOutOfStock = cartProduct ? getStockStatus(cartProduct) === "out" : false;
+                  return (
+                    <div
+                      key={item.productId}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => removeFromOrder(item.productId)}
+                          className="opacity-50 hover:text-red-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span style={{ color: "var(--sf-text)" }}>
+                          {`${item.name} \u00d7 ${item.quantity}`}
+                        </span>
+                        {cartItemOutOfStock && (
+                          <span className="text-xs text-red-600 font-medium">Out of stock</span>
+                        )}
+                      </div>
+                      <span className="font-medium" style={{ color: "var(--sf-text)" }}>
+                        {`\u00a3${(item.price * item.quantity).toFixed(2)}`}
                       </span>
                     </div>
-                    <span className="font-medium" style={{ color: "var(--sf-text)" }}>
-                      {`\u00a3${(item.price * item.quantity).toFixed(2)}`}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <div className="flex items-center justify-between">

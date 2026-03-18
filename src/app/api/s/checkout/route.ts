@@ -130,7 +130,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, status"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, status, roasted_stock_id, green_bean_id, weight_grams"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -144,11 +144,11 @@ export async function POST(request: Request) {
 
     // Fetch variant details if any items reference a variant
     const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId as string);
-    let variantMap: Record<string, { retail_price: number | null; product_id: string; is_active: boolean; channel: string | null; unit: string | null; track_stock: boolean; retail_stock_count: number | null }> = {};
+    let variantMap: Record<string, { retail_price: number | null; product_id: string; is_active: boolean; channel: string | null; unit: string | null; track_stock: boolean; retail_stock_count: number | null; weight_grams: number | null }> = {};
     if (variantIds.length > 0) {
       const { data: variants } = await supabase
         .from("product_variants")
-        .select("id, retail_price, product_id, is_active, channel, unit, track_stock, retail_stock_count")
+        .select("id, retail_price, product_id, is_active, channel, unit, track_stock, retail_stock_count, weight_grams")
         .in("id", variantIds)
         .eq("is_active", true);
       if (variants) {
@@ -161,6 +161,7 @@ export async function POST(request: Request) {
             unit: v.unit,
             track_stock: v.track_stock ?? false,
             retail_stock_count: v.retail_stock_count,
+            weight_grams: v.weight_grams,
           };
         }
       }
@@ -253,6 +254,40 @@ export async function POST(request: Request) {
             { error: `"${product.name}" (${item.variantLabel || ""}) only has ${v.retail_stock_count} in stock.` },
             { status: 400 }
           );
+        }
+      }
+
+      // Stock pool check (roasted stock + green bean)
+      const itemWeightGrams = (item.variantId && variantMap[item.variantId]?.weight_grams) || product.weight_grams;
+      if (itemWeightGrams && itemWeightGrams > 0) {
+        const requiredKg = (itemWeightGrams / 1000) * item.quantity;
+
+        if (product.roasted_stock_id) {
+          const { data: roastedPool } = await supabase
+            .from("roasted_stock")
+            .select("current_stock_kg")
+            .eq("id", product.roasted_stock_id)
+            .single();
+          if (roastedPool && roastedPool.current_stock_kg < requiredKg) {
+            return NextResponse.json(
+              { error: `"${product.name}" is currently out of stock.` },
+              { status: 400 }
+            );
+          }
+        }
+
+        if (product.green_bean_id) {
+          const { data: greenPool } = await supabase
+            .from("green_beans")
+            .select("current_stock_kg")
+            .eq("id", product.green_bean_id)
+            .single();
+          if (greenPool && greenPool.current_stock_kg < requiredKg) {
+            return NextResponse.json(
+              { error: `"${product.name}" is currently out of stock.` },
+              { status: 400 }
+            );
+          }
         }
       }
 

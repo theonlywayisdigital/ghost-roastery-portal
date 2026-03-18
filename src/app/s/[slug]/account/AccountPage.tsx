@@ -7,12 +7,13 @@ import { useStorefront } from "../_components/StorefrontProvider";
 import { Header } from "../_components/Header";
 import { Cart } from "../_components/Cart";
 import { Footer } from "../_components/Footer";
-import { Plus, Pencil, Trash2, Star, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Star, X, Check } from "lucide-react";
 
 interface Profile {
   id: string;
   full_name: string | null;
   email: string;
+  phone: string | null;
   created_at: string;
 }
 
@@ -21,6 +22,7 @@ interface WholesaleAccess {
   status: string;
   payment_terms: string | null;
   business_name: string | null;
+  vat_number: string | null;
   created_at: string;
 }
 
@@ -64,7 +66,7 @@ function formatAddress(addr: BuyerAddress) {
     .join(", ");
 }
 
-const EMPTY_FORM = {
+const EMPTY_ADDR_FORM = {
   label: "",
   address_line_1: "",
   address_line_2: "",
@@ -73,6 +75,31 @@ const EMPTY_FORM = {
   postcode: "",
   country: "United Kingdom",
 };
+
+function splitName(fullName: string | null): { first: string; last: string } {
+  if (!fullName) return { first: "", last: "" };
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    first: parts[0] || "",
+    last: parts.slice(1).join(" ") || "",
+  };
+}
+
+const inputClassName =
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300";
+
+function FeedbackMessage({ type, message }: { type: "success" | "error"; message: string }) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-sm mt-3 ${
+        type === "success" ? "text-green-600" : "text-red-600"
+      }`}
+    >
+      {type === "success" && <Check className="w-4 h-4 shrink-0" />}
+      <span>{message}</span>
+    </div>
+  );
+}
 
 export function AccountPage({
   slug,
@@ -90,28 +117,242 @@ export function AccountPage({
   const { accent, accentText, embedded } = useStorefront();
   const router = useRouter();
 
+  // ─── Personal Details state ───
+  const { first, last } = splitName(profile.full_name);
+  const [firstName, setFirstName] = useState(first);
+  const [lastName, setLastName] = useState(last);
+  const [email, setEmail] = useState(profile.email);
+  const [phone, setPhone] = useState(profile.phone || "");
+  const [personalSaving, setPersonalSaving] = useState(false);
+  const [personalFeedback, setPersonalFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // ─── Email state ───
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailFeedback, setEmailFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // ─── Business Details state ───
+  const [businessName, setBusinessName] = useState(
+    wholesaleAccess?.business_name || ""
+  );
+  const [vatNumber, setVatNumber] = useState(
+    wholesaleAccess?.vat_number || ""
+  );
+  const [businessSaving, setBusinessSaving] = useState(false);
+  const [businessFeedback, setBusinessFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // ─── Password state ───
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // ─── Address state ───
   const [addresses, setAddresses] = useState<BuyerAddress[]>(initialAddresses);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showAddrForm, setShowAddrForm] = useState(false);
+  const [editingAddrId, setEditingAddrId] = useState<string | null>(null);
+  const [addrForm, setAddrForm] = useState(EMPTY_ADDR_FORM);
+  const [addrSaving, setAddrSaving] = useState(false);
+  const [addrError, setAddrError] = useState<string | null>(null);
 
   async function handleSignOut() {
     await fetch(`/api/auth/logout?redirect=/s/${slug}`, { method: "POST" });
     router.push(`/s/${slug}`);
   }
 
-  function openAddForm() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setError(null);
-    setShowForm(true);
+  // ─── Personal Details save ───
+  async function handleSavePersonal() {
+    setPersonalSaving(true);
+    setPersonalFeedback(null);
+
+    try {
+      const res = await fetch("/api/s/buyer-profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          phone: phone || null,
+          roasterId,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setPersonalFeedback({
+          type: "error",
+          message: data.error || "Failed to save",
+        });
+        return;
+      }
+
+      setPersonalFeedback({
+        type: "success",
+        message: "Personal details updated",
+      });
+    } catch {
+      setPersonalFeedback({
+        type: "error",
+        message: "Something went wrong",
+      });
+    } finally {
+      setPersonalSaving(false);
+    }
   }
 
-  function openEditForm(addr: BuyerAddress) {
-    setEditingId(addr.id);
-    setForm({
+  // ─── Email save ───
+  async function handleSaveEmail() {
+    if (email === profile.email) return;
+
+    setEmailSaving(true);
+    setEmailFeedback(null);
+
+    try {
+      const res = await fetch("/api/s/buyer-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newEmail: email }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setEmailFeedback({
+          type: "error",
+          message: data.error || "Failed to update email",
+        });
+        return;
+      }
+
+      setEmailFeedback({
+        type: "success",
+        message: "Email updated. A confirmation may be sent to verify the new address.",
+      });
+    } catch {
+      setEmailFeedback({
+        type: "error",
+        message: "Something went wrong",
+      });
+    } finally {
+      setEmailSaving(false);
+    }
+  }
+
+  // ─── Business Details save ───
+  async function handleSaveBusiness() {
+    setBusinessSaving(true);
+    setBusinessFeedback(null);
+
+    try {
+      const res = await fetch("/api/s/buyer-profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessName,
+          vatNumber: vatNumber || null,
+          roasterId,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setBusinessFeedback({
+          type: "error",
+          message: data.error || "Failed to save",
+        });
+        return;
+      }
+
+      setBusinessFeedback({
+        type: "success",
+        message: "Business details updated",
+      });
+    } catch {
+      setBusinessFeedback({
+        type: "error",
+        message: "Something went wrong",
+      });
+    } finally {
+      setBusinessSaving(false);
+    }
+  }
+
+  // ─── Password save ───
+  async function handleSavePassword() {
+    if (newPassword !== confirmPassword) {
+      setPasswordFeedback({
+        type: "error",
+        message: "Passwords do not match",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordFeedback({
+        type: "error",
+        message: "Password must be at least 8 characters",
+      });
+      return;
+    }
+
+    setPasswordSaving(true);
+    setPasswordFeedback(null);
+
+    try {
+      const res = await fetch("/api/s/buyer-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setPasswordFeedback({
+          type: "error",
+          message: data.error || "Failed to change password",
+        });
+        return;
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordFeedback({
+        type: "success",
+        message: "Password changed successfully",
+      });
+    } catch {
+      setPasswordFeedback({
+        type: "error",
+        message: "Something went wrong",
+      });
+    } finally {
+      setPasswordSaving(false);
+    }
+  }
+
+  // ─── Address handlers ───
+  function openAddAddr() {
+    setEditingAddrId(null);
+    setAddrForm(EMPTY_ADDR_FORM);
+    setAddrError(null);
+    setShowAddrForm(true);
+  }
+
+  function openEditAddr(addr: BuyerAddress) {
+    setEditingAddrId(addr.id);
+    setAddrForm({
       label: addr.label || "",
       address_line_1: addr.address_line_1,
       address_line_2: addr.address_line_2 || "",
@@ -120,47 +361,46 @@ export function AccountPage({
       postcode: addr.postcode,
       country: addr.country,
     });
-    setError(null);
-    setShowForm(true);
+    setAddrError(null);
+    setShowAddrForm(true);
   }
 
-  function closeForm() {
-    setShowForm(false);
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setError(null);
+  function closeAddrForm() {
+    setShowAddrForm(false);
+    setEditingAddrId(null);
+    setAddrForm(EMPTY_ADDR_FORM);
+    setAddrError(null);
   }
 
-  async function handleSave() {
-    if (!form.address_line_1 || !form.city || !form.postcode) {
-      setError("Address line 1, city, and postcode are required.");
+  async function handleSaveAddr() {
+    if (!addrForm.address_line_1 || !addrForm.city || !addrForm.postcode) {
+      setAddrError("Address line 1, city, and postcode are required.");
       return;
     }
 
-    setSaving(true);
-    setError(null);
+    setAddrSaving(true);
+    setAddrError(null);
 
     try {
-      if (editingId) {
-        const res = await fetch(`/api/s/buyer-addresses/${editingId}`, {
+      if (editingAddrId) {
+        const res = await fetch(`/api/s/buyer-addresses/${editingAddrId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(addrForm),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to update");
         setAddresses((prev) =>
-          prev.map((a) => (a.id === editingId ? data.address : a))
+          prev.map((a) => (a.id === editingAddrId ? data.address : a))
         );
       } else {
         const res = await fetch("/api/s/buyer-addresses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roasterId, ...form }),
+          body: JSON.stringify({ roasterId, ...addrForm }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to create");
-        // If new address is default, update others
         if (data.address.is_default) {
           setAddresses((prev) =>
             [...prev.map((a) => ({ ...a, is_default: false })), data.address]
@@ -169,15 +409,15 @@ export function AccountPage({
           setAddresses((prev) => [...prev, data.address]);
         }
       }
-      closeForm();
+      closeAddrForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setAddrError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setSaving(false);
+      setAddrSaving(false);
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDeleteAddr(id: string) {
     if (!confirm("Delete this address?")) return;
 
     try {
@@ -189,7 +429,6 @@ export function AccountPage({
       const deleted = addresses.find((a) => a.id === id);
       let updated = addresses.filter((a) => a.id !== id);
 
-      // If deleted was default and there are remaining, first one becomes default
       if (deleted?.is_default && updated.length > 0) {
         updated = updated.map((a, i) =>
           i === 0 ? { ...a, is_default: true } : a
@@ -201,7 +440,7 @@ export function AccountPage({
     }
   }
 
-  async function handleSetDefault(id: string) {
+  async function handleSetDefaultAddr(id: string) {
     try {
       const res = await fetch(`/api/s/buyer-addresses/${id}/default`, {
         method: "PATCH",
@@ -222,40 +461,173 @@ export function AccountPage({
       {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
-        <h1 className="text-2xl font-bold mb-8" style={{ color: "var(--sf-text)" }}>My Account</h1>
+        <h1
+          className="text-2xl font-bold mb-8"
+          style={{ color: "var(--sf-text)" }}
+        >
+          My Account
+        </h1>
 
-        {/* Profile section */}
+        {/* ─── Personal Details ─── */}
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
-            Profile
+            Personal Details
           </h2>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                Full Name
+                First Name
               </label>
-              <p className="text-sm text-slate-900">
-                {profile.full_name || "—"}
-              </p>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className={inputClassName}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                Email
+                Last Name
               </label>
-              <p className="text-sm text-slate-900">{profile.email}</p>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className={inputClassName}
+              />
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-slate-500 mb-1">
-                Member Since
+                Phone
               </label>
-              <p className="text-sm text-slate-900">
-                {formatDate(profile.created_at)}
-              </p>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Your phone number"
+                className={inputClassName}
+              />
             </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex-1">
+              {personalFeedback && (
+                <FeedbackMessage
+                  type={personalFeedback.type}
+                  message={personalFeedback.message}
+                />
+              )}
+            </div>
+            <button
+              onClick={handleSavePersonal}
+              disabled={personalSaving}
+              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              style={{ backgroundColor: accent, color: accentText }}
+            >
+              {personalSaving ? "Saving..." : "Save"}
+            </button>
           </div>
         </div>
 
-        {/* Wholesale account section */}
+        {/* ─── Email ─── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+            Email Address
+          </h2>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClassName}
+            />
+            <p className="text-xs text-slate-400 mt-1.5">
+              A confirmation email will be sent to verify your new address.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex-1">
+              {emailFeedback && (
+                <FeedbackMessage
+                  type={emailFeedback.type}
+                  message={emailFeedback.message}
+                />
+              )}
+            </div>
+            <button
+              onClick={handleSaveEmail}
+              disabled={emailSaving || email === profile.email}
+              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              style={
+                email !== profile.email && !emailSaving
+                  ? { backgroundColor: accent, color: accentText }
+                  : {}
+              }
+            >
+              {emailSaving ? "Saving..." : "Update Email"}
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Business Details (wholesale only) ─── */}
+        {wholesaleAccess && (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+              Business Details
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  Business Name
+                </label>
+                <input
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className={inputClassName}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  VAT Number
+                </label>
+                <input
+                  type="text"
+                  value={vatNumber}
+                  onChange={(e) => setVatNumber(e.target.value)}
+                  placeholder="GB123456789"
+                  className={inputClassName}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex-1">
+                {businessFeedback && (
+                  <FeedbackMessage
+                    type={businessFeedback.type}
+                    message={businessFeedback.message}
+                  />
+                )}
+              </div>
+              <button
+                onClick={handleSaveBusiness}
+                disabled={businessSaving}
+                className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+                style={{ backgroundColor: accent, color: accentText }}
+              >
+                {businessSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Wholesale Account (read-only) ─── */}
         {wholesaleAccess && (
           <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
             <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
@@ -279,16 +651,6 @@ export function AccountPage({
                   );
                 })()}
               </div>
-              {wholesaleAccess.business_name && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">
-                    Business Name
-                  </label>
-                  <p className="text-sm text-slate-900">
-                    {wholesaleAccess.business_name}
-                  </p>
-                </div>
-              )}
               {wholesaleAccess.status === "approved" &&
                 wholesaleAccess.payment_terms && (
                   <div>
@@ -301,6 +663,14 @@ export function AccountPage({
                     </p>
                   </div>
                 )}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">
+                  Member Since
+                </label>
+                <p className="text-sm text-slate-900">
+                  {formatDate(wholesaleAccess.created_at)}
+                </p>
+              </div>
               {wholesaleAccess.status === "approved" && (
                 <Link
                   href={`/s/${slug}/wholesale`}
@@ -320,7 +690,7 @@ export function AccountPage({
           </div>
         )}
 
-        {/* Delivery Addresses section */}
+        {/* ─── Delivery Addresses ─── */}
         {wholesaleAccess && wholesaleAccess.status === "approved" && (
           <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -328,7 +698,7 @@ export function AccountPage({
                 Delivery Addresses
               </h2>
               <button
-                onClick={openAddForm}
+                onClick={openAddAddr}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
                 style={{ backgroundColor: accent, color: accentText }}
               >
@@ -337,18 +707,21 @@ export function AccountPage({
               </button>
             </div>
 
-            {addresses.length === 0 && !showForm && (
+            {addresses.length === 0 && !showAddrForm && (
               <p className="text-sm text-slate-500">
                 No delivery addresses saved. Add one to speed up checkout.
               </p>
             )}
 
-            {/* Address list */}
             <div className="space-y-3">
               {addresses.map((addr) => (
                 <div
                   key={addr.id}
-                  className={`relative rounded-lg border p-4 ${addr.is_default ? "border-slate-300 bg-slate-50" : "border-slate-200"}`}
+                  className={`relative rounded-lg border p-4 ${
+                    addr.is_default
+                      ? "border-slate-300 bg-slate-50"
+                      : "border-slate-200"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
@@ -372,7 +745,7 @@ export function AccountPage({
                     <div className="flex items-center gap-1 shrink-0">
                       {!addr.is_default && (
                         <button
-                          onClick={() => handleSetDefault(addr.id)}
+                          onClick={() => handleSetDefaultAddr(addr.id)}
                           className="p-1.5 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                           title="Set as default"
                         >
@@ -380,14 +753,14 @@ export function AccountPage({
                         </button>
                       )}
                       <button
-                        onClick={() => openEditForm(addr)}
+                        onClick={() => openEditAddr(addr)}
                         className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                         title="Edit"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(addr.id)}
+                        onClick={() => handleDeleteAddr(addr.id)}
                         className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                         title="Delete"
                       >
@@ -399,15 +772,14 @@ export function AccountPage({
               ))}
             </div>
 
-            {/* Add/Edit form */}
-            {showForm && (
+            {showAddrForm && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-slate-900">
-                    {editingId ? "Edit Address" : "New Address"}
+                    {editingAddrId ? "Edit Address" : "New Address"}
                   </h3>
                   <button
-                    onClick={closeForm}
+                    onClick={closeAddrForm}
                     className="p-1 rounded-md text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-4 h-4" />
@@ -422,9 +794,11 @@ export function AccountPage({
                     <input
                       type="text"
                       placeholder="e.g. Head Office, Warehouse"
-                      value={form.label}
-                      onChange={(e) => setForm({ ...form, label: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.label}
+                      onChange={(e) =>
+                        setAddrForm({ ...addrForm, label: e.target.value })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -433,9 +807,14 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.address_line_1}
-                      onChange={(e) => setForm({ ...form, address_line_1: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.address_line_1}
+                      onChange={(e) =>
+                        setAddrForm({
+                          ...addrForm,
+                          address_line_1: e.target.value,
+                        })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -444,9 +823,14 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.address_line_2}
-                      onChange={(e) => setForm({ ...form, address_line_2: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.address_line_2}
+                      onChange={(e) =>
+                        setAddrForm({
+                          ...addrForm,
+                          address_line_2: e.target.value,
+                        })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div>
@@ -455,9 +839,11 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.city}
-                      onChange={(e) => setForm({ ...form, city: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.city}
+                      onChange={(e) =>
+                        setAddrForm({ ...addrForm, city: e.target.value })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div>
@@ -466,9 +852,11 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.county}
-                      onChange={(e) => setForm({ ...form, county: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.county}
+                      onChange={(e) =>
+                        setAddrForm({ ...addrForm, county: e.target.value })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div>
@@ -477,9 +865,11 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.postcode}
-                      onChange={(e) => setForm({ ...form, postcode: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.postcode}
+                      onChange={(e) =>
+                        setAddrForm({ ...addrForm, postcode: e.target.value })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                   <div>
@@ -488,31 +878,37 @@ export function AccountPage({
                     </label>
                     <input
                       type="text"
-                      value={form.country}
-                      onChange={(e) => setForm({ ...form, country: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      value={addrForm.country}
+                      onChange={(e) =>
+                        setAddrForm({ ...addrForm, country: e.target.value })
+                      }
+                      className={inputClassName}
                     />
                   </div>
                 </div>
 
-                {error && (
-                  <p className="mt-2 text-sm text-red-600">{error}</p>
+                {addrError && (
+                  <p className="mt-2 text-sm text-red-600">{addrError}</p>
                 )}
 
                 <div className="flex justify-end gap-2 mt-4">
                   <button
-                    onClick={closeForm}
+                    onClick={closeAddrForm}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleSave}
-                    disabled={saving}
+                    onClick={handleSaveAddr}
+                    disabled={addrSaving}
                     className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
                     style={{ backgroundColor: accent, color: accentText }}
                   >
-                    {saving ? "Saving..." : editingId ? "Update" : "Save Address"}
+                    {addrSaving
+                      ? "Saving..."
+                      : editingAddrId
+                        ? "Update"
+                        : "Save Address"}
                   </button>
                 </div>
               </div>
@@ -520,11 +916,84 @@ export function AccountPage({
           </div>
         )}
 
-        {/* Sign out */}
+        {/* ─── Change Password ─── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+            Change Password
+          </h2>
+          <div className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className={inputClassName}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div className="flex-1">
+              {passwordFeedback && (
+                <FeedbackMessage
+                  type={passwordFeedback.type}
+                  message={passwordFeedback.message}
+                />
+              )}
+            </div>
+            <button
+              onClick={handleSavePassword}
+              disabled={
+                passwordSaving ||
+                !currentPassword ||
+                !newPassword ||
+                !confirmPassword
+              }
+              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              style={
+                currentPassword && newPassword && confirmPassword && !passwordSaving
+                  ? { backgroundColor: accent, color: accentText }
+                  : {}
+              }
+            >
+              {passwordSaving ? "Changing..." : "Change Password"}
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Sign Out ─── */}
         <button
           onClick={handleSignOut}
           className="w-full sm:w-auto px-6 py-2.5 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-50 transition-colors"
-          style={{ color: "color-mix(in srgb, var(--sf-text) 65%, transparent)" }}
+          style={{
+            color:
+              "color-mix(in srgb, var(--sf-text) 65%, transparent)",
+          }}
         >
           Sign Out
         </button>

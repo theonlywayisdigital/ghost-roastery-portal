@@ -36,19 +36,19 @@ export default async function StorefrontAccountRoute({
 
   if (!roaster) redirect(`/s/${slug}`);
 
-  // Fetch user profile
+  // Fetch user profile (include phone)
   const { data: profile } = await supabase
     .from("users")
-    .select("id, full_name, email, created_at")
+    .select("id, full_name, email, phone, created_at")
     .eq("id", userId)
     .single();
 
   if (!profile) redirect(`/s/${slug}`);
 
-  // Fetch wholesale access if exists
+  // Fetch wholesale access if exists (include vat_number)
   const { data: wholesaleAccess } = await supabase
     .from("wholesale_access")
-    .select("id, status, payment_terms, business_name, created_at")
+    .select("id, status, payment_terms, business_name, vat_number, created_at")
     .eq("user_id", userId)
     .eq("roaster_id", roaster.id)
     .maybeSingle();

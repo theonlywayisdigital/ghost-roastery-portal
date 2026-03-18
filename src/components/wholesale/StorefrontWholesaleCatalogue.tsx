@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import { Minus, Plus, Package, Trash2, ShoppingCart } from "@/components/icons";
 
@@ -43,11 +43,54 @@ interface OrderItem {
   unit: string;
   quantity: number;
   minimum: number;
+  weightGrams: number;
 }
 
 type CatalogueContext =
   | { type: "storefront"; slug: string }
   | { type: "website"; domain: string };
+
+/** Get the bottleneck stock pool KG (minimum across linked pools), or null if no pools linked */
+function getAvailableKg(product: Product): number | null {
+  const pools: StockPool[] = [];
+  if (product.roasted_stock) pools.push(product.roasted_stock);
+  if (product.green_beans) pools.push(product.green_beans);
+  if (pools.length === 0) return null;
+  return Math.min(...pools.map((p) => Number(p.current_stock_kg)));
+}
+
+/** Convert available KG to available units for a given weight */
+function kgToUnits(availableKg: number, weightGrams: number): number {
+  if (weightGrams <= 0) return Infinity;
+  return Math.floor(availableKg / (weightGrams / 1000));
+}
+
+/** Calculate how many KG of a product's stock pool are consumed by current cart items */
+function getCartConsumedKg(
+  order: OrderItem[],
+  product: Product,
+  products: Product[]
+): number {
+  let consumedKg = 0;
+  for (const item of order) {
+    const baseProductId = item.productId.split(":")[0];
+    // Only count items that share the same stock pool
+    const cartProduct = products.find((p) => p.id === baseProductId);
+    if (!cartProduct) continue;
+    const sharesRoasted =
+      product.roasted_stock &&
+      cartProduct.roasted_stock &&
+      product.roasted_stock.id === cartProduct.roasted_stock.id;
+    const sharesGreen =
+      product.green_beans &&
+      cartProduct.green_beans &&
+      product.green_beans.id === cartProduct.green_beans.id;
+    if (sharesRoasted || sharesGreen) {
+      consumedKg += (item.weightGrams / 1000) * item.quantity;
+    }
+  }
+  return consumedKg;
+}
 
 export function StorefrontWholesaleCatalogue({
   roaster,
@@ -78,20 +121,52 @@ export function StorefrontWholesaleCatalogue({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function getStockStatus(product: Product): "in" | "low" | "out" | null {
+  /** Get available units for a product+variant, accounting for cart consumption */
+  const getAvailableUnits = useCallback(
+    (
+      product: Product,
+      weightGrams: number,
+      excludeItemKey?: string
+    ): number | null => {
+      const totalKg = getAvailableKg(product);
+      if (totalKg === null) return null; // No stock pool — unlimited
+
+      // Subtract KG consumed by other cart items sharing the same pool
+      const otherItems = excludeItemKey
+        ? order.filter((i) => i.productId !== excludeItemKey)
+        : order;
+      const consumedKg = getCartConsumedKg(otherItems, product, products);
+      const remainingKg = Math.max(0, totalKg - consumedKg);
+      return kgToUnits(remainingKg, weightGrams);
+    },
+    [order, products]
+  );
+
+  /** Stock status for badge display (uses product-level weight or first variant weight) */
+  function getStockBadge(
+    product: Product,
+    weightGrams: number
+  ): { label: string; colour: "green" | "amber" | "red" } | null {
+    const totalKg = getAvailableKg(product);
+    if (totalKg === null) return null;
+    if (totalKg <= 0) return { label: "Out of stock", colour: "red" };
+
+    const units = kgToUnits(totalKg, weightGrams);
+    if (units <= 0) return { label: "Out of stock", colour: "red" };
+
+    // Check low stock threshold
     const pools: StockPool[] = [];
     if (product.roasted_stock) pools.push(product.roasted_stock);
     if (product.green_beans) pools.push(product.green_beans);
-    if (pools.length === 0) return null; // Not linked — unlimited availability
-    const levels = pools.map((p) => {
-      const kg = Number(p.current_stock_kg);
-      if (kg <= 0) return "out" as const;
-      if (p.low_stock_threshold_kg && kg <= Number(p.low_stock_threshold_kg)) return "low" as const;
-      return "in" as const;
-    });
-    if (levels.includes("out")) return "out";
-    if (levels.includes("low")) return "low";
-    return "in";
+    const isLow = pools.some(
+      (p) =>
+        p.low_stock_threshold_kg &&
+        Number(p.current_stock_kg) <= Number(p.low_stock_threshold_kg)
+    );
+
+    if (isLow)
+      return { label: `${units} available`, colour: "amber" };
+    return { label: `${units} available`, colour: "green" };
   }
 
   function addToOrder(product: Product, variant?: ProductVariant) {
@@ -103,7 +178,24 @@ export function StorefrontWholesaleCatalogue({
       ? [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ")
       : null;
     const displayName = variantLabel ? `${product.name} (${variantLabel})` : product.name;
+    const weightGrams = variant?.weight_grams || product.weight_grams || 0;
 
+    // Check available units (accounting for cart)
+    const available = getAvailableUnits(product, weightGrams);
+    if (available !== null) {
+      const existing = order.find((item) => item.productId === itemKey);
+      const currentQty = existing ? existing.quantity : 0;
+      if (currentQty + min > available) {
+        setError(
+          available <= 0
+            ? `${product.name} is out of stock`
+            : `Only ${available} available for ${displayName}`
+        );
+        return;
+      }
+    }
+
+    setError(null);
     setOrder((prev) => {
       const existing = prev.find((item) => item.productId === itemKey);
       if (existing) {
@@ -123,6 +215,7 @@ export function StorefrontWholesaleCatalogue({
           unit: unitLabel,
           quantity: min,
           minimum: min,
+          weightGrams,
         },
       ];
     });
@@ -134,17 +227,32 @@ export function StorefrontWholesaleCatalogue({
     if (!item) return;
     if (quantity < item.minimum) {
       setOrder((prev) => prev.filter((i) => i.productId !== itemKey));
-    } else {
-      setOrder((prev) =>
-        prev.map((i) =>
-          i.productId === itemKey ? { ...i, quantity } : i
-        )
-      );
+      setError(null);
+      return;
     }
+
+    // Check stock limit
+    const baseProductId = itemKey.split(":")[0];
+    const product = products.find((p) => p.id === baseProductId);
+    if (product) {
+      const available = getAvailableUnits(product, item.weightGrams, itemKey);
+      if (available !== null && quantity > available) {
+        setError(`Maximum ${available} available for ${item.name}`);
+        return;
+      }
+    }
+
+    setError(null);
+    setOrder((prev) =>
+      prev.map((i) =>
+        i.productId === itemKey ? { ...i, quantity } : i
+      )
+    );
   }
 
   function removeFromOrder(itemKey: string) {
     setOrder((prev) => prev.filter((i) => i.productId !== itemKey));
+    setError(null);
   }
 
   const orderTotal = order.reduce(
@@ -256,8 +364,13 @@ export function StorefrontWholesaleCatalogue({
             );
             const hasVariants = wholesaleVariants.length > 0;
             const basePrice = product.wholesale_price ?? product.price;
-            const stockStatus = getStockStatus(product);
-            const isOutOfStock = stockStatus === "out";
+
+            // Stock badge — use first variant weight or product weight
+            const displayWeight = hasVariants
+              ? wholesaleVariants[0]?.weight_grams || product.weight_grams || 0
+              : product.weight_grams || 0;
+            const badge = getStockBadge(product, displayWeight);
+            const isOutOfStock = badge?.colour === "red";
 
             // For products without variants, check order by product.id
             const inOrder = !hasVariants
@@ -306,20 +419,6 @@ export function StorefrontWholesaleCatalogue({
                     </p>
                   )}
 
-                  {stockStatus && (
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mb-3 ${
-                        stockStatus === "out"
-                          ? "bg-red-100 text-red-700"
-                          : stockStatus === "low"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      {stockStatus === "out" ? "Out of stock" : stockStatus === "low" ? "Low stock" : "In stock"}
-                    </span>
-                  )}
-
                   {hasVariants ? (
                     /* Variant list — each variant is individually orderable */
                     <div className="space-y-2">
@@ -328,6 +427,17 @@ export function StorefrontWholesaleCatalogue({
                         const itemKey = `${product.id}:${variant.id}`;
                         const inVariantOrder = order.find((i) => i.productId === itemKey);
                         const label = [variant.unit, variant.grind_type?.name].filter(Boolean).join(" — ");
+
+                        // Per-variant stock badge
+                        const vWeight = variant.weight_grams || product.weight_grams || 0;
+                        const vBadge = getStockBadge(product, vWeight);
+                        const vOutOfStock = vBadge?.colour === "red";
+
+                        // Available units for this variant (accounting for cart)
+                        const vAvailable = getAvailableUnits(product, vWeight, inVariantOrder ? itemKey : undefined);
+                        const vRemainingForAdd = vAvailable !== null && inVariantOrder
+                          ? vAvailable - inVariantOrder.quantity
+                          : vAvailable;
 
                         return (
                           <div
@@ -340,6 +450,19 @@ export function StorefrontWholesaleCatalogue({
                               <span className="text-sm font-semibold ml-2" style={{ color: "var(--sf-text)" }}>
                                 {`\u00a3${vPrice.toFixed(2)}`}
                               </span>
+                              {vBadge && (
+                                <span
+                                  className={`inline-flex items-center ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                                    vBadge.colour === "red"
+                                      ? "bg-red-100 text-red-700"
+                                      : vBadge.colour === "amber"
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-green-100 text-green-700"
+                                  }`}
+                                >
+                                  {vBadge.label}
+                                </span>
+                              )}
                             </div>
                             {inVariantOrder ? (
                               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -355,7 +478,8 @@ export function StorefrontWholesaleCatalogue({
                                 </span>
                                 <button
                                   onClick={() => updateQuantity(itemKey, inVariantOrder.quantity + 1)}
-                                  className="w-7 h-7 rounded border flex items-center justify-center hover:opacity-80"
+                                  disabled={vAvailable !== null && inVariantOrder.quantity >= vAvailable}
+                                  className="w-7 h-7 rounded border flex items-center justify-center hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
                                   style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                                 >
                                   <Plus className="w-3 h-3 opacity-70" />
@@ -364,15 +488,15 @@ export function StorefrontWholesaleCatalogue({
                             ) : (
                               <button
                                 onClick={() => addToOrder(product, variant)}
-                                disabled={isOutOfStock}
-                                style={isOutOfStock ? {} : { backgroundColor: accentColour, color: accentText }}
+                                disabled={vOutOfStock || (vRemainingForAdd !== null && vRemainingForAdd <= 0)}
+                                style={vOutOfStock || (vRemainingForAdd !== null && vRemainingForAdd <= 0) ? {} : { backgroundColor: accentColour, color: accentText }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity flex-shrink-0 ${
-                                  isOutOfStock
+                                  vOutOfStock || (vRemainingForAdd !== null && vRemainingForAdd <= 0)
                                     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                                     : "hover:opacity-90"
                                 }`}
                               >
-                                {isOutOfStock ? "Unavailable" : "Add"}
+                                {vOutOfStock || (vRemainingForAdd !== null && vRemainingForAdd <= 0) ? "Unavailable" : "Add"}
                               </button>
                             )}
                           </div>
@@ -403,6 +527,23 @@ export function StorefrontWholesaleCatalogue({
                           </span>
                         )}
                       </div>
+
+                      {badge && (
+                        <div className="mb-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              badge.colour === "red"
+                                ? "bg-red-100 text-red-700"
+                                : badge.colour === "amber"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {badge.label}
+                          </span>
+                        </div>
+                      )}
+
                       {inOrder ? (
                         <div className="flex items-center gap-2">
                           <button
@@ -427,7 +568,11 @@ export function StorefrontWholesaleCatalogue({
                                 inOrder.quantity + 1
                               )
                             }
-                            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:opacity-80"
+                            disabled={(() => {
+                              const avail = getAvailableUnits(product, product.weight_grams || 0, product.id);
+                              return avail !== null && inOrder.quantity >= avail;
+                            })()}
+                            className="w-9 h-9 rounded-lg border flex items-center justify-center hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
                             style={{ borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)" }}
                           >
                             <Plus className="w-4 h-4 opacity-70" />
@@ -472,7 +617,10 @@ export function StorefrontWholesaleCatalogue({
                 {order.map((item) => {
                   const baseProductId = item.productId.split(":")[0];
                   const cartProduct = products.find((p) => p.id === baseProductId);
-                  const cartItemOutOfStock = cartProduct ? getStockStatus(cartProduct) === "out" : false;
+                  const cartAvailable = cartProduct
+                    ? getAvailableUnits(cartProduct, item.weightGrams, item.productId)
+                    : null;
+                  const overLimit = cartAvailable !== null && item.quantity > cartAvailable;
                   return (
                     <div
                       key={item.productId}
@@ -488,8 +636,10 @@ export function StorefrontWholesaleCatalogue({
                         <span style={{ color: "var(--sf-text)" }}>
                           {`${item.name} \u00d7 ${item.quantity}`}
                         </span>
-                        {cartItemOutOfStock && (
-                          <span className="text-xs text-red-600 font-medium">Out of stock</span>
+                        {overLimit && (
+                          <span className="text-xs text-red-600 font-medium">
+                            {cartAvailable <= 0 ? "Out of stock" : `Only ${cartAvailable} available`}
+                          </span>
                         )}
                       </div>
                       <span className="font-medium" style={{ color: "var(--sf-text)" }}>

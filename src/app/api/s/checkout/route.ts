@@ -261,6 +261,8 @@ export async function POST(request: Request) {
       const itemWeightGrams = (item.variantId && variantMap[item.variantId]?.weight_grams) || product.weight_grams;
       if (itemWeightGrams && itemWeightGrams > 0) {
         const requiredKg = (itemWeightGrams / 1000) * item.quantity;
+        const variantLabel = item.variantLabel ? ` ${item.variantLabel}` : "";
+        const itemDesc = `${product.name}${variantLabel}`;
 
         if (product.roasted_stock_id) {
           const { data: roastedPool } = await supabase
@@ -269,8 +271,11 @@ export async function POST(request: Request) {
             .eq("id", product.roasted_stock_id)
             .single();
           if (roastedPool && roastedPool.current_stock_kg < requiredKg) {
+            const availableUnits = Math.floor(roastedPool.current_stock_kg / (itemWeightGrams / 1000));
             return NextResponse.json(
-              { error: `"${product.name}" is currently out of stock.` },
+              { error: availableUnits <= 0
+                  ? `"${itemDesc}" is currently out of stock.`
+                  : `Insufficient stock for ${itemDesc} — ${availableUnits} available, ${item.quantity} requested.` },
               { status: 400 }
             );
           }
@@ -283,8 +288,11 @@ export async function POST(request: Request) {
             .eq("id", product.green_bean_id)
             .single();
           if (greenPool && greenPool.current_stock_kg < requiredKg) {
+            const availableUnits = Math.floor(greenPool.current_stock_kg / (itemWeightGrams / 1000));
             return NextResponse.json(
-              { error: `"${product.name}" is currently out of stock.` },
+              { error: availableUnits <= 0
+                  ? `"${itemDesc}" is currently out of stock.`
+                  : `Insufficient stock for ${itemDesc} — ${availableUnits} available, ${item.quantity} requested.` },
               { status: 400 }
             );
           }

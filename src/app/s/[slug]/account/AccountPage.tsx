@@ -86,7 +86,7 @@ function splitName(fullName: string | null): { first: string; last: string } {
 }
 
 const inputClassName =
-  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300";
+  "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300";
 
 function FeedbackMessage({ type, message }: { type: "success" | "error"; message: string }) {
   return (

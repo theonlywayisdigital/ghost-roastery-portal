@@ -399,7 +399,7 @@ export default function WholesaleCheckoutPage() {
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Delivery instructions, special requests, etc."
             rows={3}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
           />
         </section>
 

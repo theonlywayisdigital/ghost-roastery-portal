@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, roasted_stock_id, green_bean_id, weight_grams"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -165,12 +165,12 @@ export async function POST(request: Request) {
       .map((i) => i.variantId)
       .filter(Boolean) as string[];
 
-    let variantMap: Record<string, { wholesale_price: number | null; unit: string | null }> = {};
+    let variantMap: Record<string, { wholesale_price: number | null; unit: string | null; weight_grams: number | null }> = {};
 
     if (variantIds.length > 0) {
       const { data: variants } = await supabase
         .from("product_variants")
-        .select("id, wholesale_price, unit")
+        .select("id, wholesale_price, unit, weight_grams")
         .in("id", variantIds)
         .eq("is_active", true);
 
@@ -341,15 +341,27 @@ export async function POST(request: Request) {
     }
 
     // ─── Create the wholesale order (payment_method: invoice, status: confirmed) ───
-    const orderItems = lineItems.map((i, idx) => ({
-      productId: i.productId,
-      name: i.name,
-      unitAmount: i.unitAmount,
-      quantity: i.quantity,
-      unit: i.unit,
-      variantId: items[idx].variantId || null,
-      variantLabel: items[idx].variantLabel || null,
-    }));
+    const orderItems = lineItems.map((i, idx) => {
+      const product = products!.find((p) => p.id === i.productId);
+      const variant = items[idx].variantId ? variantMap[items[idx].variantId!] : null;
+      // Variant weight takes priority over product weight
+      const weightGrams = variant?.weight_grams ?? product?.weight_grams ?? null;
+      const roastedStockId = product?.roasted_stock_id ?? null;
+      const greenBeanId = product?.green_bean_id ?? null;
+
+      return {
+        productId: i.productId,
+        name: i.name,
+        unitAmount: i.unitAmount,
+        quantity: i.quantity,
+        unit: i.unit,
+        variantId: items[idx].variantId || null,
+        variantLabel: items[idx].variantLabel || null,
+        ...(weightGrams != null ? { weightGrams } : {}),
+        ...(roastedStockId ? { roastedStockId } : {}),
+        ...(greenBeanId ? { greenBeanId } : {}),
+      };
+    });
 
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -415,6 +427,65 @@ export async function POST(request: Request) {
         product_id: item.productId,
         qty: item.quantity,
       });
+    }
+
+    // ─── Roasted stock deduction — deduct KG based on item weight × quantity ───
+    for (const item of orderItems) {
+      const roastedStockId = (item as Record<string, unknown>).roastedStockId as string | undefined;
+      const weightGrams = (item as Record<string, unknown>).weightGrams as number | undefined;
+      if (roastedStockId && weightGrams && weightGrams > 0) {
+        const deductKg = (weightGrams / 1000) * item.quantity;
+        await supabase.rpc("deduct_roasted_stock", {
+          stock_id: roastedStockId,
+          qty_kg: deductKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", roastedStockId)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roasterId,
+          roasted_stock_id: roastedStockId,
+          movement_type: "order_deduction",
+          quantity_kg: -deductKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? 0,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity}`,
+        });
+      }
+    }
+
+    // ─── Green bean stock deduction — deduct KG based on item weight × quantity ───
+    for (const item of orderItems) {
+      const greenBeanId = (item as Record<string, unknown>).greenBeanId as string | undefined;
+      const weightGrams = (item as Record<string, unknown>).weightGrams as number | undefined;
+      if (greenBeanId && weightGrams && weightGrams > 0) {
+        const deductKg = (weightGrams / 1000) * item.quantity;
+        const { data: bean } = await supabase
+          .from("green_beans")
+          .select("current_stock_kg")
+          .eq("id", greenBeanId)
+          .single();
+        if (bean) {
+          const newStock = Math.max(0, (bean.current_stock_kg || 0) - deductKg);
+          await supabase
+            .from("green_beans")
+            .update({ current_stock_kg: newStock })
+            .eq("id", greenBeanId);
+          await supabase.from("green_bean_movements").insert({
+            roaster_id: roasterId,
+            green_bean_id: greenBeanId,
+            movement_type: "order_deduction",
+            quantity_kg: -deductKg,
+            balance_after_kg: newStock,
+            reference_id: order.id,
+            reference_type: "order",
+            notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity}`,
+          });
+        }
+      }
     }
 
     // ─── Notify the roaster about the new order ───

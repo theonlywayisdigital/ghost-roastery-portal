@@ -66,12 +66,21 @@ interface Product {
   order_multiples: number | null;
   subscription_frequency: string | null;
   roasted_stock_id: string | null;
+  green_bean_id: string | null;
 }
 
 interface RoastedStockOption {
   id: string;
   name: string;
   green_bean_id: string | null;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+  is_active: boolean;
+}
+
+interface GreenBeanOption {
+  id: string;
+  name: string;
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
   is_active: boolean;
@@ -279,6 +288,8 @@ export function ProductForm({ product }: { product?: Product }) {
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
   const [roastedStockId, setRoastedStockId] = useState(product?.roasted_stock_id || "");
   const [roastedStocks, setRoastedStocks] = useState<RoastedStockOption[]>([]);
+  const [greenBeanId, setGreenBeanId] = useState(product?.green_bean_id || "");
+  const [greenBeans, setGreenBeans] = useState<GreenBeanOption[]>([]);
   const [status, setStatus] = useState<"draft" | "published">(product?.status ?? "published");
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
 
@@ -365,7 +376,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setGrindTypesLoading(false);
   }, []);
 
-  // Fetch roasted stock records for coffee products
+  // Fetch roasted stock and green bean records for coffee products
   useEffect(() => {
     if (category === "coffee") {
       fetch("/api/tools/roasted-stock")
@@ -373,6 +384,13 @@ export function ProductForm({ product }: { product?: Product }) {
         .then((data) => {
           const stocks = (data.roastedStock || []).filter((s: RoastedStockOption) => s.is_active);
           setRoastedStocks(stocks);
+        })
+        .catch(() => {});
+      fetch("/api/tools/green-beans")
+        .then((res) => res.json())
+        .then((data) => {
+          const beans = (data.greenBeans || []).filter((b: GreenBeanOption) => b.is_active);
+          setGreenBeans(beans);
         })
         .catch(() => {});
     }
@@ -935,6 +953,7 @@ export function ProductForm({ product }: { product?: Product }) {
       sku: sku || null,
       weight_grams: weightKg ? Math.round(parseFloat(weightKg) * 1000) : null,
       roasted_stock_id: category === "coffee" && roastedStockId ? roastedStockId : null,
+      green_bean_id: category === "coffee" && greenBeanId ? greenBeanId : null,
       is_purchasable: isPurchasable,
       track_stock: trackStock,
       retail_stock_count: trackStock ? parseInt(stockCount) || 0 : null,
@@ -1595,6 +1614,44 @@ export function ProductForm({ product }: { product?: Product }) {
                         const stockKg = Number(linkedStock.current_stock_kg);
                         const isOut = stockKg <= 0;
                         const isLow = linkedStock.low_stock_threshold_kg && stockKg <= Number(linkedStock.low_stock_threshold_kg);
+                        const statusColor = isOut ? "text-red-600 bg-red-50 border-red-200" : isLow ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
+                        const statusLabel = isOut ? "Out of stock" : isLow ? "Low stock" : "In stock";
+                        return (
+                          <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${statusColor}`}>
+                            <Archive className="w-4 h-4" />
+                            <span className="font-medium">{stockKg.toFixed(1)} kg available</span>
+                            <span className="text-xs opacity-75">({statusLabel})</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Green Bean Stock Link — coffee only */}
+                  {category === "coffee" && (
+                    <div>
+                      <label className={labelClassName}>
+                        Green Bean Stock{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <select
+                        value={greenBeanId}
+                        onChange={(e) => setGreenBeanId(e.target.value)}
+                        className={inputClassName}
+                      >
+                        <option value="">Not linked to green bean stock</option>
+                        {greenBeans.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({Number(b.current_stock_kg).toFixed(1)} kg)
+                          </option>
+                        ))}
+                      </select>
+                      {greenBeanId && (() => {
+                        const linkedBean = greenBeans.find((b) => b.id === greenBeanId);
+                        if (!linkedBean) return null;
+                        const stockKg = Number(linkedBean.current_stock_kg);
+                        const isOut = stockKg <= 0;
+                        const isLow = linkedBean.low_stock_threshold_kg && stockKg <= Number(linkedBean.low_stock_threshold_kg);
                         const statusColor = isOut ? "text-red-600 bg-red-50 border-red-200" : isLow ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
                         const statusLabel = isOut ? "Out of stock" : isLow ? "Low stock" : "In stock";
                         return (

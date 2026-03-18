@@ -69,7 +69,69 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Failed to cancel order" }, { status: 500 });
   }
 
-  // 2. Activity log
+  // 2. Replenish roasted stock for cancelled items
+  const orderItems = Array.isArray(order.items) ? order.items as Record<string, unknown>[] : [];
+  for (const item of orderItems) {
+    const roastedStockId = item.roastedStockId as string | undefined;
+    const weightGrams = item.weightGrams as number | undefined;
+    const quantity = item.quantity as number | undefined;
+    if (roastedStockId && weightGrams && weightGrams > 0 && quantity) {
+      const replenishKg = (weightGrams / 1000) * quantity;
+      await supabase.rpc("replenish_roasted_stock", {
+        stock_id: roastedStockId,
+        qty_kg: replenishKg,
+      });
+      const { data: updatedStock } = await supabase
+        .from("roasted_stock")
+        .select("current_stock_kg")
+        .eq("id", roastedStockId)
+        .single();
+      await supabase.from("roasted_stock_movements").insert({
+        roaster_id: order.roaster_id,
+        roasted_stock_id: roastedStockId,
+        movement_type: "cancellation_return",
+        quantity_kg: replenishKg,
+        balance_after_kg: updatedStock?.current_stock_kg ?? replenishKg,
+        reference_id: id,
+        reference_type: "order",
+        notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
+      });
+    }
+  }
+
+  // 2b. Replenish green bean stock for cancelled items
+  for (const item of orderItems) {
+    const greenBeanId = item.greenBeanId as string | undefined;
+    const weightGrams = item.weightGrams as number | undefined;
+    const quantity = item.quantity as number | undefined;
+    if (greenBeanId && weightGrams && weightGrams > 0 && quantity) {
+      const replenishKg = (weightGrams / 1000) * quantity;
+      const { data: bean } = await supabase
+        .from("green_beans")
+        .select("current_stock_kg")
+        .eq("id", greenBeanId)
+        .single();
+      if (bean) {
+        const newStock = (bean.current_stock_kg || 0) + replenishKg;
+        await supabase
+          .from("green_beans")
+          .update({ current_stock_kg: newStock })
+          .eq("id", greenBeanId);
+        await supabase.from("green_bean_movements").insert({
+          roaster_id: order.roaster_id,
+          green_bean_id: greenBeanId,
+          movement_type: "cancellation_return",
+          quantity_kg: replenishKg,
+          balance_after_kg: newStock,
+          reference_id: id,
+          reference_type: "order",
+          notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
+        });
+      }
+    }
+  }
+
+  // 3. Activity log
   await supabase.from("order_activity_log").insert({
     order_id: id,
     order_type: order.order_channel === "wholesale" ? "wholesale" : "storefront",
@@ -79,7 +141,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     actor_name: roaster.business_name,
   });
 
-  // 3. Send cancellation email to customer
+  // 4. Send cancellation email to customer
   const wasPaid = !!order.stripe_payment_id;
   if (order.customer_email) {
     sendOrderCancellationEmail({
@@ -91,7 +153,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }).catch((err) => console.error("Failed to send cancellation email:", err));
   }
 
-  // 4. Notify customer in-app
+  // 5. Notify customer in-app
   if (order.user_id) {
     createNotification({
       userId: order.user_id,
@@ -103,7 +165,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }).catch(() => {});
   }
 
-  // 5. Auto-refund for Stripe-paid orders
+  // 6. Auto-refund for Stripe-paid orders
   if (order.stripe_payment_id && order.refund_status !== "full") {
     const remainingRefundable = (order.subtotal || 0) - (order.refund_total || 0);
     if (remainingRefundable > 0) {
@@ -136,7 +198,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // 6. Void unpaid invoice
+  // 7. Void unpaid invoice
   if (!order.stripe_payment_id && order.invoice_id) {
     const { data: invoice } = await supabase
       .from("invoices")

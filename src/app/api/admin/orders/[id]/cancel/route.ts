@@ -86,7 +86,67 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Failed to cancel order" }, { status: 500 });
   }
 
-  // 3. Activity log
+  // 3. Replenish roasted stock and green bean stock for cancelled items (non-ghost orders only)
+  if (!isGhost) {
+    const orderItems = Array.isArray(order.items) ? order.items as Record<string, unknown>[] : [];
+    for (const item of orderItems) {
+      const roastedStockId = item.roastedStockId as string | undefined;
+      const weightGrams = item.weightGrams as number | undefined;
+      const quantity = item.quantity as number | undefined;
+      if (roastedStockId && weightGrams && weightGrams > 0 && quantity) {
+        const replenishKg = (weightGrams / 1000) * quantity;
+        await supabase.rpc("replenish_roasted_stock", {
+          stock_id: roastedStockId,
+          qty_kg: replenishKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", roastedStockId)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: order.roaster_id,
+          roasted_stock_id: roastedStockId,
+          movement_type: "cancellation_return",
+          quantity_kg: replenishKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? replenishKg,
+          reference_id: id,
+          reference_type: "order",
+          notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
+        });
+      }
+
+      // Replenish green bean stock
+      const greenBeanId = item.greenBeanId as string | undefined;
+      if (greenBeanId && weightGrams && weightGrams > 0 && quantity) {
+        const replenishKg = (weightGrams / 1000) * quantity;
+        const { data: bean } = await supabase
+          .from("green_beans")
+          .select("current_stock_kg")
+          .eq("id", greenBeanId)
+          .single();
+        if (bean) {
+          const newStock = (bean.current_stock_kg || 0) + replenishKg;
+          await supabase
+            .from("green_beans")
+            .update({ current_stock_kg: newStock })
+            .eq("id", greenBeanId);
+          await supabase.from("green_bean_movements").insert({
+            roaster_id: order.roaster_id,
+            green_bean_id: greenBeanId,
+            movement_type: "cancellation_return",
+            quantity_kg: replenishKg,
+            balance_after_kg: newStock,
+            reference_id: id,
+            reference_type: "order",
+            notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
+          });
+        }
+      }
+    }
+  }
+
+  // 4. Activity log
   await supabase.from("order_activity_log").insert({
     order_id: id,
     order_type: isGhost ? "ghost" : orderType,
@@ -96,7 +156,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     actor_name: user.email,
   });
 
-  // 4. Send cancellation email to customer
+  // 5. Send cancellation email to customer
   const wasPaid = !!order.stripe_payment_id;
   if (customerEmail) {
     // Fetch platform branding
@@ -127,7 +187,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }).catch((err) => console.error("Failed to send cancellation email:", err));
   }
 
-  // 5. Notify customer in-app
+  // 6. Notify customer in-app
   if (order.user_id) {
     createNotification({
       userId: order.user_id,
@@ -139,7 +199,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }).catch(() => {});
   }
 
-  // 6. Partner/roaster notification
+  // 7. Partner/roaster notification
   if (isGhost && order.partner_roaster_id) {
     // Ghost order with allocated partner
     const { data: partner } = await supabase
@@ -196,7 +256,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // 7. Auto-refund for Stripe-paid orders
+  // 8. Auto-refund for Stripe-paid orders
   if (order.stripe_payment_id && order.refund_status !== "full") {
     const orderTotal = isGhost ? order.total_price : order.subtotal;
     const existingRefundTotal = order.refund_total || 0;
@@ -251,7 +311,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // 8. Invoice handling for non-Stripe orders
+  // 9. Invoice handling for non-Stripe orders
   if (!isGhost && !order.stripe_payment_id && order.invoice_id) {
     const { data: invoice } = await supabase
       .from("invoices")

@@ -18,7 +18,7 @@ interface ProductVariant {
   is_active: boolean | null;
 }
 
-interface RoastedStock {
+interface StockRecord {
   id: string;
   name: string;
   current_stock_kg: number;
@@ -39,7 +39,8 @@ interface Product {
   is_wholesale?: boolean;
   retail_price: number | null;
   product_variants: ProductVariant[] | null;
-  roasted_stock: RoastedStock | null;
+  roasted_stock: StockRecord | null;
+  green_beans: StockRecord | null;
   category?: string;
 }
 
@@ -93,14 +94,27 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     return formatRange(prices) || "—";
   }
 
-  function getStockBadge(product: Product): { label: string; className: string } | null {
-    const stock = product.roasted_stock;
-    if (!stock) return null;
+  function getStockLevel(stock: StockRecord | null): "none" | "out" | "low" | "in" {
+    if (!stock) return "none";
     const kg = Number(stock.current_stock_kg);
-    if (kg <= 0) return { label: "Out of stock", className: "bg-red-50 text-red-700" };
-    if (stock.low_stock_threshold_kg && kg <= Number(stock.low_stock_threshold_kg)) {
-      return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
-    }
+    if (kg <= 0) return "out";
+    if (stock.low_stock_threshold_kg && kg <= Number(stock.low_stock_threshold_kg)) return "low";
+    return "in";
+  }
+
+  function getStockBadge(product: Product): { label: string; className: string } | null {
+    const roastedLevel = getStockLevel(product.roasted_stock);
+    const greenBeanLevel = getStockLevel(product.green_beans);
+
+    // If neither is linked, no badge
+    if (roastedLevel === "none" && greenBeanLevel === "none") return null;
+
+    // Show worst status across both pools
+    const levels = [roastedLevel, greenBeanLevel].filter((l) => l !== "none");
+    const worst = levels.includes("out") ? "out" : levels.includes("low") ? "low" : "in";
+
+    if (worst === "out") return { label: "Out of stock", className: "bg-red-50 text-red-700" };
+    if (worst === "low") return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
     return { label: "In stock", className: "bg-green-50 text-green-700" };
   }
 

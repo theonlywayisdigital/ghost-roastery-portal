@@ -268,6 +268,41 @@ export async function POST(request: Request) {
       }
     }
 
+    // Seed a buyer_addresses record from the application address
+    if (businessAddress) {
+      // Get the wholesale_access record ID
+      const { data: waRecord } = await supabase
+        .from("wholesale_access")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("roaster_id", roasterId)
+        .single();
+
+      if (waRecord) {
+        // Check no address already exists for this buyer+roaster
+        const { data: existingAddr } = await supabase
+          .from("buyer_addresses")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("roaster_id", roasterId)
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingAddr) {
+          await supabase.from("buyer_addresses").insert({
+            roaster_id: roasterId,
+            user_id: userId,
+            wholesale_access_id: waRecord.id,
+            label: "Business",
+            address_line_1: businessAddress,
+            city: "",
+            postcode: "",
+            is_default: true,
+          });
+        }
+      }
+    }
+
     // Auto-approve flow
     if (roaster.auto_approve_wholesale) {
       await supabase

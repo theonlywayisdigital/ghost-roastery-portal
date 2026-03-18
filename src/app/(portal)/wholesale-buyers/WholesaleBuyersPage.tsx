@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "@/components/icons";
 import { SettingsSection } from "./SettingsSection";
 import Link from "next/link";
+import { Plus, Pencil, Trash2, Star, X } from "lucide-react";
 
 interface BuyerUser {
   full_name: string | null;
@@ -28,6 +29,34 @@ interface WholesaleBuyer {
   approved_at: string | null;
   contact_id: string | null;
   users: BuyerUser | BuyerUser[] | null;
+}
+
+interface BuyerAddress {
+  id: string;
+  label: string | null;
+  address_line_1: string;
+  address_line_2: string | null;
+  city: string;
+  county: string | null;
+  postcode: string;
+  country: string;
+  is_default: boolean;
+}
+
+const EMPTY_ADDR = {
+  label: "",
+  address_line_1: "",
+  address_line_2: "",
+  city: "",
+  county: "",
+  postcode: "",
+  country: "United Kingdom",
+};
+
+function formatBuyerAddress(addr: BuyerAddress) {
+  return [addr.address_line_1, addr.address_line_2, addr.city, addr.county, addr.postcode, addr.country]
+    .filter(Boolean)
+    .join(", ");
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -101,6 +130,15 @@ export function WholesaleBuyersPage({
   const [editTerms, setEditTerms] = useState("");
   const [showEditForm, setShowEditForm] = useState<string | null>(null);
 
+  // Address state
+  const [addressMap, setAddressMap] = useState<Record<string, BuyerAddress[]>>({});
+  const [addressLoading, setAddressLoading] = useState<string | null>(null);
+  const [showAddrForm, setShowAddrForm] = useState<string | null>(null);
+  const [editingAddrId, setEditingAddrId] = useState<string | null>(null);
+  const [addrForm, setAddrForm] = useState(EMPTY_ADDR);
+  const [addrSaving, setAddrSaving] = useState(false);
+  const [addrError, setAddrError] = useState<string | null>(null);
+
   const requests = buyers.filter(
     (b) => b.status === "pending" || b.status === "rejected"
   );
@@ -137,6 +175,231 @@ export function WholesaleBuyersPage({
       setShowRejectForm(null);
       setShowEditForm(null);
     }
+  }
+
+  // ─── Address helpers ───
+  const fetchAddresses = useCallback(async (buyerId: string) => {
+    setAddressLoading(buyerId);
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${buyerId}/addresses`);
+      if (res.ok) {
+        const data = await res.json();
+        setAddressMap((prev) => ({ ...prev, [buyerId]: data.addresses }));
+      }
+    } finally {
+      setAddressLoading(null);
+    }
+  }, []);
+
+  // Fetch addresses when a buyer row is expanded
+  useEffect(() => {
+    if (expandedId && !addressMap[expandedId]) {
+      fetchAddresses(expandedId);
+    }
+  }, [expandedId, addressMap, fetchAddresses]);
+
+  function openAddrAdd(buyerId: string) {
+    setShowAddrForm(buyerId);
+    setEditingAddrId(null);
+    setAddrForm(EMPTY_ADDR);
+    setAddrError(null);
+  }
+
+  function openAddrEdit(buyerId: string, addr: BuyerAddress) {
+    setShowAddrForm(buyerId);
+    setEditingAddrId(addr.id);
+    setAddrForm({
+      label: addr.label || "",
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2 || "",
+      city: addr.city,
+      county: addr.county || "",
+      postcode: addr.postcode,
+      country: addr.country,
+    });
+    setAddrError(null);
+  }
+
+  function closeAddrForm() {
+    setShowAddrForm(null);
+    setEditingAddrId(null);
+    setAddrForm(EMPTY_ADDR);
+    setAddrError(null);
+  }
+
+  async function handleAddrSave(buyerId: string) {
+    if (!addrForm.address_line_1 || !addrForm.city || !addrForm.postcode) {
+      setAddrError("Address line 1, city, and postcode are required.");
+      return;
+    }
+    setAddrSaving(true);
+    setAddrError(null);
+    try {
+      if (editingAddrId) {
+        const res = await fetch(`/api/wholesale-buyers/${buyerId}/addresses/${editingAddrId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(addrForm),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      } else {
+        const res = await fetch(`/api/wholesale-buyers/${buyerId}/addresses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(addrForm),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+      }
+      closeAddrForm();
+      await fetchAddresses(buyerId);
+    } catch (err) {
+      setAddrError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setAddrSaving(false);
+    }
+  }
+
+  async function handleAddrDelete(buyerId: string, addrId: string) {
+    if (!confirm("Delete this address?")) return;
+    try {
+      await fetch(`/api/wholesale-buyers/${buyerId}/addresses/${addrId}`, { method: "DELETE" });
+      await fetchAddresses(buyerId);
+    } catch { /* ignore */ }
+  }
+
+  async function handleAddrSetDefault(buyerId: string, addrId: string) {
+    try {
+      await fetch(`/api/wholesale-buyers/${buyerId}/addresses/${addrId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_default: true }),
+      });
+      await fetchAddresses(buyerId);
+    } catch { /* ignore */ }
+  }
+
+  function renderAddressSection(buyerId: string) {
+    const addrs = addressMap[buyerId];
+    const loading = addressLoading === buyerId;
+
+    return (
+      <div className="mt-4 pt-4 border-t border-slate-200">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            Delivery Addresses
+          </h4>
+          <button
+            onClick={(e) => { e.stopPropagation(); openAddrAdd(buyerId); }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Add
+          </button>
+        </div>
+
+        {loading && <p className="text-xs text-slate-400">Loading addresses...</p>}
+
+        {!loading && addrs && addrs.length === 0 && showAddrForm !== buyerId && (
+          <p className="text-xs text-slate-400">No addresses saved.</p>
+        )}
+
+        {addrs && addrs.length > 0 && (
+          <div className="space-y-2">
+            {addrs.map((addr) => (
+              <div
+                key={addr.id}
+                className={`flex items-start justify-between gap-2 rounded-md border p-3 ${addr.is_default ? "border-slate-300 bg-white" : "border-slate-200 bg-white"}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    {addr.label && <span className="text-xs font-medium text-slate-700">{addr.label}</span>}
+                    {addr.is_default && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                        <Star className="w-2.5 h-2.5 fill-current" />
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600">{formatBuyerAddress(addr)}</p>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {!addr.is_default && (
+                    <button onClick={() => handleAddrSetDefault(buyerId, addr.id)} className="p-1 rounded text-slate-400 hover:text-amber-600" title="Set default">
+                      <Star className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button onClick={() => openAddrEdit(buyerId, addr)} className="p-1 rounded text-slate-400 hover:text-slate-600" title="Edit">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button onClick={() => handleAddrDelete(buyerId, addr.id)} className="p-1 rounded text-slate-400 hover:text-red-600" title="Delete">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAddrForm === buyerId && (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-sm font-medium text-slate-900">
+                {editingAddrId ? "Edit Address" : "New Address"}
+              </h5>
+              <button onClick={closeAddrForm} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Label</label>
+                <input type="text" placeholder="e.g. Head Office" value={addrForm.label} onChange={(e) => setAddrForm({ ...addrForm, label: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Address Line 1 *</label>
+                <input type="text" value={addrForm.address_line_1} onChange={(e) => setAddrForm({ ...addrForm, address_line_1: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Address Line 2</label>
+                <input type="text" value={addrForm.address_line_2} onChange={(e) => setAddrForm({ ...addrForm, address_line_2: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">City *</label>
+                <input type="text" value={addrForm.city} onChange={(e) => setAddrForm({ ...addrForm, city: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">County</label>
+                <input type="text" value={addrForm.county} onChange={(e) => setAddrForm({ ...addrForm, county: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Postcode *</label>
+                <input type="text" value={addrForm.postcode} onChange={(e) => setAddrForm({ ...addrForm, postcode: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Country</label>
+                <input type="text" value={addrForm.country} onChange={(e) => setAddrForm({ ...addrForm, country: e.target.value })}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+              </div>
+            </div>
+            {addrError && <p className="mt-2 text-xs text-red-600">{addrError}</p>}
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={closeAddrForm} className="px-3 py-1.5 rounded-md text-xs text-slate-600 hover:bg-slate-50 border border-slate-300">Cancel</button>
+              <button onClick={() => handleAddrSave(buyerId)} disabled={addrSaving}
+                className="px-3 py-1.5 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50">
+                {addrSaving ? "Saving..." : editingAddrId ? "Update" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   function renderStatusBadge(status: string) {
@@ -567,7 +830,7 @@ export function WholesaleBuyersPage({
                               {buyer.business_address && (
                                 <div>
                                   <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
-                                    Address
+                                    Business Address
                                   </h4>
                                   <p className="text-sm text-slate-700">
                                     {buyer.business_address}
@@ -688,6 +951,7 @@ export function WholesaleBuyersPage({
                               )}
                             </div>
                           </div>
+                          {renderAddressSection(buyer.id)}
                         </td>
                       </tr>
                     )}

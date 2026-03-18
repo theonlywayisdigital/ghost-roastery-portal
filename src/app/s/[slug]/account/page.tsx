@@ -53,11 +53,22 @@ export default async function StorefrontAccountRoute({
     .eq("roaster_id", roaster.id)
     .maybeSingle();
 
+  // Fetch buyer addresses
+  const { data: addresses } = await supabase
+    .from("buyer_addresses")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("roaster_id", roaster.id)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: true });
+
   return (
     <AccountPage
       slug={slug}
+      roasterId={roaster.id}
       profile={profile}
       wholesaleAccess={wholesaleAccess}
+      addresses={addresses || []}
     />
   );
 }

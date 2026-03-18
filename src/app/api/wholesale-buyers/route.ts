@@ -318,6 +318,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // Seed a buyer_addresses record from the provided address
+    if (businessAddress && wholesaleAccess) {
+      const { data: existingAddr } = await supabase
+        .from("buyer_addresses")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("roaster_id", roasterId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!existingAddr) {
+        await supabase.from("buyer_addresses").insert({
+          roaster_id: roasterId,
+          user_id: userId,
+          wholesale_access_id: wholesaleAccess.id,
+          label: "Business",
+          address_line_1: businessAddress,
+          city: "",
+          postcode: "",
+          is_default: true,
+        });
+      }
+    }
+
     // Grant wholesale_buyer role
     const { data: existingRole } = await supabase
       .from("user_roles")

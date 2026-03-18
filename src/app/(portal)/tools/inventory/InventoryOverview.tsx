@@ -17,6 +17,7 @@ interface RoastedStock {
   current_stock_kg: number;
   green_bean_id: string | null;
   low_stock_threshold_kg: number | null;
+  batch_size_kg: number | null;
 }
 
 interface GreenBean {
@@ -135,7 +136,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
     greenBeanMap[gb.id] = gb;
   }
 
-  const batchSizeKg = data.defaultBatchSizeKg;
+  const globalBatchSizeKg = data.defaultBatchSizeKg;
 
   // Build table rows
   const rows: TableRow[] = data.roastedStock.map((rs) => {
@@ -144,9 +145,11 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
     const roastedStockKg = Number(rs.current_stock_kg);
     const committedKg = data.committedByRoasted[rs.id] || 0;
     const requiredKg = committedKg - roastedStockKg;
+    // Per-coffee batch size takes priority, then global default
+    const effectiveBatchSize = rs.batch_size_kg ?? globalBatchSizeKg;
     const batches =
-      batchSizeKg && batchSizeKg > 0 && requiredKg > 0
-        ? Math.ceil(requiredKg / batchSizeKg)
+      effectiveBatchSize && effectiveBatchSize > 0 && requiredKg > 0
+        ? Math.ceil(requiredKg / effectiveBatchSize)
         : requiredKg > 0
           ? null
           : 0;
@@ -317,7 +320,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             <p className="text-xs text-slate-500">Batches Needed</p>
           </div>
           <p className="text-xl font-bold text-slate-900">
-            {batchSizeKg ? totalBatches : "—"}
+            {rows.some((r) => r.batches === null) ? "—" : totalBatches}
           </p>
         </div>
       </div>

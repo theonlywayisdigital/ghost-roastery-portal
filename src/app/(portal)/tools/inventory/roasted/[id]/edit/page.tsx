@@ -24,6 +24,7 @@ export default async function EditRoastedStockPage({ params }: { params: Promise
     green_bean_id: stock.green_bean_id || "",
     current_stock_kg: String(stock.current_stock_kg || ""),
     low_stock_threshold_kg: stock.low_stock_threshold_kg ? String(stock.low_stock_threshold_kg) : "",
+    batch_size_kg: stock.batch_size_kg ? String(stock.batch_size_kg) : "",
     notes: stock.notes || "",
     is_active: stock.is_active ?? true,
   };

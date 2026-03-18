@@ -35,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await request.json();
-  const { name, green_bean_id, low_stock_threshold_kg, notes, is_active } = body;
+  const { name, green_bean_id, low_stock_threshold_kg, batch_size_kg, notes, is_active } = body;
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
@@ -46,6 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       name,
       green_bean_id: green_bean_id || null,
       low_stock_threshold_kg: low_stock_threshold_kg ? parseFloat(low_stock_threshold_kg) : null,
+      batch_size_kg: batch_size_kg ? parseFloat(batch_size_kg) : null,
       notes: notes || null,
       is_active: is_active ?? true,
     })

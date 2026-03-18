@@ -9,6 +9,61 @@ import { Header } from "../../_components/Header";
 import { Cart } from "../../_components/Cart";
 import { Footer } from "../../_components/Footer";
 
+interface OrderDetails {
+  deliveryAddress: {
+    label?: string;
+    line1: string;
+    line2?: string;
+    city: string;
+    county?: string;
+    postcode: string;
+    country: string;
+  } | null;
+  notes: string | null;
+}
+
+function formatDeliveryAddress(addr: NonNullable<OrderDetails["deliveryAddress"]>) {
+  return [addr.line1, addr.line2, addr.city, addr.county, addr.postcode, addr.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function OrderDetailsSection({ details }: { details: OrderDetails }) {
+  const hasAddress = details.deliveryAddress;
+  const hasNotes = details.notes;
+
+  if (!hasAddress && !hasNotes) return null;
+
+  return (
+    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6 text-left max-w-sm mx-auto">
+      {hasAddress && (
+        <div className="mb-3 last:mb-0">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            Delivering to
+          </p>
+          {details.deliveryAddress!.label && (
+            <p className="text-sm font-medium text-slate-900">
+              {details.deliveryAddress!.label}
+            </p>
+          )}
+          <p className="text-sm text-slate-600">
+            {formatDeliveryAddress(details.deliveryAddress!)}
+          </p>
+        </div>
+      )}
+      {hasNotes && (
+        <div>
+          {hasAddress && <div className="border-t border-slate-200 my-3" />}
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            Order Notes
+          </p>
+          <p className="text-sm text-slate-600">{details.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -29,6 +84,20 @@ function SuccessContent() {
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(
     orderId || null
   );
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+
+  // Try to read order details from sessionStorage (set by checkout page)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("wholesale_order_details");
+      if (raw) {
+        setOrderDetails(JSON.parse(raw));
+        sessionStorage.removeItem("wholesale_order_details");
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (isInvoiceOrder) return;
@@ -47,6 +116,13 @@ function SuccessContent() {
         if (res.ok) {
           const data = await res.json();
           if (data.orderId) setConfirmedOrderId(data.orderId);
+          // Use confirm-order response for details if sessionStorage was empty
+          if (data.deliveryAddress || data.notes) {
+            setOrderDetails((prev) => prev || {
+              deliveryAddress: data.deliveryAddress || null,
+              notes: data.notes || null,
+            });
+          }
           setStatus("confirmed");
         } else {
           setStatus("error");
@@ -153,13 +229,16 @@ function SuccessContent() {
                 to you shortly.
               </p>
               {invoiceNumber && (
-                <p className="text-sm text-slate-500 mb-6">
+                <p className="text-sm text-slate-500 mb-4">
                   Invoice:{" "}
                   <span className="font-mono font-medium text-slate-700">
                     {invoiceNumber}
                   </span>
                 </p>
               )}
+
+              {orderDetails && <OrderDetailsSection details={orderDetails} />}
+
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {accessToken && invoiceId && (
                   <Link
@@ -229,15 +308,18 @@ function SuccessContent() {
               <h1 className="text-2xl font-bold text-slate-900 mb-2">
                 Order Confirmed!
               </h1>
-              <p className="text-slate-600 mb-6">
+              <p className="text-slate-600 mb-4">
                 Thank you for your purchase. You&apos;ll receive a confirmation
                 email shortly with your order details.
               </p>
               {sessionId && (
-                <p className="text-xs text-slate-400 mb-6">
+                <p className="text-xs text-slate-400 mb-4">
                   Reference: {sessionId.slice(-8).toUpperCase()}
                 </p>
               )}
+
+              {orderDetails && <OrderDetailsSection details={orderDetails} />}
+
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {confirmedOrderId && (
                   <Link

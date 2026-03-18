@@ -27,6 +27,7 @@ export function extractSessionMetadata(
   const discountCodeId = metadata.discount_code_id || null;
   const discountCode = metadata.discount_code || null;
   const discountAmountPence = parseInt(metadata.discount_amount_pence || "0");
+  const orderNotes = metadata.order_notes || null;
 
   return {
     stripePaymentId,
@@ -41,5 +42,6 @@ export function extractSessionMetadata(
     discountCode,
     discountAmountPence,
     isWholesaleChannel,
+    orderNotes,
   };
 }

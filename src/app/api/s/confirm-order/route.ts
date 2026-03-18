@@ -48,6 +48,8 @@ export async function POST(request: Request) {
       orderId: result.orderId,
       customerEmail: result.customerEmail,
       customerName: result.customerName,
+      deliveryAddress: params.deliveryAddress || null,
+      notes: params.orderNotes || null,
     });
   } catch (error) {
     console.error("Confirm order error:", error);

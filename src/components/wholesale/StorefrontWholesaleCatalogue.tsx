@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Minus, Plus, Package, Trash2, ShoppingCart } from "@/components/icons";
 
@@ -116,9 +117,9 @@ export function StorefrontWholesaleCatalogue({
   accentText: string;
   context: CatalogueContext;
 }) {
+  const router = useRouter();
   const [order, setOrder] = useState<OrderItem[]>([]);
   const [showOrder, setShowOrder] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /** Get available units for a product+variant, accounting for cart consumption */
@@ -261,72 +262,38 @@ export function StorefrontWholesaleCatalogue({
   );
   const orderCount = order.reduce((sum, item) => sum + item.quantity, 0);
 
-  function getSuccessUrl(): string {
-    if (context.type === "storefront") {
-      return `/s/${context.slug}/wholesale/success`;
-    }
-    return `/w/${context.domain}/wholesale/success`;
-  }
-
-  function getCancelUrl(): string {
-    if (context.type === "storefront") {
-      return `/s/${context.slug}/wholesale`;
-    }
-    return `/w/${context.domain}/wholesale`;
-  }
-
-  async function handleCheckout() {
+  function handleReviewOrder() {
     if (order.length === 0) return;
-    setSubmitting(true);
-    setError(null);
 
-    try {
-      const isInvoiceCheckout = paymentTerms !== "prepay";
-      const endpoint = isInvoiceCheckout
-        ? "/api/s/invoice-checkout"
-        : "/api/s/checkout";
+    // Persist cart and checkout metadata to sessionStorage
+    const checkoutUrl = context.type === "storefront"
+      ? `/s/${context.slug}/wholesale/checkout`
+      : `/w/${context.domain}/wholesale/checkout`;
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roasterId: roaster.id,
-          items: order.map((item) => ({
-            productId: item.productId.split(":")[0],
-            variantId: item.variantId,
-            quantity: item.quantity,
-          })),
-          wholesaleAccessId,
-          slug: roaster.slug,
-          successUrl: getSuccessUrl(),
-          cancelUrl: getCancelUrl(),
-        }),
-      });
+    const successUrl = context.type === "storefront"
+      ? `/s/${context.slug}/wholesale/success`
+      : `/w/${context.domain}/wholesale/success`;
 
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create checkout.");
-        return;
-      }
+    const cancelUrl = context.type === "storefront"
+      ? `/s/${context.slug}/wholesale`
+      : `/w/${context.domain}/wholesale`;
 
-      const data = await res.json();
+    sessionStorage.setItem(
+      "wholesale_checkout",
+      JSON.stringify({
+        roasterId: roaster.id,
+        roasterSlug: roaster.slug,
+        roasterName: roaster.businessName,
+        wholesaleAccessId,
+        paymentTerms,
+        items: order,
+        successUrl,
+        cancelUrl,
+        context,
+      })
+    );
 
-      if (isInvoiceCheckout && data.success) {
-        const params = new URLSearchParams({
-          invoice_id: data.invoiceId || "",
-          invoice_number: data.invoiceNumber || "",
-          order_id: data.orderId || "",
-          ...(data.accessToken ? { access_token: data.accessToken } : {}),
-        });
-        window.location.href = `${getSuccessUrl()}?${params.toString()}`;
-      } else if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+    router.push(checkoutUrl);
   }
 
   return (
@@ -670,16 +637,11 @@ export function StorefrontWholesaleCatalogue({
                   <span className="text-sm text-red-600">{error}</span>
                 )}
                 <button
-                  onClick={handleCheckout}
-                  disabled={submitting}
+                  onClick={handleReviewOrder}
                   style={{ backgroundColor: accentColour, color: accentText }}
-                  className="px-6 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  className="px-6 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
                 >
-                  {submitting
-                    ? "Processing..."
-                    : paymentTerms === "prepay"
-                      ? "Checkout"
-                      : "Place Order on Account"}
+                  Review Order
                 </button>
               </div>
             </div>

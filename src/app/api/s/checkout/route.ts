@@ -33,12 +33,15 @@ export async function POST(request: Request) {
       customerEmail?: string;
       customerName?: string;
       deliveryAddress?: {
+        label?: string;
         line1: string;
         line2?: string;
         city: string;
+        county?: string;
         postcode: string;
         country: string;
       };
+      orderNotes?: string;
       wholesaleAccessId?: string;
       discountCodeId?: string;
       discountCode?: string;
@@ -433,6 +436,7 @@ export async function POST(request: Request) {
         })(),
         subtotal_pence: subtotalPence.toString(),
         platform_fee_pence: platformFeePence.toString(),
+        ...(body.orderNotes ? { order_notes: body.orderNotes.slice(0, 490) } : {}),
         ...(isWholesale ? { wholesale: "true", wholesale_access_id: wholesaleAccessId } : {}),
         ...(validatedDiscountCodeId
           ? {

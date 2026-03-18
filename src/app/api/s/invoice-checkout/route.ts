@@ -46,12 +46,15 @@ export async function POST(request: Request) {
       customerEmail?: string;
       customerName?: string;
       deliveryAddress?: {
+        label?: string;
         line1: string;
         line2?: string;
         city: string;
+        county?: string;
         postcode: string;
         country: string;
       };
+      orderNotes?: string;
       wholesaleAccessId: string;
       discountCodeId?: string;
       discountCode?: string;
@@ -427,6 +430,7 @@ export async function POST(request: Request) {
         discount_code: validatedDiscountCode || null,
         wholesale_access_id: wholesaleAccessId,
         order_channel: "wholesale",
+        notes: body.orderNotes || null,
       })
       .select("id")
       .single();

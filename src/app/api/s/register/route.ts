@@ -59,19 +59,16 @@ export async function POST(request: Request) {
       userId = authData.user.id;
     } else if (authError.message?.includes("already been registered")) {
       // An auth.users entry already exists for this email.
-      // This happens because other flows (wholesale-apply, invoice-checkout)
-      // or the on_auth_user_created trigger create passwordless auth users.
-      // We need to decide: claim it or reject it.
+      // Look up via public.users (mirrored by on_auth_user_created trigger)
+      const { data: existingUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .single();
 
-      // Look up the existing auth user by email
-      const { data: listData } = await supabase.auth.admin.listUsers();
-      const existingAuth = listData?.users?.find(
-        (u) => u.email?.toLowerCase() === normalizedEmail
-      );
-
-      if (!existingAuth) {
+      if (!existingUser) {
         return NextResponse.json(
-          { error: "Failed to create account" },
+          { error: "Failed to create account — user lookup failed" },
           { status: 500 }
         );
       }
@@ -80,7 +77,7 @@ export async function POST(request: Request) {
       const { data: existingRoles } = await supabase
         .from("user_roles")
         .select("role_id")
-        .eq("user_id", existingAuth.id);
+        .eq("user_id", existingUser.id);
 
       const roles = (existingRoles || []).map((r) => r.role_id);
       const hasProtectedRole = roles.some((r) =>
@@ -96,33 +93,31 @@ export async function POST(request: Request) {
 
       // Claim: set password + confirm email on the existing shell user
       const { error: updateError } =
-        await supabase.auth.admin.updateUserById(existingAuth.id, {
+        await supabase.auth.admin.updateUserById(existingUser.id, {
           password,
           email_confirm: true,
-          user_metadata: { ...existingAuth.user_metadata, full_name: name },
         });
 
       if (updateError) {
         console.error("Register claim error:", updateError);
         return NextResponse.json(
-          { error: "Failed to create account" },
+          { error: "Failed to create account — claim failed" },
           { status: 500 }
         );
       }
 
-      userId = existingAuth.id;
+      userId = existingUser.id;
 
       // Ensure public.users row has their name
       await supabase
         .from("users")
-        .upsert(
-          { id: userId, email: normalizedEmail, full_name: name },
-          { onConflict: "id" }
-        );
+        .update({ full_name: name })
+        .eq("id", userId);
     } else {
-      console.error("Register auth error:", authError);
+      // Unexpected error — return the actual message for debugging
+      console.error("Register auth error:", authError.message, authError);
       return NextResponse.json(
-        { error: "Failed to create account" },
+        { error: `Account creation failed: ${authError.message}` },
         { status: 500 }
       );
     }

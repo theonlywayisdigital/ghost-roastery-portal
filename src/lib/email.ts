@@ -783,6 +783,7 @@ export async function sendInvoiceEmail(params: {
     total: number;
   }[];
   branding?: EmailBranding | null;
+  attachments?: { filename: string; content: Buffer }[];
 }) {
   const {
     to,
@@ -796,6 +797,7 @@ export async function sendInvoiceEmail(params: {
     stripePaymentLinkUrl,
     lineItems,
     branding,
+    attachments,
   } = params;
 
   const formattedTotal = formatCurrency(total, currency);
@@ -854,10 +856,11 @@ export async function sendInvoiceEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to,
     subject: `Invoice ${invoiceNumber} from ${ownerName}`,
     html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
+    ...(attachments?.length ? { attachments } : {}),
   });
 }
 
@@ -873,6 +876,7 @@ export async function sendInvoiceReminderEmail(params: {
   accessToken: string;
   stripePaymentLinkUrl?: string | null;
   branding?: EmailBranding | null;
+  attachments?: { filename: string; content: Buffer }[];
 }) {
   const {
     to,
@@ -886,6 +890,7 @@ export async function sendInvoiceReminderEmail(params: {
     accessToken,
     stripePaymentLinkUrl,
     branding,
+    attachments,
   } = params;
 
   const formattedTotal = formatCurrency(total, currency);
@@ -929,9 +934,70 @@ export async function sendInvoiceReminderEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding),
     to,
     subject: `Payment reminder: Invoice ${invoiceNumber}`,
     html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
+    ...(attachments?.length ? { attachments } : {}),
+  });
+}
+
+export async function sendInvoicePaymentConfirmationEmail(params: {
+  to: string;
+  customerName: string;
+  ownerName: string;
+  invoiceNumber: string;
+  total: number;
+  amountPaid: number;
+  currency: string;
+  branding?: EmailBranding | null;
+  attachments?: { filename: string; content: Buffer }[];
+}) {
+  const {
+    to,
+    customerName,
+    ownerName,
+    invoiceNumber,
+    total,
+    amountPaid,
+    currency,
+    branding,
+    attachments,
+  } = params;
+
+  const formattedTotal = formatCurrency(total, currency);
+  const formattedPaid = formatCurrency(amountPaid, currency);
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Payment Received</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Invoice ${invoiceNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${customerName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We&rsquo;ve received your payment for invoice <strong>${invoiceNumber}</strong>. Thank you!
+    </p>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#166534;font-size:14px;margin:0 0 8px;"><strong>Invoice Total:</strong> ${formattedTotal}</p>
+      <p style="color:#166534;font-size:16px;font-weight:700;margin:0 0 8px;"><strong>Amount Paid:</strong> ${formattedPaid}</p>
+      <p style="color:#16a34a;font-size:14px;font-weight:600;margin:0;">Status: Paid in Full</p>
+    </div>
+
+    <p style="color:#64748b;font-size:14px;line-height:1.6;text-align:left;margin-top:24px;">
+      A copy of the paid invoice is attached to this email for your records.
+    </p>
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      If you have any questions, please get in touch.
+    </p>`;
+
+  await resend.emails.send({
+    from: getFromEmail(branding),
+    to,
+    subject: `Payment received: Invoice ${invoiceNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
+    ...(attachments?.length ? { attachments } : {}),
   });
 }

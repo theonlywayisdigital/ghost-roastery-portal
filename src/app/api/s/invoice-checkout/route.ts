@@ -11,6 +11,8 @@ import {
   generateAccessToken,
 } from "@/lib/invoice-utils";
 import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
+import { sendInvoiceEmail } from "@/lib/email";
+import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 
 interface CheckoutItem {
   productId: string;
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
     // Verify roaster exists (does NOT require stripe_account_id since no Stripe payment)
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, platform_fee_percent, business_name, user_id, sales_tier")
+      .select("id, platform_fee_percent, business_name, user_id, sales_tier, auto_send_invoices, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -592,6 +594,10 @@ export async function POST(request: Request) {
     dueDate.setDate(dueDate.getDate() + dueDays);
     const paymentDueDate = dueDate.toISOString().split("T")[0];
 
+    // Respect roaster's auto_send_invoices setting (default true if null)
+    const autoSend = roaster.auto_send_invoices !== false;
+    const now = new Date().toISOString();
+
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert({
@@ -611,7 +617,8 @@ export async function POST(request: Request) {
         currency: "GBP",
         payment_method: "bank_transfer",
         payment_status: "unpaid",
-        status: "sent",
+        status: autoSend ? "sent" : "draft",
+        ...(autoSend ? { sent_at: now, issued_date: now.split("T")[0] } : {}),
         notes: `Wholesale order - ${paymentTerms} payment terms`,
         due_days: dueDays,
         payment_due_date: paymentDueDate,
@@ -650,6 +657,76 @@ export async function POST(request: Request) {
 
     if (lineItemsError) {
       console.error("Failed to create invoice line items:", lineItemsError);
+    }
+
+    // ─── Link invoice to order ───
+    await supabase
+      .from("orders")
+      .update({ invoice_id: invoice.id })
+      .eq("id", order.id);
+
+    // ─── Send invoice email with PDF attached (if auto_send) ───
+    if (autoSend && wholesaleBuyerEmail) {
+      const invoiceLineItemsForEmail = lineItems.map((item) => ({
+        description: item.name,
+        quantity: item.quantity,
+        unit_price: item.unitAmount / 100,
+        total: (item.unitAmount * item.quantity) / 100,
+      }));
+
+      const branding = {
+        logoUrl: roaster.brand_logo_url || null,
+        primaryColour: roaster.brand_primary_colour || undefined,
+        accentColour: roaster.brand_accent_colour || undefined,
+        headingFont: roaster.brand_heading_font || undefined,
+        bodyFont: roaster.brand_body_font || undefined,
+        businessName: roaster.business_name || undefined,
+      };
+
+      // Generate PDF attachment
+      const pdfAttachment = await generateInvoiceAttachment({
+        ownerName: roaster.business_name || "Roaster",
+        ownerAddress: "",
+        ownerEmail: roaster.email || "",
+        vatNumber: roaster.vat_number || null,
+        customerName: wholesaleBuyerName,
+        customerAddress: null,
+        invoiceNumber,
+        issuedDate: now,
+        dueDate: paymentDueDate,
+        lineItems: invoiceLineItemsForEmail,
+        subtotal: invoiceSubtotal,
+        taxRate: 0,
+        taxAmount: 0,
+        discountAmount: validatedDiscountPence / 100,
+        total: invoiceTotal,
+        amountPaid: 0,
+        notes: `Wholesale order - ${paymentTerms} payment terms`,
+        status: "sent",
+        currency: "GBP",
+        branding,
+        bankName: roaster.bank_name || null,
+        bankAccountNumber: roaster.bank_account_number || null,
+        bankSortCode: roaster.bank_sort_code || null,
+        paymentInstructions: roaster.payment_instructions || null,
+      }).catch((err) => {
+        console.error("Failed to generate invoice PDF:", err);
+        return null;
+      });
+
+      sendInvoiceEmail({
+        to: wholesaleBuyerEmail,
+        customerName: wholesaleBuyerName,
+        ownerName: roaster.business_name || "Roaster",
+        invoiceNumber,
+        total: invoiceTotal,
+        currency: "GBP",
+        dueDate: paymentDueDate,
+        accessToken,
+        lineItems: invoiceLineItemsForEmail,
+        branding,
+        attachments: pdfAttachment ? [pdfAttachment] : undefined,
+      }).catch((err) => console.error("Failed to send invoice email:", err));
     }
 
     // ─── Record platform fee ledger entry ───

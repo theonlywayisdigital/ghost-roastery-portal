@@ -55,12 +55,16 @@ export default async function PublicInvoicePage({
   let accentColour = "#0f172a";
   let headingFontKey = "inter";
   let bodyFontKey = "inter";
+  let bankName: string | null = null;
+  let bankAccountNumber: string | null = null;
+  let bankSortCode: string | null = null;
+  let paymentInstructions: string | null = null;
 
   if (invoice.owner_type === "roaster" && invoice.roaster_id) {
     const { data: roaster } = await supabase
       .from("partner_roasters")
       .select(
-        "business_name, email, address_line1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font"
+        "business_name, email, address_line1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions"
       )
       .eq("id", invoice.roaster_id)
       .single();
@@ -75,12 +79,16 @@ export default async function PublicInvoicePage({
       accentColour = roaster.brand_accent_colour || accentColour;
       headingFontKey = roaster.brand_heading_font || headingFontKey;
       bodyFontKey = roaster.brand_body_font || bodyFontKey;
+      bankName = roaster.bank_name || null;
+      bankAccountNumber = roaster.bank_account_number || null;
+      bankSortCode = roaster.bank_sort_code || null;
+      paymentInstructions = roaster.payment_instructions || null;
     }
   } else {
     // Ghost Roastery platform
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font")
+      .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions")
       .limit(1)
       .single();
     if (settings) {
@@ -89,6 +97,10 @@ export default async function PublicInvoicePage({
       accentColour = settings.brand_accent_colour || accentColour;
       headingFontKey = settings.brand_heading_font || headingFontKey;
       bodyFontKey = settings.brand_body_font || bodyFontKey;
+      bankName = settings.bank_name || null;
+      bankAccountNumber = settings.bank_account_number || null;
+      bankSortCode = settings.bank_sort_code || null;
+      paymentInstructions = settings.payment_instructions || null;
     }
   }
 
@@ -397,10 +409,21 @@ export default async function PublicInvoicePage({
                     <p className="text-sm font-medium text-slate-900 mb-2">
                       Payment Details
                     </p>
-                    <p className="text-sm text-slate-600">
-                      Please make payment via bank transfer. Reference this
-                      invoice number in your payment.
-                    </p>
+                    {bankName || bankAccountNumber || bankSortCode ? (
+                      <div className="space-y-1 text-sm text-slate-600">
+                        {bankName && <p>{`Bank: ${bankName}`}</p>}
+                        {bankSortCode && <p>{`Sort Code: ${bankSortCode}`}</p>}
+                        {bankAccountNumber && <p>{`Account: ${bankAccountNumber}`}</p>}
+                        <p className="mt-2 text-slate-500">{`Reference: ${invoice.invoice_number}`}</p>
+                        {paymentInstructions && (
+                          <p className="mt-2 text-slate-500 whitespace-pre-wrap">{paymentInstructions}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600">
+                        {`Please make payment via bank transfer. Reference: ${invoice.invoice_number}`}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

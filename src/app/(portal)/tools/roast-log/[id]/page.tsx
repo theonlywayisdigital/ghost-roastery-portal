@@ -11,7 +11,7 @@ export default async function EditRoastLogPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const supabase = createServerClient();
 
-  const [{ data: roastLog }, { data: beans }, { data: products }] = await Promise.all([
+  const [{ data: roastLog }, { data: beans }, { data: products }, { data: roastedStocks }] = await Promise.all([
     supabase
       .from("roast_logs")
       .select("*")
@@ -30,9 +30,36 @@ export default async function EditRoastLogPage({ params }: { params: Promise<{ i
       .eq("roaster_id", user.roaster.id)
       .eq("is_active", true)
       .order("name"),
+    supabase
+      .from("roasted_stock")
+      .select("id, name, green_bean_id, current_stock_kg")
+      .eq("roaster_id", user.roaster.id)
+      .eq("is_active", true)
+      .order("name"),
   ]);
 
   if (!roastLog) notFound();
+
+  // Check if this completed roast added to roasted stock
+  let stockAddition = null;
+  if (roastLog.status === "completed") {
+    const { data: movement } = await supabase
+      .from("roasted_stock_movements")
+      .select("roasted_stock_id, quantity_kg, roasted_stock(name)")
+      .eq("reference_type", "roast_log")
+      .eq("reference_id", id)
+      .eq("movement_type", "roast_addition")
+      .single();
+
+    if (movement) {
+      const stockName = (movement.roasted_stock as unknown as { name: string } | null)?.name || "Unknown";
+      stockAddition = {
+        roasted_stock_id: movement.roasted_stock_id,
+        roasted_stock_name: stockName,
+        quantity_kg: Number(movement.quantity_kg),
+      };
+    }
+  }
 
   // Convert numeric fields to strings for the form
   const formData = {
@@ -61,5 +88,13 @@ export default async function EditRoastLogPage({ params }: { params: Promise<{ i
     status: roastLog.status || "draft",
   };
 
-  return <RoastLogForm roastLog={formData} beans={beans || []} products={products || []} />;
+  return (
+    <RoastLogForm
+      roastLog={formData}
+      beans={beans || []}
+      products={products || []}
+      roastedStocks={roastedStocks || []}
+      stockAddition={stockAddition}
+    />
+  );
 }

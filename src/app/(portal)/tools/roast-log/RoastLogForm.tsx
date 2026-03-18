@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Star } from "@/components/icons";
+import { ArrowLeft, Trash2, Star, Archive, Plus } from "@/components/icons";
 import Link from "next/link";
 
 interface Bean {
@@ -13,6 +13,19 @@ interface Bean {
 interface Product {
   id: string;
   name: string;
+}
+
+interface RoastedStockOption {
+  id: string;
+  name: string;
+  green_bean_id: string | null;
+  current_stock_kg: number;
+}
+
+interface StockAdditionInfo {
+  roasted_stock_id: string;
+  roasted_stock_name: string;
+  quantity_kg: number;
 }
 
 interface RoastLogData {
@@ -64,10 +77,14 @@ export function RoastLogForm({
   roastLog,
   beans,
   products,
+  roastedStocks = [],
+  stockAddition,
 }: {
   roastLog?: RoastLogData & { id: string };
   beans: Bean[];
   products: Product[];
+  roastedStocks?: RoastedStockOption[];
+  stockAddition?: StockAdditionInfo | null;
 }) {
   const router = useRouter();
   const isEdit = !!roastLog;
@@ -75,8 +92,20 @@ export function RoastLogForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Roasted stock addition state
+  const alreadyCompleted = isEdit && roastLog?.status === "completed";
+  const [addToStock, setAddToStock] = useState(false);
+  const [selectedStockId, setSelectedStockId] = useState("");
+  const [stockQty, setStockQty] = useState("");
+  const [createNewStock, setCreateNewStock] = useState(false);
+  const [newStockName, setNewStockName] = useState("");
+
   function update(field: keyof RoastLogData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+    // Auto-sync stock qty with roasted weight when user changes it
+    if (field === "roasted_weight_kg" && addToStock && !stockQty) {
+      setStockQty(value);
+    }
   }
 
   // Auto-calculate weight loss percent
@@ -104,13 +133,39 @@ export function RoastLogForm({
     setSaving(true);
     setError(null);
 
+    // If creating a new roasted stock record inline, do that first
+    let finalStockId = selectedStockId;
+    if (addToStock && createNewStock && newStockName && form.status === "completed") {
+      const createRes = await fetch("/api/tools/roasted-stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newStockName,
+          green_bean_id: form.green_bean_id || null,
+        }),
+      });
+      if (!createRes.ok) {
+        setError("Failed to create roasted stock record");
+        setSaving(false);
+        return;
+      }
+      const createData = await createRes.json();
+      finalStockId = createData.roastedStock.id;
+    }
+
     const url = isEdit ? `/api/tools/roast-log/${roastLog!.id}` : "/api/tools/roast-log";
     const method = isEdit ? "PUT" : "POST";
+
+    const payload: Record<string, unknown> = { ...form };
+    if (addToStock && finalStockId && stockQty && form.status === "completed") {
+      payload.roasted_stock_id = finalStockId;
+      payload.roasted_stock_qty_kg = stockQty;
+    }
 
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -331,6 +386,122 @@ export function RoastLogForm({
             <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={inputClass} placeholder="Any observations about this roast..." />
           </div>
         </div>
+
+        {/* Stock Addition — shown when completing a roast with roasted weight */}
+        {form.status === "completed" && form.roasted_weight_kg && !alreadyCompleted && (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <Archive className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Add to Roasted Stock</h2>
+                <p className="text-sm text-slate-500">Record the roasted output in your stock inventory</p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={addToStock}
+                onChange={(e) => {
+                  setAddToStock(e.target.checked);
+                  if (e.target.checked && !stockQty) setStockQty(form.roasted_weight_kg);
+                }}
+                className="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500"
+              />
+              <span className="text-sm font-medium text-slate-700">Add roasted output to stock</span>
+            </label>
+
+            {addToStock && (
+              <div className="space-y-4 pl-7">
+                {/* Stock record selection */}
+                <div>
+                  <label className={labelClass}>Roasted Stock Record</label>
+                  {!createNewStock ? (
+                    <div className="space-y-2">
+                      <select
+                        value={selectedStockId}
+                        onChange={(e) => setSelectedStockId(e.target.value)}
+                        className={selectClass(!!selectedStockId)}
+                      >
+                        <option value="">Select existing stock record</option>
+                        {roastedStocks.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({Number(s.current_stock_kg).toFixed(1)} kg)
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => { setCreateNewStock(true); setSelectedStockId(""); }}
+                        className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Create new stock record
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={newStockName}
+                        onChange={(e) => setNewStockName(e.target.value)}
+                        className={inputClass}
+                        placeholder="e.g. Ethiopia Yirgacheffe (Roasted)"
+                      />
+                      <p className="text-xs text-slate-500">
+                        {form.green_bean_id ? "Will be automatically linked to the selected green bean." : "No green bean selected — you can link one later."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { setCreateNewStock(false); setNewStockName(""); }}
+                        className="text-sm text-slate-500 hover:text-slate-700"
+                      >
+                        Use existing record instead
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label className={labelClass}>Quantity to Add (kg)</label>
+                  <input
+                    type="number"
+                    value={stockQty}
+                    onChange={(e) => setStockQty(e.target.value)}
+                    className={inputClass}
+                    min="0.001"
+                    step="0.001"
+                    placeholder="0.000"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Defaults to roasted weight ({form.roasted_weight_kg} kg). Adjust if needed.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stock addition info — shown on completed roasts that already added to stock */}
+        {stockAddition && alreadyCompleted && (
+          <div className="bg-green-50 rounded-xl border border-green-200 p-4">
+            <div className="flex items-center gap-3">
+              <Archive className="w-5 h-5 text-green-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-900">
+                  {stockAddition.quantity_kg.toFixed(3)} kg added to{" "}
+                  <Link href={`/tools/roasted-stock/${stockAddition.roasted_stock_id}`} className="text-brand-600 hover:text-brand-700 underline">
+                    {stockAddition.roasted_stock_name}
+                  </Link>
+                </p>
+                <p className="text-xs text-green-700 mt-0.5">Roasted stock was updated when this roast was completed.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3 pt-2">

@@ -9,7 +9,7 @@ export default async function NewRoastLogPage() {
   if (!user.roaster) redirect("/dashboard");
 
   const supabase = createServerClient();
-  const [{ data: beans }, { data: products }] = await Promise.all([
+  const [{ data: beans }, { data: products }, { data: roastedStocks }] = await Promise.all([
     supabase
       .from("green_beans")
       .select("id, name")
@@ -22,7 +22,13 @@ export default async function NewRoastLogPage() {
       .eq("roaster_id", user.roaster.id)
       .eq("is_active", true)
       .order("name"),
+    supabase
+      .from("roasted_stock")
+      .select("id, name, green_bean_id, current_stock_kg")
+      .eq("roaster_id", user.roaster.id)
+      .eq("is_active", true)
+      .order("name"),
   ]);
 
-  return <RoastLogForm beans={beans || []} products={products || []} />;
+  return <RoastLogForm beans={beans || []} products={products || []} roastedStocks={roastedStocks || []} />;
 }

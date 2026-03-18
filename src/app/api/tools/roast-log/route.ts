@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     drop_temp_c, roaster_machine, operator,
     ambient_temp_c, ambient_humidity_percent,
     quality_rating, notes, product_id, status,
+    roasted_stock_id, roasted_stock_qty_kg,
   } = body;
 
   if (!roast_date) return NextResponse.json({ error: "Roast date is required" }, { status: 400 });
@@ -111,6 +112,34 @@ export async function POST(request: Request) {
         reference_id: data.id,
         reference_type: "roast_log",
         notes: `Roast deduction for batch ${roast_number || data.id}`,
+      });
+    }
+  }
+
+  // Auto-add to roasted stock when status is completed and roasted_stock_id is provided
+  if (status === "completed" && roasted_stock_id && roasted_stock_qty_kg) {
+    const stockQty = parseFloat(roasted_stock_qty_kg);
+    if (stockQty > 0) {
+      // Replenish roasted stock via RPC
+      await supabase.rpc("replenish_roasted_stock", { stock_id: roasted_stock_id, qty_kg: stockQty });
+
+      // Get updated balance for movement record
+      const { data: updatedStock } = await supabase
+        .from("roasted_stock")
+        .select("current_stock_kg")
+        .eq("id", roasted_stock_id)
+        .single();
+
+      // Create roasted_stock_movements record
+      await supabase.from("roasted_stock_movements").insert({
+        roaster_id: roaster.id,
+        roasted_stock_id: roasted_stock_id,
+        movement_type: "roast_addition",
+        quantity_kg: stockQty,
+        balance_after_kg: updatedStock?.current_stock_kg || stockQty,
+        reference_id: data.id,
+        reference_type: "roast_log",
+        notes: `Roast output from batch ${roast_number || data.id}`,
       });
     }
   }

@@ -15,6 +15,7 @@ import {
   Lock,
 } from "@/components/icons";
 import { getEffectiveFeatures, getEffectiveLimits, type TierLevel, type FeatureKey, type LimitKey } from "@/lib/tier-config";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface TabDef {
   label: string;
@@ -32,7 +33,7 @@ const TAB_DEFS: TabDef[] = [
   { label: "Social", path: "/social", icon: Share2, requiredFeature: "socialScheduling" },
   { label: "Automations", path: "/automations", icon: Zap, requiredFeature: "automations" },
   { label: "Templates", path: "/templates", icon: LayoutTemplate },
-  { label: "Discount Codes", path: "/discount-codes", icon: Ticket },
+  ...(RETAIL_ENABLED ? [{ label: "Discount Codes", path: "/discount-codes", icon: Ticket }] : []),
   { label: "Forms", path: "/forms", icon: FileText },
   { label: "AI Studio", path: "/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },

@@ -170,7 +170,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Content Calendar", href: "/marketing", icon: CalendarDays, requiredFeature: "contentCalendar", exact: true },
       { label: "Social", href: "/marketing/social", icon: Share2, requiredFeature: "socialScheduling" },
       { label: "Automations", href: "/marketing/automations", icon: Zap, requiredFeature: "automations" },
-      { label: "Discount Codes", href: "/marketing/discount-codes", icon: Ticket },
+      ...(RETAIL_ENABLED ? [{ label: "Discount Codes", href: "/marketing/discount-codes", icon: Ticket }] : []),
       { label: "Forms", href: "/marketing/forms", icon: FileText },
       ...(RETAIL_ENABLED ? [{ label: "Blog", href: "/marketing/blog", icon: BookOpen }] : []),
       { label: "AI Studio", href: "/marketing/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" as LimitKey },

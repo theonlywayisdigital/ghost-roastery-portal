@@ -96,7 +96,7 @@ export function RoastedStockDetail({
     <div>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/tools/roasted-stock" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+        <Link href="/tools/inventory/roasted" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
@@ -115,7 +115,7 @@ export function RoastedStockDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Details</h2>
-              <Link href={`/tools/roasted-stock/${stock.id}/edit`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+              <Link href={`/tools/inventory/roasted/${stock.id}/edit`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
                 <Pencil className="w-4 h-4" />
               </Link>
             </div>
@@ -125,7 +125,7 @@ export function RoastedStockDetail({
                 <dt className="text-slate-500">Source Green Bean</dt>
                 <dd className="font-medium text-slate-900">
                   {stock.green_beans ? (
-                    <Link href={`/tools/green-beans/${stock.green_beans.id}`} className="text-brand-600 hover:text-brand-700">
+                    <Link href={`/tools/inventory/green/${stock.green_beans.id}`} className="text-brand-600 hover:text-brand-700">
                       {stock.green_beans.name}
                     </Link>
                   ) : "—"}
@@ -234,7 +234,7 @@ export function RoastedStockDetail({
               <button onClick={() => setShowAddStock(true)} className="w-full px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
                 Add Stock
               </button>
-              <Link href={`/tools/roasted-stock/${stock.id}/edit`} className="block w-full px-4 py-2.5 text-center border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+              <Link href={`/tools/inventory/roasted/${stock.id}/edit`} className="block w-full px-4 py-2.5 text-center border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 Edit Details
               </Link>
             </div>

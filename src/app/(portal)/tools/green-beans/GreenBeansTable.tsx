@@ -167,7 +167,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
           <p className="text-slate-500 mt-1">Track your green bean stock, origins, and suppliers.</p>
         </div>
         <Link
-          href="/tools/green-beans/new"
+          href="/tools/inventory/green/new"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -196,7 +196,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
         onSort={handleSort}
         sortKey={sortKey}
         sortDirection={sortDir}
-        onRowClick={(row) => router.push(`/tools/green-beans/${row.id}`)}
+        onRowClick={(row) => router.push(`/tools/inventory/green/${row.id}`)}
         emptyMessage="No green beans yet — add your first bean to get started."
       />
 

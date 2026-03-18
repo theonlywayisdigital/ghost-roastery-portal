@@ -24,10 +24,10 @@ interface ToolsHubProps {
 
 const toolCards = [
   {
-    title: "Green Beans",
-    description: "Track your green bean inventory, origins, and stock levels.",
+    title: "Inventory",
+    description: "Manage your green bean and roasted coffee stock levels.",
     icon: Package,
-    href: "/tools/green-beans",
+    href: "/tools/inventory",
     countKey: "greenBeans" as const,
     color: "text-green-600 bg-green-50",
   },

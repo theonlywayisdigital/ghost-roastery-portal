@@ -164,7 +164,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
           <p className="text-slate-500 mt-1">Track your roasted coffee inventory and stock levels.</p>
         </div>
         <Link
-          href="/tools/roasted-stock/new"
+          href="/tools/inventory/roasted/new"
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -193,7 +193,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
         onSort={handleSort}
         sortKey={sortKey}
         sortDirection={sortDir}
-        onRowClick={(row) => router.push(`/tools/roasted-stock/${row.id}`)}
+        onRowClick={(row) => router.push(`/tools/inventory/roasted/${row.id}`)}
         emptyMessage="No roasted stock yet — add your first item to get started."
       />
 

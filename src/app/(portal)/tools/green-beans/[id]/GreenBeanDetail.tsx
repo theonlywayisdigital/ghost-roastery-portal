@@ -73,7 +73,7 @@ export function GreenBeanDetail({
     if (!stockForm.qty) return;
     setSaving(true);
 
-    const res = await fetch(`/api/tools/green-beans/${bean.id}/movements`, {
+    const res = await fetch(`/api/tools/inventory/green/${bean.id}/movements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -100,7 +100,7 @@ export function GreenBeanDetail({
     <div>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/tools/green-beans" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+        <Link href="/tools/inventory/green" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
@@ -109,7 +109,7 @@ export function GreenBeanDetail({
             {[bean.origin_country, bean.origin_region].filter(Boolean).join(", ") || "No origin specified"}
           </p>
         </div>
-        <Link href={`/tools/green-beans/${bean.id}?edit=true`} onClick={(e) => { e.preventDefault(); router.push(`/tools/green-beans/${bean.id}`); }} className="hidden">
+        <Link href={`/tools/inventory/green/${bean.id}?edit=true`} onClick={(e) => { e.preventDefault(); router.push(`/tools/inventory/green/${bean.id}`); }} className="hidden">
           {/* placeholder */}
         </Link>
         <StatusBadge status={stockStatus} type="stockAlert" />
@@ -122,7 +122,7 @@ export function GreenBeanDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Details</h2>
-              <Link href={`/tools/green-beans/${bean.id}`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+              <Link href={`/tools/inventory/green/${bean.id}`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
                 <Pencil className="w-4 h-4" />
               </Link>
             </div>

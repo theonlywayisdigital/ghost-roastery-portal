@@ -493,7 +493,7 @@ export function RoastLogForm({
               <div className="flex-1">
                 <p className="text-sm font-medium text-green-900">
                   {stockAddition.quantity_kg.toFixed(3)} kg added to{" "}
-                  <Link href={`/tools/roasted-stock/${stockAddition.roasted_stock_id}`} className="text-brand-600 hover:text-brand-700 underline">
+                  <Link href={`/tools/inventory/roasted/${stockAddition.roasted_stock_id}`} className="text-brand-600 hover:text-brand-700 underline">
                     {stockAddition.roasted_stock_name}
                   </Link>
                 </p>

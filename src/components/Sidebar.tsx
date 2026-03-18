@@ -199,8 +199,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     label: "Roaster Tools",
     icon: Coffee,
     items: [
-      { label: "Green Beans", href: "/tools/green-beans", icon: Package },
-      { label: "Roasted Stock", href: "/tools/roasted-stock", icon: Archive },
+      { label: "Inventory", href: "/tools/inventory", icon: Package },
       { label: "Roast Log", href: "/tools/roast-log", icon: Flame },
       { label: "Production", href: "/tools/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
       { label: "Cupping", href: "/tools/cupping", icon: TestTube },

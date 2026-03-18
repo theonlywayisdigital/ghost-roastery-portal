@@ -166,6 +166,9 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
     case "greenBeans":
       return getCount("green_beans", "roaster_id", roasterId);
 
+    case "roastedStock":
+      return getCount("roasted_stock", "roaster_id", roasterId);
+
     case "roastLogsPerMonth": {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
@@ -312,7 +315,7 @@ export async function getRoasterUsageSummary(roasterId: string): Promise<UsageSu
     "products", "wholesaleOrdersPerMonth", "wholesaleAccounts",
     "crmContacts", "teamMembers", "emailSendsPerMonth",
     "embeddedForms", "aiCreditsPerMonth",
-    "greenBeans", "roastLogsPerMonth",
+    "greenBeans", "roastedStock", "roastLogsPerMonth",
     "cuppingSessionsPerMonth", "certifications",
   ];
 

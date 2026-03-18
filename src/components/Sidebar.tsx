@@ -48,6 +48,7 @@ import {
   ShieldCheck,
   Funnel,
   Handshake,
+  Archive,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -199,6 +200,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     icon: Coffee,
     items: [
       { label: "Green Beans", href: "/tools/green-beans", icon: Package },
+      { label: "Roasted Stock", href: "/tools/roasted-stock", icon: Archive },
       { label: "Roast Log", href: "/tools/roast-log", icon: Flame },
       { label: "Production", href: "/tools/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
       { label: "Cupping", href: "/tools/cupping", icon: TestTube },

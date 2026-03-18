@@ -22,6 +22,7 @@ export type MarketingLimitKey =
 
 export type ToolsLimitKey =
   | "greenBeans"
+  | "roastedStock"
   | "roastLogsPerMonth"
   | "cuppingSessionsPerMonth"
   | "certifications";
@@ -98,6 +99,7 @@ const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
 
 const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
   greenBeans:              { free: 5,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
+  roastedStock:            { free: 5,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
   roastLogsPerMonth:       { free: 10, starter: Infinity, growth: Infinity, pro: Infinity, scale: Infinity },
   cuppingSessionsPerMonth: { free: 2,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
   certifications:          { free: 3,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
@@ -192,6 +194,7 @@ export function getEffectiveLimits(salesTier: TierLevel, marketingTier: TierLeve
     aiCreditsPerMonth: MARKETING_LIMITS.aiCreditsPerMonth[marketingTier],
     // Tools limits (gated via sales tier)
     greenBeans: TOOLS_LIMITS.greenBeans[salesTier],
+    roastedStock: TOOLS_LIMITS.roastedStock[salesTier],
     roastLogsPerMonth: TOOLS_LIMITS.roastLogsPerMonth[salesTier],
     cuppingSessionsPerMonth: TOOLS_LIMITS.cuppingSessionsPerMonth[salesTier],
     certifications: TOOLS_LIMITS.certifications[salesTier],
@@ -328,6 +331,7 @@ export const LIMIT_LABELS: Record<LimitKey, string> = {
   embeddedForms: "Embedded Forms",
   aiCreditsPerMonth: "AI Credits / Month",
   greenBeans: "Green Beans",
+  roastedStock: "Roasted Stock",
   roastLogsPerMonth: "Roast Logs / Month",
   cuppingSessionsPerMonth: "Cupping Sessions / Month",
   certifications: "Certifications",
@@ -365,6 +369,7 @@ export const LIMIT_PRODUCT_MAP: Record<LimitKey, ProductType> = {
   embeddedForms: "marketing",
   aiCreditsPerMonth: "marketing",
   greenBeans: "sales",
+  roastedStock: "sales",
   roastLogsPerMonth: "sales",
   cuppingSessionsPerMonth: "sales",
   certifications: "sales",

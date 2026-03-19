@@ -7,6 +7,7 @@ import {
   sendWholesaleRejected,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function GET(
   _request: Request,
@@ -163,6 +164,22 @@ export async function PATCH(
           link: "/wholesale",
         });
       }
+
+      // Dispatch buyer.approved webhook
+      dispatchWebhook(roasterId, "buyer.approved", {
+        buyer: {
+          id: record.id,
+          user_id: record.user_id,
+          name: contactName,
+          email: contactEmail,
+          business_name: record.business_name,
+          price_tier: tier,
+          payment_terms: terms,
+          credit_limit: creditLimit ?? null,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        },
+      });
 
       return NextResponse.json({ success: true });
     }

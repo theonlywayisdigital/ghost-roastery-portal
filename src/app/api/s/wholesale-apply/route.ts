@@ -10,6 +10,7 @@ import {
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
 import crypto from "crypto";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function POST(request: Request) {
   try {
@@ -406,6 +407,23 @@ export async function POST(request: Request) {
           link: "/wholesale",
         });
       }
+
+      // Dispatch buyer.approved webhook
+      dispatchWebhook(roasterId, "buyer.approved", {
+        buyer: {
+          user_id: userId,
+          name,
+          email,
+          business_name: businessName,
+          business_type: businessType || null,
+          business_address: businessAddress || null,
+          business_website: businessWebsite || null,
+          payment_terms: "prepay",
+          price_tier: "standard",
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        },
+      });
 
       return NextResponse.json({ success: true, status: "approved" });
     }

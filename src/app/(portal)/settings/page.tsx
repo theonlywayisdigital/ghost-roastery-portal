@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Coffee,
   Funnel,
+  Webhook,
 } from "@/components/icons";
 
 const settingsItems = [
@@ -69,6 +70,13 @@ const settingsItems = [
     label: "Pipeline Stages",
     description: "Customise your sales pipeline stages.",
     icon: Funnel,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/webhooks",
+    label: "Webhooks",
+    description: "Send event data to external services like Zapier.",
+    icon: Webhook,
     roasterOnly: true,
   },
   {

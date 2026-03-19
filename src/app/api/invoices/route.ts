@@ -7,6 +7,7 @@ import {
   generateAccessToken,
 } from "@/lib/invoice-utils";
 import { checkFeature } from "@/lib/feature-gates";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
@@ -167,6 +168,16 @@ export async function POST(req: NextRequest) {
           .update({ invoice_id: invoice.id })
           .eq("id", oid);
       }
+    }
+
+    // Dispatch webhook
+    if (owner.roaster_id) {
+      dispatchWebhook(owner.roaster_id, "invoice.created", {
+        invoice: {
+          ...invoice,
+          line_items: lineItemsToInsert,
+        },
+      });
     }
 
     return NextResponse.json(

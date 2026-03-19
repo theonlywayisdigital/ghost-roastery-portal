@@ -7,6 +7,7 @@ import {
   sendOrderCancellationEmail,
   sendOrderCancelledPartnerNotification,
 } from "@/lib/email";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -337,6 +338,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         .update({ status: "void", payment_status: "cancelled" })
         .eq("id", invoice.id);
     }
+  }
+
+  // Dispatch order.cancelled webhook
+  if (order.roaster_id) {
+    dispatchWebhook(order.roaster_id, "order.cancelled", {
+      order: {
+        id: order.id,
+        order_number: orderNumber,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        items: order.items,
+        subtotal: order.subtotal,
+        order_channel: order.order_channel,
+        status: "cancelled",
+        cancellation_reason: cancellationReason,
+        cancelled_at: now,
+        cancelled_by: "customer",
+      },
+    });
   }
 
   return NextResponse.json({ success: true });

@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { fireAutomationTrigger } from "@/lib/automation-triggers";
 import { findOrCreatePerson, resolvePrimaryContactType } from "@/lib/people";
 import { checkLimit } from "@/lib/feature-gates";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function GET(request: NextRequest) {
   const roaster = await getCurrentRoaster();
@@ -203,6 +204,11 @@ export async function POST(request: Request) {
       contact_id: contact.id,
       event_data: { source: source || "manual" },
     }).catch(() => {});
+
+    // Dispatch contact.created webhook
+    dispatchWebhook(roaster.id as string, "contact.created", {
+      contact,
+    });
 
     return NextResponse.json({ contact });
   } catch (error) {

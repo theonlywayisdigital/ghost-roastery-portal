@@ -7,6 +7,7 @@ import {
   sendOrderCancellationEmail,
   sendOrderCancelledPartnerNotification,
 } from "@/lib/email";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -339,6 +340,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         });
       }
     }
+  }
+
+  // Dispatch order.cancelled webhook (storefront/wholesale orders only)
+  if (!isGhost && order.roaster_id) {
+    dispatchWebhook(order.roaster_id, "order.cancelled", {
+      order: {
+        id: order.id,
+        order_number: orderNumber,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        items: order.items,
+        subtotal: order.subtotal,
+        order_channel: order.order_channel,
+        status: "cancelled",
+        cancellation_reason: cancellationReason,
+        cancelled_at: now,
+        cancelled_by: "admin",
+      },
+    });
   }
 
   return NextResponse.json({ success: true });

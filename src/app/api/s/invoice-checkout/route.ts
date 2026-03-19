@@ -13,6 +13,7 @@ import {
 import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 interface CheckoutItem {
   productId: string;
@@ -756,6 +757,51 @@ export async function POST(request: Request) {
             console.error("Failed to write ledger entry:", ledgerError);
         });
     }
+
+    // Dispatch order.placed webhook
+    dispatchWebhook(roasterId, "order.placed", {
+      order: {
+        id: order.id,
+        order_number: order.id.slice(0, 8).toUpperCase(),
+        customer_name: wholesaleBuyerName,
+        customer_email: wholesaleBuyerEmail,
+        delivery_address: deliveryAddress || null,
+        items: orderItems,
+        subtotal: subtotalPence / 100,
+        platform_fee: platformFeePence / 100,
+        roaster_payout: roasterPayoutPence / 100,
+        discount_code: validatedDiscountCode || null,
+        discount_amount: validatedDiscountPence / 100,
+        order_channel: "wholesale",
+        payment_method: "invoice_online",
+        payment_terms: paymentTerms,
+        status: "confirmed",
+        notes: body.orderNotes || null,
+        created_at: new Date().toISOString(),
+      },
+    });
+
+    // Dispatch invoice.created webhook
+    dispatchWebhook(roasterId, "invoice.created", {
+      invoice: {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        roaster_id: roasterId,
+        order_ids: [order.id],
+        subtotal: invoiceSubtotal,
+        tax_rate: 0,
+        tax_amount: 0,
+        total: invoiceTotal,
+        amount_paid: 0,
+        amount_due: invoiceTotal,
+        currency: "GBP",
+        payment_method: "bank_transfer",
+        status: autoSend ? "sent" : "draft",
+        due_days: dueDays,
+        payment_due_date: paymentDueDate,
+        line_items: invoiceLineItems,
+      },
+    });
 
     return NextResponse.json({
       success: true,

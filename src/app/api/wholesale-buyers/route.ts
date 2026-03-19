@@ -9,6 +9,7 @@ import {
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
 import crypto from "crypto";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -404,6 +405,42 @@ export async function POST(request: Request) {
       body: `Your wholesale account with ${roaster.business_name} has been set up. You can now browse the wholesale catalogue.`,
       link: "/wholesale",
     });
+
+    // Dispatch buyer.approved webhook
+    dispatchWebhook(roasterId, "buyer.approved", {
+      buyer: {
+        id: wholesaleAccess?.id || null,
+        user_id: userId,
+        name,
+        email,
+        business_name: businessName,
+        business_type: businessType || null,
+        business_address: businessAddress || null,
+        business_website: businessWebsite || null,
+        vat_number: vatNumber || null,
+        payment_terms: terms,
+        status: "approved",
+        approved_at: now,
+      },
+    });
+
+    // Dispatch contact.created webhook if a new contact was created
+    if (contactId) {
+      dispatchWebhook(roasterId, "contact.created", {
+        contact: {
+          id: contactId,
+          first_name: firstName,
+          last_name: lastName,
+          email: email.toLowerCase(),
+          phone: phone || null,
+          types: ["wholesale"],
+          source: "manual",
+          business_id: businessId,
+          business_name: businessName,
+          roaster_id: roasterId,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

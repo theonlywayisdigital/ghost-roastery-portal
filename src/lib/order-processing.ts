@@ -8,6 +8,7 @@ import {
   sendAdminNewOrderNotification,
 } from "@/lib/email";
 import type { EmailBranding } from "@/lib/email";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export interface ProcessOrderItem {
   productId: string;
@@ -494,6 +495,27 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       updateContactActivity(contact.id).catch(() => {});
     }
   }
+
+  // Dispatch order.placed webhook
+  dispatchWebhook(roasterId, "order.placed", {
+    order: {
+      id: order.id,
+      order_number: order.id.slice(0, 8).toUpperCase(),
+      customer_name: customerName,
+      customer_email: customerEmail,
+      delivery_address: deliveryAddress,
+      items: orderItems,
+      subtotal: subtotalPence / 100,
+      platform_fee: platformFeePence / 100,
+      roaster_payout: roasterPayoutPence / 100,
+      discount_code: discountCode || null,
+      discount_amount: discountAmountPence / 100,
+      order_channel: isWholesaleChannel ? "wholesale" : "storefront",
+      status: "paid",
+      notes: params.orderNotes || null,
+      created_at: new Date().toISOString(),
+    },
+  });
 
   return { success: true, orderId: order.id, customerEmail, customerName };
 }

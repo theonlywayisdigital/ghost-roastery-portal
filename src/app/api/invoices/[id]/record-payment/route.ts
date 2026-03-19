@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendInvoicePaymentConfirmationEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function POST(
   request: NextRequest,
@@ -310,6 +311,38 @@ export async function POST(
           attachments: pdfAttachment ? [pdfAttachment] : undefined,
         }).catch((err) => console.error("Failed to send payment confirmation email:", err));
       }
+    }
+
+    // Dispatch invoice.paid webhook on full payment
+    if (isFullyPaid && updatedInvoice?.roaster_id) {
+      dispatchWebhook(updatedInvoice.roaster_id, "invoice.paid", {
+        invoice: {
+          id: updatedInvoice.id,
+          invoice_number: updatedInvoice.invoice_number,
+          roaster_id: updatedInvoice.roaster_id,
+          customer_id: updatedInvoice.customer_id,
+          business_id: updatedInvoice.business_id,
+          subtotal: updatedInvoice.subtotal,
+          tax_rate: updatedInvoice.tax_rate,
+          tax_amount: updatedInvoice.tax_amount,
+          total: updatedInvoice.total,
+          amount_paid: updatedInvoice.amount_paid,
+          amount_due: updatedInvoice.amount_due,
+          currency: updatedInvoice.currency,
+          payment_method: updatedInvoice.payment_method,
+          status: updatedInvoice.status,
+          payment_status: updatedInvoice.payment_status,
+          paid_at: updatedInvoice.paid_at,
+          order_ids: updatedInvoice.order_ids,
+        },
+        payment: {
+          id: payment.id,
+          amount: payment.amount,
+          payment_method: payment.payment_method,
+          reference: payment.reference,
+          paid_at: payment.paid_at,
+        },
+      });
     }
 
     return NextResponse.json({

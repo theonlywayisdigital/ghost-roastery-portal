@@ -7,6 +7,7 @@ import {
   type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 export async function PATCH(
   request: Request,
@@ -150,7 +151,7 @@ export async function PATCH(
         await supabase.from("contacts").update(contactUpdates).eq("id", existingContact.id);
       } else if (contactEmail) {
         const cNameParts = contactName.split(" ");
-        await supabase.from("contacts").insert({
+        const { data: newContact } = await supabase.from("contacts").insert({
           first_name: cNameParts[0] || "",
           last_name: cNameParts.slice(1).join(" ") || "",
           email: contactEmail,
@@ -161,7 +162,13 @@ export async function PATCH(
           business_name: record.business_name,
           user_id: record.user_id,
           roaster_id: roasterId,
-        });
+        }).select().single();
+
+        if (newContact) {
+          dispatchWebhook(roasterId, "contact.created", {
+            contact: newContact,
+          });
+        }
       }
 
       // Send approval email
@@ -214,6 +221,24 @@ export async function PATCH(
           link: "/wholesale",
         });
       }
+
+      // Dispatch buyer.approved webhook
+      dispatchWebhook(roasterId, "buyer.approved", {
+        buyer: {
+          id: record.id,
+          user_id: record.user_id,
+          name: contactName,
+          email: contactEmail,
+          business_name: record.business_name,
+          business_type: record.business_type,
+          business_address: record.business_address,
+          business_website: record.business_website,
+          vat_number: record.vat_number,
+          payment_terms: terms,
+          status: "approved",
+          approved_at: new Date().toISOString(),
+        },
+      });
 
       return NextResponse.json({ success: true });
     }

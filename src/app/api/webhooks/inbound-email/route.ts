@@ -120,8 +120,7 @@ export async function POST(request: Request) {
 
       const { data: allRoasters } = await supabase
         .from("partner_roasters")
-        .select("id, roaster_slug")
-        .eq("is_active", true);
+        .select("id, roaster_slug");
 
       const match = (allRoasters || []).find(
         (r) => r.roaster_slug?.replace(/[-_.]/g, "") === slugNoHyphens

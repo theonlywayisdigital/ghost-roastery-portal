@@ -49,7 +49,7 @@ import {
   Funnel,
   Handshake,
   Archive,
-  Inbox,
+  Mail,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -151,7 +151,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
 
   // ── Fetch inbox unread count ──
   useEffect(() => {
-    if (!isRoaster) return;
     fetch("/api/inbox?pageSize=1")
       .then((r) => r.json())
       .then((d) => {
@@ -160,7 +159,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         }
       })
       .catch(() => {});
-  }, [isRoaster, pathname]);
+  }, [pathname]);
 
   // ── Suite configs ──
   const salesSuiteConfig: SuiteConfig = {
@@ -168,7 +167,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     label: "Sales Suite",
     icon: ShoppingCart,
     items: [
-      { label: "Inbox", href: "/inbox", icon: Inbox, badgeKey: "inboxUnread" },
       { label: "Products", href: "/products", icon: Package },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/wholesale-portal", icon: Store },
@@ -177,7 +175,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
-    activePrefixes: ["/inbox", "/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
+    activePrefixes: ["/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
   };
 
   const marketingSuiteConfig: SuiteConfig = {
@@ -585,6 +583,24 @@ export function Sidebar({ user }: { user: SidebarUser }) {
 
       {/* Bottom section */}
       <div className="p-4 border-t border-slate-200 space-y-1">
+        {/* Inbox */}
+        <Link
+          href="/inbox"
+          onClick={() => setMobileOpen(false)}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+            isActive("/inbox")
+              ? "bg-brand-50 text-brand-700 font-medium"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Mail className="w-6 h-6 flex-shrink-0 text-black" />
+          <span className="flex-1">Inbox</span>
+          {badgeCounts.inboxUnread > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-brand-600 text-white rounded-full min-w-[20px] text-center">
+              {badgeCounts.inboxUnread}
+            </span>
+          )}
+        </Link>
         {/* Support & Help Centre for roasters */}
         {isRoaster && (
           <>

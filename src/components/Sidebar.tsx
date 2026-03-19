@@ -49,6 +49,7 @@ import {
   Funnel,
   Handshake,
   Archive,
+  Inbox,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import {
@@ -92,6 +93,7 @@ interface SuiteItem {
   requiredFeature?: FeatureKey;
   requiredMinLimit?: LimitKey;
   requiredRole?: string;
+  badgeKey?: string;
 }
 
 interface SuiteConfig {
@@ -108,6 +110,8 @@ export function Sidebar({ user }: { user: SidebarUser }) {
   const [openSuite, setOpenSuite] = useState<string | null>(null);
   const [expandedSuite, setExpandedSuite] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   const isRoaster = user.roles.includes("roaster");
   const isAdmin = user.roles.includes("admin");
@@ -145,12 +149,26 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     };
   }, []);
 
+  // ── Fetch inbox unread count ──
+  useEffect(() => {
+    if (!isRoaster) return;
+    fetch("/api/inbox?pageSize=1")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.unreadCount === "number") {
+          setBadgeCounts((prev) => ({ ...prev, inboxUnread: d.unreadCount }));
+        }
+      })
+      .catch(() => {});
+  }, [isRoaster, pathname]);
+
   // ── Suite configs ──
   const salesSuiteConfig: SuiteConfig = {
     key: "sales",
     label: "Sales Suite",
     icon: ShoppingCart,
     items: [
+      { label: "Inbox", href: "/inbox", icon: Inbox, badgeKey: "inboxUnread" },
       { label: "Products", href: "/products", icon: Package },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/wholesale-portal", icon: Store },
@@ -159,7 +177,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
-    activePrefixes: ["/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
+    activePrefixes: ["/inbox", "/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
   };
 
   const marketingSuiteConfig: SuiteConfig = {
@@ -397,6 +415,11 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                   >
                     <ItemIcon className="w-6 h-6 flex-shrink-0 text-black" />
                     <span className="flex-1">{item.label}</span>
+                    {item.badgeKey && badgeCounts[item.badgeKey] > 0 && (
+                      <span className="px-1.5 py-0.5 text-xs font-medium bg-brand-600 text-white rounded-full min-w-[20px] text-center">
+                        {badgeCounts[item.badgeKey]}
+                      </span>
+                    )}
                     {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
                   </Link>
                 );
@@ -465,6 +488,11 @@ export function Sidebar({ user }: { user: SidebarUser }) {
               >
                 <ItemIcon className="w-6 h-6 flex-shrink-0 text-black" />
                 <span className="flex-1">{item.label}</span>
+                {item.badgeKey && badgeCounts[item.badgeKey] > 0 && (
+                  <span className="px-1.5 py-0.5 text-xs font-medium bg-brand-600 text-white rounded-full min-w-[20px] text-center">
+                    {badgeCounts[item.badgeKey]}
+                  </span>
+                )}
                 {locked && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
               </Link>
             );

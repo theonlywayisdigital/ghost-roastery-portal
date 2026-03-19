@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, MailOpen, Archive, Search, Package } from "@/components/icons";
-import { DataTable, FilterBar, Pagination, StatusBadge } from "@/components/admin";
+import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
 import type { FilterConfig } from "@/components/admin/FilterBar";
 
@@ -155,7 +155,9 @@ export function InboxPage() {
       render: (row) => (
         <div className="flex items-center gap-2">
           {row.is_converted && (
-            <StatusBadge status="converted" type="order" />
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+              Converted
+            </span>
           )}
           {row.attachments?.length > 0 && (
             <span className="text-xs text-slate-400" title={`${row.attachments.length} attachment(s)`}>

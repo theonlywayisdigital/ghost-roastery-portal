@@ -61,6 +61,7 @@ export async function POST(request: Request) {
       paymentTerms,
       notes,
       status: requestedStatus,
+      inboxMessageId,
     } = body as {
       orderChannel: "wholesale" | "storefront";
       customerId?: string;
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
       paymentTerms?: string;
       notes?: string;
       status?: string;
+      inboxMessageId?: string;
     };
 
     // ─── Validation ───
@@ -886,8 +888,17 @@ export async function POST(request: Request) {
       }
     });
 
+    // ─── Mark inbox message as converted (if order was created from an email) ───
+    if (inboxMessageId) {
+      await supabase
+        .from("inbox_messages")
+        .update({ is_converted: true, converted_order_id: order.id })
+        .eq("id", inboxMessageId)
+        .eq("roaster_id", roasterId);
+    }
+
     console.log(
-      `[create-manual] Complete | roaster=${roasterId} order=${order.id} invoiceId=${invoiceId || "none"} invoiceNumber=${invoiceNumber || "none"} autoCreate=${autoCreate} autoSend=${autoSend}`
+      `[create-manual] Complete | roaster=${roasterId} order=${order.id} invoiceId=${invoiceId || "none"} invoiceNumber=${invoiceNumber || "none"} autoCreate=${autoCreate} autoSend=${autoSend}${inboxMessageId ? ` inboxMessageId=${inboxMessageId}` : ""}`
     );
 
     return NextResponse.json({

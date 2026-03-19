@@ -13,6 +13,9 @@ import {
   ChevronRight,
   ShoppingCart,
   FileText,
+  Loader2,
+  CheckCircle,
+  AlertTriangle,
 } from "@/components/icons";
 
 interface Attachment {
@@ -66,6 +69,8 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
   const [message, setMessage] = useState<InboxMessage | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState("");
 
   useEffect(() => {
     fetch(`/api/inbox/${messageId}`)
@@ -110,6 +115,51 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
       body: JSON.stringify({ is_read: newRead }),
     });
     setMessage({ ...message, is_read: newRead });
+  }
+
+  async function handleConvertToOrder() {
+    setExtracting(true);
+    setExtractError("");
+    try {
+      const res = await fetch(`/api/inbox/${messageId}/extract-order`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setExtractError(data.error || "Extraction failed");
+        return;
+      }
+
+      const extraction = data.extraction;
+
+      // Check for low confidence with no items
+      if (extraction.confidence === "low" && extraction.items.length === 0) {
+        setExtractError(
+          "Couldn't extract order details from this email. You can create an order manually."
+        );
+        return;
+      }
+
+      // Store extraction data in sessionStorage for the create order page to pick up
+      sessionStorage.setItem(
+        "inbox_order_extraction",
+        JSON.stringify({
+          ...extraction,
+          inboxMessageId: messageId,
+          fromEmail: message?.from_email,
+          fromName: message?.from_name,
+          subject: message?.subject,
+        })
+      );
+
+      // Navigate to create order page
+      router.push("/orders/new?from=inbox");
+    } catch {
+      setExtractError("Failed to extract order details. Please try again.");
+    } finally {
+      setExtracting(false);
+    }
   }
 
   if (loading) {
@@ -157,6 +207,25 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
         </div>
       </div>
 
+      {/* Extraction error banner */}
+      {extractError && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-amber-800">{extractError}</p>
+            <button
+              onClick={() => router.push("/orders/new")}
+              className="text-sm text-amber-700 underline mt-1 hover:text-amber-900"
+            >
+              Create order manually
+            </button>
+          </div>
+          <button onClick={() => setExtractError("")} className="text-amber-400 hover:text-amber-600">
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Email header */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 mb-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -186,7 +255,7 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
             <button
               onClick={handleToggleRead}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
@@ -209,18 +278,33 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
               {message.is_archived ? "Unarchive" : "Archive"}
             </button>
 
-            <div className="relative group">
-              <button
-                disabled
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+            {message.is_converted ? (
+              <Link
+                href={`/orders/${message.converted_order_id}?type=wholesale`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors"
               >
-                <ShoppingCart className="w-4 h-4" />
-                Convert to Order
+                <CheckCircle className="w-4 h-4" />
+                View Order
+              </Link>
+            ) : (
+              <button
+                onClick={handleConvertToOrder}
+                disabled={extracting || actionLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+              >
+                {extracting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Extracting...
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4" />
+                    Convert to Order
+                  </>
+                )}
               </button>
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                Coming soon
-              </div>
-            </div>
+            )}
 
             <button
               onClick={handleDelete}

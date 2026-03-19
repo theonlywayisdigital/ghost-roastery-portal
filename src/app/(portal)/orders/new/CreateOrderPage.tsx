@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -12,6 +13,8 @@ import {
   ChevronDown,
   X,
   Loader2,
+  AlertTriangle,
+  Mail,
 } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 
@@ -96,8 +99,23 @@ interface CreateOrderPageProps {
   roasterId: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface ExtractionData {
+  customer: { name: string | null; email: string | null; business_name: string | null; matched_contact_id: string | null };
+  items: { product_name: string; matched_product_id: string | null; variant_description: string | null; matched_variant_id: string | null; quantity: number; notes: string | null }[];
+  delivery_notes: string | null;
+  order_channel: "wholesale" | "retail";
+  confidence: "high" | "medium" | "low";
+  raw_notes: string | null;
+  inboxMessageId: string;
+  fromEmail?: string;
+  fromName?: string;
+  subject?: string;
+}
+
 export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ── Form state ──
   const [orderChannel, setOrderChannel] = useState<"wholesale" | "storefront">(
@@ -127,6 +145,12 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [inboxMessageId, setInboxMessageId] = useState<string | null>(null);
+  const [extractionBanner, setExtractionBanner] = useState<{
+    confidence: string;
+    unmatchedItems: string[];
+    subject?: string;
+  } | null>(null);
 
   // ── Contact search state ──
   const [contactSearch, setContactSearch] = useState("");
@@ -219,6 +243,117 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // ── Pre-populate from inbox extraction ──
+  useEffect(() => {
+    if (searchParams.get("from") !== "inbox") return;
+    const raw = sessionStorage.getItem("inbox_order_extraction");
+    if (!raw) return;
+
+    try {
+      const ext: ExtractionData = JSON.parse(raw);
+      sessionStorage.removeItem("inbox_order_extraction");
+
+      // Set inbox message ID for marking as converted after order creation
+      setInboxMessageId(ext.inboxMessageId);
+
+      // Set channel
+      const channel = ext.order_channel === "retail" ? "storefront" : "wholesale";
+      setOrderChannel(channel as "wholesale" | "storefront");
+
+      // Set customer info
+      if (ext.customer.matched_contact_id) {
+        // Fetch the contact to populate all fields
+        fetch(`/api/contacts?search=${encodeURIComponent(ext.customer.email || ext.customer.name || "")}&status=all&page=1`)
+          .then((r) => r.json())
+          .then((data) => {
+            const match = (data.contacts || []).find(
+              (c: Contact) => c.id === ext.customer.matched_contact_id
+            );
+            if (match) {
+              setSelectedContact(match);
+              setCustomerName(`${match.first_name} ${match.last_name}`.trim());
+              setCustomerEmail(match.email || "");
+              setCustomerBusiness(match.business_name || "");
+              setCustomerPhone(match.phone || "");
+            }
+          })
+          .catch(() => {});
+      } else {
+        // No contact match — pre-fill from extraction or email sender
+        setCustomerMode("manual");
+        setCustomerName(ext.customer.name || ext.fromName || "");
+        setCustomerEmail(ext.customer.email || ext.fromEmail || "");
+        setCustomerBusiness(ext.customer.business_name || "");
+      }
+
+      // Set notes
+      const notesParts: string[] = [];
+      if (ext.delivery_notes) notesParts.push(`Delivery: ${ext.delivery_notes}`);
+      if (ext.raw_notes) notesParts.push(ext.raw_notes);
+      if (notesParts.length > 0) setNotes(notesParts.join("\n\n"));
+
+      // Pre-populate matched products
+      if (ext.items.length > 0) {
+        fetch("/api/products")
+          .then((r) => r.json())
+          .then((data) => {
+            const allProducts: Product[] = (data.products || []).filter(
+              (p: Product) => p.status === "published"
+            );
+            const newItems: OrderItem[] = [];
+            const unmatched: string[] = [];
+
+            for (const extractedItem of ext.items) {
+              if (extractedItem.matched_product_id) {
+                const product = allProducts.find((p) => p.id === extractedItem.matched_product_id);
+                if (product) {
+                  let variant: ProductVariant | undefined;
+                  if (extractedItem.matched_variant_id) {
+                    variant = product.product_variants.find(
+                      (v) => v.id === extractedItem.matched_variant_id
+                    );
+                  }
+                  const unitPrice = getPrice(product, variant || null, channel as "wholesale" | "storefront");
+                  newItems.push({
+                    productId: product.id,
+                    productName: product.name,
+                    variantId: variant?.id,
+                    variantLabel: variant ? getVariantLabel(variant) : undefined,
+                    unitPrice,
+                    quantity: extractedItem.quantity || 1,
+                    unit: variant?.unit || product.unit || "unit",
+                  });
+                  continue;
+                }
+              }
+              // No match — record for banner
+              unmatched.push(
+                `${extractedItem.product_name}${extractedItem.variant_description ? ` (${extractedItem.variant_description})` : ""} x${extractedItem.quantity || 1}`
+              );
+            }
+
+            if (newItems.length > 0) setItems(newItems);
+
+            setExtractionBanner({
+              confidence: ext.confidence,
+              unmatchedItems: unmatched,
+              subject: ext.subject || undefined,
+            });
+          })
+          .catch(() => {});
+      } else {
+        setExtractionBanner({
+          confidence: ext.confidence,
+          unmatchedItems: [],
+          subject: ext.subject || undefined,
+        });
+      }
+    } catch {
+      // Invalid sessionStorage data — ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Select contact ──
@@ -340,6 +475,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           paymentTerms:
             orderChannel === "wholesale" ? paymentTerms : undefined,
           notes: notes || undefined,
+          inboxMessageId: inboxMessageId || undefined,
         }),
       });
       const data = await res.json();
@@ -378,6 +514,71 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* Extraction banner */}
+      {extractionBanner && (
+        <div className={`mb-6 rounded-xl border p-4 ${
+          extractionBanner.confidence === "high"
+            ? "bg-green-50 border-green-200"
+            : extractionBanner.confidence === "medium"
+              ? "bg-amber-50 border-amber-200"
+              : "bg-slate-50 border-slate-200"
+        }`}>
+          <div className="flex items-start gap-3">
+            <Mail className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+              extractionBanner.confidence === "high"
+                ? "text-green-600"
+                : extractionBanner.confidence === "medium"
+                  ? "text-amber-600"
+                  : "text-slate-500"
+            }`} />
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                extractionBanner.confidence === "high"
+                  ? "text-green-800"
+                  : extractionBanner.confidence === "medium"
+                    ? "text-amber-800"
+                    : "text-slate-700"
+              }`}>
+                {`Pre-filled from email${extractionBanner.subject ? `: "${extractionBanner.subject}"` : ""}`}
+              </p>
+              <p className={`text-sm mt-0.5 ${
+                extractionBanner.confidence === "high"
+                  ? "text-green-700"
+                  : extractionBanner.confidence === "medium"
+                    ? "text-amber-700"
+                    : "text-slate-600"
+              }`}>
+                {extractionBanner.confidence === "high"
+                  ? "All details were matched with high confidence. Please review before confirming."
+                  : extractionBanner.confidence === "medium"
+                    ? "Some details were matched. Please review and fill in any missing information."
+                    : "Limited details could be extracted. Please fill in the order manually."}
+              </p>
+              {extractionBanner.unmatchedItems.length > 0 && (
+                <div className="mt-2 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-700 font-medium">Unmatched items:</p>
+                    <ul className="text-sm text-amber-600 mt-1 space-y-0.5">
+                      {extractionBanner.unmatchedItems.map((item, i) => (
+                        <li key={i}>{`\u2022 ${item}`}</li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-500 mt-1">Add these products manually below.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setExtractionBanner(null)}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 

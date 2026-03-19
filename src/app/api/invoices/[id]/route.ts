@@ -215,6 +215,7 @@ export async function PUT(
     const {
       customer_id,
       business_id,
+      wholesale_access_id,
       order_ids,
       line_items,
       notes,
@@ -225,6 +226,7 @@ export async function PUT(
     } = body as {
       customer_id?: string;
       business_id?: string;
+      wholesale_access_id?: string;
       order_ids?: string[];
       line_items?: { description: string; quantity: number; unit_price: number }[];
       notes?: string;
@@ -242,6 +244,7 @@ export async function PUT(
       updates.buyer_id = customer_id || null;
     }
     if (business_id !== undefined) updates.business_id = business_id || null;
+    if (wholesale_access_id !== undefined) updates.wholesale_access_id = wholesale_access_id || null;
     if (order_ids !== undefined) updates.order_ids = order_ids || null;
     if (notes !== undefined) updates.notes = notes || null;
     if (internal_notes !== undefined) updates.internal_notes = internal_notes || null;

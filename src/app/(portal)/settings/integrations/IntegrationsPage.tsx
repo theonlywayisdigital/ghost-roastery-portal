@@ -9,6 +9,14 @@ import {
   XCircle,
 } from "lucide-react";
 
+interface AccountOption {
+  code?: string;
+  name?: string;
+  type?: string;
+  rate?: number;
+  id?: string;
+}
+
 interface IntegrationStatus {
   connected: boolean;
   is_active?: boolean;
@@ -18,28 +26,51 @@ interface IntegrationStatus {
   last_sync_status?: string | null;
   error?: string | null;
   connected_at?: string | null;
+  // Xero account settings
+  sales_account_code?: string | null;
+  sales_tax_type?: string | null;
+  available_accounts?: AccountOption[] | null;
+  available_tax_types?: AccountOption[] | null;
+  // Sage account settings
+  sales_ledger_account_id?: string | null;
+  sales_tax_rate_id?: string | null;
+  available_ledger_accounts?: AccountOption[] | null;
+  available_tax_rates?: AccountOption[] | null;
+  // QuickBooks account settings
+  sales_item_id?: string | null;
+  sales_tax_code_id?: string | null;
+  available_items?: AccountOption[] | null;
+  available_tax_codes?: AccountOption[] | null;
 }
 
 export function IntegrationsPage() {
   const [xeroStatus, setXeroStatus] = useState<IntegrationStatus | null>(null);
   const [sageStatus, setSageStatus] = useState<IntegrationStatus | null>(null);
+  const [quickbooksStatus, setQuickbooksStatus] = useState<IntegrationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [savingAccount, setSavingAccount] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [testSyncLoading, setTestSyncLoading] = useState<string | null>(null);
+  const [testSyncResult, setTestSyncResult] = useState<Record<string, unknown> | null>(null);
+  const [testSyncProvider, setTestSyncProvider] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
+        fetch("/api/integrations/quickbooks/status"),
       ]);
-      const [xeroData, sageData] = await Promise.all([
+      const [xeroData, sageData, qbData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
+        qbRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
+      setQuickbooksStatus(qbData);
     } finally {
       setLoading(false);
     }
@@ -57,6 +88,10 @@ export function IntegrationsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     } else if (successParam === "sage") {
       setSuccessMessage("Sage connected successfully!");
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } else if (successParam === "quickbooks") {
+      setSuccessMessage("QuickBooks connected successfully!");
       window.history.replaceState({}, "", window.location.pathname);
       setTimeout(() => setSuccessMessage(null), 5000);
     }
@@ -85,8 +120,8 @@ export function IntegrationsPage() {
     }
   }, [loadStatus]);
 
-  async function handleDisconnect(provider: "xero" | "sage") {
-    const label = provider === "xero" ? "Xero" : "Sage";
+  async function handleDisconnect(provider: "xero" | "sage" | "quickbooks") {
+    const label = provider === "xero" ? "Xero" : provider === "sage" ? "Sage" : "QuickBooks";
     if (!confirm(`Disconnect ${label}? This will stop all automatic syncing.`))
       return;
     setDisconnecting(provider);
@@ -94,15 +129,15 @@ export function IntegrationsPage() {
       await fetch(`/api/integrations/${provider}/disconnect`, {
         method: "POST",
       });
-      const setter = provider === "xero" ? setXeroStatus : setSageStatus;
+      const setter = provider === "xero" ? setXeroStatus : provider === "sage" ? setSageStatus : setQuickbooksStatus;
       setter({ connected: false });
     } finally {
       setDisconnecting(null);
     }
   }
 
-  async function handleToggleAutoSync(provider: "xero" | "sage") {
-    const status = provider === "xero" ? xeroStatus : sageStatus;
+  async function handleToggleAutoSync(provider: "xero" | "sage" | "quickbooks") {
+    const status = provider === "xero" ? xeroStatus : provider === "sage" ? sageStatus : quickbooksStatus;
     if (!status?.connected) return;
     setToggling(provider);
     try {
@@ -113,11 +148,61 @@ export function IntegrationsPage() {
         body: JSON.stringify({ auto_sync: newValue }),
       });
       if (res.ok) {
-        const setter = provider === "xero" ? setXeroStatus : setSageStatus;
+        const setter = provider === "xero" ? setXeroStatus : provider === "sage" ? setSageStatus : setQuickbooksStatus;
         setter((prev) => (prev ? { ...prev, auto_sync: newValue } : prev));
       }
     } finally {
       setToggling(null);
+    }
+  }
+
+  async function handleAccountSettingChange(
+    provider: "xero" | "sage" | "quickbooks",
+    key: string,
+    value: string
+  ) {
+    setSavingAccount(`${provider}-${key}`);
+    try {
+      const res = await fetch(`/api/integrations/${provider}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (res.ok) {
+        const setter = provider === "xero" ? setXeroStatus : provider === "sage" ? setSageStatus : setQuickbooksStatus;
+        // Map API key to status key
+        const statusKeyMap: Record<string, string> = {
+          sales_account_code: "sales_account_code",
+          sales_tax_type: "sales_tax_type",
+          sales_ledger_account_id: "sales_ledger_account_id",
+          sales_tax_rate_id: "sales_tax_rate_id",
+          sales_item_id: "sales_item_id",
+          sales_tax_code_id: "sales_tax_code_id",
+        };
+        const statusKey = statusKeyMap[key] || key;
+        setter((prev) => (prev ? { ...prev, [statusKey]: value } : prev));
+      }
+    } finally {
+      setSavingAccount(null);
+    }
+  }
+
+  async function handleTestSync(provider: "xero" | "quickbooks") {
+    setTestSyncLoading(provider);
+    setTestSyncResult(null);
+    setTestSyncProvider(provider);
+    try {
+      const res = await fetch(`/api/integrations/${provider}/test-sync`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setTestSyncResult(data);
+    } catch (err) {
+      setTestSyncResult({
+        error: err instanceof Error ? err.message : "Request failed",
+      });
+    } finally {
+      setTestSyncLoading(null);
     }
   }
 
@@ -143,7 +228,7 @@ export function IntegrationsPage() {
   }
 
   function renderIntegrationCard(
-    provider: "xero" | "sage",
+    provider: "xero" | "sage" | "quickbooks",
     status: IntegrationStatus | null,
     config: {
       label: string;
@@ -259,6 +344,157 @@ export function IntegrationsPage() {
               </button>
             </div>
 
+            {/* Account code settings */}
+            {status.is_active && provider === "xero" && status.available_accounts && (
+              <div className="space-y-3 py-3 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase">
+                  Account Mapping
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Sales Account
+                    </label>
+                    <select
+                      value={status.sales_account_code || "200"}
+                      onChange={(e) =>
+                        handleAccountSettingChange("xero", "sales_account_code", e.target.value)
+                      }
+                      disabled={savingAccount === "xero-sales_account_code"}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                    >
+                      {(status.available_accounts || []).map((a) => (
+                        <option key={a.code} value={a.code}>
+                          {`${a.code} — ${a.name}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {status.available_tax_types && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Tax Rate
+                      </label>
+                      <select
+                        value={status.sales_tax_type || "OUTPUT2"}
+                        onChange={(e) =>
+                          handleAccountSettingChange("xero", "sales_tax_type", e.target.value)
+                        }
+                        disabled={savingAccount === "xero-sales_tax_type"}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                      >
+                        {(status.available_tax_types || []).map((t) => (
+                          <option key={t.type} value={t.type}>
+                            {`${t.name}${t.rate != null ? ` (${t.rate}%)` : ""}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {status.is_active && provider === "sage" && status.available_ledger_accounts && (
+              <div className="space-y-3 py-3 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase">
+                  Account Mapping
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Sales Ledger Account
+                    </label>
+                    <select
+                      value={status.sales_ledger_account_id || ""}
+                      onChange={(e) =>
+                        handleAccountSettingChange("sage", "sales_ledger_account_id", e.target.value)
+                      }
+                      disabled={savingAccount === "sage-sales_ledger_account_id"}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                    >
+                      {(status.available_ledger_accounts || []).map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {status.available_tax_rates && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Tax Rate
+                      </label>
+                      <select
+                        value={status.sales_tax_rate_id || ""}
+                        onChange={(e) =>
+                          handleAccountSettingChange("sage", "sales_tax_rate_id", e.target.value)
+                        }
+                        disabled={savingAccount === "sage-sales_tax_rate_id"}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                      >
+                        {(status.available_tax_rates || []).map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {`${r.name}${r.rate != null ? ` (${r.rate}%)` : ""}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {status.is_active && provider === "quickbooks" && status.available_items && (
+              <div className="space-y-3 py-3 border-t border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase">
+                  Account Mapping
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Sales Item
+                    </label>
+                    <select
+                      value={status.sales_item_id || ""}
+                      onChange={(e) =>
+                        handleAccountSettingChange("quickbooks", "sales_item_id", e.target.value)
+                      }
+                      disabled={savingAccount === "quickbooks-sales_item_id"}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                    >
+                      {(status.available_items || []).map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {status.available_tax_codes && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Tax Code
+                      </label>
+                      <select
+                        value={status.sales_tax_code_id || ""}
+                        onChange={(e) =>
+                          handleAccountSettingChange("quickbooks", "sales_tax_code_id", e.target.value)
+                        }
+                        disabled={savingAccount === "quickbooks-sales_tax_code_id"}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:opacity-50"
+                      >
+                        {(status.available_tax_codes || []).map((tc) => (
+                          <option key={tc.id} value={tc.id}>
+                            {tc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
               {!status.is_active ? (
                 <a
@@ -269,6 +505,20 @@ export function IntegrationsPage() {
                   Reconnect {config.label}
                 </a>
               ) : null}
+              {(provider === "xero" || provider === "quickbooks") && status.is_active && (
+                <button
+                  onClick={() => handleTestSync(provider)}
+                  disabled={testSyncLoading === provider}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  {testSyncLoading === provider ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  )}
+                  {testSyncLoading === provider ? "Testing..." : "Test Sync"}
+                </button>
+              )}
               <button
                 onClick={() => handleDisconnect(provider)}
                 disabled={disconnecting === provider}
@@ -328,6 +578,13 @@ export function IntegrationsPage() {
         </div>
       )}
 
+      {quickbooksStatus?.error && !quickbooksStatus.connected && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {quickbooksStatus.error}
+        </div>
+      )}
+
       <div className="space-y-4">
         {renderIntegrationCard("xero", xeroStatus, {
           label: "Xero",
@@ -345,6 +602,15 @@ export function IntegrationsPage() {
           bgColor: "bg-[#00DC82]",
           hoverColor: "hover:bg-[#00c070]",
           logoLetter: "S",
+        })}
+
+        {renderIntegrationCard("quickbooks", quickbooksStatus, {
+          label: "QuickBooks",
+          description:
+            "Automatically sync invoices, contacts, and payments with your QuickBooks accounting software.",
+          bgColor: "bg-[#2CA01C]",
+          hoverColor: "hover:bg-[#238a17]",
+          logoLetter: "Q",
         })}
       </div>
 
@@ -377,6 +643,38 @@ export function IntegrationsPage() {
           </li>
         </ul>
       </div>
+
+      {/* Test Sync Result Modal */}
+      {testSyncResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-base font-semibold text-slate-900">
+                {testSyncProvider === "quickbooks" ? "QuickBooks" : "Xero"} Test Sync Result
+              </h2>
+              <button
+                onClick={() => setTestSyncResult(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <pre className="text-xs font-mono text-slate-700 whitespace-pre-wrap break-words bg-slate-50 rounded-lg p-4 border border-slate-200">
+                {JSON.stringify(testSyncResult, null, 2)}
+              </pre>
+            </div>
+            <div className="px-6 py-3 border-t border-slate-200 flex justify-end">
+              <button
+                onClick={() => setTestSyncResult(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

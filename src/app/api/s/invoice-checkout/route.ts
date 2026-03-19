@@ -16,6 +16,8 @@ import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
 import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
+import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
+import { stripe } from "@/lib/stripe";
 
 interface CheckoutItem {
   productId: string;
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
     const { data: access } = await supabase
       .from("wholesale_access")
       .select(
-        `id, status, price_tier, payment_terms, user_id,
+        `id, status, price_tier, payment_terms, user_id, business_id, business_name, vat_number, business_address,
          users!wholesale_access_user_id_fkey(full_name, email)`
       )
       .eq("id", wholesaleAccessId)
@@ -139,7 +141,7 @@ export async function POST(request: Request) {
     // Verify roaster exists (does NOT require stripe_account_id since no Stripe payment)
     const { data: roaster } = await supabase
       .from("partner_roasters")
-      .select("id, platform_fee_percent, business_name, user_id, sales_tier, auto_send_invoices, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
+      .select("id, platform_fee_percent, business_name, user_id, sales_tier, auto_create_invoices, auto_send_invoices, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -584,15 +586,7 @@ export async function POST(request: Request) {
       updateContactActivity(contact.id).catch(() => {});
     }
 
-    // ─── Create invoice ───
-    const invoiceNumber = await generateInvoiceNumber(
-      supabase,
-      "roaster",
-      roasterId
-    );
-    const accessToken = generateAccessToken();
-
-    // Calculate invoice totals
+    // ─── Common totals for invoice / Xero / Sage ───
     const invoiceSubtotal = effectiveSubtotalPence / 100;
     const invoiceTotal = invoiceSubtotal;
 
@@ -601,139 +595,261 @@ export async function POST(request: Request) {
     dueDate.setDate(dueDate.getDate() + dueDays);
     const paymentDueDate = dueDate.toISOString().split("T")[0];
 
-    // Respect roaster's auto_send_invoices setting (default true if null)
-    const autoSend = roaster.auto_send_invoices !== false;
+    // Resolve business_id from wholesale_access or contact
+    const wholesaleBusinessId = (access as Record<string, unknown>).business_id as string | null;
+    let invoiceBusinessId = wholesaleBusinessId || null;
+
+    if (!invoiceBusinessId && contact) {
+      const { data: contactRow } = await supabase
+        .from("contacts")
+        .select("business_id")
+        .eq("id", contact.id)
+        .single();
+      if (contactRow?.business_id) {
+        invoiceBusinessId = contactRow.business_id;
+      }
+    }
+
+    // ─── Create invoice (only if auto_create_invoices is enabled) ───
+    const autoCreate = roaster.auto_create_invoices !== false;
+    const autoSend = autoCreate && roaster.auto_send_invoices !== false;
     const now = new Date().toISOString();
 
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert({
-        invoice_number: invoiceNumber,
-        owner_type: "roaster",
-        roaster_id: roasterId,
-        buyer_id: userId || null,
-        customer_id: personId || null,
-        order_ids: [order.id],
-        subtotal: invoiceSubtotal,
-        discount_amount: validatedDiscountPence / 100,
-        tax_rate: 0,
-        tax_amount: 0,
-        total: invoiceTotal,
-        amount_paid: 0,
-        amount_due: invoiceTotal,
-        currency: "GBP",
-        payment_method: "bank_transfer",
-        payment_status: "unpaid",
-        status: autoSend ? "sent" : "draft",
-        ...(autoSend ? { sent_at: now, issued_date: now.split("T")[0] } : {}),
-        notes: `Wholesale order - ${paymentTerms} payment terms`,
-        due_days: dueDays,
-        payment_due_date: paymentDueDate,
-        invoice_access_token: accessToken,
-        platform_fee_percent: platformFeePercent,
-        platform_fee_amount: platformFeePence / 100,
-      })
-      .select("id, invoice_number")
-      .single();
+    console.log(`[invoice-checkout] roaster=${roasterId} autoCreate=${autoCreate} autoSend=${autoSend} auto_create_invoices=${roaster.auto_create_invoices} auto_send_invoices=${roaster.auto_send_invoices}`);
 
-    if (invoiceError) {
-      console.error("Failed to create invoice:", invoiceError);
-      // Order was already created, so we return partial success
-      return NextResponse.json({
-        success: true,
-        orderId: order.id,
-        invoiceId: null,
-        invoiceNumber: null,
-        warning: "Order created but invoice generation failed.",
-      });
-    }
+    let invoiceId: string | null = null;
+    let invoiceNumber: string | null = null;
+    let accessToken: string | null = null;
+    let invoiceLineItems: { invoice_id: string; description: string; quantity: number; unit_price: number; total: number; sort_order: number }[] = [];
 
-    // ─── Create invoice line items ───
-    const invoiceLineItems = lineItems.map((item, index) => ({
-      invoice_id: invoice.id,
-      description: item.name,
-      quantity: item.quantity,
-      unit_price: item.unitAmount / 100,
-      total: (item.unitAmount * item.quantity) / 100,
-      sort_order: index,
-    }));
+    if (autoCreate) {
+      invoiceNumber = await generateInvoiceNumber(
+        supabase,
+        "roaster",
+        roasterId
+      );
+      accessToken = generateAccessToken();
 
-    const { error: lineItemsError } = await supabase
-      .from("invoice_line_items")
-      .insert(invoiceLineItems);
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert({
+          invoice_number: invoiceNumber,
+          owner_type: "roaster",
+          roaster_id: roasterId,
+          buyer_id: userId || null,
+          customer_id: personId || null,
+          business_id: invoiceBusinessId,
+          wholesale_access_id: wholesaleAccessId,
+          order_ids: [order.id],
+          subtotal: invoiceSubtotal,
+          discount_amount: validatedDiscountPence / 100,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: invoiceTotal,
+          amount_paid: 0,
+          amount_due: invoiceTotal,
+          currency: "GBP",
+          payment_method: "bank_transfer",
+          payment_status: "unpaid",
+          status: autoSend ? "sent" : "draft",
+          ...(autoSend ? { sent_at: now, issued_date: now.split("T")[0] } : {}),
+          notes: `Wholesale order - ${paymentTerms} payment terms`,
+          due_days: dueDays,
+          payment_due_date: paymentDueDate,
+          invoice_access_token: accessToken,
+          platform_fee_percent: platformFeePercent,
+          platform_fee_amount: platformFeePence / 100,
+        })
+        .select("id, invoice_number")
+        .single();
 
-    if (lineItemsError) {
-      console.error("Failed to create invoice line items:", lineItemsError);
-    }
+      if (invoiceError) {
+        console.error("Failed to create invoice:", invoiceError);
+        // Order was already created, so we return partial success
+        return NextResponse.json({
+          success: true,
+          orderId: order.id,
+          invoiceId: null,
+          invoiceNumber: null,
+          warning: "Order created but invoice generation failed.",
+        });
+      }
 
-    // ─── Link invoice to order ───
-    await supabase
-      .from("orders")
-      .update({ invoice_id: invoice.id })
-      .eq("id", order.id);
+      invoiceId = invoice.id;
+      invoiceNumber = invoice.invoice_number;
 
-    // ─── Send invoice email with PDF attached (if auto_send) ───
-    if (autoSend && wholesaleBuyerEmail) {
-      const invoiceLineItemsForEmail = lineItems.map((item) => ({
+      // ─── Create invoice line items ───
+      invoiceLineItems = lineItems.map((item, index) => ({
+        invoice_id: invoice.id,
         description: item.name,
         quantity: item.quantity,
         unit_price: item.unitAmount / 100,
         total: (item.unitAmount * item.quantity) / 100,
+        sort_order: index,
       }));
 
-      const branding = {
-        logoUrl: roaster.brand_logo_url || null,
-        primaryColour: roaster.brand_primary_colour || undefined,
-        accentColour: roaster.brand_accent_colour || undefined,
-        headingFont: roaster.brand_heading_font || undefined,
-        bodyFont: roaster.brand_body_font || undefined,
-        businessName: roaster.business_name || undefined,
-      };
+      const { error: lineItemsError } = await supabase
+        .from("invoice_line_items")
+        .insert(invoiceLineItems);
 
-      // Generate PDF attachment
-      const pdfAttachment = await generateInvoiceAttachment({
-        ownerName: roaster.business_name || "Roaster",
-        ownerAddress: "",
-        ownerEmail: roaster.email || "",
-        vatNumber: roaster.vat_number || null,
-        customerName: wholesaleBuyerName,
-        customerAddress: null,
-        invoiceNumber,
-        issuedDate: now,
-        dueDate: paymentDueDate,
-        lineItems: invoiceLineItemsForEmail,
-        subtotal: invoiceSubtotal,
-        taxRate: 0,
-        taxAmount: 0,
-        discountAmount: validatedDiscountPence / 100,
-        total: invoiceTotal,
-        amountPaid: 0,
-        notes: `Wholesale order - ${paymentTerms} payment terms`,
-        status: "sent",
-        currency: "GBP",
-        branding,
-        bankName: roaster.bank_name || null,
-        bankAccountNumber: roaster.bank_account_number || null,
-        bankSortCode: roaster.bank_sort_code || null,
-        paymentInstructions: roaster.payment_instructions || null,
-      }).catch((err) => {
-        console.error("Failed to generate invoice PDF:", err);
-        return null;
+      if (lineItemsError) {
+        console.error("Failed to create invoice line items:", lineItemsError);
+      }
+
+      // ─── Link invoice to order ───
+      await supabase
+        .from("orders")
+        .update({ invoice_id: invoice.id })
+        .eq("id", order.id);
+
+      // ─── Create Stripe payment link (if roaster has Stripe Connect) ───
+      let stripePaymentLinkUrl: string | null = null;
+
+      if (autoSend && roaster.stripe_account_id) {
+        try {
+          const amountPence = Math.round(invoiceTotal * 100);
+          const platformFeePence2 = Math.round(amountPence * (platformFeePercent / 100));
+
+          const session = await stripe.checkout.sessions.create({
+            mode: "payment",
+            customer_email: wholesaleBuyerEmail || undefined,
+            line_items: [
+              {
+                price_data: {
+                  currency: "GBP",
+                  product_data: {
+                    name: `Invoice ${invoiceNumber}`,
+                    description: `Payment for invoice ${invoiceNumber} from ${roaster.business_name || "Roaster"}`,
+                  },
+                  unit_amount: amountPence,
+                },
+                quantity: 1,
+              },
+            ],
+            payment_intent_data: {
+              application_fee_amount: platformFeePence2 > 0 ? platformFeePence2 : undefined,
+              transfer_data: {
+                destination: roaster.stripe_account_id,
+              },
+              metadata: {
+                invoice_id: invoiceId!,
+                invoice_number: invoiceNumber!,
+                roaster_id: roasterId,
+              },
+            },
+            metadata: {
+              invoice_id: invoiceId!,
+              invoice_number: invoiceNumber!,
+              type: "invoice_payment",
+            },
+            success_url: `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${accessToken}?paid=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${accessToken}`,
+          });
+
+          stripePaymentLinkUrl = session.url;
+
+          // Store the Stripe link on the invoice
+          await supabase
+            .from("invoices")
+            .update({
+              stripe_payment_link_url: session.url,
+              stripe_payment_link_id: session.id,
+            })
+            .eq("id", invoiceId!);
+
+          console.log(`[invoice-checkout] Stripe payment link created | roaster=${roasterId} invoice=${invoiceId} url=${session.url?.substring(0, 60)}...`);
+        } catch (stripeErr) {
+          console.error(`[invoice-checkout] Stripe session creation failed (non-fatal) | roaster=${roasterId} invoice=${invoiceId}`, stripeErr);
+          // Fall back to "View Invoice" — don't block the email
+        }
+      }
+
+      // ─── Send invoice email with PDF attached (if auto_send) ───
+      if (autoSend && wholesaleBuyerEmail) {
+        const invoiceLineItemsForEmail = lineItems.map((item) => ({
+          description: item.name,
+          quantity: item.quantity,
+          unit_price: item.unitAmount / 100,
+          total: (item.unitAmount * item.quantity) / 100,
+        }));
+
+        const branding = {
+          logoUrl: roaster.brand_logo_url || null,
+          primaryColour: roaster.brand_primary_colour || undefined,
+          accentColour: roaster.brand_accent_colour || undefined,
+          headingFont: roaster.brand_heading_font || undefined,
+          bodyFont: roaster.brand_body_font || undefined,
+          businessName: roaster.business_name || undefined,
+        };
+
+        // Generate PDF attachment
+        const pdfAttachment = await generateInvoiceAttachment({
+          ownerName: roaster.business_name || "Roaster",
+          ownerAddress: "",
+          ownerEmail: roaster.email || "",
+          vatNumber: roaster.vat_number || null,
+          customerName: wholesaleBuyerName,
+          customerAddress: null,
+          invoiceNumber: invoiceNumber!,
+          issuedDate: now,
+          dueDate: paymentDueDate,
+          lineItems: invoiceLineItemsForEmail,
+          subtotal: invoiceSubtotal,
+          taxRate: 0,
+          taxAmount: 0,
+          discountAmount: validatedDiscountPence / 100,
+          total: invoiceTotal,
+          amountPaid: 0,
+          notes: `Wholesale order - ${paymentTerms} payment terms`,
+          status: "sent",
+          currency: "GBP",
+          branding,
+          bankName: roaster.bank_name || null,
+          bankAccountNumber: roaster.bank_account_number || null,
+          bankSortCode: roaster.bank_sort_code || null,
+          paymentInstructions: roaster.payment_instructions || null,
+        }).catch((err) => {
+          console.error(`[invoice-checkout] PDF generation failed | roaster=${roasterId} invoice=${invoiceId}`, err);
+          return null;
+        });
+
+        sendInvoiceEmail({
+          to: wholesaleBuyerEmail,
+          customerName: wholesaleBuyerName,
+          ownerName: roaster.business_name || "Roaster",
+          invoiceNumber: invoiceNumber!,
+          total: invoiceTotal,
+          currency: "GBP",
+          dueDate: paymentDueDate,
+          accessToken: accessToken!,
+          stripePaymentLinkUrl,
+          lineItems: invoiceLineItemsForEmail,
+          branding,
+          attachments: pdfAttachment ? [pdfAttachment] : undefined,
+        }).catch((err) => console.error(`[invoice-checkout] Email send failed | roaster=${roasterId} invoice=${invoiceId} to=${wholesaleBuyerEmail}`, err));
+      }
+
+      // Dispatch invoice.created webhook
+      dispatchWebhook(roasterId, "invoice.created", {
+        invoice: {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          roaster_id: roasterId,
+          order_ids: [order.id],
+          subtotal: invoiceSubtotal,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: invoiceTotal,
+          amount_paid: 0,
+          amount_due: invoiceTotal,
+          currency: "GBP",
+          payment_method: "bank_transfer",
+          status: autoSend ? "sent" : "draft",
+          due_days: dueDays,
+          payment_due_date: paymentDueDate,
+          line_items: invoiceLineItems,
+        },
       });
-
-      sendInvoiceEmail({
-        to: wholesaleBuyerEmail,
-        customerName: wholesaleBuyerName,
-        ownerName: roaster.business_name || "Roaster",
-        invoiceNumber,
-        total: invoiceTotal,
-        currency: "GBP",
-        dueDate: paymentDueDate,
-        accessToken,
-        lineItems: invoiceLineItemsForEmail,
-        branding,
-        attachments: pdfAttachment ? [pdfAttachment] : undefined,
-      }).catch((err) => console.error("Failed to send invoice email:", err));
     }
 
     // ─── Record platform fee ledger entry ───
@@ -783,91 +899,143 @@ export async function POST(request: Request) {
       },
     });
 
-    // Dispatch invoice.created webhook
-    dispatchWebhook(roasterId, "invoice.created", {
-      invoice: {
-        id: invoice.id,
-        invoice_number: invoice.invoice_number,
-        roaster_id: roasterId,
-        order_ids: [order.id],
-        subtotal: invoiceSubtotal,
-        tax_rate: 0,
-        tax_amount: 0,
-        total: invoiceTotal,
-        amount_paid: 0,
-        amount_due: invoiceTotal,
-        currency: "GBP",
-        payment_method: "bank_transfer",
-        status: autoSend ? "sent" : "draft",
-        due_days: dueDays,
-        payment_due_date: paymentDueDate,
-        line_items: invoiceLineItems,
-      },
-    });
+    // ─── Xero/Sage sync — always fires (uses invoice data if available, or order data) ───
+    const accessBusinessName = (access as Record<string, unknown>).business_name as string | null;
+    const accessVatNumber = (access as Record<string, unknown>).vat_number as string | null;
 
-    // Sync invoice to Xero
-    syncToXero(roasterId, async () => {
-      await pushInvoiceToXero(
-        roasterId,
-        {
-          invoice_number: invoice.invoice_number,
-          subtotal: invoiceSubtotal,
-          tax_rate: 0,
-          tax_amount: 0,
-          total: invoiceTotal,
-          currency: "GBP",
-          payment_due_date: paymentDueDate,
-          issued_date: autoSend ? new Date().toISOString().split("T")[0] : null,
-          notes: `Wholesale order - ${paymentTerms} payment terms`,
-          status: autoSend ? "sent" : "draft",
-        },
-        invoiceLineItems.map((item: { description: string; quantity: number; unit_price: number }) => ({
+    let bizData: {
+      name?: string;
+      vat_number?: string | null;
+      address_line_1?: string | null;
+      address_line_2?: string | null;
+      city?: string | null;
+      postcode?: string | null;
+      country?: string | null;
+      email?: string | null;
+    } | null = null;
+
+    if (invoiceBusinessId) {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("name, email, vat_number, address_line_1, address_line_2, city, postcode, country")
+        .eq("id", invoiceBusinessId)
+        .single();
+      if (biz) bizData = biz;
+    }
+
+    // Fall back to wholesale_access data if no business record
+    if (!bizData && accessBusinessName) {
+      bizData = {
+        name: accessBusinessName,
+        vat_number: accessVatNumber,
+      };
+    }
+
+    // Try to get a buyer address for the sync
+    if (bizData && !bizData.address_line_1 && userId) {
+      const { data: addr } = await supabase
+        .from("buyer_addresses")
+        .select("address_line_1, address_line_2, city, postcode, country")
+        .eq("user_id", userId)
+        .eq("roaster_id", roasterId)
+        .eq("is_default", true)
+        .maybeSingle();
+      if (addr) {
+        bizData.address_line_1 = addr.address_line_1;
+        bizData.address_line_2 = addr.address_line_2;
+        bizData.city = addr.city;
+        bizData.postcode = addr.postcode;
+        bizData.country = addr.country;
+      }
+    }
+
+    // Build line items payload for Xero/Sage (from invoice items or order items)
+    const syncLineItems = autoCreate && invoiceLineItems.length > 0
+      ? invoiceLineItems.map((item) => ({
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
-        })),
-        {
-          name: wholesaleBuyerName,
-          email: wholesaleBuyerEmail,
-          business_name: null,
-        }
-      );
+        }))
+      : lineItems.map((item) => ({
+          description: item.name,
+          quantity: item.quantity,
+          unit_price: item.unitAmount / 100,
+        }));
+
+    const invoicePayload = {
+      invoice_number: invoiceNumber || `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+      subtotal: invoiceSubtotal,
+      tax_rate: 0,
+      tax_amount: 0,
+      total: invoiceTotal,
+      currency: "GBP",
+      payment_due_date: paymentDueDate,
+      issued_date: autoSend ? new Date().toISOString().split("T")[0] : null,
+      notes: `Wholesale order - ${paymentTerms} payment terms`,
+      status: autoSend ? "sent" : "draft",
+    };
+
+    const customerPayload = {
+      name: wholesaleBuyerName,
+      email: wholesaleBuyerEmail,
+      business_name: bizData?.name || accessBusinessName || null,
+    };
+
+    // Sync invoice to Xero
+    syncToXero(roasterId, async () => {
+      try {
+        await pushInvoiceToXero(
+          roasterId,
+          invoicePayload,
+          syncLineItems,
+          customerPayload,
+          bizData || undefined
+        );
+      } catch (err) {
+        console.error(`[invoice-checkout] Xero sync failed | roaster=${roasterId} invoice=${invoiceId} order=${order.id}`, err);
+        throw err;
+      }
     });
 
     // Sync invoice to Sage
     syncToSage(roasterId, async () => {
-      await pushInvoiceToSage(
-        roasterId,
-        {
-          invoice_number: invoice.invoice_number,
-          subtotal: invoiceSubtotal,
-          tax_rate: 0,
-          tax_amount: 0,
-          total: invoiceTotal,
-          currency: "GBP",
-          payment_due_date: paymentDueDate,
-          issued_date: autoSend ? new Date().toISOString().split("T")[0] : null,
-          notes: `Wholesale order - ${paymentTerms} payment terms`,
-          status: autoSend ? "sent" : "draft",
-        },
-        invoiceLineItems.map((item: { description: string; quantity: number; unit_price: number }) => ({
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-        })),
-        {
-          name: wholesaleBuyerName,
-          email: wholesaleBuyerEmail,
-          business_name: null,
-        }
-      );
+      try {
+        await pushInvoiceToSage(
+          roasterId,
+          invoicePayload,
+          syncLineItems,
+          customerPayload,
+          bizData || undefined
+        );
+      } catch (err) {
+        console.error(`[invoice-checkout] Sage sync failed | roaster=${roasterId} invoice=${invoiceId} order=${order.id}`, err);
+        throw err;
+      }
     });
+
+    // Sync invoice to QuickBooks
+    syncToQuickBooks(roasterId, async () => {
+      try {
+        await pushInvoiceToQuickBooks(
+          roasterId,
+          invoicePayload,
+          syncLineItems,
+          customerPayload,
+          bizData || undefined
+        );
+      } catch (err) {
+        console.error(`[invoice-checkout] QuickBooks sync failed | roaster=${roasterId} invoice=${invoiceId} order=${order.id}`, err);
+        throw err;
+      }
+    });
+
+    console.log(`[invoice-checkout] Complete | roaster=${roasterId} order=${order.id} invoiceId=${invoiceId || "none"} invoiceNumber=${invoiceNumber || "none"} autoCreate=${autoCreate} autoSend=${autoSend}`);
 
     return NextResponse.json({
       success: true,
       orderId: order.id,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number,
+      invoiceId,
+      invoiceNumber,
       accessToken,
     });
   } catch (error) {

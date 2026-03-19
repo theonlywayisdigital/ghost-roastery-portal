@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -10,6 +10,8 @@ import {
   Trash2,
   Save,
   Send,
+  Search,
+  X,
 } from "@/components/icons";
 
 interface LineItem {
@@ -18,7 +20,19 @@ interface LineItem {
   unit_price: number;
 }
 
+interface ContactResult {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  business_name: string | null;
+  businesses?: { id: string; name: string }[];
+}
+
 export interface InvoiceInitialData {
+  customerId?: string;
+  businessId?: string;
+  wholesaleAccessId?: string;
   customerName?: string;
   customerEmail?: string;
   customerBusiness?: string;
@@ -27,6 +41,8 @@ export interface InvoiceInitialData {
   dueDays?: number;
   paymentMethod?: string;
   notes?: string;
+  internalNotes?: string;
+  taxRate?: number;
 }
 
 interface InvoiceEditorProps {
@@ -48,11 +64,31 @@ export function InvoiceEditor({
   const router = useRouter();
 
   // Customer
-  const [customerSearch, setCustomerSearch] = useState(
-    initialData?.customerName || initialData?.customerEmail || ""
+  const [customerId, setCustomerId] = useState<string | null>(
+    initialData?.customerId || null
   );
-  const [customerId] = useState<string | null>(null);
-  const [businessId] = useState<string | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(
+    initialData?.businessId || null
+  );
+  const [selectedContact, setSelectedContact] = useState<{
+    name: string;
+    email: string | null;
+    business: string | null;
+  } | null>(
+    initialData?.customerName
+      ? {
+          name: initialData.customerName,
+          email: initialData.customerEmail || null,
+          business: initialData.customerBusiness || null,
+        }
+      : null
+  );
+
+  // Contact search
+  const [contactQuery, setContactQuery] = useState("");
+  const [contactResults, setContactResults] = useState<ContactResult[]>([]);
+  const [contactSearching, setContactSearching] = useState(false);
+  const contactDebounce = useRef<ReturnType<typeof setTimeout>>();
 
   // Line items
   const [lineItems, setLineItems] = useState<LineItem[]>(
@@ -63,9 +99,11 @@ export function InvoiceEditor({
 
   // Settings
   const [dueDays, setDueDays] = useState(initialData?.dueDays ?? 30);
-  const [taxRate, setTaxRate] = useState(0);
+  const [taxRate, setTaxRate] = useState(initialData?.taxRate ?? 0);
   const [notes, setNotes] = useState(initialData?.notes || "");
-  const [internalNotes, setInternalNotes] = useState("");
+  const [internalNotes, setInternalNotes] = useState(
+    initialData?.internalNotes || ""
+  );
   const [paymentMethod, setPaymentMethod] = useState(
     initialData?.paymentMethod || "invoice_offline"
   );
@@ -73,44 +111,123 @@ export function InvoiceEditor({
   // State
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [loadingInvoice, setLoadingInvoice] = useState(mode === "edit");
+  const [showPreview, setShowPreview] = useState(false);
+  const [loadingInvoice, setLoadingInvoice] = useState(
+    mode === "edit" && !initialData
+  );
 
-  // Load existing invoice data in edit mode
-  useEffect(() => {
-    if (mode !== "edit" || !invoiceId) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/invoices/${invoiceId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.customer_name || data.customer_email) {
-          setCustomerSearch(data.customer_name || data.customer_email || "");
-        }
-        if (data.line_items?.length) {
-          setLineItems(
-            data.line_items.map((li: { description: string; quantity: number; unit_price: number }) => ({
-              description: li.description || "",
-              quantity: li.quantity || 1,
-              unit_price: li.unit_price || 0,
-            }))
-          );
-        }
-        if (data.due_days != null) setDueDays(data.due_days);
-        if (data.tax_rate != null) setTaxRate(data.tax_rate);
-        if (data.notes) setNotes(data.notes);
-        if (data.internal_notes) setInternalNotes(data.internal_notes);
-        if (data.payment_method) setPaymentMethod(data.payment_method);
-      } catch {
-        console.error("Failed to load invoice for editing");
-      } finally {
-        setLoadingInvoice(false);
+  // Edit mode: fetch existing invoice data on mount
+  const fetchInvoice = useCallback(async () => {
+    if (!invoiceId) return;
+    setLoadingInvoice(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`);
+      if (!res.ok) {
+        alert("Failed to load invoice.");
+        router.push(backHref);
+        return;
       }
-    })();
-  }, [mode, invoiceId]);
+      const data = await res.json();
 
+      setCustomerId(data.customer_id || null);
+      setBusinessId(data.business_id || null);
+
+      const customerName = data.customer_name || null;
+      const customerEmail = data.customer_email || null;
+      const businessName = data.business_name || null;
+
+      if (customerName || customerEmail || businessName) {
+        setSelectedContact({
+          name: customerName || customerEmail || "",
+          email: customerEmail,
+          business: businessName,
+        });
+      }
+
+      // Populate line items from structured_line_items
+      if (data.structured_line_items?.length > 0) {
+        setLineItems(
+          data.structured_line_items.map(
+            (li: { description: string; quantity: number; unit_price: number }) => ({
+              description: li.description,
+              quantity: li.quantity,
+              unit_price: li.unit_price,
+            })
+          )
+        );
+      }
+
+      setDueDays(data.due_days ?? 30);
+      setTaxRate(data.tax_rate ?? 0);
+      setNotes(data.notes || "");
+      setInternalNotes(data.internal_notes || "");
+      setPaymentMethod(data.payment_method || "invoice_offline");
+    } catch {
+      alert("Failed to load invoice.");
+      router.push(backHref);
+    } finally {
+      setLoadingInvoice(false);
+    }
+  }, [invoiceId, backHref, router]);
+
+  useEffect(() => {
+    if (mode === "edit" && invoiceId && !initialData) {
+      fetchInvoice();
+    }
+  }, [mode, invoiceId, initialData, fetchInvoice]);
+
+  // Contact search handler (debounced)
+  function handleContactSearch(query: string) {
+    setContactQuery(query);
+    if (contactDebounce.current) clearTimeout(contactDebounce.current);
+    if (!query.trim()) {
+      setContactResults([]);
+      return;
+    }
+    contactDebounce.current = setTimeout(async () => {
+      setContactSearching(true);
+      try {
+        const res = await fetch(
+          `/api/contacts?search=${encodeURIComponent(query.trim())}&status=all&page=1`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setContactResults((data.contacts || []).slice(0, 5));
+        }
+      } catch {
+        /* ignore */
+      }
+      setContactSearching(false);
+    }, 300);
+  }
+
+  function handleSelectContact(contact: ContactResult) {
+    setCustomerId(contact.id);
+    setBusinessId(contact.businesses?.[0]?.id || null);
+    setSelectedContact({
+      name: `${contact.first_name} ${contact.last_name}`.trim(),
+      email: contact.email,
+      business:
+        contact.businesses?.[0]?.name || contact.business_name || null,
+    });
+    setContactQuery("");
+    setContactResults([]);
+  }
+
+  function handleClearContact() {
+    setCustomerId(null);
+    setBusinessId(null);
+    setSelectedContact(null);
+    setContactQuery("");
+    setContactResults([]);
+  }
+
+  // Line item helpers
   function addLineItem() {
-    setLineItems([...lineItems, { description: "", quantity: 1, unit_price: 0 }]);
+    setLineItems([
+      ...lineItems,
+      { description: "", quantity: 1, unit_price: 0 },
+    ]);
   }
 
   function removeLineItem(index: number) {
@@ -118,7 +235,11 @@ export function InvoiceEditor({
     setLineItems(lineItems.filter((_, i) => i !== index));
   }
 
-  function updateLineItem(index: number, field: keyof LineItem, value: string | number) {
+  function updateLineItem(
+    index: number,
+    field: keyof LineItem,
+    value: string | number
+  ) {
     const updated = [...lineItems];
     if (field === "description") {
       updated[index].description = value as string;
@@ -143,6 +264,7 @@ export function InvoiceEditor({
       const body = {
         customer_id: customerId,
         business_id: businessId,
+        wholesale_access_id: initialData?.wholesaleAccessId || undefined,
         order_ids: initialData?.orderIds || undefined,
         line_items: lineItems.filter((li) => li.description.trim()),
         notes: notes || null,
@@ -154,7 +276,7 @@ export function InvoiceEditor({
 
       const isEdit = mode === "edit" && invoiceId;
       const url = isEdit ? `/api/invoices/${invoiceId}` : "/api/invoices";
-      const method = isEdit ? "PATCH" : "POST";
+      const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
@@ -164,20 +286,34 @@ export function InvoiceEditor({
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || `Failed to ${isEdit ? "update" : "create"} invoice.`);
+        alert(
+          err.error ||
+            `Failed to ${isEdit ? "update" : "create"} invoice.`
+        );
         return;
       }
 
       const invoice = await res.json();
+      const savedId = isEdit ? invoiceId : invoice.id;
 
       if (andSend) {
-        await fetch(`/api/invoices/${invoice.id}/send`, { method: "POST" });
+        const sendRes = await fetch(`/api/invoices/${savedId}/send`, {
+          method: "POST",
+        });
+        if (!sendRes.ok) {
+          const sendErr = await sendRes.json().catch(() => ({}));
+          alert(
+            sendErr.error ||
+              "Invoice saved but failed to send. You can send it from the invoice detail page."
+          );
+          // Still navigate to the invoice — it was saved
+        }
       }
 
+      // Navigate to detail page
       if (isEdit) {
-        router.push(backHref);
+        router.push(`${successHref}/${invoiceId}`);
       } else if (initialData?.orderIds?.length) {
-        // When creating from an order, redirect back to the order
         router.push(successHref);
       } else {
         router.push(`${successHref}/${invoice.id}`);
@@ -191,51 +327,10 @@ export function InvoiceEditor({
     }
   }
 
-  async function handlePreview() {
-    setPreviewing(true);
-    try {
-      const body = {
-        customer_id: customerId,
-        business_id: businessId,
-        order_ids: initialData?.orderIds || undefined,
-        line_items: lineItems.filter((li) => li.description.trim()),
-        notes: notes || null,
-        internal_notes: internalNotes || null,
-        payment_method: paymentMethod,
-        due_days: dueDays,
-        tax_rate: taxRate,
-      };
-
-      const res = await fetch("/api/invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "Failed to save invoice for preview.");
-        return;
-      }
-
-      const invoice = await res.json();
-      if (invoice.invoice_access_token) {
-        window.open(`/invoice/${invoice.invoice_access_token}`, "_blank");
-      } else {
-        alert("Invoice saved but no access token was generated.");
-      }
-    } catch (error) {
-      console.error("Failed to preview invoice:", error);
-      alert("Failed to save invoice for preview.");
-    } finally {
-      setPreviewing(false);
-    }
-  }
-
   if (loadingInvoice) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
       </div>
     );
   }
@@ -255,7 +350,7 @@ export function InvoiceEditor({
         </h1>
         <p className="text-sm text-slate-500 mt-1">
           {mode === "edit"
-            ? "Update the invoice details below."
+            ? "Update this draft invoice."
             : "Create a new invoice for a customer."}
         </p>
       </div>
@@ -267,15 +362,74 @@ export function InvoiceEditor({
             <h3 className="text-sm font-semibold text-slate-900 mb-4">
               Customer
             </h3>
-            <input
-              type="text"
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Customer name or email (optional — can be set later)"
-              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+            {selectedContact ? (
+              <div className="flex items-center gap-2 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">
+                    {selectedContact.name}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    {[selectedContact.email, selectedContact.business]
+                      .filter(Boolean)
+                      .join(" · ") || "No email or business"}
+                  </p>
+                </div>
+                <button
+                  onClick={handleClearContact}
+                  className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={contactQuery}
+                    onChange={(e) => handleContactSearch(e.target.value)}
+                    placeholder="Search contacts by name or email..."
+                    className="w-full pl-9 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  {contactSearching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                  )}
+                </div>
+
+                {/* Search results dropdown */}
+                {contactQuery.trim() && !contactSearching && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                    {contactResults.length > 0
+                      ? contactResults.map((c) => (
+                          <button
+                            key={c.id}
+                            onClick={() => handleSelectContact(c)}
+                            className="w-full text-left px-3 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                          >
+                            <p className="text-sm font-medium text-slate-900">
+                              {`${c.first_name} ${c.last_name}`.trim()}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {[c.email, c.business_name]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          </button>
+                        ))
+                      : (
+                          <div className="px-3 py-2.5 text-sm text-slate-500">
+                            No contacts found.
+                          </div>
+                        )}
+                  </div>
+                )}
+              </div>
+            )}
             <p className="text-xs text-slate-400 mt-1">
-              Leave blank for a manual invoice.
+              {selectedContact
+                ? "This contact will receive the invoice."
+                : "Leave blank for a manual invoice."}
             </p>
           </div>
 
@@ -467,7 +621,7 @@ export function InvoiceEditor({
           <div className="space-y-3">
             <button
               onClick={() => handleSave(false)}
-              disabled={saving || sending || previewing}
+              disabled={saving || sending}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
             >
               {saving ? (
@@ -478,20 +632,16 @@ export function InvoiceEditor({
               {mode === "edit" ? "Save Changes" : "Save as Draft"}
             </button>
             <button
-              onClick={handlePreview}
-              disabled={saving || sending || previewing}
+              onClick={() => setShowPreview(true)}
+              disabled={saving || sending}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
             >
-              {previewing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
+              <Eye className="w-4 h-4" />
               Preview
             </button>
             <button
               onClick={() => handleSave(true)}
-              disabled={saving || sending || previewing}
+              disabled={saving || sending}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
             >
               {sending ? (
@@ -499,11 +649,209 @@ export function InvoiceEditor({
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              Save & Send
+              {mode === "edit" ? "Save & Send" : "Save & Send"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto py-8">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Invoice Preview
+              </h2>
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Customer info */}
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                  Bill To
+                </p>
+                {selectedContact ? (
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {selectedContact.name}
+                    </p>
+                    {selectedContact.business && (
+                      <p className="text-sm text-slate-600">
+                        {selectedContact.business}
+                      </p>
+                    )}
+                    {selectedContact.email && (
+                      <p className="text-sm text-slate-500">
+                        {selectedContact.email}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400 italic">
+                    No customer selected
+                  </p>
+                )}
+              </div>
+
+              {/* Settings row */}
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                    Payment Terms
+                  </p>
+                  <p className="text-slate-900">{`Net ${dueDays}`}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                    Payment Method
+                  </p>
+                  <p className="text-slate-900">
+                    {paymentMethod === "invoice_online"
+                      ? "Online (Stripe)"
+                      : "Bank Transfer"}
+                  </p>
+                </div>
+                {taxRate > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                      Tax Rate
+                    </p>
+                    <p className="text-slate-900">{`${taxRate}%`}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Line items table */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="text-left text-xs font-medium text-slate-500 uppercase px-4 py-2">
+                        Description
+                      </th>
+                      <th className="text-right text-xs font-medium text-slate-500 uppercase px-4 py-2">
+                        Qty
+                      </th>
+                      <th className="text-right text-xs font-medium text-slate-500 uppercase px-4 py-2">
+                        Unit Price
+                      </th>
+                      <th className="text-right text-xs font-medium text-slate-500 uppercase px-4 py-2">
+                        Total
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {lineItems
+                      .filter((li) => li.description.trim())
+                      .map((item, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-2.5 text-sm text-slate-900">
+                            {item.description}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
+                            {item.quantity}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-slate-700 text-right">
+                            {`£${item.unit_price.toFixed(2)}`}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm font-medium text-slate-900 text-right">
+                            {`£${(item.quantity * item.unit_price).toFixed(2)}`}
+                          </td>
+                        </tr>
+                      ))}
+                    {lineItems.filter((li) => li.description.trim()).length ===
+                      0 && (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-4 py-4 text-center text-sm text-slate-400"
+                        >
+                          No line items
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-slate-200">
+                      <td
+                        colSpan={3}
+                        className="px-4 py-2 text-sm font-medium text-slate-700 text-right"
+                      >
+                        Subtotal
+                      </td>
+                      <td className="px-4 py-2 text-sm font-medium text-slate-900 text-right">
+                        {`£${subtotal.toFixed(2)}`}
+                      </td>
+                    </tr>
+                    {taxRate > 0 && (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="px-4 py-2 text-sm text-slate-500 text-right"
+                        >
+                          {`Tax (${taxRate}%)`}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-slate-700 text-right">
+                          {`£${taxAmount.toFixed(2)}`}
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="border-t border-slate-300">
+                      <td
+                        colSpan={3}
+                        className="px-4 py-3 text-base font-semibold text-slate-900 text-right"
+                      >
+                        Total
+                      </td>
+                      <td className="px-4 py-3 text-base font-semibold text-slate-900 text-right">
+                        {`£${total.toFixed(2)}`}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Notes */}
+              {notes && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase mb-1">
+                    Notes
+                  </p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                    {notes}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreview(false);
+                  handleSave(false);
+                }}
+                disabled={saving || sending}
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50"
+              >
+                {mode === "edit" ? "Save Changes" : "Create Invoice"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

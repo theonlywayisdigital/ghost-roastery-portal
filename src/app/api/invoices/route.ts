@@ -10,6 +10,7 @@ import { checkFeature } from "@/lib/feature-gates";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
 import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
+import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
     const {
       customer_id,
       business_id,
+      wholesale_access_id,
       order_ids,
       line_items,
       notes,
@@ -51,6 +53,7 @@ export async function POST(req: NextRequest) {
     } = body as {
       customer_id?: string;
       business_id?: string;
+      wholesale_access_id?: string;
       order_ids?: string[];
       line_items: { description: string; quantity: number; unit_price: number }[];
       notes?: string;
@@ -111,6 +114,7 @@ export async function POST(req: NextRequest) {
         buyer_id: customer_id || null,
         customer_id: customer_id || null,
         business_id: business_id || null,
+        wholesale_access_id: wholesale_access_id || null,
         order_ids: order_ids || null,
         subtotal,
         discount_amount: 0,
@@ -181,117 +185,102 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Sync to Xero
+      // Fetch customer and business info once for both Xero and Sage
       const roasterId = owner.roaster_id;
+
+      let customerName = "Customer";
+      let customerEmail: string | null = null;
+      let customerBusinessName: string | null = null;
+      let bizData: {
+        name?: string;
+        vat_number?: string | null;
+        address_line_1?: string | null;
+        address_line_2?: string | null;
+        city?: string | null;
+        postcode?: string | null;
+        country?: string | null;
+        email?: string | null;
+      } | null = null;
+
+      if (customer_id) {
+        const { data: person } = await supabase
+          .from("people")
+          .select("first_name, last_name, email")
+          .eq("id", customer_id)
+          .single();
+        if (person) {
+          customerName = `${person.first_name} ${person.last_name}`.trim();
+          customerEmail = person.email;
+        }
+      }
+
+      if (business_id) {
+        const { data: biz } = await supabase
+          .from("businesses")
+          .select("name, email, vat_number, address_line_1, address_line_2, city, postcode, country")
+          .eq("id", business_id)
+          .single();
+        if (biz) {
+          customerBusinessName = biz.name;
+          if (!customerEmail && biz.email) customerEmail = biz.email;
+          bizData = biz;
+        }
+      }
+
+      const invoicePayload = {
+        invoice_number: invoice.invoice_number,
+        subtotal: invoice.subtotal,
+        tax_rate: invoice.tax_rate,
+        tax_amount: invoice.tax_amount,
+        total: invoice.total,
+        currency: invoice.currency,
+        payment_due_date: invoice.payment_due_date,
+        notes: invoice.notes,
+        status: invoice.status,
+      };
+
+      const lineItemsPayload = lineItemsToInsert.map((item: { description: string; quantity: number; unit_price: number }) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+      }));
+
+      const customerPayload = {
+        name: customerName,
+        email: customerEmail,
+        business_name: customerBusinessName,
+      };
+
+      // Sync to Xero
       syncToXero(roasterId, async () => {
-        // Fetch customer info for Xero contact
-        let customerName = "Customer";
-        let customerEmail: string | null = null;
-        let customerBusinessName: string | null = null;
-
-        if (customer_id) {
-          const { data: person } = await createServerClient()
-            .from("people")
-            .select("first_name, last_name, email")
-            .eq("id", customer_id)
-            .single();
-          if (person) {
-            customerName = `${person.first_name} ${person.last_name}`.trim();
-            customerEmail = person.email;
-          }
-        }
-
-        if (business_id) {
-          const { data: biz } = await createServerClient()
-            .from("businesses")
-            .select("name, email")
-            .eq("id", business_id)
-            .single();
-          if (biz) {
-            customerBusinessName = biz.name;
-            if (!customerEmail && biz.email) customerEmail = biz.email;
-          }
-        }
-
         await pushInvoiceToXero(
           roasterId,
-          {
-            invoice_number: invoice.invoice_number,
-            subtotal: invoice.subtotal,
-            tax_rate: invoice.tax_rate,
-            tax_amount: invoice.tax_amount,
-            total: invoice.total,
-            currency: invoice.currency,
-            payment_due_date: invoice.payment_due_date,
-            notes: invoice.notes,
-            status: invoice.status,
-          },
-          lineItemsToInsert.map((item: { description: string; quantity: number; unit_price: number }) => ({
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-          })),
-          {
-            name: customerName,
-            email: customerEmail,
-            business_name: customerBusinessName,
-          }
+          invoicePayload,
+          lineItemsPayload,
+          customerPayload,
+          bizData
         );
       });
 
       // Sync to Sage
       syncToSage(roasterId, async () => {
-        let customerName = "Customer";
-        let customerEmail: string | null = null;
-        let customerBusinessName: string | null = null;
-
-        if (customer_id) {
-          const { data: person } = await createServerClient()
-            .from("people")
-            .select("first_name, last_name, email")
-            .eq("id", customer_id)
-            .single();
-          if (person) {
-            customerName = `${person.first_name} ${person.last_name}`.trim();
-            customerEmail = person.email;
-          }
-        }
-
-        if (business_id) {
-          const { data: biz } = await createServerClient()
-            .from("businesses")
-            .select("name, email")
-            .eq("id", business_id)
-            .single();
-          if (biz) {
-            customerBusinessName = biz.name;
-            if (!customerEmail && biz.email) customerEmail = biz.email;
-          }
-        }
-
         await pushInvoiceToSage(
           roasterId,
-          {
-            invoice_number: invoice.invoice_number,
-            subtotal: invoice.subtotal,
-            tax_rate: invoice.tax_rate,
-            tax_amount: invoice.tax_amount,
-            total: invoice.total,
-            currency: invoice.currency,
-            payment_due_date: invoice.payment_due_date,
-            notes: invoice.notes,
-            status: invoice.status,
-          },
-          lineItemsToInsert.map((item: { description: string; quantity: number; unit_price: number }) => ({
-            description: item.description,
-            quantity: item.quantity,
-            unit_price: item.unit_price,
-          })),
-          {
-            name: customerName,
-            email: customerEmail,
-            business_name: customerBusinessName,
-          }
+          invoicePayload,
+          lineItemsPayload,
+          customerPayload,
+          bizData
+        );
+      });
+
+      // Sync to QuickBooks
+      syncToQuickBooks(roasterId, async () => {
+        await pushInvoiceToQuickBooks(
+          roasterId,
+          invoicePayload,
+          lineItemsPayload,
+          customerPayload,
+          bizData
         );
       });
     }
@@ -330,6 +319,9 @@ export async function GET(req: NextRequest) {
   const dateFrom = params.get("dateFrom") || "";
   const dateTo = params.get("dateTo") || "";
   const search = params.get("search") || "";
+  const sortKey = params.get("sortKey") || "created_at";
+  const sortDir = params.get("sortDir") || "desc";
+  const includeStats = params.get("includeStats") === "true";
 
   const supabase = createServerClient();
 
@@ -365,7 +357,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    query = query.order("created_at", { ascending: false });
+    // Sorting
+    const sortColumn: Record<string, string> = {
+      invoice_number: "invoice_number",
+      total: "total",
+      status: "status",
+      payment_due_date: "payment_due_date",
+      created_at: "created_at",
+    };
+    const orderBy = sortColumn[sortKey] || "created_at";
+    query = query.order(orderBy, { ascending: sortDir === "asc" });
 
     // Pagination
     const from = (page - 1) * pageSize;
@@ -438,11 +439,40 @@ export async function GET(req: NextRequest) {
         : null,
     }));
 
+    // Optionally compute stats from full dataset (not just current page)
+    let stats = undefined;
+    if (includeStats) {
+      let statsQuery = supabase
+        .from("invoices")
+        .select("status, total");
+
+      if (isRoaster && !isAdmin && user.roaster?.id) {
+        statsQuery = statsQuery.eq("roaster_id", user.roaster.id);
+      }
+      if (ownerTypeFilter && isAdmin) {
+        statsQuery = statsQuery.eq("owner_type", ownerTypeFilter);
+      }
+
+      const { data: allInvoices } = await statsQuery;
+      const all = allInvoices || [];
+      stats = {
+        total: all.length,
+        totalValue: all.reduce((sum, i) => sum + Number(i.total || 0), 0),
+        unpaid: all.filter(
+          (i) => i.status === "sent" || i.status === "viewed" || i.status === "overdue"
+        ).length,
+        overdue: all.filter((i) => i.status === "overdue").length,
+        paid: all.filter((i) => i.status === "paid").length,
+        draft: all.filter((i) => i.status === "draft").length,
+      };
+    }
+
     return NextResponse.json({
       data: enrichedInvoices,
       total: count || 0,
       page,
       pageSize,
+      stats,
     });
   } catch (error) {
     console.error("List invoices error:", error);

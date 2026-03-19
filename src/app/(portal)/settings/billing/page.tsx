@@ -31,6 +31,7 @@ export default async function BillingSettingsRoute() {
         bank_sort_code: (user.roaster.bank_sort_code as string) || "",
         payment_instructions: (user.roaster.payment_instructions as string) || "",
         late_payment_terms: (user.roaster.late_payment_terms as string) || "",
+        auto_create_invoices: (user.roaster.auto_create_invoices as boolean) ?? true,
         auto_send_invoices: (user.roaster.auto_send_invoices as boolean) ?? false,
         invoice_reminder_enabled: (user.roaster.invoice_reminder_enabled as boolean) ?? false,
         reminder_days_before_due: (user.roaster.reminder_days_before_due as number) ?? 7,

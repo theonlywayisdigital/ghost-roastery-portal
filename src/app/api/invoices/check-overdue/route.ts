@@ -4,7 +4,14 @@ import { createServerClient } from "@/lib/supabase";
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user?.roles.includes("admin")) {
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const isAdmin = user.roles.includes("admin");
+  const isRoaster = user.roles.includes("roaster");
+
+  if (!isAdmin && !isRoaster) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -13,12 +20,19 @@ export async function GET() {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    // Find all invoices that are sent or viewed and past due date
-    const { data: overdueInvoices, error: fetchError } = await supabase
+    // Find all invoices that are sent, viewed, or partially_paid and past due date
+    let query = supabase
       .from("invoices")
       .select("id")
-      .in("status", ["sent", "viewed"])
+      .in("status", ["sent", "viewed", "partially_paid"])
       .lt("payment_due_date", today);
+
+    // Roasters can only update their own invoices
+    if (isRoaster && !isAdmin) {
+      query = query.eq("roaster_id", user.roaster?.id || "");
+    }
+
+    const { data: overdueInvoices, error: fetchError } = await query;
 
     if (fetchError) {
       console.error("Error fetching overdue invoices:", fetchError);

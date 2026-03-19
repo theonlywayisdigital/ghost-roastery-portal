@@ -9,6 +9,10 @@ import {
 } from "@/lib/email";
 import type { EmailBranding } from "@/lib/email";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { generateInvoiceNumber, generateAccessToken } from "@/lib/invoice-utils";
+import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
+import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
+import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
 
 export interface ProcessOrderItem {
   productId: string;
@@ -516,6 +520,164 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       created_at: new Date().toISOString(),
     },
   });
+
+  // ─── Auto-create "paid" invoice for Stripe-paid orders ───
+  // Only runs when roaster has auto_create_invoices enabled
+  try {
+    const { data: roasterSettings } = await supabase
+      .from("partner_roasters")
+      .select("auto_create_invoices, business_name, email, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, default_payment_terms, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font")
+      .eq("id", roasterId)
+      .single();
+
+    if (roasterSettings && roasterSettings.auto_create_invoices !== false) {
+      const orderSubtotal = effectiveSubtotalPence / 100;
+      const invoiceNumber = await generateInvoiceNumber(supabase, "roaster", roasterId);
+      const invoiceAccessToken = generateAccessToken();
+
+      const dueDays = roasterSettings.default_payment_terms ?? 30;
+      const invoiceDueDate = new Date();
+      invoiceDueDate.setDate(invoiceDueDate.getDate() + dueDays);
+      const paymentDueDate = invoiceDueDate.toISOString().split("T")[0];
+      const issuedDate = new Date().toISOString().split("T")[0];
+
+      // Find person ID for the customer
+      let personId: string | null = null;
+      if (customerEmail) {
+        const { data: person } = await supabase
+          .from("people")
+          .select("id")
+          .eq("email", customerEmail.toLowerCase())
+          .maybeSingle();
+        if (person) personId = person.id;
+      }
+
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert({
+          invoice_number: invoiceNumber,
+          owner_type: "roaster",
+          roaster_id: roasterId,
+          buyer_id: userId,
+          customer_id: personId,
+          order_ids: [order.id],
+          subtotal: orderSubtotal,
+          discount_amount: discountAmountPence / 100,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: orderSubtotal,
+          amount_paid: orderSubtotal,
+          amount_due: 0,
+          currency: "GBP",
+          payment_method: "stripe",
+          payment_status: "paid",
+          status: "paid",
+          sent_at: new Date().toISOString(),
+          issued_date: issuedDate,
+          paid_at: new Date().toISOString(),
+          notes: `${isWholesaleChannel ? "Wholesale" : "Storefront"} order — paid via Stripe`,
+          due_days: dueDays,
+          payment_due_date: paymentDueDate,
+          invoice_access_token: invoiceAccessToken,
+          platform_fee_percent: effectiveSubtotalPence > 0
+            ? Math.round((platformFeePence / effectiveSubtotalPence) * 10000) / 100
+            : 0,
+          platform_fee_amount: platformFeePence / 100,
+        })
+        .select("id, invoice_number")
+        .single();
+
+      if (invoice && !invoiceError) {
+        // Create invoice line items
+        const invoiceLineItems = normalizedItems.map((item, index) => ({
+          invoice_id: invoice.id,
+          description: item.name || "Item",
+          quantity: item.quantity,
+          unit_price: item.unitAmount / 100,
+          total: (item.unitAmount * item.quantity) / 100,
+          sort_order: index,
+        }));
+
+        await supabase.from("invoice_line_items").insert(invoiceLineItems);
+
+        // Link invoice to order
+        await supabase
+          .from("orders")
+          .update({ invoice_id: invoice.id })
+          .eq("id", order.id);
+
+        // Record payment
+        await supabase.from("invoice_payments").insert({
+          invoice_id: invoice.id,
+          amount: orderSubtotal,
+          payment_method: "stripe",
+          reference: stripePaymentId,
+          notes: "Auto-recorded from Stripe checkout",
+        });
+
+        // Dispatch invoice.created webhook
+        dispatchWebhook(roasterId, "invoice.created", {
+          invoice: {
+            id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            roaster_id: roasterId,
+            order_ids: [order.id],
+            subtotal: orderSubtotal,
+            total: orderSubtotal,
+            amount_paid: orderSubtotal,
+            amount_due: 0,
+            currency: "GBP",
+            payment_method: "stripe",
+            status: "paid",
+            line_items: invoiceLineItems,
+          },
+        });
+
+        // Sync to Xero/Sage
+        const syncLineItems = invoiceLineItems.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        }));
+
+        const invoicePayload = {
+          invoice_number: invoice.invoice_number,
+          subtotal: orderSubtotal,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: orderSubtotal,
+          currency: "GBP",
+          payment_due_date: paymentDueDate,
+          issued_date: issuedDate,
+          notes: `${isWholesaleChannel ? "Wholesale" : "Storefront"} order — paid via Stripe`,
+          status: "paid",
+        };
+
+        const customerPayload = {
+          name: customerName,
+          email: customerEmail,
+          business_name: null as string | null,
+        };
+
+        syncToXero(roasterId, async () => {
+          await pushInvoiceToXero(roasterId, invoicePayload, syncLineItems, customerPayload);
+        });
+
+        syncToSage(roasterId, async () => {
+          await pushInvoiceToSage(roasterId, invoicePayload, syncLineItems, customerPayload);
+        });
+
+        syncToQuickBooks(roasterId, async () => {
+          await pushInvoiceToQuickBooks(roasterId, invoicePayload, syncLineItems, customerPayload);
+        });
+      } else if (invoiceError) {
+        console.error("Auto-create invoice failed:", invoiceError);
+      }
+    }
+  } catch (err) {
+    // Non-fatal — order was already created successfully
+    console.error("Auto-create invoice error (non-fatal):", err);
+  }
 
   return { success: true, orderId: order.id, customerEmail, customerName };
 }

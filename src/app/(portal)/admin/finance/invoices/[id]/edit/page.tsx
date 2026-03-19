@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { InvoiceDetail } from "@/components/invoices/InvoiceDetail";
+import { InvoiceEditor } from "@/components/invoices/InvoiceEditor";
 
-export default async function AdminInvoiceDetailPage({
+export default async function AdminEditInvoicePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -12,11 +12,12 @@ export default async function AdminInvoiceDetailPage({
 
   const { id } = await params;
   return (
-    <InvoiceDetail
-      invoiceId={id}
+    <InvoiceEditor
       ownerType="ghost_roastery"
-      backHref="/admin/finance"
-      editHref="/admin/finance/invoices"
+      backHref={`/admin/finance/invoices/${id}`}
+      successHref="/admin/finance/invoices"
+      invoiceId={id}
+      mode="edit"
     />
   );
 }

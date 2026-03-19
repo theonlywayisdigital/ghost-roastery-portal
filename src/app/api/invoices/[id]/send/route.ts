@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
+import { stripe } from "@/lib/stripe";
 
 export async function POST(
   _request: NextRequest,
@@ -106,10 +107,13 @@ export async function POST(
     let paymentInstructions: string | null = null;
     let branding: { logoUrl?: string | null; primaryColour?: string; accentColour?: string; headingFont?: string; bodyFont?: string; businessName?: string } = {};
 
+    let stripeAccountId: string | null = null;
+    let platformFeePercent = 0;
+
     if (invoice.owner_type === "roaster" && invoice.roaster_id) {
       const { data: roaster } = await supabase
         .from("partner_roasters")
-        .select("business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
+        .select("business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id, platform_fee_percent")
         .eq("id", invoice.roaster_id)
         .single();
 
@@ -121,6 +125,8 @@ export async function POST(
         bankAccountNumber = roaster.bank_account_number || null;
         bankSortCode = roaster.bank_sort_code || null;
         paymentInstructions = roaster.payment_instructions || null;
+        stripeAccountId = roaster.stripe_account_id || null;
+        platformFeePercent = roaster.platform_fee_percent || 0;
         branding = {
           logoUrl: roaster.brand_logo_url,
           primaryColour: roaster.brand_primary_colour || undefined,
@@ -132,16 +138,87 @@ export async function POST(
       }
     }
 
+    // Require a customer email before marking as sent
+    if (!customerEmail) {
+      return NextResponse.json(
+        {
+          error:
+            "No customer email address found. Add a customer with an email before sending.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Create Stripe Checkout Session if roaster has Stripe Connect
+    let stripePaymentLinkUrl: string | null = null;
+    let stripePaymentLinkId: string | null = null;
+
+    if (stripeAccountId) {
+      try {
+        const amountDue = invoice.amount_due ?? invoice.total;
+        const amountPence = Math.round(amountDue * 100);
+        const platformFeePence = Math.round(amountPence * (platformFeePercent / 100));
+
+        const session = await stripe.checkout.sessions.create({
+          mode: "payment",
+          customer_email: customerEmail || undefined,
+          line_items: [
+            {
+              price_data: {
+                currency: (invoice.currency || "GBP").toLowerCase(),
+                product_data: {
+                  name: `Invoice ${invoice.invoice_number}`,
+                  description: `Payment for invoice ${invoice.invoice_number} from ${ownerName}`,
+                },
+                unit_amount: amountPence,
+              },
+              quantity: 1,
+            },
+          ],
+          payment_intent_data: {
+            application_fee_amount: platformFeePence > 0 ? platformFeePence : undefined,
+            transfer_data: {
+              destination: stripeAccountId,
+            },
+            metadata: {
+              invoice_id: id,
+              invoice_number: invoice.invoice_number,
+              roaster_id: invoice.roaster_id || "",
+            },
+          },
+          metadata: {
+            invoice_id: id,
+            invoice_number: invoice.invoice_number,
+            type: "invoice_payment",
+          },
+          success_url: `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${invoice.invoice_access_token}?paid=true`,
+          cancel_url: `${process.env.NEXT_PUBLIC_PORTAL_URL}/invoice/${invoice.invoice_access_token}`,
+        });
+
+        stripePaymentLinkUrl = session.url;
+        stripePaymentLinkId = session.id;
+      } catch (stripeErr) {
+        console.error("Failed to create Stripe checkout session for invoice:", stripeErr);
+        // Don't block sending — fall back to bank transfer
+      }
+    }
+
     const now = new Date().toISOString();
 
-    // Update status to sent
+    // Update status to sent (include Stripe link if created)
+    const invoiceUpdates: Record<string, unknown> = {
+      status: "sent",
+      sent_at: now,
+      issued_date: now.split("T")[0],
+    };
+    if (stripePaymentLinkUrl) {
+      invoiceUpdates.stripe_payment_link_url = stripePaymentLinkUrl;
+      invoiceUpdates.stripe_payment_link_id = stripePaymentLinkId;
+    }
+
     const { data: updatedInvoice, error: updateError } = await supabase
       .from("invoices")
-      .update({
-        status: "sent",
-        sent_at: now,
-        issued_date: now.split("T")[0],
-      })
+      .update(invoiceUpdates)
       .eq("id", id)
       .select()
       .single();
@@ -154,8 +231,8 @@ export async function POST(
       );
     }
 
-    // Send email if we have a customer email
-    if (customerEmail) {
+    // Send email
+    {
       try {
         const mappedLineItems = (lineItems || []).map((item) => ({
           description: item.description,
@@ -204,7 +281,7 @@ export async function POST(
           currency: invoice.currency || "GBP",
           dueDate: invoice.payment_due_date || null,
           accessToken: invoice.invoice_access_token,
-          stripePaymentLinkUrl: invoice.stripe_payment_link_url || null,
+          stripePaymentLinkUrl: stripePaymentLinkUrl || invoice.stripe_payment_link_url || null,
           lineItems: mappedLineItems,
           branding,
           attachments: pdfAttachment ? [pdfAttachment] : undefined,
@@ -222,7 +299,7 @@ export async function POST(
       success: true,
       invoice: updatedInvoice,
       public_url: publicUrl,
-      email_sent: !!customerEmail,
+      email_sent: true,
     });
   } catch (error) {
     console.error("Send invoice error:", error);

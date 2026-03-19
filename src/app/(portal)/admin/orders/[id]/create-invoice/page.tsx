@@ -34,17 +34,32 @@ export default async function AdminCreateInvoiceFromOrderPage({
 
     if (!order) redirect("/admin/orders");
 
+    // Resolve customer_id (people record) from ghost order
+    let customerId: string | undefined;
+    if (order.customer_email) {
+      const { data: person } = await supabase
+        .from("people")
+        .select("id")
+        .eq("email", order.customer_email.toLowerCase())
+        .maybeSingle();
+      if (person) customerId = person.id;
+    }
+
+    // Properly itemise ghost order line items (per-bag pricing)
+    const lineItems = [
+      {
+        description: `${order.bag_size} ${order.bag_colour} ${order.roast_profile} (${order.grind})`,
+        quantity: order.quantity,
+        unit_price: Number(order.price_per_bag),
+      },
+    ];
+
     initialData = {
+      customerId,
       customerName: order.customer_name || undefined,
       customerEmail: order.customer_email || undefined,
       orderIds: [id],
-      lineItems: [
-        {
-          description: `${order.quantity}× ${order.bag_size} ${order.bag_colour} ${order.roast_profile} (${order.grind})`,
-          quantity: 1,
-          unit_price: order.total_price,
-        },
-      ],
+      lineItems,
       dueDays: 30,
     };
   } else {
@@ -81,10 +96,49 @@ export default async function AdminCreateInvoiceFromOrderPage({
     };
     const dueDays = termsMap[order.payment_terms] || 30;
 
+    // Resolve customer_id and business_id from order's user
+    let customerId: string | undefined;
+    let businessId: string | undefined;
+    let wholesaleAccessId: string | undefined;
+    let customerBusiness: string | undefined = order.customer_business || undefined;
+
+    if (order.wholesale_access_id) {
+      wholesaleAccessId = order.wholesale_access_id;
+      const { data: access } = await supabase
+        .from("wholesale_access")
+        .select("business_id, business_name")
+        .eq("id", order.wholesale_access_id)
+        .single();
+      if (access) {
+        if (access.business_id) businessId = access.business_id;
+        if (!customerBusiness && access.business_name) customerBusiness = access.business_name;
+      }
+    }
+
+    if (order.user_id) {
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("email")
+        .eq("id", order.user_id)
+        .single();
+
+      if (userRow?.email) {
+        const { data: person } = await supabase
+          .from("people")
+          .select("id")
+          .eq("email", userRow.email.toLowerCase())
+          .maybeSingle();
+        if (person) customerId = person.id;
+      }
+    }
+
     initialData = {
+      customerId,
+      businessId,
+      wholesaleAccessId,
       customerName: order.customer_name || undefined,
       customerEmail: order.customer_email || undefined,
-      customerBusiness: order.customer_business || undefined,
+      customerBusiness,
       orderIds: [id],
       lineItems: lineItems.length > 0 ? lineItems : undefined,
       dueDays,

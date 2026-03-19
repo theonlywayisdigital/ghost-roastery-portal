@@ -12,6 +12,7 @@ import {
   Bell,
   ExternalLink,
   Plus,
+  Pencil,
 } from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { InvoiceFull, InvoiceLineItem, InvoicePayment } from "@/types/finance";
@@ -32,12 +33,14 @@ interface InvoiceDetailProps {
   invoiceId: string;
   ownerType: "ghost_roastery" | "roaster";
   backHref: string;
+  editHref?: string;
   readOnly?: boolean;
 }
 
 export function InvoiceDetail({
   invoiceId,
   backHref,
+  editHref,
   readOnly = false,
 }: InvoiceDetailProps) {
   const router = useRouter();
@@ -75,8 +78,12 @@ export function InvoiceDetail({
       const res = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: "POST",
       });
-      if (res.ok) await loadInvoice();
-      else alert("Failed to send invoice.");
+      if (res.ok) {
+        await loadInvoice();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to send invoice.");
+      }
     } catch {
       alert("Failed to send invoice.");
     }
@@ -210,6 +217,15 @@ export function InvoiceDetail({
           </div>
           {!readOnly && (
             <div className="flex items-center gap-2 flex-wrap">
+              {invoice.status === "draft" && editHref && (
+                <button
+                  onClick={() => router.push(`${editHref}/${invoiceId}/edit`)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
               {invoice.invoice_access_token && (
                 <button
                   onClick={() => window.open(`/invoice/${invoice.invoice_access_token}`, "_blank")}

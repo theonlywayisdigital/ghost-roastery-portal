@@ -12,6 +12,7 @@ import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
+import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -466,6 +467,24 @@ export async function POST(request: Request) {
     // Sync contact to Sage
     syncToSage(roasterId, async () => {
       await pushContactToSage(
+        roasterId,
+        {
+          first_name: firstName,
+          last_name: lastName,
+          email: email.toLowerCase(),
+          phone: phone || null,
+          business_name: businessName,
+        },
+        {
+          name: businessName,
+          vat_number: vatNumber || null,
+          address_line_1: businessAddress || null,
+        }
+      );
+    });
+
+    syncToQuickBooks(roasterId, async () => {
+      await pushContactToQuickBooks(
         roasterId,
         {
           first_name: firstName,

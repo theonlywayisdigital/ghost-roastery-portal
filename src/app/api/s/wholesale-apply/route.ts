@@ -13,6 +13,7 @@ import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
+import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
 
 export async function POST(request: Request) {
   try {
@@ -450,6 +451,24 @@ export async function POST(request: Request) {
       syncToSage(roasterId, async () => {
         const nameParts = name.split(" ");
         await pushContactToSage(
+          roasterId,
+          {
+            first_name: nameParts[0] || "",
+            last_name: nameParts.slice(1).join(" ") || "",
+            email,
+            phone: phone || null,
+            business_name: businessName,
+          },
+          {
+            name: businessName,
+            address_line_1: businessAddress || null,
+          }
+        );
+      });
+
+      syncToQuickBooks(roasterId, async () => {
+        const nameParts = name.split(" ");
+        await pushContactToQuickBooks(
           roasterId,
           {
             first_name: nameParts[0] || "",

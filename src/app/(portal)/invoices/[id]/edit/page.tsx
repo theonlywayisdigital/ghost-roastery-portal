@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { checkFeature } from "@/lib/feature-gates";
 import { FeatureGate } from "@/components/shared/FeatureGate";
-import { InvoiceDetail } from "@/components/invoices/InvoiceDetail";
+import { InvoiceEditor } from "@/components/invoices/InvoiceEditor";
 
-export default async function RoasterInvoiceDetailPage({
+export default async function RoasterEditInvoicePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -19,11 +19,12 @@ export default async function RoasterInvoiceDetailPage({
 
   const { id } = await params;
   return (
-    <InvoiceDetail
-      invoiceId={id}
+    <InvoiceEditor
       ownerType="roaster"
-      backHref="/invoices"
-      editHref="/invoices"
+      backHref={`/invoices/${id}`}
+      successHref="/invoices"
+      invoiceId={id}
+      mode="edit"
     />
   );
 }

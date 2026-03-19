@@ -323,7 +323,7 @@ export function OrderDetailPage({
                 </p>
                 {invoice.invoice_access_token && (
                   <Link
-                    href={`/invoices/view/${invoice.id}?token=${invoice.invoice_access_token}`}
+                    href={`/invoice/${invoice.invoice_access_token}`}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
                     style={{ backgroundColor: accent, color: accentText }}
                   >

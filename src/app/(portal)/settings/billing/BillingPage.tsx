@@ -61,6 +61,7 @@ interface RoasterData {
   bank_sort_code: string;
   payment_instructions: string;
   late_payment_terms: string;
+  auto_create_invoices: boolean;
   auto_send_invoices: boolean;
   invoice_reminder_enabled: boolean;
   reminder_days_before_due: number;
@@ -178,6 +179,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
   const [bankSortCode, setBankSortCode] = useState(roaster.bank_sort_code);
   const [paymentInstructions, setPaymentInstructions] = useState(roaster.payment_instructions);
   const [latePaymentTerms, setLatePaymentTerms] = useState(roaster.late_payment_terms);
+  const [autoCreateInvoices, setAutoCreateInvoices] = useState(roaster.auto_create_invoices);
   const [autoSendInvoices, setAutoSendInvoices] = useState(roaster.auto_send_invoices);
   const [invoiceReminderEnabled, setInvoiceReminderEnabled] = useState(roaster.invoice_reminder_enabled);
   const [reminderDaysBeforeDue, setReminderDaysBeforeDue] = useState(roaster.reminder_days_before_due);
@@ -279,6 +281,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
           bank_sort_code: bankSortCode,
           payment_instructions: paymentInstructions,
           late_payment_terms: latePaymentTerms,
+          auto_create_invoices: autoCreateInvoices,
           auto_send_invoices: autoSendInvoices,
           invoice_reminder_enabled: invoiceReminderEnabled,
           reminder_days_before_due: reminderDaysBeforeDue,
@@ -402,6 +405,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
           bankSortCode={bankSortCode}
           paymentInstructions={paymentInstructions}
           latePaymentTerms={latePaymentTerms}
+          autoCreateInvoices={autoCreateInvoices}
           autoSendInvoices={autoSendInvoices}
           invoiceReminderEnabled={invoiceReminderEnabled}
           reminderDaysBeforeDue={reminderDaysBeforeDue}
@@ -415,6 +419,7 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
           onSetBankSortCode={setBankSortCode}
           onSetPaymentInstructions={setPaymentInstructions}
           onSetLatePaymentTerms={setLatePaymentTerms}
+          onSetAutoCreateInvoices={setAutoCreateInvoices}
           onSetAutoSendInvoices={setAutoSendInvoices}
           onSetInvoiceReminderEnabled={setInvoiceReminderEnabled}
           onSetReminderDaysBeforeDue={setReminderDaysBeforeDue}
@@ -1615,6 +1620,7 @@ function CustomerBillingTab({
   bankSortCode,
   paymentInstructions,
   latePaymentTerms,
+  autoCreateInvoices,
   autoSendInvoices,
   invoiceReminderEnabled,
   reminderDaysBeforeDue,
@@ -1628,6 +1634,7 @@ function CustomerBillingTab({
   onSetBankSortCode,
   onSetPaymentInstructions,
   onSetLatePaymentTerms,
+  onSetAutoCreateInvoices,
   onSetAutoSendInvoices,
   onSetInvoiceReminderEnabled,
   onSetReminderDaysBeforeDue,
@@ -1643,6 +1650,7 @@ function CustomerBillingTab({
   bankSortCode: string;
   paymentInstructions: string;
   latePaymentTerms: string;
+  autoCreateInvoices: boolean;
   autoSendInvoices: boolean;
   invoiceReminderEnabled: boolean;
   reminderDaysBeforeDue: number;
@@ -1656,6 +1664,7 @@ function CustomerBillingTab({
   onSetBankSortCode: (v: string) => void;
   onSetPaymentInstructions: (v: string) => void;
   onSetLatePaymentTerms: (v: string) => void;
+  onSetAutoCreateInvoices: (v: boolean) => void;
   onSetAutoSendInvoices: (v: boolean) => void;
   onSetInvoiceReminderEnabled: (v: boolean) => void;
   onSetReminderDaysBeforeDue: (v: number) => void;
@@ -1882,34 +1891,77 @@ function CustomerBillingTab({
             </h2>
           </div>
           <p className="text-sm text-slate-500 mt-1">
-            Configure automatic invoice sending and payment reminders.
+            Configure automatic invoice creation, sending, and payment reminders.
           </p>
         </div>
         <div className="p-6 space-y-5">
-          {/* Auto-send toggle */}
+          {/* Auto-create toggle */}
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-slate-900">
-                Auto-send invoices
+                Auto-create invoices
               </p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Automatically email invoices to customers when an order is confirmed.
+                Automatically generate invoices when wholesale orders are placed or paid via Stripe.
               </p>
             </div>
             <button
-              onClick={() => onSetAutoSendInvoices(!autoSendInvoices)}
+              onClick={() => {
+                const newValue = !autoCreateInvoices;
+                onSetAutoCreateInvoices(newValue);
+                // Turn off auto-send if auto-create is being disabled
+                if (!newValue && autoSendInvoices) {
+                  onSetAutoSendInvoices(false);
+                }
+              }}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
-                autoSendInvoices ? "bg-brand-600" : "bg-slate-200"
+                autoCreateInvoices ? "bg-brand-600" : "bg-slate-200"
               }`}
               role="switch"
-              aria-checked={autoSendInvoices}
+              aria-checked={autoCreateInvoices}
             >
               <span
                 className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  autoSendInvoices ? "translate-x-5" : "translate-x-0"
+                  autoCreateInvoices ? "translate-x-5" : "translate-x-0"
                 }`}
               />
             </button>
+          </div>
+
+          {/* Auto-send toggle */}
+          <div className="border-t border-slate-100 pt-5">
+            <div className={`flex items-start justify-between gap-4 ${!autoCreateInvoices ? "opacity-50" : ""}`}>
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Auto-send invoices
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Automatically email invoices to customers when an order is confirmed.
+                  {!autoCreateInvoices && (
+                    <span className="block text-xs text-amber-600 mt-0.5">
+                      Enable auto-create invoices first.
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => onSetAutoSendInvoices(!autoSendInvoices)}
+                disabled={!autoCreateInvoices}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+                  !autoCreateInvoices ? "cursor-not-allowed" : "cursor-pointer"
+                } ${
+                  autoSendInvoices && autoCreateInvoices ? "bg-brand-600" : "bg-slate-200"
+                }`}
+                role="switch"
+                aria-checked={autoSendInvoices}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    autoSendInvoices && autoCreateInvoices ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Reminder toggle */}

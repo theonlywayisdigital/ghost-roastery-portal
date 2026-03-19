@@ -32,6 +32,11 @@ export async function GET() {
     last_sync_status: settings.last_sync_status || null,
     error: settings.error || null,
     connected_at: settings.connected_at || integration.created_at,
+    // Account code settings
+    sales_account_code: settings.xero_sales_account_code || null,
+    sales_tax_type: settings.xero_sales_tax_type || null,
+    available_accounts: settings.xero_available_accounts || null,
+    available_tax_types: settings.xero_available_tax_types || null,
   });
 }
 
@@ -42,7 +47,11 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { auto_sync } = body as { auto_sync?: boolean };
+  const { auto_sync, sales_account_code, sales_tax_type } = body as {
+    auto_sync?: boolean;
+    sales_account_code?: string;
+    sales_tax_type?: string;
+  };
 
   const supabase = createServerClient();
 
@@ -64,6 +73,12 @@ export async function PATCH(request: Request) {
 
   if (auto_sync !== undefined) {
     settings.auto_sync = auto_sync;
+  }
+  if (sales_account_code !== undefined) {
+    settings.xero_sales_account_code = sales_account_code;
+  }
+  if (sales_tax_type !== undefined) {
+    settings.xero_sales_tax_type = sales_tax_type;
   }
 
   const { error } = await supabase

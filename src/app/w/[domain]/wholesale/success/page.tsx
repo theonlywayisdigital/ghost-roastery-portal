@@ -155,7 +155,7 @@ function SuccessContent() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               {accessToken && invoiceId && (
                 <Link
-                  href={`/invoices/view/${invoiceId}?token=${accessToken}`}
+                  href={`/invoice/${accessToken}`}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
                 >
                   <svg

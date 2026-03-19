@@ -375,13 +375,25 @@ export async function pushInvoiceToSage(
     name?: string;
     email?: string | null;
     business_name?: string | null;
-  }
+  },
+  business?: {
+    name?: string;
+    vat_number?: string | null;
+    address_line_1?: string | null;
+    address_line_2?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+    country?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null
 ): Promise<{ success: boolean; sageInvoiceId?: string; error?: string }> {
   const client = await getSageClient(roasterId);
   if (!client) return { success: false, error: "No active Sage integration" };
 
   // Ensure contact exists in Sage first
   const contactName =
+    business?.name ||
     customer.business_name ||
     customer.name ||
     customer.email ||
@@ -397,45 +409,23 @@ export async function pushInvoiceToSage(
         email: customer.email,
         business_name: customer.business_name,
       },
-      null
+      business || null
     );
     sageContactId = contactResult.sageContactId;
   }
 
-  // Fetch default ledger account for sales (if available)
-  let ledgerAccountId: string | undefined;
-  try {
-    const ledgerRes = await fetch(
-      `${SAGE_API_URL}/ledger_accounts?visible_in=sales`,
-      { headers: client.headers }
-    );
-    if (ledgerRes.ok) {
-      const ledgerData = await ledgerRes.json();
-      const items = ledgerData.$items || [];
-      // Use the first visible sales ledger account
-      if (items.length > 0) {
-        ledgerAccountId = items[0].id;
-      }
-    }
-  } catch {
-    // Swallow — will use default
-  }
+  // Resolve ledger account and tax rate from integration settings (fall back to API lookup)
+  const settings = (client.integration.settings || {}) as Record<string, unknown>;
+  let ledgerAccountId = (settings.sage_sales_ledger_account_id as string) || undefined;
+  let taxRateId = (settings.sage_sales_tax_rate_id as string) || undefined;
 
-  // Fetch the default tax rate ID
-  let taxRateId: string | undefined;
-  try {
-    const taxRes = await fetch(`${SAGE_API_URL}/tax_rates?tax_rate_percentage=${invoice.tax_rate || 0}`, {
-      headers: client.headers,
-    });
-    if (taxRes.ok) {
-      const taxData = await taxRes.json();
-      const items = taxData.$items || [];
-      if (items.length > 0) {
-        taxRateId = items[0].id;
-      }
-    }
-  } catch {
-    // Swallow — will omit tax rate
+  // If not cached, fetch from API and cache for next time
+  if (!ledgerAccountId || !taxRateId) {
+    const fetched = await fetchAndCacheSageAccountCodes(
+      roasterId, client.headers, client.integration, invoice.tax_rate || 0
+    );
+    if (!ledgerAccountId && fetched.ledgerAccountId) ledgerAccountId = fetched.ledgerAccountId;
+    if (!taxRateId && fetched.taxRateId) taxRateId = fetched.taxRateId;
   }
 
   // Build Sage line items
@@ -535,6 +525,81 @@ export async function pushInvoiceToSage(
     console.error(`[sage] pushInvoiceToSage error:`, message);
     return { success: false, error: message };
   }
+}
+
+/**
+ * Fetch Sage ledger accounts and tax rates, cache preferred values
+ * in roaster_integrations.settings for future use.
+ */
+async function fetchAndCacheSageAccountCodes(
+  roasterId: string,
+  headers: SageHeaders,
+  integration: Integration,
+  taxRatePercent: number
+): Promise<{ ledgerAccountId?: string; taxRateId?: string }> {
+  const supabase = createServerClient();
+  const settings = { ...((integration.settings || {}) as Record<string, unknown>) };
+  let ledgerAccountId: string | undefined;
+  let taxRateId: string | undefined;
+
+  try {
+    // Fetch sales ledger accounts
+    const ledgerRes = await fetch(
+      `${SAGE_API_URL}/ledger_accounts?visible_in=sales`,
+      { headers }
+    );
+    if (ledgerRes.ok) {
+      const data = await ledgerRes.json();
+      const items = data.$items || [];
+      if (items.length > 0) {
+        ledgerAccountId = items[0].id;
+        settings.sage_sales_ledger_account_id = ledgerAccountId;
+        settings.sage_available_ledger_accounts = items.slice(0, 20).map(
+          (a: Record<string, unknown>) => ({
+            id: a.id,
+            name: a.displayed_as || a.name,
+          })
+        );
+      }
+    }
+
+    // Fetch tax rates
+    const taxRes = await fetch(
+      `${SAGE_API_URL}/tax_rates?tax_rate_percentage=${taxRatePercent}`,
+      { headers }
+    );
+    if (taxRes.ok) {
+      const data = await taxRes.json();
+      const items = data.$items || [];
+      if (items.length > 0) {
+        taxRateId = items[0].id;
+        settings.sage_sales_tax_rate_id = taxRateId;
+      }
+    }
+
+    // Also fetch all tax rates for the settings UI
+    const allTaxRes = await fetch(`${SAGE_API_URL}/tax_rates`, { headers });
+    if (allTaxRes.ok) {
+      const data = await allTaxRes.json();
+      const items = data.$items || [];
+      settings.sage_available_tax_rates = items.slice(0, 20).map(
+        (r: Record<string, unknown>) => ({
+          id: r.id,
+          name: r.displayed_as || r.name,
+          rate: r.percentage,
+        })
+      );
+    }
+
+    await supabase
+      .from("roaster_integrations")
+      .update({ settings, updated_at: new Date().toISOString() })
+      .eq("id", integration.id);
+  } catch (err) {
+    console.error(`[sage] Failed to fetch/cache account codes for roaster ${roasterId}:`, err);
+  }
+
+  return { ledgerAccountId, taxRateId };
 }
 
 /**

@@ -14,7 +14,7 @@ export async function GET() {
     .from("roaster_integrations")
     .select("id, is_active, tenant_id, settings, created_at, updated_at")
     .eq("roaster_id", user.roaster.id)
-    .eq("provider", "sage")
+    .eq("provider", "quickbooks")
     .single();
 
   if (!integration) {
@@ -32,11 +32,11 @@ export async function GET() {
     last_sync_status: settings.last_sync_status || null,
     error: settings.error || null,
     connected_at: settings.connected_at || integration.created_at,
-    // Account code settings
-    sales_ledger_account_id: settings.sage_sales_ledger_account_id || null,
-    sales_tax_rate_id: settings.sage_sales_tax_rate_id || null,
-    available_ledger_accounts: settings.sage_available_ledger_accounts || null,
-    available_tax_rates: settings.sage_available_tax_rates || null,
+    // QuickBooks account settings
+    sales_item_id: settings.quickbooks_sales_item_id || null,
+    sales_tax_code_id: settings.quickbooks_sales_tax_code_id || null,
+    available_items: settings.quickbooks_available_items || null,
+    available_tax_codes: settings.quickbooks_available_tax_codes || null,
   });
 }
 
@@ -47,10 +47,10 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { auto_sync, sales_ledger_account_id, sales_tax_rate_id } = body as {
+  const { auto_sync, sales_item_id, sales_tax_code_id } = body as {
     auto_sync?: boolean;
-    sales_ledger_account_id?: string;
-    sales_tax_rate_id?: string;
+    sales_item_id?: string;
+    sales_tax_code_id?: string;
   };
 
   const supabase = createServerClient();
@@ -59,12 +59,12 @@ export async function PATCH(request: Request) {
     .from("roaster_integrations")
     .select("id, settings")
     .eq("roaster_id", user.roaster.id)
-    .eq("provider", "sage")
+    .eq("provider", "quickbooks")
     .single();
 
   if (!integration) {
     return NextResponse.json(
-      { error: "No Sage integration found" },
+      { error: "No QuickBooks integration found" },
       { status: 404 }
     );
   }
@@ -74,11 +74,11 @@ export async function PATCH(request: Request) {
   if (auto_sync !== undefined) {
     settings.auto_sync = auto_sync;
   }
-  if (sales_ledger_account_id !== undefined) {
-    settings.sage_sales_ledger_account_id = sales_ledger_account_id;
+  if (sales_item_id !== undefined) {
+    settings.quickbooks_sales_item_id = sales_item_id;
   }
-  if (sales_tax_rate_id !== undefined) {
-    settings.sage_sales_tax_rate_id = sales_tax_rate_id;
+  if (sales_tax_code_id !== undefined) {
+    settings.quickbooks_sales_tax_code_id = sales_tax_code_id;
   }
 
   const { error } = await supabase

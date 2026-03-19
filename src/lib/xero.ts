@@ -54,6 +54,43 @@ interface Integration {
   settings: Record<string, unknown>;
 }
 
+// ─── Response Helper ────────────────────────────────────────────────────────
+
+/**
+ * Safely parse a Xero API response. Checks content-type and status,
+ * logs the raw body when it's not JSON, and returns { ok, status, data, rawText, contentType }.
+ */
+async function parseXeroResponse(
+  res: Response,
+  label: string
+): Promise<{
+  ok: boolean;
+  status: number;
+  data: Record<string, unknown> | null;
+  rawText: string;
+  contentType: string;
+}> {
+  const contentType = res.headers.get("content-type") || "";
+  const rawText = await res.text();
+
+  if (!contentType.includes("application/json")) {
+    console.error(
+      `[xero] ${label} | Non-JSON response: status=${res.status} content-type="${contentType}" body=${rawText.substring(0, 2000)}`
+    );
+    return { ok: false, status: res.status, data: null, rawText, contentType };
+  }
+
+  try {
+    const data = JSON.parse(rawText);
+    return { ok: res.ok, status: res.status, data, rawText, contentType };
+  } catch {
+    console.error(
+      `[xero] ${label} | JSON parse failed: status=${res.status} body=${rawText.substring(0, 2000)}`
+    );
+    return { ok: false, status: res.status, data: null, rawText, contentType };
+  }
+}
+
 // ─── OAuth Helpers ──────────────────────────────────────────────────────────
 
 /**
@@ -169,6 +206,7 @@ export async function getXeroClient(
     .single();
 
   if (!integration || !integration.access_token || !integration.tenant_id) {
+    console.log(`[xero] getXeroClient | roaster=${roasterId} | No active integration found (integration=${!!integration}, access_token=${!!integration?.access_token}, tenant_id=${!!integration?.tenant_id})`);
     return null;
   }
 
@@ -179,15 +217,22 @@ export async function getXeroClient(
     ? new Date(integration.token_expires_at).getTime()
     : 0;
   const isExpired = Date.now() > expiresAt - 5 * 60 * 1000;
+  const expiresAtISO = integration.token_expires_at || "unknown";
+  const minutesUntilExpiry = Math.round((expiresAt - Date.now()) / 60000);
+
+  console.log(`[xero] getXeroClient | roaster=${roasterId} | token_expires_at=${expiresAtISO} minutesUntilExpiry=${minutesUntilExpiry} isExpired=${isExpired} hasRefreshToken=${!!integration.refresh_token}`);
 
   if (isExpired && integration.refresh_token) {
     try {
+      console.log(`[xero] getXeroClient | roaster=${roasterId} | Refreshing expired token...`);
       const tokens = await refreshAccessToken(integration.refresh_token);
       accessToken = tokens.access_token;
 
       const newExpiresAt = new Date(
         Date.now() + tokens.expires_in * 1000
       ).toISOString();
+
+      console.log(`[xero] getXeroClient | roaster=${roasterId} | Token refreshed successfully, new expires_at=${newExpiresAt}`);
 
       await supabase
         .from("roaster_integrations")
@@ -200,7 +245,7 @@ export async function getXeroClient(
         .eq("id", integration.id);
     } catch (err) {
       console.error(
-        `[xero] Token refresh failed for roaster ${roasterId}:`,
+        `[xero] getXeroClient | roaster=${roasterId} | Token refresh FAILED:`,
         err
       );
 
@@ -222,11 +267,14 @@ export async function getXeroClient(
     }
   }
 
+  console.log(`[xero] getXeroClient | roaster=${roasterId} | Returning valid client with tenant_id=${integration.tenant_id}`);
+
   return {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Xero-tenant-id": integration.tenant_id,
       "Content-Type": "application/json",
+      Accept: "application/json",
     },
     integration: integration as Integration,
   };
@@ -307,60 +355,75 @@ export async function pushContactToXero(
     xeroContact.TaxNumber = business.vat_number;
   }
 
+  console.log(`[xero] pushContactToXero | roaster=${roasterId} | contactName="${contactName}" email="${xeroContact.EmailAddress}"`);
+  console.log(`[xero] pushContactToXero | Request body:`, JSON.stringify({ Contacts: [xeroContact] }, null, 2));
+
   try {
     // Try to find existing contact by email first
     if (xeroContact.EmailAddress) {
-      const searchRes = await fetch(
-        `${XERO_API_URL}/Contacts?where=EmailAddress=="${encodeURIComponent(xeroContact.EmailAddress as string)}"`,
-        { headers: client.headers }
-      );
+      const email = xeroContact.EmailAddress as string;
+      const searchUrl = `${XERO_API_URL}/Contacts?where=${encodeURIComponent(`EmailAddress=="${email}"`)}`;
+      console.log(`[xero] pushContactToXero | Searching existing contact: ${searchUrl}`);
+      const searchRes = await fetch(searchUrl, { headers: client.headers });
+      const search = await parseXeroResponse(searchRes, "pushContactToXero:search");
+      console.log(`[xero] pushContactToXero | Search response: status=${search.status} contentType="${search.contentType}" body=${search.rawText.substring(0, 500)}`);
 
-      if (searchRes.ok) {
-        const searchData = await searchRes.json();
-        if (searchData.Contacts && searchData.Contacts.length > 0) {
+      if (search.ok && search.data) {
+        if (search.data.Contacts && (search.data.Contacts as unknown[]).length > 0) {
           // Update existing contact
-          const existingId = searchData.Contacts[0].ContactID;
+          const existingId = (search.data.Contacts as Record<string, unknown>[])[0].ContactID as string;
           xeroContact.ContactID = existingId;
+          console.log(`[xero] pushContactToXero | Found existing contact ${existingId}, updating...`);
 
-          const updateRes = await fetch(
-            `${XERO_API_URL}/Contacts/${existingId}`,
-            {
-              method: "POST",
-              headers: client.headers,
-              body: JSON.stringify({ Contacts: [xeroContact] }),
-            }
-          );
+          const updateBody = JSON.stringify({ Contacts: [xeroContact] });
+          console.log(`[xero] pushContactToXero | Update body:`, updateBody.substring(0, 500));
+          const updateUrl = `${XERO_API_URL}/Contacts/${existingId}`;
+          console.log(`[xero] pushContactToXero | Update URL: ${updateUrl}`);
+          const updateRes = await fetch(updateUrl, {
+            method: "POST",
+            headers: client.headers,
+            body: updateBody,
+          });
 
-          if (!updateRes.ok) {
-            const errText = await updateRes.text();
-            console.error(`[xero] Contact update failed:`, errText);
-            return { success: false, error: errText };
+          const update = await parseXeroResponse(updateRes, "pushContactToXero:update");
+          console.log(`[xero] pushContactToXero | Update response: status=${update.status} contentType="${update.contentType}" body=${update.rawText.substring(0, 500)}`);
+
+          if (!update.ok) {
+            return { success: false, error: `Xero ${update.status}: ${update.rawText.substring(0, 500)}` };
           }
 
           return { success: true, xeroContactId: existingId };
+        } else {
+          console.log(`[xero] pushContactToXero | No existing contact found, creating new...`);
         }
+      } else if (!search.ok) {
+        console.log(`[xero] pushContactToXero | Search failed: status=${search.status} contentType="${search.contentType}", falling through to create`);
       }
     }
 
     // Create new contact
-    const res = await fetch(`${XERO_API_URL}/Contacts`, {
+    const createBody = JSON.stringify({ Contacts: [xeroContact] });
+    const createUrl = `${XERO_API_URL}/Contacts`;
+    console.log(`[xero] pushContactToXero | Creating new contact at ${createUrl}, body:`, createBody.substring(0, 500));
+    const res = await fetch(createUrl, {
       method: "POST",
       headers: client.headers,
-      body: JSON.stringify({ Contacts: [xeroContact] }),
+      body: createBody,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[xero] Contact create failed:`, errText);
-      return { success: false, error: errText };
+    const create = await parseXeroResponse(res, "pushContactToXero:create");
+    console.log(`[xero] pushContactToXero | Create response: status=${create.status} contentType="${create.contentType}" body=${create.rawText.substring(0, 500)}`);
+
+    if (!create.ok || !create.data) {
+      return { success: false, error: `Xero ${create.status}: ${create.rawText.substring(0, 500)}` };
     }
 
-    const data = await res.json();
-    const xeroContactId = data.Contacts?.[0]?.ContactID;
+    const xeroContactId = (create.data.Contacts as Record<string, unknown>[] | undefined)?.[0]?.ContactID as string | undefined;
+    console.log(`[xero] pushContactToXero | Created contact ${xeroContactId}`);
     return { success: true, xeroContactId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[xero] pushContactToXero error:`, message);
+    console.error(`[xero] pushContactToXero | Exception: ${message}`, err);
     return { success: false, error: message };
   }
 }
@@ -393,13 +456,25 @@ export async function pushInvoiceToXero(
     name?: string;
     email?: string | null;
     business_name?: string | null;
-  }
+  },
+  business?: {
+    name?: string;
+    vat_number?: string | null;
+    address_line_1?: string | null;
+    address_line_2?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+    country?: string | null;
+    phone?: string | null;
+    email?: string | null;
+  } | null
 ): Promise<{ success: boolean; xeroInvoiceId?: string; error?: string }> {
   const client = await getXeroClient(roasterId);
   if (!client) return { success: false, error: "No active Xero integration" };
 
   // Ensure contact exists in Xero first
   const contactName =
+    business?.name ||
     customer.business_name ||
     customer.name ||
     customer.email ||
@@ -415,19 +490,29 @@ export async function pushInvoiceToXero(
         email: customer.email,
         business_name: customer.business_name,
       },
-      null
+      business || null
     );
     xeroContactId = contactResult.xeroContactId;
   }
+
+  // Resolve account code and tax type from integration settings (fall back to defaults)
+  const settings = (client.integration.settings || {}) as Record<string, unknown>;
+  const accountCode = (settings.xero_sales_account_code as string) || "200";
+  const defaultTaxType = (settings.xero_sales_tax_type as string) || "OUTPUT2";
 
   // Build Xero line items
   const xeroLineItems = lineItems.map((item) => ({
     Description: item.description,
     Quantity: item.quantity,
     UnitAmount: item.unit_price,
-    AccountCode: "200", // Default sales revenue account
-    TaxType: invoice.tax_rate && invoice.tax_rate > 0 ? "OUTPUT2" : "NONE",
+    AccountCode: accountCode,
+    TaxType: invoice.tax_rate && invoice.tax_rate > 0 ? defaultTaxType : "NONE",
   }));
+
+  // On first sync, try to fetch and cache account codes if not yet stored
+  if (!settings.xero_sales_account_code) {
+    fetchAndCacheXeroAccountCodes(roasterId, client.headers, client.integration).catch(() => {});
+  }
 
   const xeroInvoice: Record<string, unknown> = {
     Type: "ACCREC", // Accounts Receivable
@@ -453,65 +538,143 @@ export async function pushInvoiceToXero(
     xeroInvoice.Reference = invoice.notes;
   }
 
+  console.log(`[xero] pushInvoiceToXero | roaster=${roasterId} | invoice_number="${invoice.invoice_number}" total=${invoice.total} lineItems=${lineItems.length} contactName="${contactName}" xeroContactId=${xeroContactId || "none"}`);
+  console.log(`[xero] pushInvoiceToXero | Xero invoice body:`, JSON.stringify({ Invoices: [xeroInvoice] }, null, 2));
+
   try {
     // Check if invoice already exists by invoice number
-    const searchRes = await fetch(
-      `${XERO_API_URL}/Invoices?InvoiceNumbers=${encodeURIComponent(invoice.invoice_number)}`,
-      { headers: client.headers }
-    );
+    const searchUrl = `${XERO_API_URL}/Invoices?InvoiceNumbers=${encodeURIComponent(invoice.invoice_number)}`;
+    console.log(`[xero] pushInvoiceToXero | Searching existing invoice: ${searchUrl}`);
+    const searchRes = await fetch(searchUrl, { headers: client.headers });
+    const search = await parseXeroResponse(searchRes, "pushInvoiceToXero:search");
+    console.log(`[xero] pushInvoiceToXero | Search response: status=${search.status} contentType="${search.contentType}" body=${search.rawText.substring(0, 500)}`);
 
-    if (searchRes.ok) {
-      const searchData = await searchRes.json();
-      if (searchData.Invoices && searchData.Invoices.length > 0) {
-        const existingId = searchData.Invoices[0].InvoiceID;
-        const existingStatus = searchData.Invoices[0].Status;
+    if (search.ok && search.data) {
+      if (search.data.Invoices && (search.data.Invoices as unknown[]).length > 0) {
+        const existing = (search.data.Invoices as Record<string, unknown>[])[0];
+        const existingId = existing.InvoiceID as string;
+        const existingStatus = existing.Status as string;
+        console.log(`[xero] pushInvoiceToXero | Found existing invoice ${existingId} with status=${existingStatus}`);
 
         // Don't update paid/voided invoices
         if (existingStatus === "PAID" || existingStatus === "VOIDED") {
+          console.log(`[xero] pushInvoiceToXero | Skipping update — invoice is ${existingStatus}`);
           return { success: true, xeroInvoiceId: existingId };
         }
 
         xeroInvoice.InvoiceID = existingId;
 
-        const updateRes = await fetch(
-          `${XERO_API_URL}/Invoices/${existingId}`,
-          {
-            method: "POST",
-            headers: client.headers,
-            body: JSON.stringify({ Invoices: [xeroInvoice] }),
-          }
-        );
+        const updateBody = JSON.stringify({ Invoices: [xeroInvoice] });
+        const updateUrl = `${XERO_API_URL}/Invoices/${existingId}`;
+        console.log(`[xero] pushInvoiceToXero | Updating existing invoice at ${updateUrl}, body:`, updateBody.substring(0, 500));
+        const updateRes = await fetch(updateUrl, {
+          method: "POST",
+          headers: client.headers,
+          body: updateBody,
+        });
 
-        if (!updateRes.ok) {
-          const errText = await updateRes.text();
-          console.error(`[xero] Invoice update failed:`, errText);
-          return { success: false, error: errText };
+        const update = await parseXeroResponse(updateRes, "pushInvoiceToXero:update");
+        console.log(`[xero] pushInvoiceToXero | Update response: status=${update.status} contentType="${update.contentType}" body=${update.rawText.substring(0, 1000)}`);
+
+        if (!update.ok) {
+          return { success: false, error: `Xero ${update.status}: ${update.rawText.substring(0, 500)}` };
         }
 
         return { success: true, xeroInvoiceId: existingId };
+      } else {
+        console.log(`[xero] pushInvoiceToXero | No existing invoice found, creating new...`);
       }
+    } else if (!search.ok) {
+      console.log(`[xero] pushInvoiceToXero | Search failed: status=${search.status} contentType="${search.contentType}", falling through to create`);
     }
 
     // Create new invoice
-    const res = await fetch(`${XERO_API_URL}/Invoices`, {
+    const createBody = JSON.stringify({ Invoices: [xeroInvoice] });
+    const createUrl = `${XERO_API_URL}/Invoices`;
+    console.log(`[xero] pushInvoiceToXero | Creating new invoice at ${createUrl}, body:`, createBody.substring(0, 1000));
+    const res = await fetch(createUrl, {
       method: "POST",
       headers: client.headers,
-      body: JSON.stringify({ Invoices: [xeroInvoice] }),
+      body: createBody,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[xero] Invoice create failed:`, errText);
-      return { success: false, error: errText };
+    const create = await parseXeroResponse(res, "pushInvoiceToXero:create");
+    console.log(`[xero] pushInvoiceToXero | Create response: status=${create.status} contentType="${create.contentType}" body=${create.rawText.substring(0, 1000)}`);
+
+    if (!create.ok || !create.data) {
+      return { success: false, error: `Xero ${create.status}: ${create.rawText.substring(0, 500)}` };
     }
 
-    const data = await res.json();
-    const xeroInvoiceId = data.Invoices?.[0]?.InvoiceID;
+    const xeroInvoiceId = (create.data.Invoices as Record<string, unknown>[] | undefined)?.[0]?.InvoiceID as string | undefined;
+    console.log(`[xero] pushInvoiceToXero | Created invoice ${xeroInvoiceId}`);
     return { success: true, xeroInvoiceId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[xero] pushInvoiceToXero error:`, message);
+    console.error(`[xero] pushInvoiceToXero | Exception: ${message}`, err);
     return { success: false, error: message };
+  }
+}
+
+/**
+ * Fetch Xero chart of accounts and tax rates, then cache preferred values
+ * in roaster_integrations.settings for future use.
+ */
+async function fetchAndCacheXeroAccountCodes(
+  roasterId: string,
+  headers: XeroHeaders,
+  integration: Integration
+): Promise<void> {
+  const supabase = createServerClient();
+  const settings = { ...((integration.settings || {}) as Record<string, unknown>) };
+
+  try {
+    // Fetch sales revenue accounts
+    const accountsRes = await fetch(
+      `${XERO_API_URL}/Accounts?where=${encodeURIComponent('Class=="REVENUE"&&Status=="ACTIVE"')}`,
+      { headers }
+    );
+    const accountsParsed = await parseXeroResponse(accountsRes, "fetchAndCacheXeroAccountCodes:accounts");
+    if (accountsParsed.ok && accountsParsed.data) {
+      const accounts = (accountsParsed.data.Accounts || []) as Record<string, unknown>[];
+      if (accounts.length > 0) {
+        // Use the first active revenue account, or one with code "200" if available
+        const preferred = accounts.find((a) => a.Code === "200") || accounts[0];
+        settings.xero_sales_account_code = preferred.Code;
+        settings.xero_available_accounts = accounts.slice(0, 20).map(
+          (a) => ({ code: a.Code, name: a.Name })
+        );
+      }
+    }
+
+    // Fetch tax rates
+    const taxRes = await fetch(`${XERO_API_URL}/TaxRates`, { headers });
+    const taxParsed = await parseXeroResponse(taxRes, "fetchAndCacheXeroAccountCodes:taxRates");
+    if (taxParsed.ok && taxParsed.data) {
+      const rates = (taxParsed.data.TaxRates || []) as Record<string, unknown>[];
+      if (rates.length > 0) {
+        // Use OUTPUT2 if available, otherwise first output tax
+        const preferred =
+          rates.find((r) => r.TaxType === "OUTPUT2") ||
+          rates.find((r) => (r.TaxType as string)?.startsWith("OUTPUT")) ||
+          rates[0];
+        settings.xero_sales_tax_type = preferred.TaxType;
+        settings.xero_available_tax_types = rates
+          .filter((r) => r.Status === "ACTIVE")
+          .slice(0, 20)
+          .map((r) => ({
+            type: r.TaxType,
+            name: r.Name,
+            rate: r.EffectiveRate,
+          }));
+      }
+    }
+
+    await supabase
+      .from("roaster_integrations")
+      .update({ settings, updated_at: new Date().toISOString() })
+      .eq("id", integration.id);
+  } catch (err) {
+    console.error(`[xero] Failed to fetch/cache account codes for roaster ${roasterId}:`, err);
   }
 }
 
@@ -538,31 +701,31 @@ export async function pushPaymentToXero(
       `${XERO_API_URL}/Invoices?InvoiceNumbers=${encodeURIComponent(invoice.invoice_number)}`,
       { headers: client.headers }
     );
+    const search = await parseXeroResponse(searchRes, "pushPaymentToXero:searchInvoice");
 
-    if (!searchRes.ok) {
-      return { success: false, error: "Failed to find invoice in Xero" };
+    if (!search.ok || !search.data) {
+      return { success: false, error: `Failed to find invoice in Xero: ${search.status} ${search.rawText.substring(0, 200)}` };
     }
 
-    const searchData = await searchRes.json();
-    if (!searchData.Invoices || searchData.Invoices.length === 0) {
+    if (!search.data.Invoices || (search.data.Invoices as unknown[]).length === 0) {
       return {
         success: false,
         error: `Invoice ${invoice.invoice_number} not found in Xero`,
       };
     }
 
-    const xeroInvoiceId = searchData.Invoices[0].InvoiceID;
+    const xeroInvoiceId = (search.data.Invoices as Record<string, unknown>[])[0].InvoiceID as string;
 
     // Get the bank account for payments (use first bank account)
     const accountsRes = await fetch(
-      `${XERO_API_URL}/Accounts?where=Type=="BANK"`,
+      `${XERO_API_URL}/Accounts?where=${encodeURIComponent('Type=="BANK"')}`,
       { headers: client.headers }
     );
+    const accounts = await parseXeroResponse(accountsRes, "pushPaymentToXero:bankAccounts");
 
     let bankAccountId: string | undefined;
-    if (accountsRes.ok) {
-      const accountsData = await accountsRes.json();
-      bankAccountId = accountsData.Accounts?.[0]?.AccountID;
+    if (accounts.ok && accounts.data) {
+      bankAccountId = (accounts.data.Accounts as Record<string, unknown>[] | undefined)?.[0]?.AccountID as string | undefined;
     }
 
     if (!bankAccountId) {
@@ -593,14 +756,14 @@ export async function pushPaymentToXero(
       body: JSON.stringify({ Payments: [xeroPayment] }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[xero] Payment create failed:`, errText);
-      return { success: false, error: errText };
+    const paymentResult = await parseXeroResponse(res, "pushPaymentToXero:create");
+
+    if (!paymentResult.ok || !paymentResult.data) {
+      console.error(`[xero] Payment create failed: ${paymentResult.status} ${paymentResult.rawText.substring(0, 500)}`);
+      return { success: false, error: `Xero ${paymentResult.status}: ${paymentResult.rawText.substring(0, 500)}` };
     }
 
-    const data = await res.json();
-    const xeroPaymentId = data.Payments?.[0]?.PaymentID;
+    const xeroPaymentId = (paymentResult.data.Payments as Record<string, unknown>[] | undefined)?.[0]?.PaymentID as string | undefined;
     return { success: true, xeroPaymentId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -621,8 +784,9 @@ export function syncToXero(
 ): void {
   void (async () => {
     try {
+      console.log(`[xero] syncToXero | roaster=${roasterId} | Looking up integration...`);
       const supabase = createServerClient();
-      const { data: integration } = await supabase
+      const { data: integration, error: lookupError } = await supabase
         .from("roaster_integrations")
         .select("id, is_active, settings")
         .eq("roaster_id", roasterId)
@@ -630,13 +794,24 @@ export function syncToXero(
         .eq("is_active", true)
         .single();
 
-      if (!integration) return;
+      if (!integration) {
+        console.log(`[xero] syncToXero | roaster=${roasterId} | No active Xero integration found (error=${lookupError?.message || "no row"}). Skipping.`);
+        return;
+      }
 
       // Check if auto-sync is enabled (default: true)
       const settings = (integration.settings as Record<string, unknown>) || {};
-      if (settings.auto_sync === false) return;
+      const autoSync = settings.auto_sync !== false;
+      console.log(`[xero] syncToXero | roaster=${roasterId} | Integration found: id=${integration.id} auto_sync=${autoSync} is_active=${integration.is_active}`);
 
+      if (!autoSync) {
+        console.log(`[xero] syncToXero | roaster=${roasterId} | auto_sync is disabled. Skipping.`);
+        return;
+      }
+
+      console.log(`[xero] syncToXero | roaster=${roasterId} | Executing sync function...`);
       await syncFn();
+      console.log(`[xero] syncToXero | roaster=${roasterId} | Sync function completed successfully.`);
 
       // Update last sync timestamp
       await supabase
@@ -654,7 +829,7 @@ export function syncToXero(
         .eq("id", integration.id);
     } catch (err) {
       console.error(
-        `[xero] Sync failed for roaster ${roasterId}:`,
+        `[xero] syncToXero | roaster=${roasterId} | Sync FAILED:`,
         err instanceof Error ? err.message : err
       );
 

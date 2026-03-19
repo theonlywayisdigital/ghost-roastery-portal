@@ -58,10 +58,61 @@ export default async function RoasterCreateInvoiceFromOrderPage({
   };
   const dueDays = termsMap[order.payment_terms] || 30;
 
+  // Resolve customer_id (people record) and business_id from order's user
+  let customerId: string | undefined;
+  let businessId: string | undefined;
+  let wholesaleAccessId: string | undefined;
+  let customerBusiness: string | undefined = order.customer_business || undefined;
+
+  if (order.wholesale_access_id) {
+    wholesaleAccessId = order.wholesale_access_id;
+    const { data: access } = await supabase
+      .from("wholesale_access")
+      .select("business_id, business_name")
+      .eq("id", order.wholesale_access_id)
+      .single();
+    if (access) {
+      if (access.business_id) businessId = access.business_id;
+      if (!customerBusiness && access.business_name) customerBusiness = access.business_name;
+    }
+  }
+
+  if (order.user_id) {
+    // Look up people record via email
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("email")
+      .eq("id", order.user_id)
+      .single();
+
+    if (userRow?.email) {
+      const { data: person } = await supabase
+        .from("people")
+        .select("id")
+        .eq("email", userRow.email.toLowerCase())
+        .maybeSingle();
+      if (person) customerId = person.id;
+    }
+
+    // Look up contact's business_id if we don't have one yet
+    if (!businessId) {
+      const { data: contactRow } = await supabase
+        .from("contacts")
+        .select("business_id")
+        .eq("roaster_id", roasterId)
+        .eq("email", (order.customer_email || "").toLowerCase())
+        .maybeSingle();
+      if (contactRow?.business_id) businessId = contactRow.business_id;
+    }
+  }
+
   const initialData: InvoiceInitialData = {
+    customerId,
+    businessId,
+    wholesaleAccessId,
     customerName: order.customer_name || undefined,
     customerEmail: order.customer_email || undefined,
-    customerBusiness: order.customer_business || undefined,
+    customerBusiness,
     orderIds: [id],
     lineItems: lineItems.length > 0 ? lineItems : undefined,
     dueDays,

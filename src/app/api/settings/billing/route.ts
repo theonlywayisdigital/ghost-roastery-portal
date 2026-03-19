@@ -27,6 +27,7 @@ export async function GET() {
     bank_sort_code: roaster.bank_sort_code || "",
     payment_instructions: roaster.payment_instructions || "",
     late_payment_terms: roaster.late_payment_terms || "",
+    auto_create_invoices: roaster.auto_create_invoices ?? true,
     auto_send_invoices: roaster.auto_send_invoices ?? false,
     invoice_reminder_enabled: roaster.invoice_reminder_enabled ?? false,
     reminder_days_before_due: roaster.reminder_days_before_due ?? 7,
@@ -52,6 +53,7 @@ export async function PUT(request: Request) {
       bank_sort_code,
       payment_instructions,
       late_payment_terms,
+      auto_create_invoices,
       auto_send_invoices,
       invoice_reminder_enabled,
       reminder_days_before_due,
@@ -69,6 +71,7 @@ export async function PUT(request: Request) {
     if ("bank_sort_code" in body) updates.bank_sort_code = bank_sort_code || null;
     if ("payment_instructions" in body) updates.payment_instructions = payment_instructions || null;
     if ("late_payment_terms" in body) updates.late_payment_terms = late_payment_terms || null;
+    if ("auto_create_invoices" in body) updates.auto_create_invoices = auto_create_invoices ?? true;
     if ("auto_send_invoices" in body) updates.auto_send_invoices = auto_send_invoices ?? false;
     if ("invoice_reminder_enabled" in body) updates.invoice_reminder_enabled = invoice_reminder_enabled ?? false;
     if ("reminder_days_before_due" in body) updates.reminder_days_before_due = reminder_days_before_due ?? 7;

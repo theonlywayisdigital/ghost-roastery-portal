@@ -11,12 +11,16 @@ const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
 const XERO_API_URL = "https://api.xero.com/api.xro/2.0";
 const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
 
+// Granular scopes required for apps created after 2 March 2026
+// See: https://developer.xero.com/documentation/guides/oauth2/scopes/
 const XERO_SCOPES = [
   "openid",
   "profile",
   "email",
-  "accounting.transactions",
+  "accounting.invoices",
+  "accounting.payments",
   "accounting.contacts",
+  "accounting.settings",
   "offline_access",
 ].join(" ");
 

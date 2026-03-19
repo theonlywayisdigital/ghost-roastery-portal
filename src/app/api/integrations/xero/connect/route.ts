@@ -19,5 +19,14 @@ export async function GET() {
 
   const authUrl = getXeroAuthUrl(state);
 
+  console.log("[xero] OAuth connect — full URL:", authUrl);
+  console.log("[xero] ENV check:", {
+    client_id: process.env.XERO_CLIENT_ID
+      ? `${process.env.XERO_CLIENT_ID.slice(0, 8)}...`
+      : "UNDEFINED",
+    redirect_uri: process.env.XERO_REDIRECT_URI || "UNDEFINED",
+    client_secret_set: !!process.env.XERO_CLIENT_SECRET,
+  });
+
   return NextResponse.redirect(authUrl);
 }

@@ -14,6 +14,7 @@ import {
   Coffee,
   Funnel,
   Webhook,
+  Link2,
 } from "@/components/icons";
 
 const settingsItems = [
@@ -70,6 +71,13 @@ const settingsItems = [
     label: "Pipeline Stages",
     description: "Customise your sales pipeline stages.",
     icon: Funnel,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/integrations",
+    label: "Integrations",
+    description: "Connect Xero, Sage, and other accounting software.",
+    icon: Link2,
     roasterOnly: true,
   },
   {

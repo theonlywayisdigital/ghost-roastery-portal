@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { sendInvoicePaymentConfirmationEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { syncToXero, pushPaymentToXero } from "@/lib/xero";
 
 export async function POST(
   request: NextRequest,
@@ -311,6 +312,21 @@ export async function POST(
           attachments: pdfAttachment ? [pdfAttachment] : undefined,
         }).catch((err) => console.error("Failed to send payment confirmation email:", err));
       }
+    }
+
+    // Sync payment to Xero (on any payment, not just full)
+    if (updatedInvoice?.roaster_id) {
+      syncToXero(updatedInvoice.roaster_id, async () => {
+        await pushPaymentToXero(
+          updatedInvoice.roaster_id,
+          { invoice_number: updatedInvoice.invoice_number },
+          {
+            amount: payment.amount,
+            paid_at: payment.paid_at,
+            reference: payment.reference,
+          }
+        );
+      });
     }
 
     // Dispatch invoice.paid webhook on full payment

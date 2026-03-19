@@ -8,6 +8,7 @@ import {
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { syncToXero, pushContactToXero } from "@/lib/xero";
 
 export async function GET(
   _request: Request,
@@ -179,6 +180,23 @@ export async function PATCH(
           status: "approved",
           approved_at: new Date().toISOString(),
         },
+      });
+
+      // Sync contact to Xero
+      syncToXero(roasterId, async () => {
+        const cNameParts = contactName.split(" ");
+        await pushContactToXero(
+          roasterId,
+          {
+            first_name: cNameParts[0] || "",
+            last_name: cNameParts.slice(1).join(" ") || "",
+            email: contactEmail || null,
+            business_name: record.business_name,
+          },
+          {
+            name: record.business_name,
+          }
+        );
       });
 
       return NextResponse.json({ success: true });

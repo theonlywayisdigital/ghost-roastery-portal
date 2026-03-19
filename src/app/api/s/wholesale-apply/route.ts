@@ -11,6 +11,7 @@ import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
 import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { syncToXero, pushContactToXero } from "@/lib/xero";
 
 export async function POST(request: Request) {
   try {
@@ -423,6 +424,25 @@ export async function POST(request: Request) {
           status: "approved",
           approved_at: new Date().toISOString(),
         },
+      });
+
+      // Sync contact to Xero
+      syncToXero(roasterId, async () => {
+        const nameParts = name.split(" ");
+        await pushContactToXero(
+          roasterId,
+          {
+            first_name: nameParts[0] || "",
+            last_name: nameParts.slice(1).join(" ") || "",
+            email,
+            phone: phone || null,
+            business_name: businessName,
+          },
+          {
+            name: businessName,
+            address_line_1: businessAddress || null,
+          }
+        );
       });
 
       return NextResponse.json({ success: true, status: "approved" });

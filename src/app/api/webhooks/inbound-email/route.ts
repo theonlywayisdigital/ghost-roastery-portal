@@ -102,33 +102,35 @@ export async function POST(request: Request) {
 
     console.log("[inbound-email] Extracted slug:", slug, "| toEmail:", toEmail);
 
-    // Look up roaster by exact slug match first
+    // Look up roaster by roaster_slug or storefront_slug (either can be used as the email local part)
     const supabase = createServerClient();
     let { data: roaster, error: roasterError } = await supabase
       .from("partner_roasters")
       .select("id")
-      .eq("roaster_slug", slug)
-      .single();
+      .or(`roaster_slug.eq.${slug},storefront_slug.eq.${slug}`)
+      .limit(1)
+      .maybeSingle();
 
     console.log("[inbound-email] Roaster lookup (exact):", roaster ? `found (${roaster.id})` : "not found", roasterError ? `error: ${roasterError.message}` : "");
 
     // Fallback: try matching with hyphens stripped (e.g. "offyourbean" → "off-your-bean")
-    // This handles cases where the email local part doesn't contain hyphens but the slug does
     if (!roaster) {
       const slugNoHyphens = slug.replace(/[-_.]/g, "");
       console.log("[inbound-email] Trying fuzzy match, stripped slug:", slugNoHyphens);
 
       const { data: allRoasters } = await supabase
         .from("partner_roasters")
-        .select("id, roaster_slug");
+        .select("id, roaster_slug, storefront_slug");
 
       const match = (allRoasters || []).find(
-        (r) => r.roaster_slug?.replace(/[-_.]/g, "") === slugNoHyphens
+        (r) =>
+          r.roaster_slug?.replace(/[-_.]/g, "") === slugNoHyphens ||
+          r.storefront_slug?.replace(/[-_.]/g, "") === slugNoHyphens
       );
 
       if (match) {
         roaster = { id: match.id };
-        console.log("[inbound-email] Fuzzy match found:", match.roaster_slug, "→", match.id);
+        console.log("[inbound-email] Fuzzy match found:", match.roaster_slug || match.storefront_slug, "→", match.id);
       }
     }
 

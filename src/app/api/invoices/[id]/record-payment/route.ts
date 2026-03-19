@@ -5,6 +5,7 @@ import { sendInvoicePaymentConfirmationEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushPaymentToXero } from "@/lib/xero";
+import { syncToSage, pushPaymentToSage } from "@/lib/sage";
 
 export async function POST(
   request: NextRequest,
@@ -318,6 +319,19 @@ export async function POST(
     if (updatedInvoice?.roaster_id) {
       syncToXero(updatedInvoice.roaster_id, async () => {
         await pushPaymentToXero(
+          updatedInvoice.roaster_id,
+          { invoice_number: updatedInvoice.invoice_number },
+          {
+            amount: payment.amount,
+            paid_at: payment.paid_at,
+            reference: payment.reference,
+          }
+        );
+      });
+
+      // Sync payment to Sage
+      syncToSage(updatedInvoice.roaster_id, async () => {
+        await pushPaymentToSage(
           updatedInvoice.roaster_id,
           { invoice_number: updatedInvoice.invoice_number },
           {

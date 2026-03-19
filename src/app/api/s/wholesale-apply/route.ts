@@ -12,6 +12,7 @@ import { findOrCreatePerson } from "@/lib/people";
 import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
+import { syncToSage, pushContactToSage } from "@/lib/sage";
 
 export async function POST(request: Request) {
   try {
@@ -430,6 +431,25 @@ export async function POST(request: Request) {
       syncToXero(roasterId, async () => {
         const nameParts = name.split(" ");
         await pushContactToXero(
+          roasterId,
+          {
+            first_name: nameParts[0] || "",
+            last_name: nameParts.slice(1).join(" ") || "",
+            email,
+            phone: phone || null,
+            business_name: businessName,
+          },
+          {
+            name: businessName,
+            address_line_1: businessAddress || null,
+          }
+        );
+      });
+
+      // Sync contact to Sage
+      syncToSage(roasterId, async () => {
+        const nameParts = name.split(" ");
+        await pushContactToSage(
           roasterId,
           {
             first_name: nameParts[0] || "",

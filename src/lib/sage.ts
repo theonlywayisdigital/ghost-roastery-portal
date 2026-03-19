@@ -1,42 +1,28 @@
 import { createServerClient } from "@/lib/supabase";
 
-// ─── Xero OAuth Configuration ───────────────────────────────────────────────
+// ─── Sage OAuth Configuration ──────────────────────────────────────────────
 
-const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID || "";
-const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET || "";
-const XERO_REDIRECT_URI = process.env.XERO_REDIRECT_URI || "";
+const SAGE_CLIENT_ID = process.env.SAGE_CLIENT_ID || "";
+const SAGE_CLIENT_SECRET = process.env.SAGE_CLIENT_SECRET || "";
+const SAGE_REDIRECT_URI = process.env.SAGE_REDIRECT_URI || "";
 
-const XERO_AUTH_URL = "https://login.xero.com/identity/connect/authorize";
-const XERO_TOKEN_URL = "https://identity.xero.com/connect/token";
-const XERO_API_URL = "https://api.xero.com/api.xro/2.0";
-const XERO_CONNECTIONS_URL = "https://api.xero.com/connections";
+const SAGE_AUTH_URL =
+  "https://www.sageone.com/oauth2/auth/central?filter=apiv3.1";
+const SAGE_TOKEN_URL = "https://oauth.accounting.sage.com/token";
+const SAGE_API_URL = "https://api.accounting.sage.com/v3.1";
 
-const XERO_SCOPES = [
-  "openid",
-  "profile",
-  "email",
-  "accounting.transactions",
-  "accounting.contacts",
-  "offline_access",
-].join(" ");
+const SAGE_SCOPES = "full_access";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-interface XeroTokenResponse {
+interface SageTokenResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
   token_type: string;
 }
 
-interface XeroConnection {
-  id: string;
-  tenantId: string;
-  tenantName: string;
-  tenantType: string;
-}
-
-type XeroHeaders = Record<string, string>;
+type SageHeaders = Record<string, string>;
 
 interface Integration {
   id: string;
@@ -53,17 +39,17 @@ interface Integration {
 // ─── OAuth Helpers ──────────────────────────────────────────────────────────
 
 /**
- * Generate the Xero OAuth authorization URL.
+ * Generate the Sage OAuth authorization URL.
  */
-export function getXeroAuthUrl(state: string): string {
+export function getSageAuthUrl(state: string): string {
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: XERO_CLIENT_ID,
-    redirect_uri: XERO_REDIRECT_URI,
-    scope: XERO_SCOPES,
+    client_id: SAGE_CLIENT_ID,
+    redirect_uri: SAGE_REDIRECT_URI,
+    scope: SAGE_SCOPES,
     state,
   });
-  return `${XERO_AUTH_URL}?${params.toString()}`;
+  return `${SAGE_AUTH_URL}&${params.toString()}`;
 }
 
 /**
@@ -71,27 +57,24 @@ export function getXeroAuthUrl(state: string): string {
  */
 export async function exchangeCodeForTokens(
   code: string
-): Promise<XeroTokenResponse> {
-  const basicAuth = Buffer.from(
-    `${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`
-  ).toString("base64");
-
-  const res = await fetch(XERO_TOKEN_URL, {
+): Promise<SageTokenResponse> {
+  const res = await fetch(SAGE_TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${basicAuth}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: XERO_REDIRECT_URI,
+      redirect_uri: SAGE_REDIRECT_URI,
+      client_id: SAGE_CLIENT_ID,
+      client_secret: SAGE_CLIENT_SECRET,
     }),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Xero token exchange failed: ${res.status} — ${text}`);
+    throw new Error(`Sage token exchange failed: ${res.status} — ${text}`);
   }
 
   return res.json();
@@ -102,69 +85,68 @@ export async function exchangeCodeForTokens(
  */
 async function refreshAccessToken(
   refreshToken: string
-): Promise<XeroTokenResponse> {
-  const basicAuth = Buffer.from(
-    `${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`
-  ).toString("base64");
-
-  const res = await fetch(XERO_TOKEN_URL, {
+): Promise<SageTokenResponse> {
+  const res = await fetch(SAGE_TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${basicAuth}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
+      client_id: SAGE_CLIENT_ID,
+      client_secret: SAGE_CLIENT_SECRET,
     }),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Xero token refresh failed: ${res.status} — ${text}`);
+    throw new Error(`Sage token refresh failed: ${res.status} — ${text}`);
   }
 
   return res.json();
 }
 
 /**
- * Fetch Xero tenant connections using the access token.
+ * Fetch the Sage business info (used to get organisation name).
  */
-export async function fetchXeroConnections(
+export async function fetchSageBusiness(
   accessToken: string
-): Promise<XeroConnection[]> {
-  const res = await fetch(XERO_CONNECTIONS_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+): Promise<{ name: string } | null> {
+  const res = await fetch(`${SAGE_API_URL}/business`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch Xero connections: ${res.status}`);
-  }
+  if (!res.ok) return null;
 
-  return res.json();
+  const data = await res.json();
+  return { name: data.name || data.legal_name || "Sage Business" };
 }
 
 // ─── Client Helper ──────────────────────────────────────────────────────────
 
 /**
- * Get authenticated Xero headers for a roaster.
+ * Get authenticated Sage headers for a roaster.
  * Automatically refreshes the token if expired.
  * Returns null if no active integration exists.
  */
-export async function getXeroClient(
+export async function getSageClient(
   roasterId: string
-): Promise<{ headers: XeroHeaders; integration: Integration } | null> {
+): Promise<{ headers: SageHeaders; integration: Integration } | null> {
   const supabase = createServerClient();
 
   const { data: integration } = await supabase
     .from("roaster_integrations")
     .select("*")
     .eq("roaster_id", roasterId)
-    .eq("provider", "xero")
+    .eq("provider", "sage")
     .eq("is_active", true)
     .single();
 
-  if (!integration || !integration.access_token || !integration.tenant_id) {
+  if (!integration || !integration.access_token) {
     return null;
   }
 
@@ -196,7 +178,7 @@ export async function getXeroClient(
         .eq("id", integration.id);
     } catch (err) {
       console.error(
-        `[xero] Token refresh failed for roaster ${roasterId}:`,
+        `[sage] Token refresh failed for roaster ${roasterId}:`,
         err
       );
 
@@ -207,7 +189,7 @@ export async function getXeroClient(
           is_active: false,
           settings: {
             ...((integration.settings as Record<string, unknown>) || {}),
-            error: "Token refresh failed. Please reconnect Xero.",
+            error: "Token refresh failed. Please reconnect Sage.",
             error_at: new Date().toISOString(),
           },
           updated_at: new Date().toISOString(),
@@ -221,7 +203,6 @@ export async function getXeroClient(
   return {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      "Xero-tenant-id": integration.tenant_id,
       "Content-Type": "application/json",
     },
     integration: integration as Integration,
@@ -231,10 +212,10 @@ export async function getXeroClient(
 // ─── Push Helpers ───────────────────────────────────────────────────────────
 
 /**
- * Push or update a contact in Xero.
+ * Push or update a contact in Sage.
  * Uses email as the match key to avoid duplicates.
  */
-export async function pushContactToXero(
+export async function pushContactToSage(
   roasterId: string,
   contact: {
     first_name?: string;
@@ -255,9 +236,9 @@ export async function pushContactToXero(
     phone?: string | null;
     email?: string | null;
   } | null
-): Promise<{ success: boolean; xeroContactId?: string; error?: string }> {
-  const client = await getXeroClient(roasterId);
-  if (!client) return { success: false, error: "No active Xero integration" };
+): Promise<{ success: boolean; sageContactId?: string; error?: string }> {
+  const client = await getSageClient(roasterId);
+  if (!client) return { success: false, error: "No active Sage integration" };
 
   const contactName =
     business?.name ||
@@ -266,106 +247,111 @@ export async function pushContactToXero(
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     "Unknown";
 
-  const xeroContact: Record<string, unknown> = {
-    Name: contactName,
-    FirstName: contact.first_name || "",
-    LastName: contact.last_name || "",
-    EmailAddress: contact.email || business?.email || "",
-    IsCustomer: true,
+  const sageContact: Record<string, unknown> = {
+    contact_type_ids: ["CUSTOMER"],
+    name: contactName,
   };
 
-  // Phone numbers
-  const phones: Record<string, unknown>[] = [];
-  if (contact.phone) {
-    phones.push({ PhoneType: "DEFAULT", PhoneNumber: contact.phone });
-  }
-  if (business?.phone && business.phone !== contact.phone) {
-    phones.push({ PhoneType: "OFFICE", PhoneNumber: business.phone });
-  }
-  if (phones.length > 0) xeroContact.Phones = phones;
+  // Main contact person
+  const mainPerson: Record<string, unknown> = {
+    name: [contact.first_name, contact.last_name].filter(Boolean).join(" ") || contactName,
+    is_main_contact: true,
+  };
 
-  // Addresses
+  if (contact.email || business?.email) {
+    mainPerson.email = contact.email || business?.email;
+    sageContact.email = contact.email || business?.email;
+  }
+
+  if (contact.phone) {
+    mainPerson.telephone = contact.phone;
+    sageContact.telephone = contact.phone;
+  } else if (business?.phone) {
+    mainPerson.telephone = business.phone;
+    sageContact.telephone = business.phone;
+  }
+
+  sageContact.main_contact_person = mainPerson;
+
+  // Address
   if (business?.address_line_1) {
-    xeroContact.Addresses = [
-      {
-        AddressType: "STREET",
-        AddressLine1: business.address_line_1,
-        AddressLine2: business.address_line_2 || "",
-        City: business.city || "",
-        PostalCode: business.postcode || "",
-        Country: business.country || "UK",
-      },
-    ];
+    sageContact.main_address = {
+      address_line_1: business.address_line_1,
+      address_line_2: business.address_line_2 || "",
+      city: business.city || "",
+      postal_code: business.postcode || "",
+      country_id: "GB",
+    };
   }
 
   // VAT number
   if (business?.vat_number) {
-    xeroContact.TaxNumber = business.vat_number;
+    sageContact.tax_number = business.vat_number;
   }
 
   try {
     // Try to find existing contact by email first
-    if (xeroContact.EmailAddress) {
+    if (sageContact.email) {
       const searchRes = await fetch(
-        `${XERO_API_URL}/Contacts?where=EmailAddress=="${encodeURIComponent(xeroContact.EmailAddress as string)}"`,
+        `${SAGE_API_URL}/contacts?email=${encodeURIComponent(sageContact.email as string)}`,
         { headers: client.headers }
       );
 
       if (searchRes.ok) {
         const searchData = await searchRes.json();
-        if (searchData.Contacts && searchData.Contacts.length > 0) {
+        const items = searchData.$items || [];
+        if (items.length > 0) {
           // Update existing contact
-          const existingId = searchData.Contacts[0].ContactID;
-          xeroContact.ContactID = existingId;
+          const existingId = items[0].id;
 
           const updateRes = await fetch(
-            `${XERO_API_URL}/Contacts/${existingId}`,
+            `${SAGE_API_URL}/contacts/${existingId}`,
             {
-              method: "POST",
+              method: "PUT",
               headers: client.headers,
-              body: JSON.stringify({ Contacts: [xeroContact] }),
+              body: JSON.stringify({ contact: sageContact }),
             }
           );
 
           if (!updateRes.ok) {
             const errText = await updateRes.text();
-            console.error(`[xero] Contact update failed:`, errText);
+            console.error(`[sage] Contact update failed:`, errText);
             return { success: false, error: errText };
           }
 
-          return { success: true, xeroContactId: existingId };
+          return { success: true, sageContactId: existingId };
         }
       }
     }
 
     // Create new contact
-    const res = await fetch(`${XERO_API_URL}/Contacts`, {
+    const res = await fetch(`${SAGE_API_URL}/contacts`, {
       method: "POST",
       headers: client.headers,
-      body: JSON.stringify({ Contacts: [xeroContact] }),
+      body: JSON.stringify({ contact: sageContact }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[xero] Contact create failed:`, errText);
+      console.error(`[sage] Contact create failed:`, errText);
       return { success: false, error: errText };
     }
 
     const data = await res.json();
-    const xeroContactId = data.Contacts?.[0]?.ContactID;
-    return { success: true, xeroContactId };
+    const sageContactId = data.id;
+    return { success: true, sageContactId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[xero] pushContactToXero error:`, message);
+    console.error(`[sage] pushContactToSage error:`, message);
     return { success: false, error: message };
   }
 }
 
 /**
- * Push or update an invoice in Xero.
+ * Push or update an invoice in Sage.
  * Also creates/updates the associated contact.
  */
-export async function pushInvoiceToXero(
+export async function pushInvoiceToSage(
   roasterId: string,
   invoice: {
     invoice_number: string;
@@ -390,21 +376,21 @@ export async function pushInvoiceToXero(
     email?: string | null;
     business_name?: string | null;
   }
-): Promise<{ success: boolean; xeroInvoiceId?: string; error?: string }> {
-  const client = await getXeroClient(roasterId);
-  if (!client) return { success: false, error: "No active Xero integration" };
+): Promise<{ success: boolean; sageInvoiceId?: string; error?: string }> {
+  const client = await getSageClient(roasterId);
+  if (!client) return { success: false, error: "No active Sage integration" };
 
-  // Ensure contact exists in Xero first
+  // Ensure contact exists in Sage first
   const contactName =
     customer.business_name ||
     customer.name ||
     customer.email ||
     "Unknown Customer";
 
-  let xeroContactId: string | undefined;
+  let sageContactId: string | undefined;
 
   if (customer.email) {
-    const contactResult = await pushContactToXero(
+    const contactResult = await pushContactToSage(
       roasterId,
       {
         name: contactName,
@@ -413,108 +399,148 @@ export async function pushInvoiceToXero(
       },
       null
     );
-    xeroContactId = contactResult.xeroContactId;
+    sageContactId = contactResult.sageContactId;
   }
 
-  // Build Xero line items
-  const xeroLineItems = lineItems.map((item) => ({
-    Description: item.description,
-    Quantity: item.quantity,
-    UnitAmount: item.unit_price,
-    AccountCode: "200", // Default sales revenue account
-    TaxType: invoice.tax_rate && invoice.tax_rate > 0 ? "OUTPUT2" : "NONE",
-  }));
+  // Fetch default ledger account for sales (if available)
+  let ledgerAccountId: string | undefined;
+  try {
+    const ledgerRes = await fetch(
+      `${SAGE_API_URL}/ledger_accounts?visible_in=sales`,
+      { headers: client.headers }
+    );
+    if (ledgerRes.ok) {
+      const ledgerData = await ledgerRes.json();
+      const items = ledgerData.$items || [];
+      // Use the first visible sales ledger account
+      if (items.length > 0) {
+        ledgerAccountId = items[0].id;
+      }
+    }
+  } catch {
+    // Swallow — will use default
+  }
 
-  const xeroInvoice: Record<string, unknown> = {
-    Type: "ACCREC", // Accounts Receivable
-    InvoiceNumber: invoice.invoice_number,
-    Contact: xeroContactId
-      ? { ContactID: xeroContactId }
-      : { Name: contactName },
-    LineItems: xeroLineItems,
-    Status: "AUTHORISED",
-    CurrencyCode: invoice.currency || "GBP",
-    LineAmountTypes: "Exclusive",
+  // Fetch the default tax rate ID
+  let taxRateId: string | undefined;
+  try {
+    const taxRes = await fetch(`${SAGE_API_URL}/tax_rates?tax_rate_percentage=${invoice.tax_rate || 0}`, {
+      headers: client.headers,
+    });
+    if (taxRes.ok) {
+      const taxData = await taxRes.json();
+      const items = taxData.$items || [];
+      if (items.length > 0) {
+        taxRateId = items[0].id;
+      }
+    }
+  } catch {
+    // Swallow — will omit tax rate
+  }
+
+  // Build Sage line items
+  const sageLineItems = lineItems.map((item) => {
+    const line: Record<string, unknown> = {
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+    };
+    if (ledgerAccountId) line.ledger_account_id = ledgerAccountId;
+    if (taxRateId) line.tax_rate_id = taxRateId;
+    return line;
+  });
+
+  const sageInvoice: Record<string, unknown> = {
+    contact_id: sageContactId || undefined,
+    contact_name: !sageContactId ? contactName : undefined,
+    invoice_number: invoice.invoice_number,
+    invoice_lines: sageLineItems,
+    currency_id: "GBP",
+    status: "UNPAID",
   };
 
   if (invoice.payment_due_date) {
-    xeroInvoice.DueDate = invoice.payment_due_date;
+    sageInvoice.due_date = invoice.payment_due_date;
   }
 
   if (invoice.issued_date) {
-    xeroInvoice.Date = invoice.issued_date;
+    sageInvoice.date = invoice.issued_date;
   }
 
   if (invoice.notes) {
-    xeroInvoice.Reference = invoice.notes;
+    sageInvoice.notes = invoice.notes;
   }
 
   try {
     // Check if invoice already exists by invoice number
     const searchRes = await fetch(
-      `${XERO_API_URL}/Invoices?InvoiceNumbers=${encodeURIComponent(invoice.invoice_number)}`,
+      `${SAGE_API_URL}/sales_invoices?search=${encodeURIComponent(invoice.invoice_number)}`,
       { headers: client.headers }
     );
 
     if (searchRes.ok) {
       const searchData = await searchRes.json();
-      if (searchData.Invoices && searchData.Invoices.length > 0) {
-        const existingId = searchData.Invoices[0].InvoiceID;
-        const existingStatus = searchData.Invoices[0].Status;
+      const items = searchData.$items || [];
+      const existing = items.find(
+        (i: Record<string, unknown>) =>
+          i.invoice_number === invoice.invoice_number
+      );
 
-        // Don't update paid/voided invoices
-        if (existingStatus === "PAID" || existingStatus === "VOIDED") {
-          return { success: true, xeroInvoiceId: existingId };
+      if (existing) {
+        const existingId = existing.id;
+        const existingStatus = existing.status;
+
+        // Don't update paid/void invoices
+        if (existingStatus === "PAID" || existingStatus === "VOID") {
+          return { success: true, sageInvoiceId: existingId };
         }
 
-        xeroInvoice.InvoiceID = existingId;
-
         const updateRes = await fetch(
-          `${XERO_API_URL}/Invoices/${existingId}`,
+          `${SAGE_API_URL}/sales_invoices/${existingId}`,
           {
-            method: "POST",
+            method: "PUT",
             headers: client.headers,
-            body: JSON.stringify({ Invoices: [xeroInvoice] }),
+            body: JSON.stringify({ sales_invoice: sageInvoice }),
           }
         );
 
         if (!updateRes.ok) {
           const errText = await updateRes.text();
-          console.error(`[xero] Invoice update failed:`, errText);
+          console.error(`[sage] Invoice update failed:`, errText);
           return { success: false, error: errText };
         }
 
-        return { success: true, xeroInvoiceId: existingId };
+        return { success: true, sageInvoiceId: existingId };
       }
     }
 
     // Create new invoice
-    const res = await fetch(`${XERO_API_URL}/Invoices`, {
+    const res = await fetch(`${SAGE_API_URL}/sales_invoices`, {
       method: "POST",
       headers: client.headers,
-      body: JSON.stringify({ Invoices: [xeroInvoice] }),
+      body: JSON.stringify({ sales_invoice: sageInvoice }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[xero] Invoice create failed:`, errText);
+      console.error(`[sage] Invoice create failed:`, errText);
       return { success: false, error: errText };
     }
 
     const data = await res.json();
-    const xeroInvoiceId = data.Invoices?.[0]?.InvoiceID;
-    return { success: true, xeroInvoiceId };
+    const sageInvoiceId = data.id;
+    return { success: true, sageInvoiceId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[xero] pushInvoiceToXero error:`, message);
+    console.error(`[sage] pushInvoiceToSage error:`, message);
     return { success: false, error: message };
   }
 }
 
 /**
- * Record a payment against a Xero invoice.
+ * Record a payment against a Sage invoice.
  */
-export async function pushPaymentToXero(
+export async function pushPaymentToSage(
   roasterId: string,
   invoice: {
     invoice_number: string;
@@ -524,47 +550,54 @@ export async function pushPaymentToXero(
     paid_at?: string;
     reference?: string | null;
   }
-): Promise<{ success: boolean; xeroPaymentId?: string; error?: string }> {
-  const client = await getXeroClient(roasterId);
-  if (!client) return { success: false, error: "No active Xero integration" };
+): Promise<{ success: boolean; sagePaymentId?: string; error?: string }> {
+  const client = await getSageClient(roasterId);
+  if (!client) return { success: false, error: "No active Sage integration" };
 
   try {
-    // Find the invoice in Xero by invoice number
+    // Find the invoice in Sage by invoice number
     const searchRes = await fetch(
-      `${XERO_API_URL}/Invoices?InvoiceNumbers=${encodeURIComponent(invoice.invoice_number)}`,
+      `${SAGE_API_URL}/sales_invoices?search=${encodeURIComponent(invoice.invoice_number)}`,
       { headers: client.headers }
     );
 
     if (!searchRes.ok) {
-      return { success: false, error: "Failed to find invoice in Xero" };
+      return { success: false, error: "Failed to find invoice in Sage" };
     }
 
     const searchData = await searchRes.json();
-    if (!searchData.Invoices || searchData.Invoices.length === 0) {
+    const items = searchData.$items || [];
+    const sageInvoice = items.find(
+      (i: Record<string, unknown>) =>
+        i.invoice_number === invoice.invoice_number
+    );
+
+    if (!sageInvoice) {
       return {
         success: false,
-        error: `Invoice ${invoice.invoice_number} not found in Xero`,
+        error: `Invoice ${invoice.invoice_number} not found in Sage`,
       };
     }
 
-    const xeroInvoiceId = searchData.Invoices[0].InvoiceID;
+    const sageInvoiceId = sageInvoice.id;
 
     // Get the bank account for payments (use first bank account)
     const accountsRes = await fetch(
-      `${XERO_API_URL}/Accounts?where=Type=="BANK"`,
+      `${SAGE_API_URL}/bank_accounts`,
       { headers: client.headers }
     );
 
     let bankAccountId: string | undefined;
     if (accountsRes.ok) {
       const accountsData = await accountsRes.json();
-      bankAccountId = accountsData.Accounts?.[0]?.AccountID;
+      const bankItems = accountsData.$items || [];
+      bankAccountId = bankItems[0]?.id;
     }
 
     if (!bankAccountId) {
       return {
         success: false,
-        error: "No bank account found in Xero for payment allocation",
+        error: "No bank account found in Sage for payment allocation",
       };
     }
 
@@ -572,35 +605,42 @@ export async function pushPaymentToXero(
       ? payment.paid_at.split("T")[0]
       : new Date().toISOString().split("T")[0];
 
-    const xeroPayment: Record<string, unknown> = {
-      Invoice: { InvoiceID: xeroInvoiceId },
-      Account: { AccountID: bankAccountId },
-      Amount: payment.amount,
-      Date: paymentDate,
+    const sagePayment: Record<string, unknown> = {
+      transaction_type_id: "CUSTOMER_RECEIPT",
+      contact_id: sageInvoice.contact_id || sageInvoice.contact?.id,
+      bank_account_id: bankAccountId,
+      date: paymentDate,
+      total_amount: payment.amount,
+      allocated_artefacts: [
+        {
+          artefact_id: sageInvoiceId,
+          amount: payment.amount,
+        },
+      ],
     };
 
     if (payment.reference) {
-      xeroPayment.Reference = payment.reference;
+      sagePayment.reference = payment.reference;
     }
 
-    const res = await fetch(`${XERO_API_URL}/Payments`, {
-      method: "PUT",
+    const res = await fetch(`${SAGE_API_URL}/contact_payments`, {
+      method: "POST",
       headers: client.headers,
-      body: JSON.stringify({ Payments: [xeroPayment] }),
+      body: JSON.stringify({ contact_payment: sagePayment }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[xero] Payment create failed:`, errText);
+      console.error(`[sage] Payment create failed:`, errText);
       return { success: false, error: errText };
     }
 
     const data = await res.json();
-    const xeroPaymentId = data.Payments?.[0]?.PaymentID;
-    return { success: true, xeroPaymentId };
+    const sagePaymentId = data.id;
+    return { success: true, sagePaymentId };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[xero] pushPaymentToXero error:`, message);
+    console.error(`[sage] pushPaymentToSage error:`, message);
     return { success: false, error: message };
   }
 }
@@ -608,10 +648,10 @@ export async function pushPaymentToXero(
 // ─── Fire-and-Forget Sync ───────────────────────────────────────────────────
 
 /**
- * Check if a roaster has an active Xero integration with auto-sync enabled.
+ * Check if a roaster has an active Sage integration with auto-sync enabled.
  * If so, execute the sync function. Fire-and-forget.
  */
-export function syncToXero(
+export function syncToSage(
   roasterId: string,
   syncFn: () => Promise<void>
 ): void {
@@ -622,7 +662,7 @@ export function syncToXero(
         .from("roaster_integrations")
         .select("id, is_active, settings")
         .eq("roaster_id", roasterId)
-        .eq("provider", "xero")
+        .eq("provider", "sage")
         .eq("is_active", true)
         .single();
 
@@ -650,7 +690,7 @@ export function syncToXero(
         .eq("id", integration.id);
     } catch (err) {
       console.error(
-        `[xero] Sync failed for roaster ${roasterId}:`,
+        `[sage] Sync failed for roaster ${roasterId}:`,
         err instanceof Error ? err.message : err
       );
 
@@ -661,7 +701,7 @@ export function syncToXero(
           .from("roaster_integrations")
           .select("id, settings")
           .eq("roaster_id", roasterId)
-          .eq("provider", "xero")
+          .eq("provider", "sage")
           .single();
 
         if (integration) {

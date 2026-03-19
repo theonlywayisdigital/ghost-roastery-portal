@@ -9,6 +9,7 @@ import {
 import { createNotification } from "@/lib/notifications";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
+import { syncToSage, pushContactToSage } from "@/lib/sage";
 
 export async function PATCH(
   request: Request,
@@ -245,6 +246,25 @@ export async function PATCH(
       syncToXero(roasterId, async () => {
         const cNameParts = contactName.split(" ");
         await pushContactToXero(
+          roasterId,
+          {
+            first_name: cNameParts[0] || "",
+            last_name: cNameParts.slice(1).join(" ") || "",
+            email: contactEmail || null,
+            business_name: record.business_name,
+          },
+          {
+            name: record.business_name,
+            vat_number: record.vat_number || null,
+            address_line_1: record.business_address || null,
+          }
+        );
+      });
+
+      // Sync contact to Sage
+      syncToSage(roasterId, async () => {
+        const cNameParts = contactName.split(" ");
+        await pushContactToSage(
           roasterId,
           {
             first_name: cNameParts[0] || "",

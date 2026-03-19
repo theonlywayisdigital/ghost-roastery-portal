@@ -15,6 +15,7 @@ import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
+import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
 
 interface CheckoutItem {
   productId: string;
@@ -807,6 +808,35 @@ export async function POST(request: Request) {
     // Sync invoice to Xero
     syncToXero(roasterId, async () => {
       await pushInvoiceToXero(
+        roasterId,
+        {
+          invoice_number: invoice.invoice_number,
+          subtotal: invoiceSubtotal,
+          tax_rate: 0,
+          tax_amount: 0,
+          total: invoiceTotal,
+          currency: "GBP",
+          payment_due_date: paymentDueDate,
+          issued_date: autoSend ? new Date().toISOString().split("T")[0] : null,
+          notes: `Wholesale order - ${paymentTerms} payment terms`,
+          status: autoSend ? "sent" : "draft",
+        },
+        invoiceLineItems.map((item: { description: string; quantity: number; unit_price: number }) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
+        {
+          name: wholesaleBuyerName,
+          email: wholesaleBuyerEmail,
+          business_name: null,
+        }
+      );
+    });
+
+    // Sync invoice to Sage
+    syncToSage(roasterId, async () => {
+      await pushInvoiceToSage(
         roasterId,
         {
           invoice_number: invoice.invoice_number,

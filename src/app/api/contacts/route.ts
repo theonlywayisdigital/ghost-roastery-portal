@@ -6,6 +6,7 @@ import { findOrCreatePerson, resolvePrimaryContactType } from "@/lib/people";
 import { checkLimit } from "@/lib/feature-gates";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
+import { syncToSage, pushContactToSage } from "@/lib/sage";
 
 export async function GET(request: NextRequest) {
   const roaster = await getCurrentRoaster();
@@ -214,6 +215,25 @@ export async function POST(request: Request) {
     // Sync contact to Xero
     syncToXero(roaster.id as string, async () => {
       await pushContactToXero(
+        roaster.id as string,
+        {
+          first_name: contact.first_name,
+          last_name: contact.last_name,
+          email: contact.email,
+          phone: contact.phone,
+          business_name: contact.business_name,
+        },
+        business_id
+          ? {
+              name: contact.business_name || undefined,
+            }
+          : null
+      );
+    });
+
+    // Sync contact to Sage
+    syncToSage(roaster.id as string, async () => {
+      await pushContactToSage(
         roaster.id as string,
         {
           first_name: contact.first_name,

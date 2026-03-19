@@ -9,6 +9,7 @@ import {
 import { checkFeature } from "@/lib/feature-gates";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
+import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
@@ -213,6 +214,62 @@ export async function POST(req: NextRequest) {
         }
 
         await pushInvoiceToXero(
+          roasterId,
+          {
+            invoice_number: invoice.invoice_number,
+            subtotal: invoice.subtotal,
+            tax_rate: invoice.tax_rate,
+            tax_amount: invoice.tax_amount,
+            total: invoice.total,
+            currency: invoice.currency,
+            payment_due_date: invoice.payment_due_date,
+            notes: invoice.notes,
+            status: invoice.status,
+          },
+          lineItemsToInsert.map((item: { description: string; quantity: number; unit_price: number }) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+          })),
+          {
+            name: customerName,
+            email: customerEmail,
+            business_name: customerBusinessName,
+          }
+        );
+      });
+
+      // Sync to Sage
+      syncToSage(roasterId, async () => {
+        let customerName = "Customer";
+        let customerEmail: string | null = null;
+        let customerBusinessName: string | null = null;
+
+        if (customer_id) {
+          const { data: person } = await createServerClient()
+            .from("people")
+            .select("first_name, last_name, email")
+            .eq("id", customer_id)
+            .single();
+          if (person) {
+            customerName = `${person.first_name} ${person.last_name}`.trim();
+            customerEmail = person.email;
+          }
+        }
+
+        if (business_id) {
+          const { data: biz } = await createServerClient()
+            .from("businesses")
+            .select("name, email")
+            .eq("id", business_id)
+            .single();
+          if (biz) {
+            customerBusinessName = biz.name;
+            if (!customerEmail && biz.email) customerEmail = biz.email;
+          }
+        }
+
+        await pushInvoiceToSage(
           roasterId,
           {
             invoice_number: invoice.invoice_number,

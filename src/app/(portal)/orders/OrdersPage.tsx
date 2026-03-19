@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Package, ShoppingCart, TrendingUp, Clock } from "@/components/icons";
+import { Package, ShoppingCart, TrendingUp, Clock, Plus } from "@/components/icons";
 import { DataTable, FilterBar, Pagination, StatusBadge } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
 import type { FilterConfig } from "@/components/admin/FilterBar";
@@ -223,11 +223,20 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
-        <p className="text-slate-500 mt-1">
-          Manage orders across all your channels.
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
+          <p className="text-slate-500 mt-1">
+            Manage orders across all your channels.
+          </p>
+        </div>
+        <button
+          onClick={() => router.push("/orders/new")}
+          className="flex items-center gap-2 bg-brand-600 text-white hover:bg-brand-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create Order
+        </button>
       </div>
 
       {/* Summary cards */}

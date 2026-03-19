@@ -1,0 +1,1049 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Search,
+  Package,
+  User,
+  ChevronDown,
+  X,
+  Loader2,
+} from "@/components/icons";
+import { StatusBadge } from "@/components/admin";
+
+// ── Interfaces ──
+
+interface Contact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  business_name?: string;
+}
+
+interface ProductVariant {
+  id: string;
+  weight_grams: number | null;
+  unit: string | null;
+  retail_price: number | null;
+  wholesale_price: number | null;
+  channel: string | null;
+  is_active: boolean;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  retail_price: number | null;
+  wholesale_price: number | null;
+  status: string;
+  product_variants: ProductVariant[];
+}
+
+interface OrderItem {
+  productId: string;
+  productName: string;
+  variantId?: string;
+  variantLabel?: string;
+  unitPrice: number;
+  quantity: number;
+  unit: string;
+}
+
+// ── Helpers ──
+
+function formatPrice(pounds: number) {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(pounds);
+}
+
+function getVariantLabel(v: ProductVariant): string {
+  const parts: string[] = [];
+  if (v.unit) parts.push(v.unit);
+  if (v.weight_grams) parts.push(`${v.weight_grams}g`);
+  if (v.channel) parts.push(v.channel);
+  return parts.join(" / ") || "Variant";
+}
+
+function getPrice(
+  product: Product,
+  variant: ProductVariant | null,
+  channel: "wholesale" | "storefront"
+): number {
+  if (channel === "wholesale") {
+    if (variant?.wholesale_price != null) return variant.wholesale_price;
+    if (product.wholesale_price != null) return product.wholesale_price;
+    return product.price || 0;
+  }
+  // storefront / retail
+  if (variant?.retail_price != null) return variant.retail_price;
+  if (product.retail_price != null) return product.retail_price;
+  return product.price || 0;
+}
+
+// ── Component ──
+
+interface CreateOrderPageProps {
+  roasterId: string;
+}
+
+export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
+  const router = useRouter();
+
+  // ── Form state ──
+  const [orderChannel, setOrderChannel] = useState<"wholesale" | "storefront">(
+    "wholesale"
+  );
+  const [customerMode, setCustomerMode] = useState<"search" | "manual">(
+    "search"
+  );
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerBusiness, setCustomerBusiness] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [includeAddress, setIncludeAddress] = useState(false);
+  const [address, setAddress] = useState({
+    line1: "",
+    line2: "",
+    city: "",
+    county: "",
+    postcode: "",
+    country: "United Kingdom",
+    label: "",
+  });
+  const [paymentMethod, setPaymentMethod] = useState("invoice");
+  const [paymentTerms, setPaymentTerms] = useState("net30");
+  const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // ── Contact search state ──
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactResults, setContactResults] = useState<Contact[]>([]);
+  const [isSearchingContacts, setIsSearchingContacts] = useState(false);
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+  const contactSearchRef = useRef<HTMLDivElement>(null);
+  const contactDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Product search state ──
+  const [showProductSearch, setShowProductSearch] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [productResults, setProductResults] = useState<Product[]>([]);
+  const [isSearchingProducts, setIsSearchingProducts] = useState(false);
+  const productSearchRef = useRef<HTMLDivElement>(null);
+
+  // ── Contact search (debounced) ──
+  useEffect(() => {
+    if (contactDebounceRef.current) clearTimeout(contactDebounceRef.current);
+    if (!contactSearch.trim()) {
+      setContactResults([]);
+      setShowContactDropdown(false);
+      return;
+    }
+    contactDebounceRef.current = setTimeout(async () => {
+      setIsSearchingContacts(true);
+      try {
+        const res = await fetch(
+          `/api/contacts?search=${encodeURIComponent(contactSearch)}&status=all&page=1`
+        );
+        const data = await res.json();
+        setContactResults(data.contacts || []);
+        setShowContactDropdown(true);
+      } catch {
+        setContactResults([]);
+      } finally {
+        setIsSearchingContacts(false);
+      }
+    }, 300);
+    return () => {
+      if (contactDebounceRef.current) clearTimeout(contactDebounceRef.current);
+    };
+  }, [contactSearch]);
+
+  // ── Product fetch ──
+  const fetchProducts = useCallback(async (search: string) => {
+    setIsSearchingProducts(true);
+    try {
+      const res = await fetch(`/api/products`);
+      const data = await res.json();
+      let products: Product[] = data.products || [];
+      // Client-side filter since the products API doesn't have a search param
+      if (search.trim()) {
+        const term = search.toLowerCase();
+        products = products.filter((p: Product) =>
+          p.name.toLowerCase().includes(term)
+        );
+      }
+      // Only show published products
+      products = products.filter((p: Product) => p.status === "published");
+      setProductResults(products);
+    } catch {
+      setProductResults([]);
+    } finally {
+      setIsSearchingProducts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showProductSearch) {
+      fetchProducts(productSearch);
+    }
+  }, [showProductSearch, productSearch, fetchProducts]);
+
+  // ── Click outside handlers ──
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        contactSearchRef.current &&
+        !contactSearchRef.current.contains(e.target as Node)
+      ) {
+        setShowContactDropdown(false);
+      }
+      if (
+        productSearchRef.current &&
+        !productSearchRef.current.contains(e.target as Node)
+      ) {
+        setShowProductSearch(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // ── Select contact ──
+  function handleSelectContact(contact: Contact) {
+    setSelectedContact(contact);
+    setCustomerName(
+      `${contact.first_name} ${contact.last_name}`.trim()
+    );
+    setCustomerEmail(contact.email || "");
+    setCustomerBusiness(contact.business_name || "");
+    setCustomerPhone(contact.phone || "");
+    setContactSearch("");
+    setShowContactDropdown(false);
+  }
+
+  function handleClearContact() {
+    setSelectedContact(null);
+    setCustomerName("");
+    setCustomerEmail("");
+    setCustomerBusiness("");
+    setCustomerPhone("");
+  }
+
+  // ── Add product ──
+  function handleAddProduct(product: Product, variant?: ProductVariant) {
+    const unitPrice = getPrice(product, variant || null, orderChannel);
+    const newItem: OrderItem = {
+      productId: product.id,
+      productName: product.name,
+      variantId: variant?.id,
+      variantLabel: variant ? getVariantLabel(variant) : undefined,
+      unitPrice,
+      quantity: 1,
+      unit: variant?.unit || product.unit || "unit",
+    };
+    setItems((prev) => [...prev, newItem]);
+    setShowProductSearch(false);
+    setProductSearch("");
+  }
+
+  function handleRemoveItem(index: number) {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleUpdateItemQuantity(index: number, quantity: number) {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, quantity: Math.max(1, quantity) } : item
+      )
+    );
+  }
+
+  function handleUpdateItemPrice(index: number, price: number) {
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, unitPrice: Math.max(0, price) } : item
+      )
+    );
+  }
+
+  // ── Recalculate prices when channel changes ──
+  // (We don't auto-recalculate since prices are editable and user may have overridden them)
+
+  // ── Subtotal ──
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0
+  );
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // ── Submit ──
+  const handleSubmit = async () => {
+    setError("");
+    if (!customerName || !customerEmail) {
+      setError("Customer name and email are required.");
+      return;
+    }
+    if (items.length === 0) {
+      setError("Add at least one product.");
+      return;
+    }
+    if (includeAddress && (!address.line1 || !address.city || !address.postcode)) {
+      setError(
+        "Delivery address requires at least Address Line 1, City, and Postcode."
+      );
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/orders/create-manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderChannel,
+          customerName,
+          customerEmail,
+          customerBusiness: customerBusiness || undefined,
+          customerPhone: customerPhone || undefined,
+          contactId: selectedContact?.id || undefined,
+          items: items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            variantId: i.variantId || undefined,
+            variantLabel: i.variantLabel || undefined,
+            unitPrice: i.unitPrice,
+          })),
+          deliveryAddress: includeAddress
+            ? {
+                label: address.label || undefined,
+                line1: address.line1,
+                line2: address.line2 || undefined,
+                city: address.city,
+                county: address.county || undefined,
+                postcode: address.postcode,
+                country: address.country,
+              }
+            : undefined,
+          paymentMethod,
+          paymentTerms:
+            orderChannel === "wholesale" ? paymentTerms : undefined,
+          notes: notes || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create order");
+      router.push(
+        `/orders/${data.orderId}?type=${orderChannel === "wholesale" ? "wholesale" : "storefront"}&created=true`
+      );
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create order"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={() => router.push("/orders")}
+            className="text-slate-400 hover:text-slate-600"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-2xl font-bold text-slate-900">Create Order</h1>
+        </div>
+        <p className="text-slate-500">
+          Manually create an order for a customer.
+        </p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {/* ── Section 1: Order Channel ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            Order Channel
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOrderChannel("wholesale")}
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                orderChannel === "wholesale"
+                  ? "bg-brand-600 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Wholesale
+            </button>
+            <button
+              onClick={() => setOrderChannel("storefront")}
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                orderChannel === "storefront"
+                  ? "bg-brand-600 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Retail
+            </button>
+          </div>
+        </div>
+
+        {/* ── Section 2: Customer ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            Customer
+          </h2>
+
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => {
+                setCustomerMode("search");
+                handleClearContact();
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                customerMode === "search"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Select existing contact
+            </button>
+            <button
+              onClick={() => {
+                setCustomerMode("manual");
+                handleClearContact();
+              }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                customerMode === "manual"
+                  ? "bg-slate-900 text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Enter new customer details
+            </button>
+          </div>
+
+          {customerMode === "search" && (
+            <div>
+              {selectedContact ? (
+                <div className="flex items-center justify-between bg-slate-50 rounded-lg border border-slate-200 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {`${selectedContact.first_name} ${selectedContact.last_name}`.trim()}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {selectedContact.email}
+                        {selectedContact.business_name
+                          ? ` \u00B7 ${selectedContact.business_name}`
+                          : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleClearContact}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative" ref={contactSearchRef}>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={contactSearch}
+                      onChange={(e) => setContactSearch(e.target.value)}
+                      placeholder="Search contacts by name, email, or business..."
+                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                    />
+                    {isSearchingContacts && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                    )}
+                  </div>
+                  {showContactDropdown && contactResults.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {contactResults.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => handleSelectContact(c)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                        >
+                          <p className="text-sm font-medium text-slate-900">
+                            {`${c.first_name} ${c.last_name}`.trim()}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {c.email}
+                            {c.business_name
+                              ? ` \u00B7 ${c.business_name}`
+                              : ""}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showContactDropdown &&
+                    contactResults.length === 0 &&
+                    !isSearchingContacts &&
+                    contactSearch.trim() && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg p-4 text-sm text-slate-500 text-center">
+                        No contacts found
+                      </div>
+                    )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(customerMode === "manual" || selectedContact) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Customer Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  readOnly={!!selectedContact}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Customer Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  readOnly={!!selectedContact}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Business Name
+                </label>
+                <input
+                  type="text"
+                  value={customerBusiness}
+                  onChange={(e) => setCustomerBusiness(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  readOnly={!!selectedContact}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Optional"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  readOnly={!!selectedContact}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 3: Products ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Products</h2>
+            <div className="relative" ref={productSearchRef}>
+              <button
+                onClick={() => setShowProductSearch(!showProductSearch)}
+                className="inline-flex items-center gap-1.5 bg-brand-600 text-white hover:bg-brand-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+
+              {showProductSearch && (
+                <div className="absolute right-0 z-20 mt-2 w-96 bg-white border border-slate-200 rounded-lg shadow-lg">
+                  <div className="p-3 border-b border-slate-100">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        placeholder="Search products..."
+                        className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {isSearchingProducts && (
+                      <div className="p-4 text-center text-sm text-slate-500">
+                        <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                        Loading products...
+                      </div>
+                    )}
+                    {!isSearchingProducts && productResults.length === 0 && (
+                      <div className="p-4 text-center text-sm text-slate-500">
+                        No products found
+                      </div>
+                    )}
+                    {!isSearchingProducts &&
+                      productResults.map((product) => {
+                        const activeVariants = product.product_variants?.filter(
+                          (v) => v.is_active
+                        );
+                        const hasVariants =
+                          activeVariants && activeVariants.length > 0;
+
+                        if (hasVariants) {
+                          return (
+                            <div key={product.id}>
+                              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                <p className="text-sm font-medium text-slate-900">
+                                  {product.name}
+                                </p>
+                              </div>
+                              {activeVariants.map((variant) => (
+                                <button
+                                  key={variant.id}
+                                  onClick={() =>
+                                    handleAddProduct(product, variant)
+                                  }
+                                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 pl-8"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-slate-700">
+                                      {getVariantLabel(variant)}
+                                    </span>
+                                    <span className="text-sm font-medium text-slate-900">
+                                      {formatPrice(
+                                        getPrice(
+                                          product,
+                                          variant,
+                                          orderChannel
+                                        )
+                                      )}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            key={product.id}
+                            onClick={() => handleAddProduct(product)}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {product.name}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {product.unit}
+                                </p>
+                              </div>
+                              <span className="text-sm font-medium text-slate-900">
+                                {formatPrice(
+                                  getPrice(product, null, orderChannel)
+                                )}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {items.length === 0 ? (
+            <div className="border border-dashed border-slate-200 rounded-lg p-8 text-center">
+              <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">
+                No products added yet. Click &quot;Add Product&quot; to get
+                started.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {/* Table header */}
+              <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                <div className="col-span-4">Product</div>
+                <div className="col-span-2">Unit Price</div>
+                <div className="col-span-2">Quantity</div>
+                <div className="col-span-3 text-right">Line Total</div>
+                <div className="col-span-1" />
+              </div>
+
+              {/* Items */}
+              {items.map((item, index) => (
+                <div
+                  key={`${item.productId}-${item.variantId || "base"}-${index}`}
+                  className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-4 py-3 border-b border-slate-100 last:border-b-0 items-center"
+                >
+                  <div className="col-span-4">
+                    <p className="text-sm font-medium text-slate-900">
+                      {item.productName}
+                    </p>
+                    {item.variantLabel && (
+                      <p className="text-xs text-slate-500">
+                        {item.variantLabel}
+                      </p>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                        &pound;
+                      </span>
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={(e) =>
+                          handleUpdateItemPrice(
+                            index,
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                        step="0.01"
+                        min="0"
+                        className="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        handleUpdateItemQuantity(
+                          index,
+                          parseInt(e.target.value) || 1
+                        )
+                      }
+                      min="1"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                    />
+                  </div>
+                  <div className="col-span-3 text-right">
+                    <span className="text-sm font-medium text-slate-900">
+                      {formatPrice(item.unitPrice * item.quantity)}
+                    </span>
+                  </div>
+                  <div className="col-span-1 text-right">
+                    <button
+                      onClick={() => handleRemoveItem(index)}
+                      className="text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Subtotal */}
+              <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-b-lg mt-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Subtotal
+                </span>
+                <span className="text-base font-semibold text-slate-900">
+                  {formatPrice(subtotal)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 4: Delivery Address ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Delivery Address
+            </h2>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeAddress}
+                onChange={(e) => setIncludeAddress(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span className="text-sm text-slate-600">
+                Include delivery address
+              </span>
+            </label>
+          </div>
+
+          {includeAddress ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Label
+                </label>
+                <input
+                  type="text"
+                  value={address.label}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, label: e.target.value }))
+                  }
+                  placeholder='e.g. "Main Office"'
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Address Line 1 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={address.line1}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, line1: e.target.value }))
+                  }
+                  placeholder="Street address"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Address Line 2
+                </label>
+                <input
+                  type="text"
+                  value={address.line2}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, line2: e.target.value }))
+                  }
+                  placeholder="Apartment, suite, etc."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={address.city}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, city: e.target.value }))
+                  }
+                  placeholder="City"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  County
+                </label>
+                <input
+                  type="text"
+                  value={address.county}
+                  onChange={(e) =>
+                    setAddress((prev) => ({ ...prev, county: e.target.value }))
+                  }
+                  placeholder="County"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Postcode <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={address.postcode}
+                  onChange={(e) =>
+                    setAddress((prev) => ({
+                      ...prev,
+                      postcode: e.target.value,
+                    }))
+                  }
+                  placeholder="Postcode"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Country
+                </label>
+                <input
+                  type="text"
+                  value={address.country}
+                  onChange={(e) =>
+                    setAddress((prev) => ({
+                      ...prev,
+                      country: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No delivery address will be included with this order.
+            </p>
+          )}
+        </div>
+
+        {/* ── Section 5: Payment & Terms ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            Payment &amp; Terms
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Payment Method
+              </label>
+              <div className="relative">
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
+                >
+                  <option value="invoice">Invoice</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="other">Other</option>
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            {orderChannel === "wholesale" && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Payment Terms
+                </label>
+                <div className="relative">
+                  <select
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
+                  >
+                    <option value="prepay">Prepay</option>
+                    <option value="net7">Net 7</option>
+                    <option value="net14">Net 14</option>
+                    <option value="net30">Net 30</option>
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Section 6: Notes ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Notes</h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Add any notes or special instructions for this order..."
+            rows={4}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+          />
+        </div>
+
+        {/* ── Section 7: Order Summary ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">
+            Order Summary
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Subtotal</span>
+              <span className="text-sm font-medium text-slate-900">
+                {formatPrice(subtotal)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Number of items</span>
+              <span className="text-sm font-medium text-slate-900">
+                {totalItems}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Channel</span>
+              <span className="text-sm font-medium text-slate-900 capitalize">
+                {orderChannel === "storefront" ? "Retail" : "Wholesale"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Status</span>
+              <StatusBadge status="confirmed" type="order" />
+            </div>
+            {customerName && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">Customer</span>
+                <span className="text-sm font-medium text-slate-900">
+                  {customerName}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Submit ── */}
+        <div className="flex items-center justify-end gap-3">
+          <button
+            onClick={() => router.push("/orders")}
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="bg-brand-600 text-white hover:bg-brand-700 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+          >
+            {isSubmitting && (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            )}
+            {isSubmitting ? "Creating..." : "Create Order"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

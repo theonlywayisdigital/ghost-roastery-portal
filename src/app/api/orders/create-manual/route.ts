@@ -838,8 +838,7 @@ export async function POST(request: Request) {
           roasterId,
           invoicePayload,
           syncLineItems,
-          customerPayload,
-          bizData || undefined
+          customerPayload
         );
       } catch (err) {
         console.error(
@@ -857,8 +856,7 @@ export async function POST(request: Request) {
           roasterId,
           invoicePayload,
           syncLineItems,
-          customerPayload,
-          bizData || undefined
+          customerPayload
         );
       } catch (err) {
         console.error(

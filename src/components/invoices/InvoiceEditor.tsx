@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -34,12 +34,16 @@ interface InvoiceEditorProps {
   backHref: string;
   successHref: string;
   initialData?: InvoiceInitialData;
+  invoiceId?: string;
+  mode?: "create" | "edit";
 }
 
 export function InvoiceEditor({
   backHref,
   successHref,
   initialData,
+  invoiceId,
+  mode = "create",
 }: InvoiceEditorProps) {
   const router = useRouter();
 
@@ -70,6 +74,40 @@ export function InvoiceEditor({
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [loadingInvoice, setLoadingInvoice] = useState(mode === "edit");
+
+  // Load existing invoice data in edit mode
+  useEffect(() => {
+    if (mode !== "edit" || !invoiceId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/invoices/${invoiceId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.customer_name || data.customer_email) {
+          setCustomerSearch(data.customer_name || data.customer_email || "");
+        }
+        if (data.line_items?.length) {
+          setLineItems(
+            data.line_items.map((li: { description: string; quantity: number; unit_price: number }) => ({
+              description: li.description || "",
+              quantity: li.quantity || 1,
+              unit_price: li.unit_price || 0,
+            }))
+          );
+        }
+        if (data.due_days != null) setDueDays(data.due_days);
+        if (data.tax_rate != null) setTaxRate(data.tax_rate);
+        if (data.notes) setNotes(data.notes);
+        if (data.internal_notes) setInternalNotes(data.internal_notes);
+        if (data.payment_method) setPaymentMethod(data.payment_method);
+      } catch {
+        console.error("Failed to load invoice for editing");
+      } finally {
+        setLoadingInvoice(false);
+      }
+    })();
+  }, [mode, invoiceId]);
 
   function addLineItem() {
     setLineItems([...lineItems, { description: "", quantity: 1, unit_price: 0 }]);
@@ -114,15 +152,19 @@ export function InvoiceEditor({
         tax_rate: taxRate,
       };
 
-      const res = await fetch("/api/invoices", {
-        method: "POST",
+      const isEdit = mode === "edit" && invoiceId;
+      const url = isEdit ? `/api/invoices/${invoiceId}` : "/api/invoices";
+      const method = isEdit ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Failed to create invoice.");
+        alert(err.error || `Failed to ${isEdit ? "update" : "create"} invoice.`);
         return;
       }
 
@@ -132,9 +174,10 @@ export function InvoiceEditor({
         await fetch(`/api/invoices/${invoice.id}/send`, { method: "POST" });
       }
 
-      // When creating from an order, redirect back to the order (no invoice ID append)
-      // Otherwise, navigate to the new invoice detail page
-      if (initialData?.orderIds?.length) {
+      if (isEdit) {
+        router.push(backHref);
+      } else if (initialData?.orderIds?.length) {
+        // When creating from an order, redirect back to the order
         router.push(successHref);
       } else {
         router.push(`${successHref}/${invoice.id}`);
@@ -189,6 +232,14 @@ export function InvoiceEditor({
     }
   }
 
+  if (loadingInvoice) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -199,9 +250,13 @@ export function InvoiceEditor({
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">New Invoice</h1>
+        <h1 className="text-2xl font-bold text-slate-900">
+          {mode === "edit" ? "Edit Invoice" : "New Invoice"}
+        </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Create a new invoice for a customer.
+          {mode === "edit"
+            ? "Update the invoice details below."
+            : "Create a new invoice for a customer."}
         </p>
       </div>
 
@@ -420,7 +475,7 @@ export function InvoiceEditor({
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              Save as Draft
+              {mode === "edit" ? "Save Changes" : "Save as Draft"}
             </button>
             <button
               onClick={handlePreview}

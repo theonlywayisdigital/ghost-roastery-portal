@@ -6,7 +6,7 @@ import { Package, ShoppingCart, TrendingUp, Clock, Plus } from "@/components/ico
 import { DataTable, FilterBar, Pagination, StatusBadge } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
 import type { FilterConfig } from "@/components/admin/FilterBar";
-import { RETAIL_ENABLED } from "@/lib/feature-flags";
+
 
 interface RoasterOrder {
   id: string;
@@ -87,7 +87,7 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
   const tabs: { label: string; value: TabValue }[] = [
     { label: "All", value: "all" },
     ...(isPartner ? [{ label: "Ghost Roastery", value: "ghost" as TabValue }] : []),
-    ...(RETAIL_ENABLED ? [{ label: "Retail", value: "storefront" as TabValue }] : []),
+    { label: "Retail", value: "storefront" as TabValue },
     { label: "Wholesale", value: "wholesale" },
   ];
 
@@ -166,11 +166,11 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
         </span>
       ),
     },
-    ...(RETAIL_ENABLED ? [{
+    {
       key: "orderType" as const,
       label: "Type",
       render: (row: RoasterOrder) => <StatusBadge status={row.orderType} type="orderType" />,
-    }] : []),
+    },
     {
       key: "customerName",
       label: "Customer",

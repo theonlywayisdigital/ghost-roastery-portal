@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
-import { RETAIL_ENABLED } from "@/lib/feature-flags";
+
 import {
   FulfilmentStepper,
   GHOST_STEPS,
@@ -140,7 +140,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-slate-900">{orderNumber}</h1>
-            {RETAIL_ENABLED && <StatusBadge status={orderType} type="orderType" />}
+            <StatusBadge status={orderType} type="orderType" />
             <StatusBadge status={status} type="order" />
           </div>
           <p className="text-sm text-slate-500">

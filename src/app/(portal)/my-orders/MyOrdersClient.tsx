@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Package } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 import { formatPrice } from "@/components/shared/orders";
-import { RETAIL_ENABLED } from "@/lib/feature-flags";
+
 
 interface UnifiedOrder {
   id: string;
@@ -70,7 +70,7 @@ export function MyOrdersClient() {
       {/* Filter tabs */}
       {hasMultipleTypes && (
         <div className="flex gap-2 mb-6">
-          {["all", "ghost", ...(RETAIL_ENABLED ? ["storefront"] : []), "wholesale"].map((f) => {
+          {["all", "ghost", "storefront", "wholesale"].map((f) => {
             const count = f === "all" ? orders.length : orders.filter((o) => o.orderType === f).length;
             if (f !== "all" && count === 0) return null;
             return (
@@ -121,7 +121,7 @@ export function MyOrdersClient() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold text-slate-900">{order.orderNumber}</h3>
-                  {RETAIL_ENABLED && <StatusBadge status={order.orderType} type="orderType" />}
+                  <StatusBadge status={order.orderType} type="orderType" />
                   <StatusBadge status={order.status} type="order" />
                 </div>
                 {order.brandName && (

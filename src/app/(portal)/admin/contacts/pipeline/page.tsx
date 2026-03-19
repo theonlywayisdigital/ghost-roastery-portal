@@ -19,6 +19,7 @@ export default async function AdminPipelinePage() {
         apiBase="/api/admin/contacts"
         detailBase="/admin/contacts"
         businessDetailBase="/admin/businesses"
+        stagesApiBase="/api/admin/pipeline-stages"
       />
     </div>
   );

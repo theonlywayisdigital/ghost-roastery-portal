@@ -33,6 +33,7 @@ export default async function PipelinePage() {
         apiBase="/api/contacts"
         detailBase="/contacts"
         businessDetailBase="/businesses"
+        stagesSettingsHref="/settings/pipeline-stages"
       />
     </div>
   );

@@ -6,16 +6,18 @@ import { DataTable, type Column } from "@/components/admin/DataTable";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Trash2 } from "@/components/icons";
 import type { PipelineItem } from "./PipelineCard";
+import type { PipelineStage } from "@/lib/pipeline";
 
 interface PipelineListProps {
   items: PipelineItem[];
+  stages: PipelineStage[];
   detailBase: string;
   businessDetailBase: string;
   isLoading: boolean;
   onDelete?: (item: PipelineItem) => void;
 }
 
-export function PipelineList({ items, detailBase, businessDetailBase, isLoading, onDelete }: PipelineListProps) {
+export function PipelineList({ items, stages, detailBase, businessDetailBase, isLoading, onDelete }: PipelineListProps) {
   const router = useRouter();
   const [confirmItem, setConfirmItem] = useState<PipelineItem | null>(null);
 
@@ -57,9 +59,17 @@ export function PipelineList({ items, detailBase, businessDetailBase, isLoading,
     {
       key: "leadStatus",
       label: "Stage",
-      render: (row) => (
-        <StatusBadge status={row.leadStatus} type="leadStatus" />
-      ),
+      render: (row) => {
+        const stage = stages.find((s) => s.slug === row.leadStatus);
+        return (
+          <StatusBadge
+            status={row.leadStatus}
+            type="leadStatus"
+            stageColour={stage?.colour}
+            stageLabel={stage?.name}
+          />
+        );
+      },
     },
     {
       key: "source",
@@ -136,7 +146,7 @@ export function PipelineList({ items, detailBase, businessDetailBase, isLoading,
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Remove from pipeline?</h3>
             <p className="text-sm text-slate-600 mb-6">
-              This will archive <span className="font-medium">{confirmItem.name}</span> and remove them from the pipeline.
+              This will remove <span className="font-medium">{confirmItem.name}</span> from the pipeline. The record will not be deleted.
             </p>
             <div className="flex justify-end gap-3">
               <button

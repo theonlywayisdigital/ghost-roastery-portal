@@ -116,7 +116,7 @@ export function PipelineCard({ item, onClick, overlay, onDelete }: PipelineCardP
               Remove from pipeline?
             </h3>
             <p className="text-sm text-slate-500 mb-6">
-              {`This will archive the ${item.itemType === "business" ? "business" : "contact"} "${item.name}". They can be restored later.`}
+              {`This will remove "${item.name}" from the pipeline. The ${item.itemType === "business" ? "business" : "contact"} record will not be deleted.`}
             </p>
             <div className="flex gap-3">
               <button

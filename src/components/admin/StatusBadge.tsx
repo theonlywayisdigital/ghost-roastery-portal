@@ -1,5 +1,7 @@
 "use client";
 
+import { STAGE_COLOURS } from "@/lib/pipeline";
+
 type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert" | "leadStatus";
 
 const colorMap: Record<string, Record<string, string>> = {
@@ -305,11 +307,24 @@ interface StatusBadgeProps {
   status: string;
   type?: BadgeType;
   className?: string;
+  /** For leadStatus: the colour key from pipeline_stages (e.g. "blue", "green"). Used to style custom stages dynamically. */
+  stageColour?: string;
+  /** For leadStatus: human-readable stage name. Falls back to status slug if not provided. */
+  stageLabel?: string;
 }
 
-export function StatusBadge({ status, type = "order", className }: StatusBadgeProps) {
-  const colors = colorMap[type]?.[status] || "bg-slate-100 text-slate-600";
-  const label = labelMap[type]?.[status] || status;
+export function StatusBadge({ status, type = "order", className, stageColour, stageLabel }: StatusBadgeProps) {
+  let colors = colorMap[type]?.[status] || "bg-slate-100 text-slate-600";
+  let label = labelMap[type]?.[status] || status;
+
+  // For leadStatus, support custom stages via STAGE_COLOURS lookup
+  if (type === "leadStatus" && !colorMap[type]?.[status] && stageColour) {
+    const sc = STAGE_COLOURS[stageColour];
+    if (sc) colors = sc.badge;
+  }
+  if (type === "leadStatus" && stageLabel) {
+    label = stageLabel;
+  }
 
   return (
     <span

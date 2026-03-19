@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     businessTypesResult,
     discountCodesResult,
     campaignsResult,
+    pipelineStagesResult,
   ] = await Promise.all([
     applyOwnerFilter(
       supabase.from("forms").select("id, name"),
@@ -55,6 +56,10 @@ export async function GET(request: NextRequest) {
       .eq("status", "sent")
       .order("sent_at", { ascending: false })
       .limit(50),
+    applyOwnerFilter(
+      supabase.from("pipeline_stages").select("slug, name"),
+      owner
+    ).order("sort_order"),
   ]);
 
   // Extract unique contact types
@@ -90,6 +95,7 @@ export async function GET(request: NextRequest) {
       .map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
     discount_codes: (discountCodesResult.data || []).map((d) => ({ value: d.id, label: d.code })),
     campaigns: (campaignsResult.data || []).map((c) => ({ value: c.id, label: c.name })),
+    pipeline_stages: (pipelineStagesResult.data || []).map((s) => ({ value: s.slug, label: s.name })),
   };
 
   return NextResponse.json({

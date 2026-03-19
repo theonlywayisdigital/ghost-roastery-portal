@@ -40,9 +40,11 @@ interface PipelineBoardProps {
   apiBase: string;
   detailBase: string;
   businessDetailBase: string;
+  stagesSettingsHref?: string;
+  stagesApiBase?: string;
 }
 
-export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: PipelineBoardProps) {
+export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesSettingsHref, stagesApiBase = "/api/pipeline-stages" }: PipelineBoardProps) {
   const router = useRouter();
   const [items, setItems] = useState<PipelineItem[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
@@ -82,7 +84,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     try {
       const [pipelineRes, stagesRes] = await Promise.all([
         fetch(`${apiBase}/pipeline`),
-        fetch("/api/pipeline-stages"),
+        fetch(stagesApiBase),
       ]);
 
       if (pipelineRes.ok) {
@@ -97,7 +99,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       console.error("Failed to load pipeline:", err);
     }
     setLoading(false);
-  }, [apiBase]);
+  }, [apiBase, stagesApiBase]);
 
   useEffect(() => {
     loadPipeline();
@@ -163,9 +165,9 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       // Build the update body
       const body: Record<string, unknown> = { lead_status: targetStage };
 
-      // If moving to a win stage, add "retail" to types if not already present
-      if (isWinStage && !item.types.includes("retail")) {
-        body.types = [...item.types, "retail"];
+      // If moving to a win stage, add "wholesale" to types if not already present
+      if (isWinStage && !item.types.includes("wholesale")) {
+        body.types = [...item.types, "wholesale"];
       }
 
       const res = await fetch(endpoint, {
@@ -176,12 +178,12 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
 
       if (!res.ok) {
         setItems(prevItems); // Revert on failure
-      } else if (isWinStage && !item.types.includes("retail")) {
+      } else if (isWinStage && !item.types.includes("wholesale")) {
         // Update local types too
         setItems((prev) =>
           prev.map((i) =>
             i.id === id && i.itemType === itemType
-              ? { ...i, types: [...i.types, "retail"] }
+              ? { ...i, types: [...i.types, "wholesale"] }
               : i
           )
         );
@@ -192,7 +194,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
   }
 
   async function handleDeleteItem(item: PipelineItem) {
-    // Optimistic removal
+    // Optimistic removal — clears lead_status (removes from pipeline without archiving)
     const prevItems = [...items];
     setItems((prev) => prev.filter((i) => !(i.id === item.id && i.itemType === item.itemType)));
 
@@ -201,11 +203,16 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
         ? `${apiBase.replace("/contacts", "/businesses")}/${item.id}`
         : `${apiBase}/${item.id}`;
 
-      const res = await fetch(endpoint, { method: "DELETE" });
+      const res = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_status: null }),
+      });
       if (!res.ok) {
         setItems(prevItems); // Revert on failure
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to remove from pipeline:", err);
       setItems(prevItems); // Revert on failure
     }
   }
@@ -241,7 +248,9 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           const data = await res.json();
           setContactResults((data.contacts || []).slice(0, 5));
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.error("Contact search failed:", err);
+      }
       setContactSearching(false);
     }, 300);
   }
@@ -290,7 +299,9 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           const data = await res.json();
           setBusinessResults((data.businesses || []).slice(0, 5));
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.error("Business search failed:", err);
+      }
       setBusinessSearching(false);
     }, 300);
   }
@@ -315,30 +326,43 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
     try {
       if (selectedContact) {
         // --- Existing contact ---
+
+        // Duplicate detection: check if already in pipeline
+        const alreadyInPipeline = items.some(
+          (i) => i.id === selectedContact.id && i.itemType === "contact"
+        );
+        if (alreadyInPipeline) {
+          alert("This contact is already in the pipeline.");
+          setCreatingDeal(false);
+          return;
+        }
+
+        // Build a single update body to avoid double PUT
         const contactTypes = [...(selectedContact.types || [])];
         if (!contactTypes.includes("lead")) contactTypes.push("lead");
+        const contactBody: Record<string, unknown> = { lead_status: defaultStageSlug, types: contactTypes };
+        if (selectedBusiness && !selectedContact.business_id) {
+          contactBody.business_id = selectedBusiness.id;
+        }
 
         await fetch(`${apiBase}/${selectedContact.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lead_status: defaultStageSlug, types: contactTypes }),
+          body: JSON.stringify(contactBody),
         });
 
-        // Link business if selected and contact has no business_id
-        if (selectedBusiness && !selectedContact.business_id) {
-          await fetch(`${apiBase}/${selectedContact.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ business_id: selectedBusiness.id }),
-          });
-        }
-
-        // Update business lead_status too if one is selected
+        // Update business lead_status too if one is selected (preserve existing types)
         if (selectedBusiness) {
+          const existingBizItem = items.find(
+            (i) => i.id === selectedBusiness.id && i.itemType === "business"
+          );
+          const bizTypes = [...(existingBizItem?.types || [])];
+          if (!bizTypes.includes("lead")) bizTypes.push("lead");
+
           await fetch(`${businessApi}/${selectedBusiness.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lead_status: defaultStageSlug, types: ["lead"] }),
+            body: JSON.stringify({ lead_status: defaultStageSlug, types: bizTypes }),
           });
         }
 
@@ -369,11 +393,17 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           }
         } else if (selectedBusiness) {
           businessId = selectedBusiness.id;
-          // Also update existing business lead_status
+          // Also update existing business lead_status (preserve existing types)
+          const existingBizItem = items.find(
+            (i) => i.id === selectedBusiness.id && i.itemType === "business"
+          );
+          const bizTypes = [...(existingBizItem?.types || [])];
+          if (!bizTypes.includes("lead")) bizTypes.push("lead");
+
           await fetch(`${businessApi}/${selectedBusiness.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lead_status: defaultStageSlug, types: ["lead"] }),
+            body: JSON.stringify({ lead_status: defaultStageSlug, types: bizTypes }),
           });
         }
 
@@ -398,8 +428,8 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           loadPipeline();
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to create deal:", err);
     }
     setCreatingDeal(false);
   }
@@ -425,13 +455,15 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
           {total} {total === 1 ? "lead" : "leads"} in pipeline
         </p>
         <div className="flex items-center gap-3">
-          <Link
-            href="/settings/pipeline-stages"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            Manage Stages
-          </Link>
+          {stagesSettingsHref && (
+            <Link
+              href={stagesSettingsHref}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Manage Stages
+            </Link>
+          )}
           <button
             onClick={() => {
               resetDealModal();
@@ -472,6 +504,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase }: Pipel
       {view === "list" ? (
         <PipelineList
           items={items}
+          stages={stages}
           detailBase={detailBase}
           businessDetailBase={businessDetailBase}
           isLoading={false}

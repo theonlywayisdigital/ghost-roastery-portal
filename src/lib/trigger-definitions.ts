@@ -8,7 +8,7 @@ const selectOps: FilterOperator[] = ["equals", "not_equals", "in", "not_in", "is
 const CONTACT_FILTERS = [
   { key: "contact.types", label: "Contact Type", type: "multiselect" as const, operators: selectOps, dynamicOptionsKey: "contact_types" },
   { key: "contact.status", label: "Contact Status", type: "select" as const, operators: selectOps, options: [{ value: "active", label: "Active" }, { value: "archived", label: "Archived" }] },
-  { key: "contact.lead_status", label: "Lead Status", type: "select" as const, operators: selectOps, options: [{ value: "new", label: "New" }, { value: "contacted", label: "Contacted" }, { value: "qualified", label: "Qualified" }, { value: "proposal", label: "Proposal" }, { value: "won", label: "Won" }, { value: "lost", label: "Lost" }] },
+  { key: "contact.lead_status", label: "Lead Status", type: "select" as const, operators: selectOps, dynamicOptionsKey: "pipeline_stages" },
   { key: "contact.source", label: "Source", type: "select" as const, operators: selectOps, dynamicOptionsKey: "contact_sources" },
   { key: "contact.total_spend", label: "Total Spend", type: "number" as const, operators: numOps },
   { key: "contact.order_count", label: "Order Count", type: "number" as const, operators: numOps },
@@ -66,13 +66,7 @@ export const TRIGGER_DEFINITIONS: TriggerDefinition[] = [
     bg: "bg-teal-50",
     category: "event",
     configFields: [
-      { key: "new_status", label: "New Status", type: "select", placeholder: "Any status", options: [
-        { value: "new", label: "New" },
-        { value: "contacted", label: "Contacted" },
-        { value: "qualified", label: "Qualified" },
-        { value: "won", label: "Won" },
-        { value: "lost", label: "Lost" },
-      ]},
+      { key: "new_status", label: "New Status", type: "select", placeholder: "Any status", dynamicOptionsKey: "pipeline_stages" },
     ],
     filterFields: CONTACT_FILTERS,
   },

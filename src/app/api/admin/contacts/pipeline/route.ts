@@ -10,6 +10,26 @@ export async function GET() {
 
   const supabase = createServerClient();
 
+  // Fetch ghost_roastery pipeline stages dynamically
+  const { data: stageRows } = await supabase
+    .from("pipeline_stages")
+    .select("slug")
+    .is("roaster_id", null)
+    .order("sort_order", { ascending: true });
+
+  // Fallback: if no ghost_roastery stages exist, fetch any stages (first roaster's defaults)
+  let stageSlugs = (stageRows || []).map((s) => s.slug);
+  if (stageSlugs.length === 0) {
+    const { data: fallbackRows } = await supabase
+      .from("pipeline_stages")
+      .select("slug")
+      .order("sort_order", { ascending: true })
+      .limit(10);
+    stageSlugs = Array.from(new Set((fallbackRows || []).map((s) => s.slug)));
+  }
+
+  const defaultSlug = stageSlugs[0] || "lead";
+
   // Fetch ghost_roastery contacts with lead/wholesale/prospect types
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
@@ -44,7 +64,7 @@ export async function GET() {
     email: c.email,
     businessName: c.business_name,
     source: c.source || "manual",
-    leadStatus: c.lead_status || "new",
+    leadStatus: c.lead_status || defaultSlug,
     totalSpend: c.total_spend || 0,
     types: (c.types as string[]) || [],
     createdAt: c.created_at,
@@ -58,7 +78,7 @@ export async function GET() {
     email: b.email,
     businessName: null,
     source: b.source || "manual",
-    leadStatus: b.lead_status || "new",
+    leadStatus: b.lead_status || defaultSlug,
     totalSpend: b.total_spend || 0,
     types: (b.types as string[]) || [],
     createdAt: b.created_at,
@@ -66,8 +86,7 @@ export async function GET() {
 
   const items = [...contactItems, ...businessItems];
 
-  // Count by stage — admin pipeline uses a static set since it spans all roasters
-  const stageSlugs = ["lead", "contacted", "access_granted", "won", "lost"];
+  // Count by stage using dynamic stage slugs
   const counts: Record<string, number> = {};
   for (const slug of stageSlugs) {
     counts[slug] = 0;
@@ -75,8 +94,8 @@ export async function GET() {
   for (const item of items) {
     if (item.leadStatus in counts) {
       counts[item.leadStatus]++;
-    } else {
-      counts[stageSlugs[0]]++;
+    } else if (defaultSlug in counts) {
+      counts[defaultSlug]++;
     }
   }
 

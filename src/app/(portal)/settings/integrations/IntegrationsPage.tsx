@@ -90,7 +90,7 @@ interface ExportResult {
   total: number;
 }
 
-type IntegrationsTab = "payments" | "accounting" | "webhooks";
+type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks";
 
 interface StripeStatus {
   connected: boolean;
@@ -1801,7 +1801,17 @@ export function IntegrationsPage() {
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >
-            Accounting & Ecommerce
+            Accounting
+          </button>
+          <button
+            onClick={() => switchTab("ecommerce")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "ecommerce"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Ecommerce
           </button>
           <button
             onClick={() => switchTab("webhooks")}
@@ -1967,7 +1977,7 @@ export function IntegrationsPage() {
       )}
 
       {/* ═══════════════════════════════════════════════ */}
-      {/* Tab: Accounting & Ecommerce                    */}
+      {/* Tab: Accounting                                */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === "accounting" && (
         <>
@@ -1993,8 +2003,7 @@ export function IntegrationsPage() {
           )}
 
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">Accounting</h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500">
               Connect your accounting software to automatically sync invoices, contacts, and payments.
             </p>
           </div>
@@ -2028,10 +2037,45 @@ export function IntegrationsPage() {
             })}
           </div>
 
-          {/* Ecommerce section */}
-          <div className="mt-8 mb-6">
-            <h2 className="text-lg font-semibold text-slate-900">Ecommerce</h2>
-            <p className="text-sm text-slate-500 mt-1">
+          {/* Info section */}
+          <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+              What gets synced?
+            </h3>
+            <ul className="text-sm text-slate-600 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Invoices</strong> — automatically created when you generate
+                  an invoice
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Contacts</strong> — synced when you approve a wholesale
+                  buyer or create a contact
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Payments</strong> — recorded when invoice payments are
+                  logged
+                </span>
+              </li>
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Ecommerce                                 */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "ecommerce" && (
+        <>
+          <div className="mb-6">
+            <p className="text-sm text-slate-500">
               Connect your online store to sync products, orders, and stock levels.
             </p>
           </div>
@@ -2118,36 +2162,6 @@ export function IntegrationsPage() {
               </Link>
             </div>
           )}
-
-          {/* Info section */}
-          <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-5">
-            <h3 className="text-sm font-semibold text-slate-900 mb-2">
-              What gets synced?
-            </h3>
-            <ul className="text-sm text-slate-600 space-y-1.5">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Invoices</strong> — automatically created when you generate
-                  an invoice
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Contacts</strong> — synced when you approve a wholesale
-                  buyer or create a contact
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Payments</strong> — recorded when invoice payments are
-                  logged
-                </span>
-              </li>
-            </ul>
-          </div>
         </>
       )}
 

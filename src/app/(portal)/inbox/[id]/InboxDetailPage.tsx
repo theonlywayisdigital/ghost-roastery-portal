@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,11 +11,15 @@ import {
   MailOpen,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ShoppingCart,
   FileText,
   Loader2,
   CheckCircle,
   AlertTriangle,
+  Sparkles,
+  Edit2,
+  Lock,
 } from "@/components/icons";
 
 interface Attachment {
@@ -71,6 +75,9 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
+  const [showConvertDropdown, setShowConvertDropdown] = useState(false);
+  const [aiCreditsLimit, setAiCreditsLimit] = useState<number | null>(null);
+  const convertDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/inbox/${messageId}`)
@@ -79,6 +86,30 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [messageId]);
+
+  // Close convert dropdown on outside click
+  useEffect(() => {
+    if (!showConvertDropdown) return;
+    function handleClick(e: MouseEvent) {
+      if (convertDropdownRef.current && !convertDropdownRef.current.contains(e.target as Node)) {
+        setShowConvertDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showConvertDropdown]);
+
+  // Lazily fetch AI credits limit when dropdown opens
+  useEffect(() => {
+    if (!showConvertDropdown || aiCreditsLimit !== null) return;
+    fetch("/api/usage")
+      .then((r) => r.json())
+      .then((data) => {
+        const limit = data.limits?.aiCreditsPerMonth?.limit ?? 0;
+        setAiCreditsLimit(limit);
+      })
+      .catch(() => setAiCreditsLimit(0));
+  }, [showConvertDropdown, aiCreditsLimit]);
 
   async function handleArchive() {
     if (!message) return;
@@ -117,16 +148,50 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
     setMessage({ ...message, is_read: newRead });
   }
 
-  async function handleConvertToOrder() {
+  // Look up the sender email against the roaster's contacts
+  async function lookupSenderContact(): Promise<Record<string, unknown> | null> {
+    if (!message?.from_email) return null;
+    try {
+      const res = await fetch(
+        `/api/contacts?search=${encodeURIComponent(message.from_email)}&status=all&page=1`
+      );
+      const data = await res.json();
+      const contacts = data.contacts || [];
+      // Find exact email match (search is ilike so may return partial matches)
+      const match = contacts.find(
+        (c: { email: string }) => c.email?.toLowerCase() === message.from_email.toLowerCase()
+      );
+      if (match) {
+        return {
+          contact_id: match.id,
+          first_name: match.first_name,
+          last_name: match.last_name,
+          email: match.email,
+          phone: match.phone || null,
+          business_id: match.business_id || null,
+          business_name: match.business_name || match.businesses?.name || null,
+        };
+      }
+    } catch {
+      // Lookup failed — fall through to no match
+    }
+    return null;
+  }
+
+  async function handleConvertWithAI() {
+    setShowConvertDropdown(false);
     setExtracting(true);
     setExtractError("");
     try {
-      const res = await fetch(`/api/inbox/${messageId}/extract-order`, {
-        method: "POST",
-      });
-      const data = await res.json();
+      // Run AI extraction and sender contact lookup in parallel
+      const [extractRes, senderContact] = await Promise.all([
+        fetch(`/api/inbox/${messageId}/extract-order`, { method: "POST" }),
+        lookupSenderContact(),
+      ]);
 
-      if (!res.ok) {
+      const data = await extractRes.json();
+
+      if (!extractRes.ok) {
         setExtractError(data.error || "Extraction failed");
         return;
       }
@@ -141,22 +206,55 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
         return;
       }
 
+      // If AI didn't match a contact but the sender email matches one, use that
+      const storageData: Record<string, unknown> = {
+        ...extraction,
+        inboxMessageId: messageId,
+        fromEmail: message?.from_email,
+        fromName: message?.from_name,
+        subject: message?.subject,
+      };
+
+      if (senderContact && !extraction.customer?.matched_contact_id) {
+        storageData.senderContact = senderContact;
+      }
+
       // Store extraction data in sessionStorage for the create order page to pick up
       sessionStorage.setItem(
         "inbox_order_extraction",
+        JSON.stringify(storageData)
+      );
+
+      // Navigate to create order page with messageId for split-screen
+      router.push(`/orders/new?from=inbox&messageId=${messageId}`);
+    } catch {
+      setExtractError("Failed to extract order details. Please try again.");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handleConvertManually() {
+    setShowConvertDropdown(false);
+    setExtracting(true);
+    try {
+      // Look up sender email against contacts before navigating
+      const senderContact = await lookupSenderContact();
+
+      // Store minimal data in sessionStorage
+      sessionStorage.setItem(
+        "inbox_order_extraction",
         JSON.stringify({
-          ...extraction,
           inboxMessageId: messageId,
           fromEmail: message?.from_email,
           fromName: message?.from_name,
           subject: message?.subject,
+          manual: true,
+          senderContact: senderContact || undefined,
         })
       );
 
-      // Navigate to create order page
-      router.push("/orders/new?from=inbox");
-    } catch {
-      setExtractError("Failed to extract order details. Please try again.");
+      router.push(`/orders/new?from=inbox&messageId=${messageId}`);
     } finally {
       setExtracting(false);
     }
@@ -214,7 +312,7 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
           <div className="flex-1">
             <p className="text-sm text-amber-800">{extractError}</p>
             <button
-              onClick={() => router.push("/orders/new")}
+              onClick={handleConvertManually}
               className="text-sm text-amber-700 underline mt-1 hover:text-amber-900"
             >
               Create order manually
@@ -286,24 +384,79 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
                 <CheckCircle className="w-4 h-4" />
                 View Order
               </Link>
-            ) : (
+            ) : extracting ? (
               <button
-                onClick={handleConvertToOrder}
-                disabled={extracting || actionLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                disabled
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white opacity-50 cursor-not-allowed"
               >
-                {extracting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Extracting...
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="w-4 h-4" />
-                    Convert to Order
-                  </>
-                )}
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Extracting...
               </button>
+            ) : (
+              <div className="relative" ref={convertDropdownRef}>
+                <button
+                  onClick={() => setShowConvertDropdown(!showConvertDropdown)}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  Convert to Order
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+
+                {showConvertDropdown && (
+                  <div className="absolute right-0 z-30 mt-1.5 w-72 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                    {/* AI option */}
+                    {aiCreditsLimit === 0 ? (
+                      <div className="px-4 py-3 flex items-start gap-3 opacity-60 cursor-not-allowed">
+                        <Lock className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-400">Convert with AI</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            AI extraction is available on paid plans.{" "}
+                            <Link
+                              href="/settings/billing?tab=subscription"
+                              className="text-brand-600 hover:text-brand-700 underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Upgrade
+                            </Link>
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleConvertWithAI}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-start gap-3"
+                      >
+                        <Sparkles className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">Convert with AI</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Automatically extract order details from the email
+                          </p>
+                        </div>
+                      </button>
+                    )}
+
+                    <div className="border-t border-slate-100" />
+
+                    {/* Manual option */}
+                    <button
+                      onClick={handleConvertManually}
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-start gap-3"
+                    >
+                      <Edit2 className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Convert manually</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Create an order with the email visible alongside the form
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             <button

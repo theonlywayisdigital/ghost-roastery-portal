@@ -15,7 +15,11 @@ import {
   Loader2,
   AlertTriangle,
   Mail,
+  PanelLeftClose,
+  PanelLeftOpen,
+  FileText,
 } from "@/components/icons";
+import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/admin";
 
 // ── Interfaces ──
@@ -99,6 +103,16 @@ interface CreateOrderPageProps {
   roasterId: string;
 }
 
+interface SenderContact {
+  contact_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  business_id: string | null;
+  business_name: string | null;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ExtractionData {
   customer: { name: string | null; email: string | null; business_name: string | null; matched_contact_id: string | null };
@@ -111,6 +125,162 @@ interface ExtractionData {
   fromEmail?: string;
   fromName?: string;
   subject?: string;
+  manual?: boolean;
+  senderContact?: SenderContact;
+}
+
+// ── Email Panel ──
+
+interface EmailPanelMessage {
+  from_email: string;
+  from_name: string | null;
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
+  received_at: string;
+  attachments?: { filename: string; content_type: string; size: number; url: string }[];
+}
+
+function EmailPanel({
+  messageId,
+  isOpen,
+  onToggle,
+}: {
+  messageId: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const [email, setEmail] = useState<EmailPanelMessage | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/inbox/${messageId}`)
+      .then((r) => r.json())
+      .then(setEmail)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [messageId]);
+
+  return (
+    <>
+      {/* Collapsible email panel */}
+      <div
+        className={cn(
+          "shrink-0 border-r border-slate-200 bg-white overflow-hidden transition-all duration-200",
+          isOpen ? "w-full lg:w-[480px]" : "w-0"
+        )}
+      >
+        <div className="w-full lg:w-[480px] h-full overflow-y-auto">
+          {/* Panel header */}
+          <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <Mail className="w-4 h-4 text-slate-500" />
+              Source Email
+            </h3>
+            <button
+              onClick={onToggle}
+              className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors lg:hidden"
+              title="Hide email"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
+            </div>
+          ) : email ? (
+            <div className="p-4 space-y-4">
+              {/* Email metadata */}
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-slate-500 w-14 shrink-0">From</span>
+                  <span className="text-slate-900 font-medium">
+                    {email.from_name
+                      ? `${email.from_name} <${email.from_email}>`
+                      : email.from_email}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-slate-500 w-14 shrink-0">Subject</span>
+                  <span className="text-slate-700">
+                    {email.subject || "(No subject)"}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-sm">
+                  <span className="text-slate-500 w-14 shrink-0">Date</span>
+                  <span className="text-slate-500">
+                    {new Date(email.received_at).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {email.attachments && email.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {email.attachments.map((att, i) => (
+                    <a
+                      key={i}
+                      href={att.url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-200 text-xs text-slate-600 hover:bg-slate-50",
+                        !att.url && "pointer-events-none opacity-50"
+                      )}
+                    >
+                      <FileText className="w-3 h-3" />
+                      {att.filename}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              <div className="border-t border-slate-100" />
+
+              {/* Email body */}
+              {email.body_html ? (
+                <div
+                  className="prose prose-sm max-w-none prose-slate"
+                  dangerouslySetInnerHTML={{ __html: email.body_html }}
+                />
+              ) : email.body_text ? (
+                <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                  {email.body_text}
+                </pre>
+              ) : (
+                <p className="text-slate-400 text-sm italic">No content</p>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-sm text-slate-400">
+              Failed to load email
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Toggle button (desktop only — between panels) */}
+      <button
+        onClick={onToggle}
+        className="hidden lg:flex shrink-0 w-6 items-center justify-center border-r border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+        title={isOpen ? "Hide email" : "Show email"}
+      >
+        {isOpen ? (
+          <PanelLeftClose className="w-4 h-4" />
+        ) : (
+          <PanelLeftOpen className="w-4 h-4" />
+        )}
+      </button>
+    </>
+  );
 }
 
 export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
@@ -151,6 +321,10 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     unmatchedItems: string[];
     subject?: string;
   } | null>(null);
+
+  // ── Email panel state ──
+  const emailMessageId = searchParams.get("messageId");
+  const [emailPanelOpen, setEmailPanelOpen] = useState(true);
 
   // ── Contact search state ──
   const [contactSearch, setContactSearch] = useState("");
@@ -258,13 +432,37 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
       // Set inbox message ID for marking as converted after order creation
       setInboxMessageId(ext.inboxMessageId);
 
+      // Manual conversion — pre-fill from matched sender contact or raw sender info
+      if (ext.manual) {
+        if (ext.senderContact) {
+          // Sender email matched an existing contact — auto-select them
+          setSelectedContact({
+            id: ext.senderContact.contact_id,
+            first_name: ext.senderContact.first_name,
+            last_name: ext.senderContact.last_name,
+            email: ext.senderContact.email,
+            phone: ext.senderContact.phone || undefined,
+            business_name: ext.senderContact.business_name || undefined,
+          });
+          setCustomerName(`${ext.senderContact.first_name} ${ext.senderContact.last_name}`.trim());
+          setCustomerEmail(ext.senderContact.email || "");
+          setCustomerBusiness(ext.senderContact.business_name || "");
+          setCustomerPhone(ext.senderContact.phone || "");
+        } else {
+          setCustomerMode("manual");
+          setCustomerName(ext.fromName || "");
+          setCustomerEmail(ext.fromEmail || "");
+        }
+        return;
+      }
+
       // Set channel
       const channel = ext.order_channel === "retail" ? "storefront" : "wholesale";
       setOrderChannel(channel as "wholesale" | "storefront");
 
       // Set customer info
       if (ext.customer.matched_contact_id) {
-        // Fetch the contact to populate all fields
+        // AI matched a contact — fetch to populate all fields
         fetch(`/api/contacts?search=${encodeURIComponent(ext.customer.email || ext.customer.name || "")}&status=all&page=1`)
           .then((r) => r.json())
           .then((data) => {
@@ -280,6 +478,20 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
             }
           })
           .catch(() => {});
+      } else if (ext.senderContact) {
+        // AI didn't match a contact but sender email matched one — auto-select
+        setSelectedContact({
+          id: ext.senderContact.contact_id,
+          first_name: ext.senderContact.first_name,
+          last_name: ext.senderContact.last_name,
+          email: ext.senderContact.email,
+          phone: ext.senderContact.phone || undefined,
+          business_name: ext.senderContact.business_name || undefined,
+        });
+        setCustomerName(`${ext.senderContact.first_name} ${ext.senderContact.last_name}`.trim());
+        setCustomerEmail(ext.senderContact.email || "");
+        setCustomerBusiness(ext.senderContact.business_name || "");
+        setCustomerPhone(ext.senderContact.phone || "");
       } else {
         // No contact match — pre-fill from extraction or email sender
         setCustomerMode("manual");
@@ -492,8 +704,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     }
   };
 
-  return (
-    <div>
+  // ── Form content (used in both layouts) ──
+  const formContent = (
+    <>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
@@ -504,6 +717,15 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-2xl font-bold text-slate-900">Create Order</h1>
+          {emailMessageId && !emailPanelOpen && (
+            <button
+              onClick={() => setEmailPanelOpen(true)}
+              className="lg:hidden ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Show Email
+            </button>
+          )}
         </div>
         <p className="text-slate-500">
           Manually create an order for a customer.
@@ -1244,6 +1466,28 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
             {isSubmitting ? "Creating..." : "Create Order"}
           </button>
         </div>
+      </div>
+    </>
+  );
+
+  // ── No email panel — render form directly ──
+  if (!emailMessageId) {
+    return <div>{formContent}</div>;
+  }
+
+  // ── Split-screen layout with email panel ──
+  return (
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] -m-6">
+      {/* Email panel + toggle */}
+      <EmailPanel
+        messageId={emailMessageId}
+        isOpen={emailPanelOpen}
+        onToggle={() => setEmailPanelOpen(!emailPanelOpen)}
+      />
+
+      {/* Order form */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {formContent}
       </div>
     </div>
   );

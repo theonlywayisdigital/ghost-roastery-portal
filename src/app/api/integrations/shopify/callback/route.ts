@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  console.log("[shopify] Callback received — roasterId:", roasterId, "shop:", shop, "hasSession:", !!user);
+
   try {
     // Exchange code for offline access token
     const tokenRes = await fetch(
@@ -200,6 +202,8 @@ export async function GET(request: NextRequest) {
         `${portalUrl}/settings/integrations?error=save_failed`
       );
     }
+
+    console.log("[shopify] Connection saved successfully for roaster:", roasterId, "shop:", normalizedShop);
 
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?success=shopify`

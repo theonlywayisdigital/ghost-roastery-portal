@@ -39,6 +39,8 @@ interface ProductVariant {
   unit: string | null;
   retail_price: number | null;
   wholesale_price: number | null;
+  wholesale_price_preferred: number | null;
+  wholesale_price_vip: number | null;
   channel: string | null;
   is_active: boolean;
 }
@@ -50,11 +52,15 @@ interface Product {
   unit: string;
   retail_price: number | null;
   wholesale_price: number | null;
+  wholesale_price_preferred: number | null;
+  wholesale_price_vip: number | null;
   is_retail: boolean;
   is_wholesale: boolean;
   status: string;
   product_variants: ProductVariant[];
 }
+
+type PriceTier = "standard" | "preferred" | "vip" | null;
 
 interface OrderItem {
   productId: string;
@@ -86,9 +92,20 @@ function getVariantLabel(v: ProductVariant): string {
 function getPrice(
   product: Product,
   variant: ProductVariant | null,
-  channel: "wholesale" | "storefront"
+  channel: "wholesale" | "storefront",
+  tier?: PriceTier
 ): number {
   if (channel === "wholesale") {
+    // Check tiered pricing first (preferred / vip)
+    if (tier === "vip") {
+      if (variant?.wholesale_price_vip != null) return variant.wholesale_price_vip;
+      if (product.wholesale_price_vip != null) return product.wholesale_price_vip;
+    }
+    if (tier === "preferred") {
+      if (variant?.wholesale_price_preferred != null) return variant.wholesale_price_preferred;
+      if (product.wholesale_price_preferred != null) return product.wholesale_price_preferred;
+    }
+    // Fall back to standard wholesale price
     if (variant?.wholesale_price != null) return variant.wholesale_price;
     if (product.wholesale_price != null) return product.wholesale_price;
     return product.price || 0;
@@ -343,6 +360,10 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   const [isSearchingProducts, setIsSearchingProducts] = useState(false);
   const productSearchRef = useRef<HTMLDivElement>(null);
 
+  // ── Price tier & product cache for re-pricing ──
+  const [customerPriceTier, setCustomerPriceTier] = useState<PriceTier>(null);
+  const productCacheRef = useRef<Map<string, Product>>(new Map());
+
   // ── Contact search (debounced) ──
   useEffect(() => {
     if (contactDebounceRef.current) clearTimeout(contactDebounceRef.current);
@@ -481,6 +502,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
               setCustomerEmail(match.email || "");
               setCustomerBusiness(match.business_name || "");
               setCustomerPhone(match.phone || "");
+              // Fetch price tier
+              fetch(`/api/contacts/${match.id}`)
+                .then((r2) => r2.json())
+                .then((d) => {
+                  const tier = d.wholesaleAccess?.price_tier as PriceTier;
+                  setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+                })
+                .catch(() => {});
             }
           })
           .catch(() => {});
@@ -498,6 +527,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
         setCustomerEmail(ext.senderContact.email || "");
         setCustomerBusiness(ext.senderContact.business_name || "");
         setCustomerPhone(ext.senderContact.phone || "");
+        // Fetch price tier
+        fetch(`/api/contacts/${ext.senderContact.contact_id}`)
+          .then((r) => r.json())
+          .then((d) => {
+            const tier = d.wholesaleAccess?.price_tier as PriceTier;
+            setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+          })
+          .catch(() => {});
       } else {
         // No contact match — pre-fill from extraction or email sender
         setCustomerMode("manual");
@@ -527,6 +564,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
               if (extractedItem.matched_product_id) {
                 const product = allProducts.find((p) => p.id === extractedItem.matched_product_id);
                 if (product) {
+                  // Cache product for re-pricing on channel switch
+                  productCacheRef.current.set(product.id, product);
                   let variant: ProductVariant | undefined;
                   if (extractedItem.matched_variant_id) {
                     variant = product.product_variants.find(
@@ -585,6 +624,15 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     setCustomerPhone(contact.phone || "");
     setContactSearch("");
     setShowContactDropdown(false);
+
+    // Fetch price tier for wholesale contacts
+    fetch(`/api/contacts/${contact.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const tier = data.wholesaleAccess?.price_tier as PriceTier;
+        setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+      })
+      .catch(() => setCustomerPriceTier(null));
   }
 
   function handleClearContact() {
@@ -593,11 +641,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     setCustomerEmail("");
     setCustomerBusiness("");
     setCustomerPhone("");
+    setCustomerPriceTier(null);
   }
 
   // ── Add product ──
   function handleAddProduct(product: Product, variant?: ProductVariant) {
-    const unitPrice = getPrice(product, variant || null, orderChannel);
+    // Cache product data for re-pricing on channel switch
+    productCacheRef.current.set(product.id, product);
+    const unitPrice = getPrice(product, variant || null, orderChannel, customerPriceTier);
     const newItem: OrderItem = {
       productId: product.id,
       productName: product.name,
@@ -632,8 +683,31 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     );
   }
 
-  // ── Recalculate prices when channel changes ──
-  // (We don't auto-recalculate since prices are editable and user may have overridden them)
+  // ── Recalculate prices when channel or price tier changes ──
+  const prevChannelRef = useRef(orderChannel);
+  const prevTierRef = useRef(customerPriceTier);
+  useEffect(() => {
+    const channelChanged = prevChannelRef.current !== orderChannel;
+    const tierChanged = prevTierRef.current !== customerPriceTier;
+    prevChannelRef.current = orderChannel;
+    prevTierRef.current = customerPriceTier;
+
+    if (!channelChanged && !tierChanged) return;
+    if (items.length === 0) return;
+
+    // Recalculate prices for all items using cached product data
+    setItems((prev) =>
+      prev.map((item) => {
+        const product = productCacheRef.current.get(item.productId);
+        if (!product) return item;
+        const variant = item.variantId
+          ? product.product_variants?.find((v) => v.id === item.variantId) || null
+          : null;
+        const newPrice = getPrice(product, variant, orderChannel, customerPriceTier);
+        return { ...item, unitPrice: newPrice };
+      })
+    );
+  }, [orderChannel, customerPriceTier, items.length]);
 
   // ── Subtotal ──
   const subtotal = items.reduce(
@@ -1084,7 +1158,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                                         getPrice(
                                           product,
                                           variant,
-                                          orderChannel
+                                          orderChannel,
+                                          customerPriceTier
                                         )
                                       )}
                                     </span>
@@ -1112,7 +1187,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                               </div>
                               <span className="text-sm font-medium text-slate-900">
                                 {formatPrice(
-                                  getPrice(product, null, orderChannel)
+                                  getPrice(product, null, orderChannel, customerPriceTier)
                                 )}
                               </span>
                             </div>

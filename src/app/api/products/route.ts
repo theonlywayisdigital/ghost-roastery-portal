@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = createServerClient();
   const { data: products, error } = await supabase
     .from("products")
-    .select("*, product_variants(id, weight_grams, unit, retail_price, wholesale_price, channel, is_active), roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active), green_beans(id, name, current_stock_kg, low_stock_threshold_kg, is_active)")
+    .select("*, product_variants(id, weight_grams, unit, retail_price, wholesale_price, wholesale_price_preferred, wholesale_price_vip, channel, is_active), roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active), green_beans(id, name, current_stock_kg, low_stock_threshold_kg, is_active)")
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });

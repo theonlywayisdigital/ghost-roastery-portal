@@ -9,7 +9,7 @@ import {
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) {
-    const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+    const portalUrl = process.env.PORTAL_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=unauthorized`
     );
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get("state");
   const realmId = searchParams.get("realmId");
   const error = searchParams.get("error");
-  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+  const portalUrl = process.env.PORTAL_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
 
   if (error) {
     return NextResponse.redirect(

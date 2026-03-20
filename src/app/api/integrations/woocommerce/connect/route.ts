@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
     // Register webhooks
     const webhookIds: Record<string, number> = {};
-    const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
+    const portalUrl = process.env.PORTAL_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
     const webhookUrl = `${portalUrl}/api/webhooks/woocommerce`;
     const webhookTopics = ["order.created", "product.updated"];
 

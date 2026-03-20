@@ -8,8 +8,27 @@ import {
 } from "@/lib/ecommerce-order";
 import { handleInboundProductUpdate } from "@/lib/ecommerce-stock-sync";
 
+// Simple health check — confirm the route is reachable
+export async function GET() {
+  return NextResponse.json({
+    status: "ok",
+    route: "/api/webhooks/shopify",
+    timestamp: new Date().toISOString(),
+    hasSecret: !!process.env.SHOPIFY_CLIENT_SECRET,
+  });
+}
+
 export async function POST(request: Request) {
-  const body = await request.text();
+  // Log IMMEDIATELY — before any parsing or verification
+  console.log("[shopify-webhook] ===== REQUEST RECEIVED =====");
+
+  let body: string;
+  try {
+    body = await request.text();
+  } catch (readErr) {
+    console.error("[shopify-webhook] Failed to read body:", readErr);
+    return NextResponse.json({ error: "Body read failed" }, { status: 400 });
+  }
 
   // ─── Verify HMAC signature ──────────────────────────────────────
   const hmacHeader = request.headers.get("x-shopify-hmac-sha256");
@@ -17,7 +36,7 @@ export async function POST(request: Request) {
   const topic = request.headers.get("x-shopify-topic");
 
   console.log(
-    `[shopify-webhook] Received: topic=${topic}, shop=${shopDomain}, bodyLen=${body.length}`
+    `[shopify-webhook] topic=${topic}, shop=${shopDomain}, hmac=${hmacHeader ? "present" : "MISSING"}, bodyLen=${body.length}`
   );
 
   if (!hmacHeader || !shopDomain) {
@@ -27,7 +46,7 @@ export async function POST(request: Request) {
 
   const secret = process.env.SHOPIFY_CLIENT_SECRET;
   if (!secret) {
-    console.error("[shopify-webhook] SHOPIFY_CLIENT_SECRET not set");
+    console.error("[shopify-webhook] SHOPIFY_CLIENT_SECRET not set — env var missing on server");
     return NextResponse.json({ error: "Config error" }, { status: 500 });
   }
 
@@ -37,9 +56,13 @@ export async function POST(request: Request) {
     .digest("base64");
 
   if (computed !== hmacHeader) {
-    console.error("[shopify-webhook] HMAC verification failed");
+    console.error(
+      `[shopify-webhook] HMAC mismatch — computed=${computed.substring(0, 10)}..., received=${hmacHeader.substring(0, 10)}..., secretLen=${secret.length}, secretStart=${secret.substring(0, 6)}`
+    );
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  console.log("[shopify-webhook] HMAC verified OK");
 
   const payload = JSON.parse(body);
 

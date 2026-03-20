@@ -27,6 +27,7 @@ export async function GET() {
 
   return NextResponse.json({
     connected: true,
+    connection_id: connection.id,
     is_active: connection.is_active,
     store_url: connection.store_url,
     shop_name: connection.shop_name,

@@ -12,6 +12,9 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Download,
+  Package,
+  Check,
 } from "lucide-react";
 
 interface AccountOption {
@@ -24,6 +27,7 @@ interface AccountOption {
 
 interface EcommerceStatus {
   connected: boolean;
+  connection_id?: string;
   is_active?: boolean;
   store_url?: string;
   shop_name?: string;
@@ -34,6 +38,26 @@ interface EcommerceStatus {
   last_order_sync_at?: string | null;
   last_stock_sync_at?: string | null;
   connected_at?: string | null;
+}
+
+interface PreviewProduct {
+  external_id: string;
+  name: string;
+  image_url: string | null;
+  price: string | null;
+  sku: string | null;
+  variant_count: number;
+  status: string;
+  already_imported: boolean;
+  mapped_product_id: string | null;
+}
+
+interface ImportResult {
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors?: string[];
+  total: number;
 }
 
 interface IntegrationStatus {
@@ -93,6 +117,15 @@ export function IntegrationsPage() {
   const [wooShowSecret, setWooShowSecret] = useState(false);
   const [wooConnecting, setWooConnecting] = useState(false);
   const [wooError, setWooError] = useState<string | null>(null);
+
+  // Import modal state
+  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | null>(null);
+  const [importConnectionId, setImportConnectionId] = useState<string | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importProducts, setImportProducts] = useState<PreviewProduct[]>([]);
+  const [importSelected, setImportSelected] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -327,6 +360,109 @@ export function IntegrationsPage() {
       setWooError("Could not connect. Please check your details and try again.");
     } finally {
       setWooConnecting(false);
+    }
+  }
+
+  async function handleOpenImportModal(
+    provider: "shopify" | "woocommerce",
+    connectionId: string
+  ) {
+    setImportModalProvider(provider);
+    setImportConnectionId(connectionId);
+    setImportLoading(true);
+    setImportProducts([]);
+    setImportSelected(new Set());
+    setImportResult(null);
+
+    try {
+      const res = await fetch(
+        `/api/integrations/ecommerce/preview-products?connectionId=${connectionId}`
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch products");
+      }
+      setImportProducts(data.products || []);
+      // Auto-select all not-yet-imported products
+      const newSelection = new Set<string>();
+      for (const p of data.products || []) {
+        if (!p.already_imported) {
+          newSelection.add(p.external_id);
+        }
+      }
+      setImportSelected(newSelection);
+    } catch (err) {
+      console.error("[import] Preview error:", err);
+      setImportProducts([]);
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function handleToggleImportSelect(externalId: string) {
+    setImportSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(externalId)) {
+        next.delete(externalId);
+      } else {
+        next.add(externalId);
+      }
+      return next;
+    });
+  }
+
+  function handleSelectAllImport() {
+    const importable = importProducts.filter((p) => !p.already_imported);
+    if (importSelected.size === importable.length) {
+      setImportSelected(new Set());
+    } else {
+      setImportSelected(new Set(importable.map((p) => p.external_id)));
+    }
+  }
+
+  async function handleRunImport() {
+    if (!importConnectionId || importSelected.size === 0) return;
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const res = await fetch(
+        "/api/integrations/ecommerce/import-products",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connectionId: importConnectionId,
+            selectedProductIds: Array.from(importSelected),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setImportResult({
+          imported: 0,
+          updated: 0,
+          skipped: 0,
+          errors: [data.error || "Import failed"],
+          total: 0,
+        });
+        return;
+      }
+      setImportResult(data);
+      // Reload ecommerce status to get updated last sync timestamp
+      loadStatus();
+    } catch (err) {
+      setImportResult({
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [
+          err instanceof Error ? err.message : "Import failed",
+        ],
+        total: 0,
+      });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -788,6 +924,17 @@ export function IntegrationsPage() {
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              {status.connection_id && (
+                <button
+                  onClick={() =>
+                    handleOpenImportModal(provider, status.connection_id!)
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Import Products
+                </button>
+              )}
               <button
                 onClick={() => handleEcomDisconnect(provider)}
                 disabled={ecomDisconnecting === provider}
@@ -1092,6 +1239,239 @@ export function IntegrationsPage() {
           </li>
         </ul>
       </div>
+
+      {/* Import Products Modal */}
+      {importModalProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Import Products from{" "}
+                  {importModalProvider === "shopify" ? "Shopify" : "WooCommerce"}
+                </h2>
+                {!importResult && !importLoading && importProducts.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {importProducts.length} product
+                    {importProducts.length !== 1 ? "s" : ""} found
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setImportModalProvider(null);
+                  setImportResult(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {importLoading && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin mb-3" />
+                  <p className="text-sm">
+                    Fetching products from your store...
+                  </p>
+                </div>
+              )}
+
+              {!importLoading && !importResult && importProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                  <Package className="w-8 h-8 mb-3" />
+                  <p className="text-sm">
+                    No products found in your store.
+                  </p>
+                </div>
+              )}
+
+              {!importLoading && !importResult && importProducts.length > 0 && (
+                <div>
+                  {/* Select all header */}
+                  <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 border-b border-slate-200">
+                    <button
+                      onClick={handleSelectAllImport}
+                      className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                    >
+                      <span
+                        className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          importSelected.size ===
+                          importProducts.filter((p) => !p.already_imported)
+                            .length && importSelected.size > 0
+                            ? "bg-brand-600 border-brand-600"
+                            : "border-slate-300"
+                        }`}
+                      >
+                        {importSelected.size ===
+                          importProducts.filter((p) => !p.already_imported)
+                            .length && importSelected.size > 0 && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
+                      </span>
+                      Select all ({importProducts.filter((p) => !p.already_imported).length})
+                    </button>
+                    {importSelected.size > 0 && (
+                      <span className="text-xs text-slate-500">
+                        {importSelected.size} selected
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Product list */}
+                  <div className="divide-y divide-slate-100">
+                    {importProducts.map((product) => (
+                      <div
+                        key={product.external_id}
+                        className={`flex items-center gap-3 px-6 py-3 ${
+                          product.already_imported
+                            ? "opacity-60 bg-slate-50"
+                            : "hover:bg-slate-50"
+                        }`}
+                      >
+                        {!product.already_imported ? (
+                          <button
+                            onClick={() =>
+                              handleToggleImportSelect(product.external_id)
+                            }
+                            className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                              importSelected.has(product.external_id)
+                                ? "bg-brand-600 border-brand-600"
+                                : "border-slate-300"
+                            }`}
+                          >
+                            {importSelected.has(product.external_id) && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="w-4 h-4 flex-shrink-0 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                          </span>
+                        )}
+
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-slate-400" />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {product.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            {product.sku && <span>SKU: {product.sku}</span>}
+                            {product.variant_count > 1 && (
+                              <span>
+                                {product.variant_count} variant
+                                {product.variant_count !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {product.already_imported && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                Already imported
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {product.price && (
+                          <span className="text-sm font-medium text-slate-700 flex-shrink-0">
+                            &pound;{parseFloat(product.price).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {importResult && (
+                <div className="p-6 space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-medium text-green-800">
+                      Import complete
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-2xl font-bold text-green-700">
+                          {importResult.imported}
+                        </p>
+                        <p className="text-xs text-green-600">Imported</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {importResult.updated}
+                        </p>
+                        <p className="text-xs text-blue-600">Updated</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-slate-500">
+                          {importResult.skipped}
+                        </p>
+                        <p className="text-xs text-slate-400">Skipped</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-amber-800 mb-2">
+                        Errors ({importResult.errors.length})
+                      </p>
+                      <ul className="text-xs text-amber-700 space-y-1">
+                        {importResult.errors.map((err, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            {err}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setImportModalProvider(null);
+                  setImportResult(null);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                {importResult ? "Done" : "Cancel"}
+              </button>
+
+              {!importResult && !importLoading && importProducts.length > 0 && (
+                <button
+                  onClick={handleRunImport}
+                  disabled={importing || importSelected.size === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  {importing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  {importing
+                    ? "Importing..."
+                    : `Import ${importSelected.size} Product${importSelected.size !== 1 ? "s" : ""}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Test Sync Result Modal */}
       {testSyncResult && (

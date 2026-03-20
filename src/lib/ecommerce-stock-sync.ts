@@ -86,6 +86,12 @@ export async function pushStockToChannels(
             externalVariantId,
             availableUnits
           );
+        } else if (conn.provider === "squarespace") {
+          await pushStockToSquarespace(
+            conn,
+            externalVariantId,
+            availableUnits
+          );
         }
       } catch (err) {
         console.error(
@@ -193,6 +199,14 @@ export async function pushProductToChannels(
         );
       } else if (conn.provider === "woocommerce") {
         await pushProductToWooCommerce(
+          conn,
+          mapping.external_product_id,
+          product,
+          variants || [],
+          externalVariantMap
+        );
+      } else if (conn.provider === "squarespace") {
+        await pushProductToSquarespace(
           conn,
           mapping.external_product_id,
           product,
@@ -563,6 +577,108 @@ async function pushStockToWooCommerce(
           stock_quantity: quantity,
           manage_stock: true,
         }),
+      }
+    );
+  }
+}
+
+// ─── Squarespace stock push ──────────────────────────────────────
+
+async function pushStockToSquarespace(
+  conn: { access_token: string },
+  variantId: string,
+  quantity: number
+): Promise<void> {
+  // Squarespace uses the inventory endpoint to update stock
+  await fetch(
+    `https://api.squarespace.com/1.0/commerce/inventory/${variantId}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${conn.access_token}`,
+        "Content-Type": "application/json",
+        "User-Agent": "GhostRoastery/1.0",
+      },
+      body: JSON.stringify({
+        quantity,
+        isUnlimited: false,
+      }),
+    }
+  );
+}
+
+// ─── Squarespace product push ─────────────────────────────────────
+
+async function pushProductToSquarespace(
+  conn: { access_token: string },
+  externalProductId: string,
+  product: {
+    name: string;
+    description: string | null;
+    image_url: string | null;
+    retail_price: number | null;
+    sku: string | null;
+    status: string;
+    weight_grams: number | null;
+    unit: string | null;
+  },
+  variants: {
+    id: string;
+    sku: string | null;
+    retail_price: number | null;
+    weight_grams: number | null;
+    unit: string | null;
+    is_active: boolean;
+  }[],
+  externalVariantMap: Record<string, string>
+): Promise<void> {
+  const headers = {
+    Authorization: `Bearer ${conn.access_token}`,
+    "Content-Type": "application/json",
+    "User-Agent": "GhostRoastery/1.0",
+  };
+
+  // Update product info
+  const productPayload: Record<string, unknown> = {
+    name: product.name,
+    description: product.description || "",
+    isVisible: product.status === "published",
+  };
+
+  await fetch(
+    `https://api.squarespace.com/1.0/commerce/products/${externalProductId}`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(productPayload),
+    }
+  );
+
+  // Update variants
+  for (const [ghostId, extId] of Object.entries(externalVariantMap)) {
+    const v = variants.find((vr) => vr.id === ghostId);
+    if (!v) continue;
+
+    const priceCents = Math.round(
+      (v.retail_price ?? product.retail_price ?? 0) * 100
+    );
+
+    const varPayload: Record<string, unknown> = {
+      pricing: {
+        basePrice: {
+          value: String(priceCents),
+          currency: "GBP",
+        },
+      },
+      sku: v.sku || product.sku || undefined,
+    };
+
+    await fetch(
+      `https://api.squarespace.com/1.0/commerce/products/${externalProductId}/variants/${extId}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(varPayload),
       }
     );
   }

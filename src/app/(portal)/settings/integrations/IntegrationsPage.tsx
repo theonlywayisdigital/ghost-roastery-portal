@@ -122,6 +122,7 @@ export function IntegrationsPage() {
   // Ecommerce integration state
   const [shopifyStatus, setShopifyStatus] = useState<EcommerceStatus | null>(null);
   const [wooStatus, setWooStatus] = useState<EcommerceStatus | null>(null);
+  const [sqStatus, setSqStatus] = useState<EcommerceStatus | null>(null);
   const [ecomDisconnecting, setEcomDisconnecting] = useState<string | null>(null);
   const [ecomToggling, setEcomToggling] = useState<string | null>(null);
 
@@ -138,8 +139,15 @@ export function IntegrationsPage() {
   const [wooConnecting, setWooConnecting] = useState(false);
   const [wooError, setWooError] = useState<string | null>(null);
 
+  // Squarespace connect form
+  const [showSqForm, setShowSqForm] = useState(false);
+  const [sqApiKey, setSqApiKey] = useState("");
+  const [sqShowKey, setSqShowKey] = useState(false);
+  const [sqConnecting, setSqConnecting] = useState(false);
+  const [sqError, setSqError] = useState<string | null>(null);
+
   // Import modal state
-  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | null>(null);
+  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | null>(null);
   const [importConnectionId, setImportConnectionId] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importProducts, setImportProducts] = useState<PreviewProduct[]>([]);
@@ -149,7 +157,7 @@ export function IntegrationsPage() {
   const [unmappedCount, setUnmappedCount] = useState(0);
 
   // Export modal state
-  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | null>(null);
+  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | null>(null);
   const [exportConnectionId, setExportConnectionId] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportProducts, setExportProducts] = useState<ExportableProduct[]>([]);
@@ -162,28 +170,31 @@ export function IntegrationsPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
         fetch("/api/integrations/quickbooks/status"),
         fetch("/api/integrations/shopify/status"),
         fetch("/api/integrations/woocommerce/status"),
+        fetch("/api/integrations/squarespace/status"),
       ]);
-      const [xeroData, sageData, qbData, shopifyData, wooData] = await Promise.all([
+      const [xeroData, sageData, qbData, shopifyData, wooData, sqData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
         qbRes.json(),
         shopifyRes.json(),
         wooRes.json(),
+        sqRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
       setQuickbooksStatus(qbData);
       setShopifyStatus(shopifyData);
       setWooStatus(wooData);
+      setSqStatus(sqData);
 
       // Fetch unmapped count if any ecommerce connection exists
-      if (shopifyData.connected || wooData.connected) {
+      if (shopifyData.connected || wooData.connected || sqData.connected) {
         try {
           const mappingsRes = await fetch(
             "/api/integrations/ecommerce/product-mappings"
@@ -333,14 +344,14 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleEcomDisconnect(provider: "shopify" | "woocommerce") {
-    const label = provider === "shopify" ? "Shopify" : "WooCommerce";
+  async function handleEcomDisconnect(provider: "shopify" | "woocommerce" | "squarespace") {
+    const label = provider === "shopify" ? "Shopify" : provider === "woocommerce" ? "WooCommerce" : "Squarespace";
     if (!confirm(`Disconnect ${label}? This will stop all ecommerce syncing and remove webhooks.`))
       return;
     setEcomDisconnecting(provider);
     try {
       await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
-      const setter = provider === "shopify" ? setShopifyStatus : setWooStatus;
+      const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : setSqStatus;
       setter({ connected: false });
     } finally {
       setEcomDisconnecting(null);
@@ -348,10 +359,10 @@ export function IntegrationsPage() {
   }
 
   async function handleEcomToggleSync(
-    provider: "shopify" | "woocommerce",
+    provider: "shopify" | "woocommerce" | "squarespace",
     key: "sync_products" | "sync_orders" | "sync_stock"
   ) {
-    const status = provider === "shopify" ? shopifyStatus : wooStatus;
+    const status = provider === "shopify" ? shopifyStatus : provider === "woocommerce" ? wooStatus : sqStatus;
     if (!status?.connected) return;
     setEcomToggling(`${provider}-${key}`);
     try {
@@ -362,7 +373,7 @@ export function IntegrationsPage() {
         body: JSON.stringify({ [key]: newValue }),
       });
       if (res.ok) {
-        const setter = provider === "shopify" ? setShopifyStatus : setWooStatus;
+        const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : setSqStatus;
         setter((prev) => (prev ? { ...prev, [key]: newValue } : prev));
       }
     } finally {
@@ -409,8 +420,41 @@ export function IntegrationsPage() {
     }
   }
 
+  async function handleSqConnect() {
+    if (!sqApiKey) {
+      setSqError("API key is required.");
+      return;
+    }
+    setSqConnecting(true);
+    setSqError(null);
+    try {
+      const res = await fetch("/api/integrations/squarespace/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: sqApiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSqError(data.error || "Connection failed.");
+        return;
+      }
+      setSuccessMessage("Squarespace connected successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      setShowSqForm(false);
+      setSqApiKey("");
+      // Reload status
+      const sqRes = await fetch("/api/integrations/squarespace/status");
+      const sqData = await sqRes.json();
+      setSqStatus(sqData);
+    } catch {
+      setSqError("Could not connect. Please check your API key and try again.");
+    } finally {
+      setSqConnecting(false);
+    }
+  }
+
   async function handleOpenImportModal(
-    provider: "shopify" | "woocommerce",
+    provider: "shopify" | "woocommerce" | "squarespace",
     connectionId: string
   ) {
     setImportModalProvider(provider);
@@ -513,7 +557,7 @@ export function IntegrationsPage() {
   }
 
   async function handleOpenExportModal(
-    provider: "shopify" | "woocommerce",
+    provider: "shopify" | "woocommerce" | "squarespace",
     connectionId: string
   ) {
     setExportModalProvider(provider);
@@ -567,7 +611,7 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce") {
+  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce" | "squarespace") {
     setRegisteringWebhooks(provider);
     try {
       const res = await fetch(`/api/integrations/${provider}/register-webhooks`, {
@@ -975,7 +1019,7 @@ export function IntegrationsPage() {
   }
 
   function renderEcommerceCard(
-    provider: "shopify" | "woocommerce",
+    provider: "shopify" | "woocommerce" | "squarespace",
     status: EcommerceStatus | null,
     config: {
       label: string;
@@ -1327,6 +1371,80 @@ export function IntegrationsPage() {
                 </p>
               </div>
             )}
+
+            {provider === "squarespace" && !showSqForm && (
+              <>
+                <button
+                  onClick={() => setShowSqForm(true)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Connect {config.label}
+                </button>
+                <p className="text-xs text-slate-400 mt-2">
+                  Enter your Squarespace Commerce API key to connect.
+                </p>
+              </>
+            )}
+
+            {provider === "squarespace" && showSqForm && (
+              <div className="space-y-3">
+                {sqError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{sqError}</span>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    API Key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={sqShowKey ? "text" : "password"}
+                      value={sqApiKey}
+                      onChange={(e) => setSqApiKey(e.target.value)}
+                      placeholder="Your Squarespace API key"
+                      className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSqShowKey(!sqShowKey)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {sqShowKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={handleSqConnect}
+                    disabled={sqConnecting}
+                    className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors disabled:opacity-50`}
+                  >
+                    {sqConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    {sqConnecting ? "Connecting..." : "Test & Connect"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSqForm(false);
+                      setSqApiKey("");
+                      setSqError(null);
+                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Generate an API key in Squarespace &rarr; Settings &rarr; Developer Tools &rarr; API Keys. Grant &ldquo;Commerce&rdquo; permissions.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1432,10 +1550,19 @@ export function IntegrationsPage() {
           hoverColor: "hover:bg-[#6b479a]",
           icon: <Store className="w-6 h-6 text-white" />,
         })}
+
+        {renderEcommerceCard("squarespace", sqStatus, {
+          label: "Squarespace",
+          description:
+            "Sync products, orders, and stock levels with your Squarespace store.",
+          bgColor: "bg-[#222222]",
+          hoverColor: "hover:bg-[#111111]",
+          icon: <Store className="w-6 h-6 text-white" />,
+        })}
       </div>
 
       {/* Product Mapping link — shown when any ecommerce connection exists */}
-      {(shopifyStatus?.connected || wooStatus?.connected) && (
+      {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected) && (
         <div className="mt-4">
           <Link
             href="/settings/integrations/product-mapping"
@@ -1517,7 +1644,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Import Products from{" "}
-                  {importModalProvider === "shopify" ? "Shopify" : "WooCommerce"}
+                  {importModalProvider === "shopify" ? "Shopify" : importModalProvider === "woocommerce" ? "WooCommerce" : "Squarespace"}
                 </h2>
                 {!importResult && !importLoading && importProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -1750,7 +1877,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Export Products to{" "}
-                  {exportModalProvider === "shopify" ? "Shopify" : "WooCommerce"}
+                  {exportModalProvider === "shopify" ? "Shopify" : exportModalProvider === "woocommerce" ? "WooCommerce" : "Squarespace"}
                 </h2>
                 {!exportResult && !exportLoading && exportProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">

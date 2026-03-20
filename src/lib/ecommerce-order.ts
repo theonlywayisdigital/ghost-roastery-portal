@@ -44,7 +44,7 @@ export interface ExternalLineItem {
 
 export interface ExternalOrder {
   external_order_id: string;
-  external_source: "shopify" | "woocommerce";
+  external_source: "shopify" | "woocommerce" | "squarespace";
   order_number: string;
   customer_name: string;
   customer_email: string;

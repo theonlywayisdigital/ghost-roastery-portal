@@ -6,6 +6,10 @@ import {
   fetchWooCommerceProducts,
   type WooProduct,
 } from "@/lib/woocommerce";
+import {
+  fetchSquarespaceProducts,
+  type SquarespaceProduct,
+} from "@/lib/squarespace";
 
 export interface PreviewProduct {
   external_id: string;
@@ -77,6 +81,11 @@ export async function GET(request: Request) {
       products = wooProducts.map((p: WooProduct) =>
         normaliseWooPreview(p, mappedExternalIds)
       );
+    } else if (connection.provider === "squarespace") {
+      const sqProducts = await fetchSquarespaceProducts(connectionId);
+      products = sqProducts.map((p: SquarespaceProduct) =>
+        normaliseSquarespacePreview(p, mappedExternalIds)
+      );
     }
 
     return NextResponse.json({ products, total: products.length });
@@ -127,6 +136,31 @@ function normaliseWooPreview(
     sku: p.sku || null,
     variant_count: variantCount,
     status: p.status,
+    already_imported: mappedExternalIds.has(extId),
+    mapped_product_id: mappedExternalIds.get(extId) || null,
+  };
+}
+
+function normaliseSquarespacePreview(
+  p: SquarespaceProduct,
+  mappedExternalIds: Map<string, string>
+): PreviewProduct {
+  const extId = String(p.id);
+  const firstVariant = p.variants?.[0];
+  // Squarespace prices are in cents
+  const priceCents = firstVariant?.pricing?.basePrice?.value;
+  const priceStr = priceCents
+    ? (parseFloat(priceCents) / 100).toFixed(2)
+    : null;
+
+  return {
+    external_id: extId,
+    name: p.name,
+    image_url: p.images?.[0]?.url || null,
+    price: priceStr,
+    sku: firstVariant?.sku || null,
+    variant_count: p.variants?.length || 0,
+    status: p.isVisible ? "active" : "draft",
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
   };

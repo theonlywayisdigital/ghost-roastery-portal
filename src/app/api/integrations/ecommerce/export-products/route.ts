@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { getShopifyClient } from "@/lib/shopify";
 import { getWooCommerceClient } from "@/lib/woocommerce";
+import { getSquarespaceClient } from "@/lib/squarespace";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 /**
@@ -197,6 +198,14 @@ export async function POST(request: Request) {
         externalVariantIds = result.externalVariantIds;
       } else if (connection.provider === "woocommerce") {
         const result = await createWooCommerceProduct(
+          connectionId,
+          product,
+          activeVariants
+        );
+        externalProductId = result.externalProductId;
+        externalVariantIds = result.externalVariantIds;
+      } else if (connection.provider === "squarespace") {
+        const result = await createSquarespaceProduct(
           connectionId,
           product,
           activeVariants
@@ -575,6 +584,126 @@ async function createWooCommerceProduct(
         errBody
       );
     }
+  }
+
+  return { externalProductId, externalVariantIds };
+}
+
+// ─── Squarespace product creation ─────────────────────────────────────
+
+async function createSquarespaceProduct(
+  connectionId: string,
+  product: {
+    name: string;
+    description: string | null;
+    image_url: string | null;
+    retail_price: number | null;
+    sku: string | null;
+    status: string;
+    weight_grams: number | null;
+    unit: string | null;
+  },
+  variants: ExportVariant[]
+): Promise<{
+  externalProductId: string;
+  externalVariantIds: Record<string, string>;
+}> {
+  const client = await getSquarespaceClient(connectionId);
+
+  // Build variants for Squarespace
+  const sqVariants = variants.map((v) => {
+    const priceCents = Math.round(
+      (v.retail_price ?? product.retail_price ?? 0) * 100
+    );
+    const grindName = getGrindName(v);
+    const attributes: Record<string, string> = {};
+
+    attributes["Weight"] = v.unit || formatWeightLabel(v.weight_grams);
+    if (grindName) {
+      attributes["Grind"] = grindName;
+    }
+
+    return {
+      sku: v.sku || product.sku || "",
+      pricing: {
+        basePrice: {
+          value: String(priceCents),
+          currency: "GBP",
+        },
+      },
+      stock: { quantity: 0, unlimited: false },
+      attributes,
+      shippingMeasurements: v.weight_grams
+        ? {
+            weight: {
+              value: v.weight_grams / 1000,
+              unit: "KILOGRAM",
+            },
+          }
+        : undefined,
+    };
+  });
+
+  // If no variants, create a single default
+  if (sqVariants.length === 0) {
+    const priceCents = Math.round((product.retail_price ?? 0) * 100);
+    sqVariants.push({
+      sku: product.sku || "",
+      pricing: {
+        basePrice: {
+          value: String(priceCents),
+          currency: "GBP",
+        },
+      },
+      stock: { quantity: 0, unlimited: false },
+      attributes: {
+        Weight: product.unit || "250g",
+      },
+      shippingMeasurements: product.weight_grams
+        ? {
+            weight: {
+              value: product.weight_grams / 1000,
+              unit: "KILOGRAM",
+            },
+          }
+        : undefined,
+    });
+  }
+
+  const payload = {
+    type: "PHYSICAL",
+    name: product.name,
+    description: product.description || "",
+    isVisible: product.status === "published",
+    variants: sqVariants,
+  };
+
+  const res = await fetch(`${client.baseUrl}/products`, {
+    method: "POST",
+    headers: client.headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Squarespace create failed (${res.status}): ${errBody}`);
+  }
+
+  const created = await res.json();
+  const externalProductId = String(created.id);
+  const externalVariantIds: Record<string, string> = {};
+  const createdVariants = created.variants || [];
+
+  if (variants.length > 0) {
+    for (
+      let i = 0;
+      i < variants.length && i < createdVariants.length;
+      i++
+    ) {
+      externalVariantIds[variants[i].id] = String(createdVariants[i].id);
+    }
+  } else if (createdVariants.length > 0) {
+    externalVariantIds["__default__"] = String(createdVariants[0].id);
   }
 
   return { externalProductId, externalVariantIds };

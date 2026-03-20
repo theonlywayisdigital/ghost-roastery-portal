@@ -12,6 +12,11 @@ import {
   type WooProduct,
   type WooVariation,
 } from "@/lib/woocommerce";
+import {
+  fetchSquarespaceProducts,
+  type SquarespaceProduct,
+  type SquarespaceVariant,
+} from "@/lib/squarespace";
 
 interface NormalisedProduct {
   external_id: string;
@@ -119,6 +124,9 @@ export async function POST(request: Request) {
     } else if (connection.provider === "woocommerce") {
       const wooProducts = await fetchWooCommerceProducts(connectionId);
       normalised = wooProducts.map(normaliseWooProduct);
+    } else if (connection.provider === "squarespace") {
+      const sqProducts = await fetchSquarespaceProducts(connectionId);
+      normalised = sqProducts.map(normaliseSquarespaceProduct);
     }
 
     // Filter to selected products if specified
@@ -338,6 +346,68 @@ function normaliseWooVariation(v: WooVariation): NormalisedVariant {
   };
 }
 
+function normaliseSquarespaceProduct(
+  p: SquarespaceProduct
+): NormalisedProduct {
+  const firstVariant = p.variants?.[0];
+  // Squarespace prices are in cents
+  const priceCents = firstVariant?.pricing?.basePrice?.value;
+  const price = priceCents ? parseFloat(priceCents) / 100 : null;
+
+  return {
+    external_id: String(p.id),
+    name: p.name,
+    description: p.description || null,
+    image_url: p.images?.[0]?.url || null,
+    sku: firstVariant?.sku || null,
+    price,
+    status: p.isVisible ? "published" : "draft",
+    track_stock: firstVariant ? !firstVariant.stock.unlimited : false,
+    stock_quantity: firstVariant?.stock?.quantity ?? null,
+    variants: (p.variants || []).map((v) =>
+      normaliseSquarespaceVariant(v, p)
+    ),
+  };
+}
+
+function normaliseSquarespaceVariant(
+  v: SquarespaceVariant,
+  product: SquarespaceProduct
+): NormalisedVariant {
+  // Parse weight and grind from variant attributes
+  const attrValues = Object.values(v.attributes || {});
+  const weightInfo = parseWeightFromOptions(attrValues);
+  const grindLabel = parseGrindFromOptions(attrValues);
+
+  // If no weight from attributes, try the shipping weight
+  let weightGrams = weightInfo?.grams ?? null;
+  if (
+    weightGrams === null &&
+    v.shippingMeasurements?.weight?.value
+  ) {
+    weightGrams = convertToGrams(
+      v.shippingMeasurements.weight.value,
+      v.shippingMeasurements.weight.unit || "KILOGRAM"
+    );
+  }
+
+  // Squarespace prices are in cents
+  const priceCents = v.pricing?.basePrice?.value;
+  const price = priceCents ? parseFloat(priceCents) / 100 : null;
+
+  return {
+    external_id: String(v.id),
+    sku: v.sku || null,
+    price,
+    weight_grams: weightGrams,
+    unit: weightInfo?.unit ?? formatWeightUnit(weightGrams),
+    grind_label: grindLabel,
+    stock_quantity: v.stock?.quantity ?? null,
+    track_stock: !v.stock?.unlimited,
+    image_url: v.image?.url || product.images?.[0]?.url || null,
+  };
+}
+
 // ─── Weight / Grind Parsing ──────────────────────────────────────────
 
 const WEIGHT_PATTERNS = [
@@ -427,12 +497,16 @@ function formatWeightUnit(grams: number | null): string {
 function convertToGrams(weight: number, unit: string): number {
   switch (unit.toLowerCase()) {
     case "kg":
+    case "kilogram":
       return Math.round(weight * 1000);
     case "g":
+    case "gram":
       return Math.round(weight);
     case "oz":
+    case "ounce":
       return Math.round(weight * 28.3495);
     case "lb":
+    case "pound":
       return Math.round(weight * 453.592);
     default:
       return Math.round(weight);

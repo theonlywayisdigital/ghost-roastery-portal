@@ -14,6 +14,7 @@ interface UnifiedRoasterOrder {
   status: string;
   paymentStatus: string;
   date: string;
+  externalSource: string | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
         status: o.order_status || "Pending",
         paymentStatus: o.payment_status || "pending",
         date: o.created_at,
+        externalSource: null,
       });
     }
   }
@@ -121,6 +123,7 @@ export async function GET(req: NextRequest) {
         status: wo.status || "pending",
         paymentStatus: derivedPaymentStatus,
         date: wo.created_at,
+        externalSource: wo.external_source || null,
       });
     }
   }

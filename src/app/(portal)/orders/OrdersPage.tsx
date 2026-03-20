@@ -20,6 +20,7 @@ interface RoasterOrder {
   status: string;
   paymentStatus: string;
   date: string;
+  externalSource: string | null;
 }
 
 type TabValue = "all" | "ghost" | "storefront" | "wholesale";
@@ -169,7 +170,22 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
     {
       key: "orderType" as const,
       label: "Type",
-      render: (row: RoasterOrder) => <StatusBadge status={row.orderType} type="orderType" />,
+      render: (row: RoasterOrder) => (
+        <div className="flex items-center gap-1.5">
+          <StatusBadge status={row.orderType} type="orderType" />
+          {row.externalSource && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+              row.externalSource === "shopify"
+                ? "bg-[#96BF48]/15 text-[#6d8f30]"
+                : row.externalSource === "woocommerce"
+                  ? "bg-[#7F54B3]/15 text-[#6b479a]"
+                  : "bg-slate-100 text-slate-600"
+            }`}>
+              {row.externalSource === "shopify" ? "Shopify" : row.externalSource === "woocommerce" ? "WooC" : row.externalSource}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: "customerName",

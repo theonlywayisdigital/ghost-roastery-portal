@@ -18,11 +18,24 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Normalize shop URL — ensure it's just the myshopify.com domain
-  const normalizedShop = shop
-    .replace(/^https?:\/\//, "")
-    .replace(/\/$/, "")
-    .toLowerCase();
+  // Normalize shop URL — extract just the myshopify.com domain
+  // Handles: "https://store.myshopify.com", "store.myshopify.com/", "store.myshopify.com"
+  // Also handles accidental prefixes like "Yhttps://store.myshopify.com"
+  let normalizedShop = shop.trim().toLowerCase();
+  // Strip everything up to and including :// if present
+  const protocolIndex = normalizedShop.indexOf("://");
+  if (protocolIndex !== -1) {
+    normalizedShop = normalizedShop.slice(protocolIndex + 3);
+  }
+  // Strip trailing slashes and paths
+  normalizedShop = normalizedShop.split("/")[0];
+
+  if (!normalizedShop.includes(".myshopify.com")) {
+    return NextResponse.json(
+      { error: "Please enter a valid Shopify store URL (e.g. mystore.myshopify.com)" },
+      { status: 400 }
+    );
+  }
 
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const redirectUri = process.env.SHOPIFY_REDIRECT_URI;

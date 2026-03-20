@@ -102,10 +102,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Normalize store URL for consistent lookups
-    const normalizedShop = shop
-      .replace(/^https?:\/\//, "")
-      .replace(/\/$/, "")
-      .toLowerCase();
+    let normalizedShop = shop.trim().toLowerCase();
+    const protoIdx = normalizedShop.indexOf("://");
+    if (protoIdx !== -1) normalizedShop = normalizedShop.slice(protoIdx + 3);
+    normalizedShop = normalizedShop.split("/")[0];
 
     // Delete any existing webhooks for this store before registering new ones
     // (handles reconnection case where old webhooks may still exist)

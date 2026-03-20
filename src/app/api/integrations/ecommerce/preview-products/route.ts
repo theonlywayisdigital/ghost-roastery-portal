@@ -10,6 +10,7 @@ import {
   fetchSquarespaceProducts,
   type SquarespaceProduct,
 } from "@/lib/squarespace";
+import { fetchWixProducts, type WixProduct } from "@/lib/wix";
 
 export interface PreviewProduct {
   external_id: string;
@@ -86,6 +87,11 @@ export async function GET(request: Request) {
       products = sqProducts.map((p: SquarespaceProduct) =>
         normaliseSquarespacePreview(p, mappedExternalIds)
       );
+    } else if (connection.provider === "wix") {
+      const wixProducts = await fetchWixProducts(connectionId);
+      products = wixProducts.map((p: WixProduct) =>
+        normaliseWixPreview(p, mappedExternalIds)
+      );
     }
 
     return NextResponse.json({ products, total: products.length });
@@ -161,6 +167,24 @@ function normaliseSquarespacePreview(
     sku: firstVariant?.sku || null,
     variant_count: p.variants?.length || 0,
     status: p.isVisible ? "active" : "draft",
+    already_imported: mappedExternalIds.has(extId),
+    mapped_product_id: mappedExternalIds.get(extId) || null,
+  };
+}
+
+function normaliseWixPreview(
+  p: WixProduct,
+  mappedExternalIds: Map<string, string>
+): PreviewProduct {
+  const extId = String(p.id);
+  return {
+    external_id: extId,
+    name: p.name,
+    image_url: p.media?.mainMedia?.image?.url || null,
+    price: p.price?.price != null ? p.price.price.toFixed(2) : null,
+    sku: p.sku || p.variants?.[0]?.sku || null,
+    variant_count: p.variants?.length || 0,
+    status: p.visible ? "active" : "draft",
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
   };

@@ -17,6 +17,11 @@ import {
   type SquarespaceProduct,
   type SquarespaceVariant,
 } from "@/lib/squarespace";
+import {
+  fetchWixProducts,
+  type WixProduct,
+  type WixVariant,
+} from "@/lib/wix";
 
 interface NormalisedProduct {
   external_id: string;
@@ -127,6 +132,9 @@ export async function POST(request: Request) {
     } else if (connection.provider === "squarespace") {
       const sqProducts = await fetchSquarespaceProducts(connectionId);
       normalised = sqProducts.map(normaliseSquarespaceProduct);
+    } else if (connection.provider === "wix") {
+      const wixProducts = await fetchWixProducts(connectionId);
+      normalised = wixProducts.map(normaliseWixProduct);
     }
 
     // Filter to selected products if specified
@@ -405,6 +413,54 @@ function normaliseSquarespaceVariant(
     stock_quantity: v.stock?.quantity ?? null,
     track_stock: !v.stock?.unlimited,
     image_url: v.image?.url || product.images?.[0]?.url || null,
+  };
+}
+
+function normaliseWixProduct(p: WixProduct): NormalisedProduct {
+  const firstVariant = p.variants?.[0];
+
+  return {
+    external_id: String(p.id),
+    name: p.name,
+    description: p.description || null,
+    image_url: p.media?.mainMedia?.image?.url || p.media?.items?.[0]?.image?.url || null,
+    sku: p.sku || firstVariant?.sku || null,
+    price: p.price?.price ?? firstVariant?.priceData?.price ?? null,
+    status: p.visible ? "published" : "draft",
+    track_stock: p.stock?.trackInventory ?? firstVariant?.stock?.trackInventory ?? false,
+    stock_quantity: p.stock?.quantity ?? firstVariant?.stock?.quantity ?? null,
+    variants: (p.variants || []).map((v) => normaliseWixVariant(v, p)),
+  };
+}
+
+function normaliseWixVariant(
+  v: WixVariant,
+  product: WixProduct
+): NormalisedVariant {
+  // Parse weight and grind from variant choices
+  const choiceValues = Object.values(v.choices || {});
+  const weightInfo = parseWeightFromOptions(choiceValues);
+  const grindLabel = parseGrindFromOptions(choiceValues);
+
+  // If no weight from choices, try the variant's weight field (in kg)
+  let weightGrams = weightInfo?.grams ?? null;
+  if (weightGrams === null && v.weight && v.weight > 0) {
+    weightGrams = Math.round(v.weight * 1000);
+  }
+
+  return {
+    external_id: String(v.id),
+    sku: v.sku || null,
+    price: v.priceData?.price ?? null,
+    weight_grams: weightGrams,
+    unit: weightInfo?.unit ?? formatWeightUnit(weightGrams),
+    grind_label: grindLabel,
+    stock_quantity: v.stock?.quantity ?? null,
+    track_stock: v.stock?.trackInventory ?? false,
+    image_url:
+      v.media?.mainMedia?.image?.url ||
+      product.media?.mainMedia?.image?.url ||
+      null,
   };
 }
 

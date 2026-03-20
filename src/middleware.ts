@@ -23,6 +23,7 @@ const PUBLIC_PATHS = [
   "/api/integrations/xero/callback",
   "/api/integrations/sage/callback",
   "/api/integrations/quickbooks/callback",
+  "/api/integrations/wix/callback",
   "/api/webhooks",
 ];
 

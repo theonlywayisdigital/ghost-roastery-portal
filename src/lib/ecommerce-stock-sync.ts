@@ -92,6 +92,13 @@ export async function pushStockToChannels(
             externalVariantId,
             availableUnits
           );
+        } else if (conn.provider === "wix") {
+          await pushStockToWix(
+            conn,
+            mapping.external_product_id,
+            externalVariantId,
+            availableUnits
+          );
         }
       } catch (err) {
         console.error(
@@ -207,6 +214,14 @@ export async function pushProductToChannels(
         );
       } else if (conn.provider === "squarespace") {
         await pushProductToSquarespace(
+          conn,
+          mapping.external_product_id,
+          product,
+          variants || [],
+          externalVariantMap
+        );
+      } else if (conn.provider === "wix") {
+        await pushProductToWix(
           conn,
           mapping.external_product_id,
           product,
@@ -677,6 +692,125 @@ async function pushProductToSquarespace(
       `https://api.squarespace.com/1.0/commerce/products/${externalProductId}/variants/${extId}`,
       {
         method: "POST",
+        headers,
+        body: JSON.stringify(varPayload),
+      }
+    );
+  }
+}
+
+// ─── Wix stock push ───────────────────────────────────────────────
+
+async function pushStockToWix(
+  conn: { access_token: string },
+  externalProductId: string,
+  externalVariantId: string,
+  quantity: number
+): Promise<void> {
+  // Wix inventory update via the inventory API
+  await fetch(
+    `https://www.wixapis.com/stores/v2/inventoryItems/product/${externalProductId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: conn.access_token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inventoryItem: {
+          trackQuantity: true,
+          variants: [
+            {
+              variantId: externalVariantId,
+              quantity,
+              inStock: quantity > 0,
+            },
+          ],
+        },
+      }),
+    }
+  );
+}
+
+// ─── Wix product push ─────────────────────────────────────────────
+
+async function pushProductToWix(
+  conn: { access_token: string },
+  externalProductId: string,
+  product: {
+    name: string;
+    description: string | null;
+    image_url: string | null;
+    retail_price: number | null;
+    sku: string | null;
+    status: string;
+    weight_grams: number | null;
+    unit: string | null;
+  },
+  variants: {
+    id: string;
+    sku: string | null;
+    retail_price: number | null;
+    weight_grams: number | null;
+    unit: string | null;
+    is_active: boolean;
+  }[],
+  externalVariantMap: Record<string, string>
+): Promise<void> {
+  const headers = {
+    Authorization: conn.access_token,
+    "Content-Type": "application/json",
+  };
+
+  // Update product info
+  const productPayload: Record<string, unknown> = {
+    product: {
+      name: product.name,
+      description: product.description || "",
+      visible: product.status === "published",
+      ...(product.image_url
+        ? {
+            media: {
+              items: [{ image: { url: product.image_url } }],
+            },
+          }
+        : {}),
+    },
+  };
+
+  await fetch(
+    `https://www.wixapis.com/stores/v1/products/${externalProductId}`,
+    {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(productPayload),
+    }
+  );
+
+  // Update variant prices
+  for (const [ghostId, extId] of Object.entries(externalVariantMap)) {
+    const v = variants.find((vr) => vr.id === ghostId);
+    if (!v) continue;
+
+    const varPayload = {
+      variant: {
+        priceData: {
+          price: v.retail_price ?? product.retail_price ?? 0,
+          currency: "GBP",
+        },
+        sku: v.sku || product.sku || undefined,
+        weight: v.weight_grams
+          ? v.weight_grams / 1000
+          : product.weight_grams
+            ? product.weight_grams / 1000
+            : undefined,
+      },
+    };
+
+    await fetch(
+      `https://www.wixapis.com/stores/v1/products/${externalProductId}/variants/${extId}`,
+      {
+        method: "PATCH",
         headers,
         body: JSON.stringify(varPayload),
       }

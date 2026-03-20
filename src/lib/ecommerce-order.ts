@@ -44,7 +44,7 @@ export interface ExternalLineItem {
 
 export interface ExternalOrder {
   external_order_id: string;
-  external_source: "shopify" | "woocommerce" | "squarespace";
+  external_source: "shopify" | "woocommerce" | "squarespace" | "wix";
   order_number: string;
   customer_name: string;
   customer_email: string;
@@ -310,7 +310,13 @@ export async function processEcommerceOrder(
 
   // ─── Create order ─────────────────────────────────────────────────
   const sourceLabel =
-    order.external_source === "shopify" ? "Shopify" : "WooCommerce";
+    order.external_source === "shopify"
+      ? "Shopify"
+      : order.external_source === "woocommerce"
+        ? "WooCommerce"
+        : order.external_source === "squarespace"
+          ? "Squarespace"
+          : "Wix";
   const orderNotes = [
     `${sourceLabel} \u2014 Order #${order.order_number}`,
     unmappedItems.length > 0

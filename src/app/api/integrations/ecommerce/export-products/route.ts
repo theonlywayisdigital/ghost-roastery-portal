@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { getShopifyClient } from "@/lib/shopify";
 import { getWooCommerceClient } from "@/lib/woocommerce";
 import { getSquarespaceClient } from "@/lib/squarespace";
+import { getWixClient } from "@/lib/wix";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 /**
@@ -206,6 +207,14 @@ export async function POST(request: Request) {
         externalVariantIds = result.externalVariantIds;
       } else if (connection.provider === "squarespace") {
         const result = await createSquarespaceProduct(
+          connectionId,
+          product,
+          activeVariants
+        );
+        externalProductId = result.externalProductId;
+        externalVariantIds = result.externalVariantIds;
+      } else if (connection.provider === "wix") {
+        const result = await createWixProduct(
           connectionId,
           product,
           activeVariants
@@ -693,6 +702,160 @@ async function createSquarespaceProduct(
   const externalProductId = String(created.id);
   const externalVariantIds: Record<string, string> = {};
   const createdVariants = created.variants || [];
+
+  if (variants.length > 0) {
+    for (
+      let i = 0;
+      i < variants.length && i < createdVariants.length;
+      i++
+    ) {
+      externalVariantIds[variants[i].id] = String(createdVariants[i].id);
+    }
+  } else if (createdVariants.length > 0) {
+    externalVariantIds["__default__"] = String(createdVariants[0].id);
+  }
+
+  return { externalProductId, externalVariantIds };
+}
+
+// ─── Wix product creation ──────────────────────────────────────────────
+
+async function createWixProduct(
+  connectionId: string,
+  product: {
+    name: string;
+    description: string | null;
+    image_url: string | null;
+    retail_price: number | null;
+    sku: string | null;
+    status: string;
+    weight_grams: number | null;
+    unit: string | null;
+  },
+  variants: ExportVariant[]
+): Promise<{
+  externalProductId: string;
+  externalVariantIds: Record<string, string>;
+}> {
+  const client = await getWixClient(connectionId);
+
+  // Determine unique weight and grind options
+  const grindNames = Array.from(
+    new Set(
+      variants
+        .map((v) => getGrindName(v))
+        .filter((g): g is string => g !== null)
+    )
+  );
+
+  const hasGrinds = grindNames.length > 0;
+
+  // Build product options
+  const productOptions: {
+    name: string;
+    optionType: string;
+    choices: { value: string; description: string }[];
+  }[] = [];
+
+  const weightLabels = Array.from(
+    new Set(variants.map((v) => v.unit || formatWeightLabel(v.weight_grams)))
+  );
+
+  if (weightLabels.length > 0) {
+    productOptions.push({
+      name: "Weight",
+      optionType: "drop_down",
+      choices: weightLabels.map((w) => ({ value: w, description: w })),
+    });
+  }
+
+  if (hasGrinds) {
+    productOptions.push({
+      name: "Grind",
+      optionType: "drop_down",
+      choices: grindNames.map((g) => ({ value: g, description: g })),
+    });
+  }
+
+  // Build Wix variants
+  const wixVariants = variants.map((v) => {
+    const choices: Record<string, string> = {};
+    choices["Weight"] = v.unit || formatWeightLabel(v.weight_grams);
+    if (hasGrinds) {
+      choices["Grind"] = getGrindName(v) || grindNames[0];
+    }
+
+    return {
+      choices,
+      priceData: {
+        price: v.retail_price ?? product.retail_price ?? 0,
+        currency: "GBP",
+      },
+      sku: v.sku || product.sku || "",
+      weight: v.weight_grams
+        ? v.weight_grams / 1000
+        : product.weight_grams
+          ? product.weight_grams / 1000
+          : undefined,
+      stock: { trackInventory: true, quantity: 0, inStock: false },
+    };
+  });
+
+  // If no variants, create a single default
+  if (wixVariants.length === 0) {
+    wixVariants.push({
+      choices: { Weight: product.unit || "250g" },
+      priceData: {
+        price: product.retail_price ?? 0,
+        currency: "GBP",
+      },
+      sku: product.sku || "",
+      weight: product.weight_grams
+        ? product.weight_grams / 1000
+        : undefined,
+      stock: { trackInventory: true, quantity: 0, inStock: false },
+    });
+  }
+
+  const payload = {
+    product: {
+      name: product.name,
+      productType: "physical",
+      description: product.description || "",
+      visible: product.status === "published",
+      priceData: {
+        price: product.retail_price ?? 0,
+        currency: "GBP",
+      },
+      sku: product.sku || "",
+      ...(productOptions.length > 0 ? { productOptions } : {}),
+      variants: wixVariants,
+      ...(product.image_url
+        ? {
+            media: {
+              items: [{ image: { url: product.image_url } }],
+            },
+          }
+        : {}),
+    },
+  };
+
+  const res = await fetch(`${client.baseUrl}/stores/v1/products`, {
+    method: "POST",
+    headers: client.headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Wix create failed (${res.status}): ${errBody}`);
+  }
+
+  const data = await res.json();
+  const createdProduct = data.product;
+  const externalProductId = String(createdProduct.id);
+  const externalVariantIds: Record<string, string> = {};
+  const createdVariants = createdProduct.variants || [];
 
   if (variants.length > 0) {
     for (

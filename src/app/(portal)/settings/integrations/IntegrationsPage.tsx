@@ -123,6 +123,7 @@ export function IntegrationsPage() {
   const [shopifyStatus, setShopifyStatus] = useState<EcommerceStatus | null>(null);
   const [wooStatus, setWooStatus] = useState<EcommerceStatus | null>(null);
   const [sqStatus, setSqStatus] = useState<EcommerceStatus | null>(null);
+  const [wixStatus, setWixStatus] = useState<EcommerceStatus | null>(null);
   const [ecomDisconnecting, setEcomDisconnecting] = useState<string | null>(null);
   const [ecomToggling, setEcomToggling] = useState<string | null>(null);
 
@@ -147,7 +148,7 @@ export function IntegrationsPage() {
   const [sqError, setSqError] = useState<string | null>(null);
 
   // Import modal state
-  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | null>(null);
+  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
   const [importConnectionId, setImportConnectionId] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importProducts, setImportProducts] = useState<PreviewProduct[]>([]);
@@ -157,7 +158,7 @@ export function IntegrationsPage() {
   const [unmappedCount, setUnmappedCount] = useState(0);
 
   // Export modal state
-  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | null>(null);
+  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
   const [exportConnectionId, setExportConnectionId] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportProducts, setExportProducts] = useState<ExportableProduct[]>([]);
@@ -170,21 +171,23 @@ export function IntegrationsPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes, wixRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
         fetch("/api/integrations/quickbooks/status"),
         fetch("/api/integrations/shopify/status"),
         fetch("/api/integrations/woocommerce/status"),
         fetch("/api/integrations/squarespace/status"),
+        fetch("/api/integrations/wix/status"),
       ]);
-      const [xeroData, sageData, qbData, shopifyData, wooData, sqData] = await Promise.all([
+      const [xeroData, sageData, qbData, shopifyData, wooData, sqData, wixData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
         qbRes.json(),
         shopifyRes.json(),
         wooRes.json(),
         sqRes.json(),
+        wixRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
@@ -192,9 +195,10 @@ export function IntegrationsPage() {
       setShopifyStatus(shopifyData);
       setWooStatus(wooData);
       setSqStatus(sqData);
+      setWixStatus(wixData);
 
       // Fetch unmapped count if any ecommerce connection exists
-      if (shopifyData.connected || wooData.connected || sqData.connected) {
+      if (shopifyData.connected || wooData.connected || sqData.connected || wixData.connected) {
         try {
           const mappingsRes = await fetch(
             "/api/integrations/ecommerce/product-mappings"
@@ -230,6 +234,10 @@ export function IntegrationsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     } else if (successParam === "shopify") {
       setSuccessMessage("Shopify connected successfully!");
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } else if (successParam === "wix") {
+      setSuccessMessage("Wix connected successfully!");
       window.history.replaceState({}, "", window.location.pathname);
       setTimeout(() => setSuccessMessage(null), 5000);
     }
@@ -344,14 +352,14 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleEcomDisconnect(provider: "shopify" | "woocommerce" | "squarespace") {
-    const label = provider === "shopify" ? "Shopify" : provider === "woocommerce" ? "WooCommerce" : "Squarespace";
+  async function handleEcomDisconnect(provider: "shopify" | "woocommerce" | "squarespace" | "wix") {
+    const label = provider === "shopify" ? "Shopify" : provider === "woocommerce" ? "WooCommerce" : provider === "squarespace" ? "Squarespace" : "Wix";
     if (!confirm(`Disconnect ${label}? This will stop all ecommerce syncing and remove webhooks.`))
       return;
     setEcomDisconnecting(provider);
     try {
       await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
-      const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : setSqStatus;
+      const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : provider === "squarespace" ? setSqStatus : setWixStatus;
       setter({ connected: false });
     } finally {
       setEcomDisconnecting(null);
@@ -359,10 +367,10 @@ export function IntegrationsPage() {
   }
 
   async function handleEcomToggleSync(
-    provider: "shopify" | "woocommerce" | "squarespace",
+    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
     key: "sync_products" | "sync_orders" | "sync_stock"
   ) {
-    const status = provider === "shopify" ? shopifyStatus : provider === "woocommerce" ? wooStatus : sqStatus;
+    const status = provider === "shopify" ? shopifyStatus : provider === "woocommerce" ? wooStatus : provider === "squarespace" ? sqStatus : wixStatus;
     if (!status?.connected) return;
     setEcomToggling(`${provider}-${key}`);
     try {
@@ -373,7 +381,7 @@ export function IntegrationsPage() {
         body: JSON.stringify({ [key]: newValue }),
       });
       if (res.ok) {
-        const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : setSqStatus;
+        const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : provider === "squarespace" ? setSqStatus : setWixStatus;
         setter((prev) => (prev ? { ...prev, [key]: newValue } : prev));
       }
     } finally {
@@ -454,7 +462,7 @@ export function IntegrationsPage() {
   }
 
   async function handleOpenImportModal(
-    provider: "shopify" | "woocommerce" | "squarespace",
+    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
     connectionId: string
   ) {
     setImportModalProvider(provider);
@@ -557,7 +565,7 @@ export function IntegrationsPage() {
   }
 
   async function handleOpenExportModal(
-    provider: "shopify" | "woocommerce" | "squarespace",
+    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
     connectionId: string
   ) {
     setExportModalProvider(provider);
@@ -611,7 +619,7 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce" | "squarespace") {
+  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce" | "squarespace" | "wix") {
     setRegisteringWebhooks(provider);
     try {
       const res = await fetch(`/api/integrations/${provider}/register-webhooks`, {
@@ -1019,7 +1027,7 @@ export function IntegrationsPage() {
   }
 
   function renderEcommerceCard(
-    provider: "shopify" | "woocommerce" | "squarespace",
+    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
     status: EcommerceStatus | null,
     config: {
       label: string;
@@ -1445,6 +1453,21 @@ export function IntegrationsPage() {
                 </p>
               </div>
             )}
+
+            {provider === "wix" && (
+              <>
+                <a
+                  href="/api/integrations/wix/connect"
+                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Connect {config.label}
+                </a>
+                <p className="text-xs text-slate-400 mt-2">
+                  You&apos;ll be redirected to Wix to authorise access.
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1559,10 +1582,19 @@ export function IntegrationsPage() {
           hoverColor: "hover:bg-[#111111]",
           icon: <Store className="w-6 h-6 text-white" />,
         })}
+
+        {renderEcommerceCard("wix", wixStatus, {
+          label: "Wix",
+          description:
+            "Sync products, orders, and stock levels with your Wix store.",
+          bgColor: "bg-[#0C6EFC]",
+          hoverColor: "hover:bg-[#0a5dd4]",
+          icon: <Store className="w-6 h-6 text-white" />,
+        })}
       </div>
 
       {/* Product Mapping link — shown when any ecommerce connection exists */}
-      {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected) && (
+      {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected || wixStatus?.connected) && (
         <div className="mt-4">
           <Link
             href="/settings/integrations/product-mapping"
@@ -1644,7 +1676,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Import Products from{" "}
-                  {importModalProvider === "shopify" ? "Shopify" : importModalProvider === "woocommerce" ? "WooCommerce" : "Squarespace"}
+                  {importModalProvider === "shopify" ? "Shopify" : importModalProvider === "woocommerce" ? "WooCommerce" : importModalProvider === "squarespace" ? "Squarespace" : "Wix"}
                 </h2>
                 {!importResult && !importLoading && importProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -1877,7 +1909,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Export Products to{" "}
-                  {exportModalProvider === "shopify" ? "Shopify" : exportModalProvider === "woocommerce" ? "WooCommerce" : "Squarespace"}
+                  {exportModalProvider === "shopify" ? "Shopify" : exportModalProvider === "woocommerce" ? "WooCommerce" : exportModalProvider === "squarespace" ? "Squarespace" : "Wix"}
                 </h2>
                 {!exportResult && !exportLoading && exportProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">

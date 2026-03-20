@@ -43,6 +43,8 @@ interface ProductVariant {
   wholesale_price_vip: number | null;
   channel: string | null;
   is_active: boolean;
+  grind_type_id: string | null;
+  grind_type: { id: string; name: string } | null;
 }
 
 interface Product {
@@ -57,6 +59,7 @@ interface Product {
   is_retail: boolean;
   is_wholesale: boolean;
   status: string;
+  category: string | null;
   product_variants: ProductVariant[];
 }
 
@@ -85,8 +88,46 @@ function getVariantLabel(v: ProductVariant): string {
   const parts: string[] = [];
   if (v.unit) parts.push(v.unit);
   if (v.weight_grams) parts.push(`${v.weight_grams}g`);
-  if (v.channel) parts.push(v.channel);
+  if (v.grind_type?.name) parts.push(v.grind_type.name);
   return parts.join(" / ") || "Variant";
+}
+
+function getWeightOptions(variants: ProductVariant[]): { weight_grams: number; unit: string }[] {
+  const seen = new Map<number, string>();
+  for (const v of variants) {
+    if (v.weight_grams != null && !seen.has(v.weight_grams)) {
+      seen.set(v.weight_grams, v.unit || `${v.weight_grams}g`);
+    }
+  }
+  return Array.from(seen.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([weight_grams, unit]) => ({ weight_grams, unit }));
+}
+
+function getGrindOptions(variants: ProductVariant[]): { id: string; name: string }[] {
+  const seen = new Map<string, string>();
+  for (const v of variants) {
+    if (v.grind_type_id && v.grind_type?.name && !seen.has(v.grind_type_id)) {
+      seen.set(v.grind_type_id, v.grind_type.name);
+    }
+  }
+  return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+}
+
+function hasCoffeeVariants(product: Product, variants: ProductVariant[]): boolean {
+  return product.category === "coffee" && variants.some((v) => v.grind_type_id != null);
+}
+
+function findVariant(
+  variants: ProductVariant[],
+  weightGrams: number | null,
+  grindTypeId: string | null
+): ProductVariant | undefined {
+  return variants.find(
+    (v) =>
+      v.weight_grams === weightGrams &&
+      v.grind_type_id === grindTypeId
+  );
 }
 
 function getPrice(
@@ -566,11 +607,19 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                 if (product) {
                   // Cache product for re-pricing on channel switch
                   productCacheRef.current.set(product.id, product);
+                  const chFilter = channel === "storefront" ? "retail" : "wholesale";
+                  const productActiveVariants = product.product_variants?.filter(
+                    (v) => v.is_active && (!v.channel || v.channel === chFilter)
+                  ) || [];
                   let variant: ProductVariant | undefined;
                   if (extractedItem.matched_variant_id) {
-                    variant = product.product_variants.find(
+                    variant = productActiveVariants.find(
                       (v) => v.id === extractedItem.matched_variant_id
                     );
+                  }
+                  // Auto-select first variant if none matched
+                  if (!variant && productActiveVariants.length > 0) {
+                    variant = productActiveVariants[0];
                   }
                   const unitPrice = getPrice(product, variant || null, channel as "wholesale" | "storefront");
                   newItems.push({
@@ -648,15 +697,21 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   function handleAddProduct(product: Product, variant?: ProductVariant) {
     // Cache product data for re-pricing on channel switch
     productCacheRef.current.set(product.id, product);
-    const unitPrice = getPrice(product, variant || null, orderChannel, customerPriceTier);
+    // Auto-select first active variant for the current channel if none provided
+    const channelFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
+    const activeVariants = product.product_variants?.filter(
+      (v) => v.is_active && (!v.channel || v.channel === channelFilter)
+    ) || [];
+    const selectedVariant = variant || (activeVariants.length > 0 ? activeVariants[0] : undefined);
+    const unitPrice = getPrice(product, selectedVariant || null, orderChannel, customerPriceTier);
     const newItem: OrderItem = {
       productId: product.id,
       productName: product.name,
-      variantId: variant?.id,
-      variantLabel: variant ? getVariantLabel(variant) : undefined,
+      variantId: selectedVariant?.id,
+      variantLabel: selectedVariant ? getVariantLabel(selectedVariant) : undefined,
       unitPrice,
       quantity: 1,
-      unit: variant?.unit || product.unit || "unit",
+      unit: selectedVariant?.unit || product.unit || "unit",
     };
     setItems((prev) => [...prev, newItem]);
     setShowProductSearch(false);
@@ -683,6 +738,25 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     );
   }
 
+  function handleUpdateItemVariant(index: number, variantId: string) {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const product = productCacheRef.current.get(item.productId);
+        if (!product) return item;
+        const variant = product.product_variants?.find((v) => v.id === variantId) || null;
+        if (!variant) return item;
+        return {
+          ...item,
+          variantId: variant.id,
+          variantLabel: getVariantLabel(variant),
+          unitPrice: getPrice(product, variant, orderChannel, customerPriceTier),
+          unit: variant.unit || product.unit || "unit",
+        };
+      })
+    );
+  }
+
   // ── Recalculate prices when channel or price tier changes ──
   const prevChannelRef = useRef(orderChannel);
   const prevTierRef = useRef(customerPriceTier);
@@ -696,15 +770,37 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     if (items.length === 0) return;
 
     // Recalculate prices for all items using cached product data
+    const chFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
     setItems((prev) =>
       prev.map((item) => {
         const product = productCacheRef.current.get(item.productId);
         if (!product) return item;
-        const variant = item.variantId
-          ? product.product_variants?.find((v) => v.id === item.variantId) || null
+        const channelVariants = product.product_variants?.filter(
+          (v) => v.is_active && (!v.channel || v.channel === chFilter)
+        ) || [];
+        // Check if current variant is valid for new channel
+        let variant = item.variantId
+          ? channelVariants.find((v) => v.id === item.variantId) || null
           : null;
+        // If not valid, try to find equivalent by weight/grind or fall back to first
+        if (!variant && item.variantId && channelVariants.length > 0) {
+          const oldVariant = product.product_variants?.find((v) => v.id === item.variantId);
+          if (oldVariant) {
+            variant = channelVariants.find(
+              (v) => v.weight_grams === oldVariant.weight_grams && v.grind_type_id === oldVariant.grind_type_id
+            ) || channelVariants[0];
+          } else {
+            variant = channelVariants[0];
+          }
+        }
         const newPrice = getPrice(product, variant, orderChannel, customerPriceTier);
-        return { ...item, unitPrice: newPrice };
+        return {
+          ...item,
+          variantId: variant?.id || item.variantId,
+          variantLabel: variant ? getVariantLabel(variant) : item.variantLabel,
+          unitPrice: newPrice,
+          unit: variant?.unit || item.unit,
+        };
       })
     );
   }, [orderChannel, customerPriceTier, items.length]);
@@ -1125,75 +1221,29 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                       </div>
                     )}
                     {!isSearchingProducts &&
-                      productResults.map((product) => {
-                        const channelFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
-                        const activeVariants = product.product_variants?.filter(
-                          (v) => v.is_active && (!v.channel || v.channel === channelFilter)
-                        );
-                        const hasVariants =
-                          activeVariants && activeVariants.length > 0;
-
-                        if (hasVariants) {
-                          return (
-                            <div key={product.id}>
-                              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
-                                <p className="text-sm font-medium text-slate-900">
-                                  {product.name}
-                                </p>
-                              </div>
-                              {activeVariants.map((variant) => (
-                                <button
-                                  key={variant.id}
-                                  onClick={() =>
-                                    handleAddProduct(product, variant)
-                                  }
-                                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 pl-8"
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-slate-700">
-                                      {getVariantLabel(variant)}
-                                    </span>
-                                    <span className="text-sm font-medium text-slate-900">
-                                      {formatPrice(
-                                        getPrice(
-                                          product,
-                                          variant,
-                                          orderChannel,
-                                          customerPriceTier
-                                        )
-                                      )}
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
+                      productResults.map((product) => (
+                        <button
+                          key={product.id}
+                          onClick={() => handleAddProduct(product)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">
+                                {product.name}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {product.unit}
+                              </p>
                             </div>
-                          );
-                        }
-
-                        return (
-                          <button
-                            key={product.id}
-                            onClick={() => handleAddProduct(product)}
-                            className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">
-                                  {product.name}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {product.unit}
-                                </p>
-                              </div>
-                              <span className="text-sm font-medium text-slate-900">
-                                {formatPrice(
-                                  getPrice(product, null, orderChannel, customerPriceTier)
-                                )}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
+                            <span className="text-sm font-medium text-slate-900">
+                              {formatPrice(
+                                getPrice(product, null, orderChannel, customerPriceTier)
+                              )}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
                   </div>
                 </div>
               )}
@@ -1220,70 +1270,161 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
               </div>
 
               {/* Items */}
-              {items.map((item, index) => (
-                <div
-                  key={`${item.productId}-${item.variantId || "base"}-${index}`}
-                  className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 px-4 py-3 border-b border-slate-100 last:border-b-0 items-center"
-                >
-                  <div className="col-span-4">
-                    <p className="text-sm font-medium text-slate-900">
-                      {item.productName}
-                    </p>
-                    {item.variantLabel && (
-                      <p className="text-xs text-slate-500">
-                        {item.variantLabel}
-                      </p>
+              {items.map((item, index) => {
+                const product = productCacheRef.current.get(item.productId);
+                const channelFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
+                const activeVariants = product?.product_variants?.filter(
+                  (v) => v.is_active && (!v.channel || v.channel === channelFilter)
+                ) || [];
+                const isCoffee = product ? hasCoffeeVariants(product, activeVariants) : false;
+                const weights = isCoffee ? getWeightOptions(activeVariants) : [];
+                const grinds = isCoffee ? getGrindOptions(activeVariants) : [];
+                const currentVariant = item.variantId
+                  ? activeVariants.find((v) => v.id === item.variantId)
+                  : undefined;
+
+                return (
+                  <div
+                    key={`${item.productId}-${item.variantId || "base"}-${index}`}
+                    className="px-4 py-3 border-b border-slate-100 last:border-b-0"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center">
+                      {/* Product name + variant label */}
+                      <div className="col-span-4">
+                        <p className="text-sm font-medium text-slate-900">
+                          {item.productName}
+                          {item.variantLabel && (
+                            <span className="text-slate-500 font-normal">
+                              {` — ${item.variantLabel}`}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      {/* Unit price */}
+                      <div className="col-span-2">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                            &pound;
+                          </span>
+                          <input
+                            type="number"
+                            value={item.unitPrice}
+                            onChange={(e) =>
+                              handleUpdateItemPrice(
+                                index,
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            step="0.01"
+                            min="0"
+                            className="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                          />
+                        </div>
+                      </div>
+                      {/* Quantity */}
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleUpdateItemQuantity(
+                              index,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          min="1"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                        />
+                      </div>
+                      {/* Line total */}
+                      <div className="col-span-3 text-right">
+                        <span className="text-sm font-medium text-slate-900">
+                          {formatPrice(item.unitPrice * item.quantity)}
+                        </span>
+                      </div>
+                      {/* Delete */}
+                      <div className="col-span-1 text-right">
+                        <button
+                          onClick={() => handleRemoveItem(index)}
+                          className="text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Variant selectors */}
+                    {activeVariants.length > 1 && (
+                      <div className="mt-2 flex flex-wrap gap-2 pl-0 md:pl-0">
+                        {isCoffee ? (
+                          <>
+                            {/* Weight dropdown */}
+                            {weights.length > 1 && (
+                              <div className="relative">
+                                <select
+                                  value={currentVariant?.weight_grams ?? ""}
+                                  onChange={(e) => {
+                                    const newWeight = parseInt(e.target.value);
+                                    const grindId = currentVariant?.grind_type_id || grinds[0]?.id || null;
+                                    const match = findVariant(activeVariants, newWeight, grindId);
+                                    if (match) handleUpdateItemVariant(index, match.id);
+                                  }}
+                                  className="text-xs border border-slate-200 rounded-md pl-2 pr-6 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 appearance-none"
+                                >
+                                  {weights.map((w) => (
+                                    <option key={w.weight_grams} value={w.weight_grams}>
+                                      {w.unit}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                              </div>
+                            )}
+                            {/* Grind dropdown */}
+                            {grinds.length > 0 && (
+                              <div className="relative">
+                                <select
+                                  value={currentVariant?.grind_type_id ?? ""}
+                                  onChange={(e) => {
+                                    const newGrindId = e.target.value;
+                                    const weight = currentVariant?.weight_grams ?? weights[0]?.weight_grams ?? null;
+                                    const match = findVariant(activeVariants, weight, newGrindId);
+                                    if (match) handleUpdateItemVariant(index, match.id);
+                                  }}
+                                  className="text-xs border border-slate-200 rounded-md pl-2 pr-6 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 appearance-none"
+                                >
+                                  {grinds.map((g) => (
+                                    <option key={g.id} value={g.id}>
+                                      {g.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          /* Non-coffee: single variant dropdown */
+                          <div className="relative">
+                            <select
+                              value={item.variantId || ""}
+                              onChange={(e) => handleUpdateItemVariant(index, e.target.value)}
+                              className="text-xs border border-slate-200 rounded-md pl-2 pr-6 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 appearance-none"
+                            >
+                              {activeVariants.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                  {getVariantLabel(v)}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <div className="col-span-2">
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                        &pound;
-                      </span>
-                      <input
-                        type="number"
-                        value={item.unitPrice}
-                        onChange={(e) =>
-                          handleUpdateItemPrice(
-                            index,
-                            parseFloat(e.target.value) || 0
-                          )
-                        }
-                        step="0.01"
-                        min="0"
-                        className="w-full pl-7 pr-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                      />
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        handleUpdateItemQuantity(
-                          index,
-                          parseInt(e.target.value) || 1
-                        )
-                      }
-                      min="1"
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                    />
-                  </div>
-                  <div className="col-span-3 text-right">
-                    <span className="text-sm font-medium text-slate-900">
-                      {formatPrice(item.unitPrice * item.quantity)}
-                    </span>
-                  </div>
-                  <div className="col-span-1 text-right">
-                    <button
-                      onClick={() => handleRemoveItem(index)}
-                      className="text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Subtotal */}
               <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-b-lg mt-2">

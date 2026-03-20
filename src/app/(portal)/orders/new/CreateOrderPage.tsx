@@ -50,6 +50,8 @@ interface Product {
   unit: string;
   retail_price: number | null;
   wholesale_price: number | null;
+  is_retail: boolean;
+  is_wholesale: boolean;
   status: string;
   product_variants: ProductVariant[];
 }
@@ -385,13 +387,17 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
       }
       // Only show published products
       products = products.filter((p: Product) => p.status === "published");
+      // Filter by channel — wholesale orders show is_wholesale products, storefront shows is_retail
+      products = products.filter((p: Product) =>
+        orderChannel === "wholesale" ? p.is_wholesale : p.is_retail
+      );
       setProductResults(products);
     } catch {
       setProductResults([]);
     } finally {
       setIsSearchingProducts(false);
     }
-  }, []);
+  }, [orderChannel]);
 
   useEffect(() => {
     if (showProductSearch) {
@@ -1046,8 +1052,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                     )}
                     {!isSearchingProducts &&
                       productResults.map((product) => {
+                        const channelFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
                         const activeVariants = product.product_variants?.filter(
-                          (v) => v.is_active
+                          (v) => v.is_active && (!v.channel || v.channel === channelFilter)
                         );
                         const hasVariants =
                           activeVariants && activeVariants.length > 0;

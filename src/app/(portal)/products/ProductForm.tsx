@@ -277,7 +277,7 @@ export function ProductForm({ product }: { product?: Product }) {
   const [tastingNotes, setTastingNotes] = useState(product?.tasting_notes || "");
   const [description, setDescription] = useState(product?.description || "");
   const [metaDescription, setMetaDescription] = useState(product?.meta_description || "");
-  const [isRetail, setIsRetail] = useState(product?.is_retail ?? RETAIL_ENABLED);
+  const [isRetail, setIsRetail] = useState(product?.is_retail ?? false);
   const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? true);
   const [imageUrl, setImageUrl] = useState(product?.image_url || "");
   const [sku, setSku] = useState(product?.sku || "");
@@ -1084,7 +1084,7 @@ export function ProductForm({ product }: { product?: Product }) {
   // Tabs to show
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: "overview", label: "Overview", show: true },
-    { key: "retail", label: "Retail", show: RETAIL_ENABLED && isRetail },
+    { key: "retail", label: "Retail", show: isRetail },
     { key: "wholesale", label: "Wholesale", show: isWholesale },
   ];
 
@@ -1692,7 +1692,6 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
 
                   {/* Meta Description */}
-                  {RETAIL_ENABLED && (
                   <div>
                     <div className="flex items-center justify-between">
                       <label className={labelClassName}>
@@ -1717,10 +1716,8 @@ export function ProductForm({ product }: { product?: Product }) {
                       {`${metaDescription.length}/155 characters`}
                     </p>
                   </div>
-                  )}
 
                   {/* Channel Toggles */}
-                  {RETAIL_ENABLED && (
                   <div>
                     <label className={labelClassName}>Channels</label>
                     <div className="flex gap-4">
@@ -1761,7 +1758,6 @@ export function ProductForm({ product }: { product?: Product }) {
                       </p>
                     )}
                   </div>
-                  )}
 
                   {/* Product Image */}
                   <div>

@@ -6,7 +6,7 @@ import { Pencil, Trash2, Plus, Check, ArrowDown } from "@/components/icons";
 import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
-import { RETAIL_ENABLED } from "@/lib/feature-flags";
+
 
 interface ProductVariant {
   id: string;
@@ -52,8 +52,7 @@ const allTabs: { value: TabValue; label: string }[] = [
   { value: "wholesale", label: "Wholesale" },
 ];
 
-// When retail is disabled, all products are wholesale — no need for filter tabs
-const tabs = RETAIL_ENABLED ? allTabs : [];
+const tabs = allTabs;
 
 export function ProductsTable({ products: initial }: { products: Product[] }) {
   const router = useRouter();
@@ -233,11 +232,9 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   </th>
                   {activeTab === "all" ? (
                     <>
-                      {RETAIL_ENABLED && (
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                         Retail Price
                       </th>
-                      )}
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
                         Wholesale Price
                       </th>
@@ -291,13 +288,11 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                     </td>
                     {activeTab === "all" ? (
                       <>
-                        {RETAIL_ENABLED && (
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
                             {getRetailPriceDisplay(product)}
                           </span>
                         </td>
-                        )}
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
                             {getWholesalePriceDisplay(product)}

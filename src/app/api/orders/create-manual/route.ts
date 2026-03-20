@@ -696,7 +696,7 @@ export async function POST(request: Request) {
         .from("platform_fee_ledger")
         .insert({
           roaster_id: roasterId,
-          order_type: "storefront",
+          order_type: orderChannel,
           reference_id: order.id,
           gross_amount: subtotalPence / 100,
           fee_percent:

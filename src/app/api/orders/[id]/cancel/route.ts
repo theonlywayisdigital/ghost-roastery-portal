@@ -133,6 +133,25 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
+  // 2c. Replenish product-level stock for cancelled items
+  for (const item of orderItems) {
+    const productId = item.productId as string | undefined;
+    const quantity = item.quantity as number | undefined;
+    if (productId && quantity) {
+      await supabase.rpc("increment_product_stock", {
+        product_id: productId,
+        qty: quantity,
+      });
+      const variantId = item.variantId as string | undefined;
+      if (variantId) {
+        await supabase.rpc("increment_variant_stock", {
+          variant_id: variantId,
+          qty: quantity,
+        });
+      }
+    }
+  }
+
   // 3. Activity log
   await supabase.from("order_activity_log").insert({
     order_id: id,

@@ -145,6 +145,22 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           });
         }
       }
+
+      // Replenish product-level stock
+      const productId = item.productId as string | undefined;
+      if (productId && quantity) {
+        await supabase.rpc("increment_product_stock", {
+          product_id: productId,
+          qty: quantity,
+        });
+        const variantId = item.variantId as string | undefined;
+        if (variantId) {
+          await supabase.rpc("increment_variant_stock", {
+            variant_id: variantId,
+            qty: quantity,
+          });
+        }
+      }
     }
   }
 

@@ -117,7 +117,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
       key: "current_stock_kg",
       label: "Stock (kg)",
       sortable: true,
-      render: (row) => <span className="font-medium text-slate-900">{Number(row.current_stock_kg).toFixed(1)}</span>,
+      render: (row) => <span className="font-medium text-slate-900">{Number(row.current_stock_kg).toFixed(2)}</span>,
     },
     {
       key: "low_stock_threshold_kg",
@@ -125,7 +125,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
       hiddenOnMobile: true,
       render: (row) => (
         <span className="text-slate-600">
-          {row.low_stock_threshold_kg ? `${Number(row.low_stock_threshold_kg).toFixed(1)} kg` : "—"}
+          {row.low_stock_threshold_kg ? `${Number(row.low_stock_threshold_kg).toFixed(2)} kg` : "—"}
         </span>
       ),
     },

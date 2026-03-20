@@ -428,7 +428,7 @@ export function RoastLogForm({
                         <option value="">Select existing stock record</option>
                         {roastedStocks.map((s) => (
                           <option key={s.id} value={s.id}>
-                            {s.name} ({Number(s.current_stock_kg).toFixed(1)} kg)
+                            {s.name} ({Number(s.current_stock_kg).toFixed(2)} kg)
                           </option>
                         ))}
                       </select>

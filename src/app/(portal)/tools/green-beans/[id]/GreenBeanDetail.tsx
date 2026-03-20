@@ -220,9 +220,9 @@ export function GreenBeanDetail({
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Current Stock</h3>
-            <p className="text-3xl font-bold text-slate-900">{currentStock.toFixed(1)} <span className="text-lg font-normal text-slate-500">kg</span></p>
+            <p className="text-3xl font-bold text-slate-900">{currentStock.toFixed(2)} <span className="text-lg font-normal text-slate-500">kg</span></p>
             {bean.low_stock_threshold_kg && (
-              <p className="text-xs text-slate-500 mt-1">Low stock alert at {Number(bean.low_stock_threshold_kg).toFixed(1)} kg</p>
+              <p className="text-xs text-slate-500 mt-1">Low stock alert at {Number(bean.low_stock_threshold_kg).toFixed(2)} kg</p>
             )}
           </div>
 

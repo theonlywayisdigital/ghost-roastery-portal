@@ -217,7 +217,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       hiddenOnMobile: true,
       render: (row: TableRow) => (
         <span className="text-slate-600">
-          {row.greenStockKg != null ? row.greenStockKg.toFixed(1) : "—"}
+          {row.greenStockKg != null ? row.greenStockKg.toFixed(2) : "—"}
         </span>
       ),
     },
@@ -226,7 +226,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       label: "Roasted (kg)",
       sortable: true,
       render: (row: TableRow) => (
-        <span className="font-medium text-slate-900">{row.roastedStockKg.toFixed(1)}</span>
+        <span className="font-medium text-slate-900">{row.roastedStockKg.toFixed(2)}</span>
       ),
     },
     {
@@ -236,7 +236,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       hiddenOnMobile: true,
       render: (row: TableRow) => (
         <span className="text-slate-600">
-          {row.committedKg > 0 ? row.committedKg.toFixed(1) : "0"}
+          {row.committedKg > 0 ? row.committedKg.toFixed(2) : "0"}
         </span>
       ),
     },
@@ -246,10 +246,10 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       sortable: true,
       render: (row: TableRow) => {
         if (row.requiredKg > 0) {
-          return <span className="font-semibold text-red-600">{row.requiredKg.toFixed(1)}</span>;
+          return <span className="font-semibold text-red-600">{row.requiredKg.toFixed(2)}</span>;
         }
         if (row.requiredKg < 0) {
-          return <span className="text-green-600">{row.requiredKg.toFixed(1)}</span>;
+          return <span className="text-green-600">{row.requiredKg.toFixed(2)}</span>;
         }
         return <span className="text-slate-400">0</span>;
       },
@@ -272,7 +272,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       hiddenOnMobile: true,
       render: (row: TableRow) => (
         <span className={row.excessKg > 0 ? "text-green-600" : "text-slate-400"}>
-          {row.excessKg > 0 ? row.excessKg.toFixed(1) : "0"}
+          {row.excessKg > 0 ? row.excessKg.toFixed(2) : "0"}
         </span>
       ),
     },
@@ -289,7 +289,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             </div>
             <p className="text-xs text-slate-500">Green Stock</p>
           </div>
-          <p className="text-xl font-bold text-slate-900">{`${totalGreenKg.toFixed(1)} kg`}</p>
+          <p className="text-xl font-bold text-slate-900">{`${totalGreenKg.toFixed(2)} kg`}</p>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -299,7 +299,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             </div>
             <p className="text-xs text-slate-500">Roasted Stock</p>
           </div>
-          <p className="text-xl font-bold text-slate-900">{`${totalRoastedKg.toFixed(1)} kg`}</p>
+          <p className="text-xl font-bold text-slate-900">{`${totalRoastedKg.toFixed(2)} kg`}</p>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -309,7 +309,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             </div>
             <p className="text-xs text-slate-500">Committed</p>
           </div>
-          <p className="text-xl font-bold text-slate-900">{`${totalCommittedKg.toFixed(1)} kg`}</p>
+          <p className="text-xl font-bold text-slate-900">{`${totalCommittedKg.toFixed(2)} kg`}</p>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-5">

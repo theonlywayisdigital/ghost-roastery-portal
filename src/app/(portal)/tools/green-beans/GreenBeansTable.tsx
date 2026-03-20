@@ -134,7 +134,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
       key: "current_stock_kg",
       label: "Stock (kg)",
       sortable: true,
-      render: (row) => <span className="font-medium text-slate-900">{Number(row.current_stock_kg).toFixed(1)}</span>,
+      render: (row) => <span className="font-medium text-slate-900">{Number(row.current_stock_kg).toFixed(2)}</span>,
     },
     {
       key: "cost_per_kg",

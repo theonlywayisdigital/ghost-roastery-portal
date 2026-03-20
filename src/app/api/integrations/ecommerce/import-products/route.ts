@@ -377,6 +377,17 @@ function parseWeightFromOptions(
       }
     }
   }
+  // Fallback: bare number (e.g. "250") — assume grams if in coffee weight range
+  for (const opt of options) {
+    const trimmed = opt.trim();
+    if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+      const num = parseFloat(trimmed);
+      if (num >= 50 && num <= 5000) {
+        const grams = Math.round(num);
+        return { grams, unit: formatWeightUnit(grams) };
+      }
+    }
+  }
   return null;
 }
 

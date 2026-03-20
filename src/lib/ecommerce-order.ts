@@ -23,6 +23,16 @@ import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
+/** Parse weight in grams from a unit string like "250g", "1kg", "500g" */
+function parseWeightFromUnit(unit: string | null | undefined): number | null {
+  if (!unit) return null;
+  const kgMatch = unit.match(/(\d+(?:\.\d+)?)\s*kg/i);
+  if (kgMatch) return Math.round(parseFloat(kgMatch[1]) * 1000);
+  const gMatch = unit.match(/(\d+(?:\.\d+)?)\s*g/i);
+  if (gMatch) return Math.round(parseFloat(gMatch[1]));
+  return null;
+}
+
 export interface ExternalLineItem {
   external_product_id: string;
   external_variant_id: string | null;
@@ -250,9 +260,9 @@ export async function processEcommerceOrder(
     }
 
     const variant = ghostVariantId ? variantMap[ghostVariantId] : null;
-    const weightGrams =
-      variant?.weight_grams || product?.weight_grams || null;
     const unit = variant?.unit || product?.unit || "";
+    const weightGrams =
+      variant?.weight_grams || product?.weight_grams || parseWeightFromUnit(unit);
     const unitAmountPence = Math.round(item.price * 100);
 
     orderItems.push({

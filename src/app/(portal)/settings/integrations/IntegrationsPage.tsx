@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   RefreshCw,
   ExternalLink,
@@ -15,6 +16,7 @@ import {
   Download,
   Package,
   Check,
+  Link2,
 } from "lucide-react";
 
 interface AccountOption {
@@ -126,6 +128,7 @@ export function IntegrationsPage() {
   const [importSelected, setImportSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [unmappedCount, setUnmappedCount] = useState(0);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -148,6 +151,19 @@ export function IntegrationsPage() {
       setQuickbooksStatus(qbData);
       setShopifyStatus(shopifyData);
       setWooStatus(wooData);
+
+      // Fetch unmapped count if any ecommerce connection exists
+      if (shopifyData.connected || wooData.connected) {
+        try {
+          const mappingsRes = await fetch(
+            "/api/integrations/ecommerce/product-mappings"
+          );
+          const mappingsData = await mappingsRes.json();
+          setUnmappedCount(mappingsData.unmapped_count || 0);
+        } catch {
+          // Non-critical
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -1209,6 +1225,51 @@ export function IntegrationsPage() {
           icon: <Store className="w-6 h-6 text-white" />,
         })}
       </div>
+
+      {/* Product Mapping link — shown when any ecommerce connection exists */}
+      {(shopifyStatus?.connected || wooStatus?.connected) && (
+        <div className="mt-4">
+          <Link
+            href="/settings/integrations/product-mapping"
+            className="flex items-center justify-between w-full bg-white rounded-xl border border-slate-200 p-4 hover:bg-slate-50 transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                <Link2 className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  Product Stock Mapping
+                </p>
+                <p className="text-xs text-slate-500">
+                  Link imported products to your roasted stock and green bean
+                  records
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {unmappedCount > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                  {unmappedCount} unmapped
+                </span>
+              )}
+              <svg
+                className="w-5 h-5 text-slate-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* Info section */}
       <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-5">

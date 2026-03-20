@@ -5,34 +5,19 @@ import { createServerClient } from "@/lib/supabase";
 export async function GET(request: NextRequest) {
   const portalUrl = process.env.PORTAL_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
 
-  // DEBUG MODE — return JSON instead of redirects to diagnose the issue
-  // TODO: Remove this after debugging
-  const debug = true;
-  const debugLog: string[] = [];
-  debugLog.push(`portalUrl=${portalUrl}`);
-
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const shop = searchParams.get("shop");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
-  const hmac = searchParams.get("hmac");
-  const timestamp = searchParams.get("timestamp");
-
-  debugLog.push(`params: code=${code ? "present" : "MISSING"}, shop=${shop || "MISSING"}, state=${state ? "present" : "MISSING"}, error=${error || "none"}, hmac=${hmac ? "present" : "MISSING"}, timestamp=${timestamp || "none"}`);
-  debugLog.push(`full_url=${request.url}`);
 
   if (error) {
-    debugLog.push(`EARLY_EXIT: error param = ${error}`);
-    if (debug) return NextResponse.json({ step: "error_param", debugLog });
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=${encodeURIComponent(error)}`
     );
   }
 
   if (!code || !shop || !state) {
-    debugLog.push(`EARLY_EXIT: missing_params — code=${!!code}, shop=${!!shop}, state=${!!state}`);
-    if (debug) return NextResponse.json({ step: "missing_params", debugLog });
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=missing_params`
     );
@@ -42,29 +27,23 @@ export async function GET(request: NextRequest) {
   let stateData: { roasterId: string; shop: string };
   try {
     stateData = JSON.parse(Buffer.from(state, "base64url").toString());
-    debugLog.push(`state decoded: roasterId=${stateData.roasterId}, shop=${stateData.shop}`);
-  } catch (e) {
-    debugLog.push(`EARLY_EXIT: invalid_state parse error: ${e}`);
-    if (debug) return NextResponse.json({ step: "invalid_state", debugLog });
+  } catch {
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=invalid_state`
     );
   }
 
   if (!stateData.roasterId) {
-    debugLog.push(`EARLY_EXIT: no roasterId in state`);
-    if (debug) return NextResponse.json({ step: "no_roaster_in_state", debugLog });
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=invalid_state`
     );
   }
 
+  // Try to get the current user session — may be null if cookies were
+  // lost during the cross-domain redirect to Shopify and back.
+  // If we have a session, verify the roasterId matches.
   const user = await getCurrentUser();
-  debugLog.push(`session: user=${user ? user.id : "null"}, roaster=${user?.roaster?.id || "null"}`);
-
   if (user?.roaster?.id && stateData.roasterId !== user.roaster.id) {
-    debugLog.push(`EARLY_EXIT: state_mismatch — state.roasterId=${stateData.roasterId}, user.roaster.id=${user.roaster.id}`);
-    if (debug) return NextResponse.json({ step: "state_mismatch", debugLog });
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=state_mismatch`
     );
@@ -76,14 +55,10 @@ export async function GET(request: NextRequest) {
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    debugLog.push(`EARLY_EXIT: not_configured — clientId=${!!clientId}, clientSecret=${!!clientSecret}`);
-    if (debug) return NextResponse.json({ step: "not_configured", debugLog });
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=not_configured`
     );
   }
-
-  debugLog.push(`Exchanging code for token with shop=${shop}`);
 
   try {
     // Exchange code for offline access token
@@ -100,12 +75,9 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    debugLog.push(`tokenRes.status=${tokenRes.status}`);
-
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
-      debugLog.push(`EARLY_EXIT: token_exchange_failed — ${errBody}`);
-      if (debug) return NextResponse.json({ step: "token_exchange_failed", debugLog });
+      console.error("[shopify] Token exchange failed:", errBody);
       return NextResponse.redirect(
         `${portalUrl}/settings/integrations?error=token_exchange_failed`
       );
@@ -113,7 +85,6 @@ export async function GET(request: NextRequest) {
 
     const tokenData = await tokenRes.json();
     const accessToken = tokenData.access_token;
-    debugLog.push(`token received: hasToken=${!!accessToken}, scope=${tokenData.scope}`);
 
     // Fetch shop info
     const shopRes = await fetch(`https://${shop}/admin/api/2024-01/shop.json`, {
@@ -125,21 +96,82 @@ export async function GET(request: NextRequest) {
       const shopData = await shopRes.json();
       shopName = shopData.shop?.name || shop;
     }
-    debugLog.push(`shopName=${shopName}`);
 
-    // Normalize store URL
+    // Normalize store URL for consistent lookups
     let normalizedShop = shop.trim().toLowerCase();
     const protoIdx = normalizedShop.indexOf("://");
     if (protoIdx !== -1) normalizedShop = normalizedShop.slice(protoIdx + 3);
     normalizedShop = normalizedShop.split("/")[0];
-    debugLog.push(`normalizedShop=${normalizedShop}`);
 
-    // Skip webhook setup for debug speed
-    debugLog.push(`Attempting DB upsert: roaster_id=${roasterId}, provider=shopify, store_url=${normalizedShop}`);
+    // Delete any existing webhooks for this store before registering new ones
+    try {
+      const existingWh = await fetch(
+        `https://${shop}/admin/api/2024-01/webhooks.json`,
+        { headers: { "X-Shopify-Access-Token": accessToken } }
+      );
+      if (existingWh.ok) {
+        const existingData = await existingWh.json();
+        for (const wh of existingData.webhooks || []) {
+          try {
+            await fetch(
+              `https://${shop}/admin/api/2024-01/webhooks/${wh.id}.json`,
+              {
+                method: "DELETE",
+                headers: { "X-Shopify-Access-Token": accessToken },
+              }
+            );
+          } catch {
+            // Best-effort cleanup
+          }
+        }
+      }
+    } catch {
+      // Non-critical — continue with registration
+    }
+
+    // Register webhooks
+    const webhookIds: Record<string, string> = {};
+    const webhookTopics = [
+      "orders/create",
+      "products/update",
+      "products/create",
+    ];
+
+    const webhookUrl = `${portalUrl}/api/webhooks/shopify`;
+    for (const topic of webhookTopics) {
+      try {
+        const whRes = await fetch(
+          `https://${shop}/admin/api/2024-01/webhooks.json`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Shopify-Access-Token": accessToken,
+            },
+            body: JSON.stringify({
+              webhook: {
+                topic,
+                address: webhookUrl,
+                format: "json",
+              },
+            }),
+          }
+        );
+        if (whRes.ok) {
+          const whData = await whRes.json();
+          webhookIds[topic] = String(whData.webhook.id);
+        } else {
+          const whErr = await whRes.text();
+          console.error(`[shopify] Webhook registration failed for ${topic}:`, whErr);
+        }
+      } catch (whErr) {
+        console.error(`[shopify] Webhook registration error for ${topic}:`, whErr);
+      }
+    }
 
     // Upsert connection using service role client
     const supabase = createServerClient();
-    const { data: upsertData, error: upsertError } = await supabase
+    const { error: upsertError } = await supabase
       .from("ecommerce_connections")
       .upsert(
         {
@@ -149,7 +181,7 @@ export async function GET(request: NextRequest) {
           access_token: accessToken,
           shop_name: shopName,
           is_active: true,
-          webhook_ids: {},
+          webhook_ids: webhookIds,
           settings: {
             connected_at: new Date().toISOString(),
             scopes: tokenData.scope,
@@ -157,27 +189,20 @@ export async function GET(request: NextRequest) {
           updated_at: new Date().toISOString(),
         },
         { onConflict: "roaster_id,provider,store_url" }
-      )
-      .select();
+      );
 
     if (upsertError) {
-      debugLog.push(`EARLY_EXIT: save_failed — ${JSON.stringify(upsertError)}`);
-      if (debug) return NextResponse.json({ step: "save_failed", debugLog });
+      console.error("[shopify] Failed to save connection:", upsertError);
       return NextResponse.redirect(
         `${portalUrl}/settings/integrations?error=save_failed`
       );
     }
 
-    debugLog.push(`SUCCESS — upserted: ${JSON.stringify(upsertData)}`);
-
-    if (debug) return NextResponse.json({ step: "success", debugLog });
-
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?success=shopify`
     );
   } catch (err) {
-    debugLog.push(`CATCH: ${err instanceof Error ? err.message : String(err)}`);
-    if (debug) return NextResponse.json({ step: "catch_error", debugLog });
+    console.error("[shopify] OAuth callback error:", err);
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=oauth_failed`
     );

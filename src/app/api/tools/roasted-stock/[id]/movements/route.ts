@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const roaster = await getCurrentRoaster();
@@ -57,6 +58,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } else {
     await supabase.rpc("deduct_roasted_stock", { stock_id: id, qty_kg: Math.abs(effectiveQty) });
   }
+
+  // Push stock to ecommerce channels (fire-and-forget)
+  pushStockToChannels(roaster.id as string, id).catch((err) =>
+    console.error("[roasted-stock-movement] Stock push error:", err)
+  );
 
   return NextResponse.json({ balance: newBalance }, { status: 201 });
 }

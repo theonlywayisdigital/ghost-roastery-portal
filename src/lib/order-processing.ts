@@ -13,6 +13,7 @@ import { generateInvoiceNumber, generateAccessToken } from "@/lib/invoice-utils"
 import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
 import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 export interface ProcessOrderItem {
   productId: string;
@@ -353,6 +354,18 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
         });
       }
     }
+  }
+
+  // 7d. Push stock to ecommerce channels (fire-and-forget)
+  const affectedStockIds = new Set<string>();
+  for (const item of orderItems) {
+    const rsId = (item as Record<string, unknown>).roastedStockId as string | undefined;
+    if (rsId) affectedStockIds.add(rsId);
+  }
+  for (const stockId of Array.from(affectedStockIds)) {
+    pushStockToChannels(roasterId, stockId).catch((err) =>
+      console.error("[order-processing] Stock push error:", err)
+    );
   }
 
   // 8. Increment monthly wholesale orders — ONLY if wholesale

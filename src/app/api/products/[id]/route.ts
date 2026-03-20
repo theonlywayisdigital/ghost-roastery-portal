@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushProductToChannels } from "@/lib/ecommerce-stock-sync";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -341,6 +342,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
         }
       }
     }
+
+    // Push product changes to ecommerce channels (fire-and-forget)
+    pushProductToChannels(roaster.id as string, id).catch((err) =>
+      console.error("[product-update] Product push error:", err)
+    );
 
     return NextResponse.json({ product });
   } catch (error) {

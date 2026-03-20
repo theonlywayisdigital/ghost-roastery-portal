@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const roaster = await getCurrentRoaster();
@@ -149,6 +150,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         notes: `Roast output from batch ${roast_number || id}`,
       });
     }
+  }
+
+  // Push stock to ecommerce channels after roast completion (fire-and-forget)
+  if (statusChanged && roasted_stock_id) {
+    pushStockToChannels(roaster.id as string, roasted_stock_id).catch((err) =>
+      console.error("[roast-log] Stock push error:", err)
+    );
   }
 
   return NextResponse.json({ roastLog: data });

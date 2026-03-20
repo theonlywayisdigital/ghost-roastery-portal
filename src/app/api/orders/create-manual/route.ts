@@ -19,6 +19,7 @@ import { syncToXero, pushInvoiceToXero } from "@/lib/xero";
 import { syncToSage, pushInvoiceToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushInvoiceToQuickBooks } from "@/lib/quickbooks";
 import { stripe } from "@/lib/stripe";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 interface ManualOrderItem {
   productId: string;
@@ -358,6 +359,18 @@ export async function POST(request: Request) {
           });
         }
       }
+    }
+
+    // ─── Push stock to ecommerce channels (fire-and-forget) ───
+    const affectedStockIds = new Set<string>();
+    for (const item of orderItems) {
+      const rsId = (item as Record<string, unknown>).roastedStockId as string | undefined;
+      if (rsId) affectedStockIds.add(rsId);
+    }
+    for (const stockId of Array.from(affectedStockIds)) {
+      pushStockToChannels(roasterId, stockId).catch((err) =>
+        console.error("[create-manual] Stock push error:", err)
+      );
     }
 
     // ─── Notify the roaster about the new manual order ───

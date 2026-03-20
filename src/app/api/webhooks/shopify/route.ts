@@ -6,6 +6,7 @@ import {
   type ExternalOrder,
   type ExternalLineItem,
 } from "@/lib/ecommerce-order";
+import { handleInboundProductUpdate } from "@/lib/ecommerce-stock-sync";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -35,12 +36,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Only handle order creation
-  if (topic !== "orders/create") {
-    // Acknowledge but don't process other topics for now
-    return NextResponse.json({ ok: true });
-  }
-
   const payload = JSON.parse(body);
 
   // ─── Look up connection ─────────────────────────────────────────
@@ -63,6 +58,43 @@ export async function POST(request: Request) {
       `[shopify-webhook] No active connection for ${normalizedDomain}`
     );
     return NextResponse.json({ error: "Unknown store" }, { status: 404 });
+  }
+
+  // ─── Handle product updates ───────────────────────────────────
+  if (topic === "products/update" || topic === "products/create") {
+    try {
+      const variantUpdates = (payload.variants || []).map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (v: any) => ({
+          external_variant_id: String(v.id),
+          price: v.price ? parseFloat(v.price) : undefined,
+          sku: v.sku || undefined,
+        })
+      );
+
+      const processed = await handleInboundProductUpdate(
+        connection.id,
+        String(payload.id),
+        {
+          name: payload.title || undefined,
+          description: payload.body_html || undefined,
+          image_url: payload.image?.src || payload.images?.[0]?.src || undefined,
+          status: payload.status || undefined,
+        },
+        variantUpdates
+      );
+
+      return NextResponse.json({ ok: true, processed });
+    } catch (err) {
+      console.error("[shopify-webhook] Product update error:", err);
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
+  }
+
+  // ─── Handle order creation ────────────────────────────────────
+  if (topic !== "orders/create") {
+    // Acknowledge but don't process other topics
+    return NextResponse.json({ ok: true });
   }
 
   // ─── Parse Shopify order ────────────────────────────────────────

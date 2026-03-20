@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { checkLimit } from "@/lib/feature-gates";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -142,6 +143,13 @@ export async function POST(request: Request) {
         notes: `Roast output from batch ${roast_number || data.id}`,
       });
     }
+  }
+
+  // Push stock to ecommerce channels after roast completion (fire-and-forget)
+  if (status === "completed" && roasted_stock_id) {
+    pushStockToChannels(roaster.id as string, roasted_stock_id).catch((err) =>
+      console.error("[roast-log] Stock push error:", err)
+    );
   }
 
   return NextResponse.json({ roastLog: data }, { status: 201 });

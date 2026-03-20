@@ -8,6 +8,7 @@ import {
   sendOrderCancelledPartnerNotification,
 } from "@/lib/email";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -161,6 +162,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           });
         }
       }
+    }
+  }
+
+  // 3b. Push replenished stock to ecommerce channels (fire-and-forget, non-ghost only)
+  if (!isGhost) {
+    const affectedStockIds = new Set<string>();
+    const cancelItems = Array.isArray(order.items) ? order.items as Record<string, unknown>[] : [];
+    for (const item of cancelItems) {
+      const rsId = item.roastedStockId as string | undefined;
+      if (rsId) affectedStockIds.add(rsId);
+    }
+    for (const stockId of Array.from(affectedStockIds)) {
+      pushStockToChannels(order.roaster_id, stockId).catch((err) =>
+        console.error("[admin-cancel] Stock push error:", err)
+      );
     }
   }
 

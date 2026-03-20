@@ -5,6 +5,7 @@ import {
   type ExternalOrder,
   type ExternalLineItem,
 } from "@/lib/ecommerce-order";
+import { handleInboundProductUpdate } from "@/lib/ecommerce-stock-sync";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -15,11 +16,6 @@ export async function POST(request: Request) {
 
   if (!source) {
     return NextResponse.json({ error: "Missing source" }, { status: 401 });
-  }
-
-  // Only handle order creation
-  if (topic !== "order.created") {
-    return NextResponse.json({ ok: true });
   }
 
   const payload = JSON.parse(body);
@@ -44,6 +40,49 @@ export async function POST(request: Request) {
       `[woocommerce-webhook] No active connection for ${normalizedSource}`
     );
     return NextResponse.json({ error: "Unknown store" }, { status: 404 });
+  }
+
+  // ─── Handle product updates ───────────────────────────────────
+  if (topic === "product.updated" || topic === "product.created") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const variantUpdates = (payload.variations || []).map((v: any) => ({
+        external_variant_id: String(v.id),
+        price: v.regular_price ? parseFloat(v.regular_price) : v.price ? parseFloat(v.price) : undefined,
+        sku: v.sku || undefined,
+      }));
+
+      // For simple products, add the product itself as a "variant" update
+      if (payload.type === "simple" && payload.regular_price) {
+        variantUpdates.push({
+          external_variant_id: String(payload.id),
+          price: parseFloat(payload.regular_price) || parseFloat(payload.price) || undefined,
+          sku: payload.sku || undefined,
+        });
+      }
+
+      const processed = await handleInboundProductUpdate(
+        connection.id,
+        String(payload.id),
+        {
+          name: payload.name || undefined,
+          description: payload.description || payload.short_description || undefined,
+          image_url: payload.images?.[0]?.src || undefined,
+          status: payload.status || undefined,
+        },
+        variantUpdates
+      );
+
+      return NextResponse.json({ ok: true, processed });
+    } catch (err) {
+      console.error("[woocommerce-webhook] Product update error:", err);
+      return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
+  }
+
+  // ─── Handle order creation ────────────────────────────────────
+  if (topic !== "order.created") {
+    return NextResponse.json({ ok: true });
   }
 
   // ─── Parse WooCommerce order ────────────────────────────────────

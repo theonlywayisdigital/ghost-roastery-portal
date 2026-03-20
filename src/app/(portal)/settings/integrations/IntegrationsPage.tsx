@@ -7,6 +7,11 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
+  ShoppingCart,
+  Store,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 
 interface AccountOption {
@@ -15,6 +20,20 @@ interface AccountOption {
   type?: string;
   rate?: number;
   id?: string;
+}
+
+interface EcommerceStatus {
+  connected: boolean;
+  is_active?: boolean;
+  store_url?: string;
+  shop_name?: string;
+  sync_products?: boolean;
+  sync_orders?: boolean;
+  sync_stock?: boolean;
+  last_product_sync_at?: string | null;
+  last_order_sync_at?: string | null;
+  last_stock_sync_at?: string | null;
+  connected_at?: string | null;
 }
 
 interface IntegrationStatus {
@@ -56,21 +75,46 @@ export function IntegrationsPage() {
   const [testSyncResult, setTestSyncResult] = useState<Record<string, unknown> | null>(null);
   const [testSyncProvider, setTestSyncProvider] = useState<string | null>(null);
 
+  // Ecommerce integration state
+  const [shopifyStatus, setShopifyStatus] = useState<EcommerceStatus | null>(null);
+  const [wooStatus, setWooStatus] = useState<EcommerceStatus | null>(null);
+  const [ecomDisconnecting, setEcomDisconnecting] = useState<string | null>(null);
+  const [ecomToggling, setEcomToggling] = useState<string | null>(null);
+
+  // Shopify connect
+  const [shopifyShopUrl, setShopifyShopUrl] = useState("");
+  const [showShopifyInput, setShowShopifyInput] = useState(false);
+
+  // WooCommerce connect form
+  const [showWooForm, setShowWooForm] = useState(false);
+  const [wooStoreUrl, setWooStoreUrl] = useState("");
+  const [wooConsumerKey, setWooConsumerKey] = useState("");
+  const [wooConsumerSecret, setWooConsumerSecret] = useState("");
+  const [wooShowSecret, setWooShowSecret] = useState(false);
+  const [wooConnecting, setWooConnecting] = useState(false);
+  const [wooError, setWooError] = useState<string | null>(null);
+
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes, qbRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
         fetch("/api/integrations/quickbooks/status"),
+        fetch("/api/integrations/shopify/status"),
+        fetch("/api/integrations/woocommerce/status"),
       ]);
-      const [xeroData, sageData, qbData] = await Promise.all([
+      const [xeroData, sageData, qbData, shopifyData, wooData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
         qbRes.json(),
+        shopifyRes.json(),
+        wooRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
       setQuickbooksStatus(qbData);
+      setShopifyStatus(shopifyData);
+      setWooStatus(wooData);
     } finally {
       setLoading(false);
     }
@@ -92,6 +136,10 @@ export function IntegrationsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     } else if (successParam === "quickbooks") {
       setSuccessMessage("QuickBooks connected successfully!");
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } else if (successParam === "shopify") {
+      setSuccessMessage("Shopify connected successfully!");
       window.history.replaceState({}, "", window.location.pathname);
       setTimeout(() => setSuccessMessage(null), 5000);
     }
@@ -203,6 +251,82 @@ export function IntegrationsPage() {
       });
     } finally {
       setTestSyncLoading(null);
+    }
+  }
+
+  async function handleEcomDisconnect(provider: "shopify" | "woocommerce") {
+    const label = provider === "shopify" ? "Shopify" : "WooCommerce";
+    if (!confirm(`Disconnect ${label}? This will stop all ecommerce syncing and remove webhooks.`))
+      return;
+    setEcomDisconnecting(provider);
+    try {
+      await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
+      const setter = provider === "shopify" ? setShopifyStatus : setWooStatus;
+      setter({ connected: false });
+    } finally {
+      setEcomDisconnecting(null);
+    }
+  }
+
+  async function handleEcomToggleSync(
+    provider: "shopify" | "woocommerce",
+    key: "sync_products" | "sync_orders" | "sync_stock"
+  ) {
+    const status = provider === "shopify" ? shopifyStatus : wooStatus;
+    if (!status?.connected) return;
+    setEcomToggling(`${provider}-${key}`);
+    try {
+      const newValue = !status[key];
+      const res = await fetch(`/api/integrations/${provider}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: newValue }),
+      });
+      if (res.ok) {
+        const setter = provider === "shopify" ? setShopifyStatus : setWooStatus;
+        setter((prev) => (prev ? { ...prev, [key]: newValue } : prev));
+      }
+    } finally {
+      setEcomToggling(null);
+    }
+  }
+
+  async function handleWooConnect() {
+    if (!wooStoreUrl || !wooConsumerKey || !wooConsumerSecret) {
+      setWooError("All fields are required.");
+      return;
+    }
+    setWooConnecting(true);
+    setWooError(null);
+    try {
+      const res = await fetch("/api/integrations/woocommerce/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_url: wooStoreUrl,
+          consumer_key: wooConsumerKey,
+          consumer_secret: wooConsumerSecret,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWooError(data.error || "Connection failed.");
+        return;
+      }
+      setSuccessMessage("WooCommerce connected successfully!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      setShowWooForm(false);
+      setWooStoreUrl("");
+      setWooConsumerKey("");
+      setWooConsumerSecret("");
+      // Reload ecommerce status
+      const wooRes = await fetch("/api/integrations/woocommerce/status");
+      const wooData = await wooRes.json();
+      setWooStatus(wooData);
+    } catch {
+      setWooError("Could not connect. Please check your details and try again.");
+    } finally {
+      setWooConnecting(false);
     }
   }
 
@@ -548,6 +672,296 @@ export function IntegrationsPage() {
     );
   }
 
+  function renderEcommerceCard(
+    provider: "shopify" | "woocommerce",
+    status: EcommerceStatus | null,
+    config: {
+      label: string;
+      description: string;
+      bgColor: string;
+      hoverColor: string;
+      icon: React.ReactNode;
+    }
+  ) {
+    const syncToggles: { key: "sync_products" | "sync_orders" | "sync_stock"; label: string; description: string }[] = [
+      { key: "sync_products", label: "Sync products", description: `Push product data to ${config.label}` },
+      { key: "sync_orders", label: "Sync orders", description: `Receive orders from ${config.label}` },
+      { key: "sync_stock", label: "Sync stock", description: `Keep stock levels in sync with ${config.label}` },
+    ];
+
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div
+              className={`w-12 h-12 ${config.bgColor} rounded-xl flex items-center justify-center flex-shrink-0`}
+            >
+              {config.icon}
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">
+                {config.label}
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {config.description}
+              </p>
+            </div>
+          </div>
+
+          {status?.connected && (
+            <span
+              className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                status.is_active
+                  ? "bg-green-100 text-green-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {status.is_active ? "Connected" : "Inactive"}
+            </span>
+          )}
+        </div>
+
+        {status?.connected ? (
+          <div className="mt-5 space-y-4">
+            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Store</span>
+                <span className="font-medium text-slate-900">
+                  {status.shop_name || status.store_url || "Unknown"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Connected</span>
+                <span className="text-slate-700">
+                  {formatDate(status.connected_at)}
+                </span>
+              </div>
+              {status.last_product_sync_at && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Last product sync</span>
+                  <span className="text-slate-700">
+                    {formatDate(status.last_product_sync_at)}
+                  </span>
+                </div>
+              )}
+              {status.last_order_sync_at && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Last order sync</span>
+                  <span className="text-slate-700">
+                    {formatDate(status.last_order_sync_at)}
+                  </span>
+                </div>
+              )}
+              {status.last_stock_sync_at && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Last stock sync</span>
+                  <span className="text-slate-700">
+                    {formatDate(status.last_stock_sync_at)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Sync toggles */}
+            <div className="space-y-3">
+              {syncToggles.map((toggle) => (
+                <div key={toggle.key} className="flex items-center justify-between py-1">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{toggle.label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{toggle.description}</p>
+                  </div>
+                  <button
+                    onClick={() => handleEcomToggleSync(provider, toggle.key)}
+                    disabled={ecomToggling === `${provider}-${toggle.key}`}
+                    className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
+                      status[toggle.key] ? "bg-brand-600" : "bg-slate-300"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        status[toggle.key] ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={() => handleEcomDisconnect(provider)}
+                disabled={ecomDisconnecting === provider}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                {ecomDisconnecting === provider ? "Disconnecting..." : "Disconnect"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5">
+            {provider === "shopify" && !showShopifyInput && (
+              <>
+                <button
+                  onClick={() => setShowShopifyInput(true)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Connect {config.label}
+                </button>
+                <p className="text-xs text-slate-400 mt-2">
+                  You&apos;ll be redirected to Shopify to authorise access.
+                </p>
+              </>
+            )}
+
+            {provider === "shopify" && showShopifyInput && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Shop URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={shopifyShopUrl}
+                      onChange={(e) => setShopifyShopUrl(e.target.value)}
+                      placeholder="mystore.myshopify.com"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                    />
+                    <a
+                      href={shopifyShopUrl ? `/api/integrations/shopify/connect?shop=${encodeURIComponent(shopifyShopUrl)}` : "#"}
+                      onClick={(e) => {
+                        if (!shopifyShopUrl.trim()) {
+                          e.preventDefault();
+                        }
+                      }}
+                      className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors ${!shopifyShopUrl.trim() ? "opacity-50 pointer-events-none" : ""}`}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Connect
+                    </a>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Enter your Shopify store URL, e.g. mystore.myshopify.com
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowShopifyInput(false);
+                    setShopifyShopUrl("");
+                  }}
+                  className="text-sm text-slate-500 hover:text-slate-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+
+            {provider === "woocommerce" && !showWooForm && (
+              <>
+                <button
+                  onClick={() => setShowWooForm(true)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Connect {config.label}
+                </button>
+                <p className="text-xs text-slate-400 mt-2">
+                  Enter your WooCommerce REST API credentials to connect.
+                </p>
+              </>
+            )}
+
+            {provider === "woocommerce" && showWooForm && (
+              <div className="space-y-3">
+                {wooError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{wooError}</span>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Store URL
+                  </label>
+                  <input
+                    type="text"
+                    value={wooStoreUrl}
+                    onChange={(e) => setWooStoreUrl(e.target.value)}
+                    placeholder="mystore.com"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Consumer Key
+                  </label>
+                  <input
+                    type="text"
+                    value={wooConsumerKey}
+                    onChange={(e) => setWooConsumerKey(e.target.value)}
+                    placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Consumer Secret
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={wooShowSecret ? "text" : "password"}
+                      value={wooConsumerSecret}
+                      onChange={(e) => setWooConsumerSecret(e.target.value)}
+                      placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setWooShowSecret(!wooShowSecret)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {wooShowSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={handleWooConnect}
+                    disabled={wooConnecting}
+                    className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors disabled:opacity-50`}
+                  >
+                    {wooConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    {wooConnecting ? "Connecting..." : "Test & Connect"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowWooForm(false);
+                      setWooStoreUrl("");
+                      setWooConsumerKey("");
+                      setWooConsumerSecret("");
+                      setWooError(null);
+                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Generate API keys in WooCommerce &rarr; Settings &rarr; Advanced &rarr; REST API. Use &ldquo;Read/Write&rdquo; permissions.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="mb-6">
@@ -585,6 +999,13 @@ export function IntegrationsPage() {
         </div>
       )}
 
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-slate-900">Accounting</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Connect your accounting software to automatically sync invoices, contacts, and payments.
+        </p>
+      </div>
+
       <div className="space-y-4">
         {renderIntegrationCard("xero", xeroStatus, {
           label: "Xero",
@@ -611,6 +1032,34 @@ export function IntegrationsPage() {
           bgColor: "bg-[#2CA01C]",
           hoverColor: "hover:bg-[#238a17]",
           logoLetter: "Q",
+        })}
+      </div>
+
+      {/* Ecommerce section */}
+      <div className="mt-8 mb-6">
+        <h2 className="text-lg font-semibold text-slate-900">Ecommerce</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Connect your online store to sync products, orders, and stock levels.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {renderEcommerceCard("shopify", shopifyStatus, {
+          label: "Shopify",
+          description:
+            "Sync products, orders, and stock levels with your Shopify store.",
+          bgColor: "bg-[#96BF48]",
+          hoverColor: "hover:bg-[#7ea83d]",
+          icon: <ShoppingCart className="w-6 h-6 text-white" />,
+        })}
+
+        {renderEcommerceCard("woocommerce", wooStatus, {
+          label: "WooCommerce",
+          description:
+            "Sync products, orders, and stock levels with your WooCommerce store.",
+          bgColor: "bg-[#7F54B3]",
+          hoverColor: "hover:bg-[#6b479a]",
+          icon: <Store className="w-6 h-6 text-white" />,
         })}
       </div>
 

@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { renderCampaignEmail, checkEmailLimits } from "@/lib/marketing-email";
 import { fireAutomationTrigger, evaluateFilters } from "@/lib/automation-triggers";
+import { getVerifiedDomain } from "@/lib/email";
 import type { TriggerFilters } from "@/types/marketing";
 import { Resend } from "resend";
 
-const FROM_DOMAIN = "ghostroasting.co.uk";
+const FROM_DOMAIN = "ghostroastery.com";
 
 export async function POST(request: NextRequest) {
   // Verify this is called by an authorized source (cron secret or internal)
@@ -104,9 +105,14 @@ export async function POST(request: NextRequest) {
           const fromName = (config.from_name as string) || (roaster.business_name as string);
           const subject = (config.subject as string) || "Message from " + (roaster.business_name as string);
 
+          // Look up custom domain for this roaster
+          const customDomain = await getVerifiedDomain(roaster.id as string);
+          const emailDomain = customDomain?.domain || FROM_DOMAIN;
+          const emailPrefix = customDomain?.senderPrefix || "noreply";
+
           try {
             const sendResult = await resend.emails.send({
-              from: `${fromName} <noreply@${FROM_DOMAIN}>`,
+              from: `${fromName} <${emailPrefix}@${emailDomain}>`,
               to: contact.email,
               subject,
               html,

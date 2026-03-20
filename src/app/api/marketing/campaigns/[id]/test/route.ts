@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
 import { renderCampaignEmail } from "@/lib/marketing-email";
+import { getVerifiedDomain } from "@/lib/email";
 import { Resend } from "resend";
 
 export async function POST(
@@ -43,8 +44,13 @@ export async function POST(
     const resend = new Resend(process.env.RESEND_API_KEY);
     const fromName = (campaign.from_name as string) || owner.display_name;
 
+    // Look up custom domain if this is a roaster campaign
+    const customDomain = owner.owner_id ? await getVerifiedDomain(owner.owner_id) : null;
+    const emailDomain = customDomain?.domain || "ghostroastery.com";
+    const emailPrefix = customDomain?.senderPrefix || "noreply";
+
     await resend.emails.send({
-      from: `${fromName} <noreply@ghostroasting.co.uk>`,
+      from: `${fromName} <${emailPrefix}@${emailDomain}>`,
       to: user.email,
       subject: `[TEST] ${campaign.subject}`,
       html,

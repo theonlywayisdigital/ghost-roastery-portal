@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, checkEmailLimits, renderCampaignEmail } from "@/lib/marketing-email";
+import { getVerifiedDomain } from "@/lib/email";
 
 export async function POST(
   request: NextRequest,
@@ -115,6 +116,9 @@ export async function POST(
     const fromName = (campaign.from_name as string) || owner.display_name;
     const replyTo = (campaign.reply_to as string) || owner.email;
 
+    // Look up custom domain if this is a roaster campaign
+    const customDomain = owner.owner_id ? await getVerifiedDomain(owner.owner_id) : null;
+
     await sendCampaignBatch({
       campaignId: id,
       recipients: recipients.map((c) => ({
@@ -128,6 +132,7 @@ export async function POST(
       fromName,
       replyTo,
       supabase,
+      customDomain,
     });
 
     // Update sent count

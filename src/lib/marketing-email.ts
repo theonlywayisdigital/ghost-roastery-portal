@@ -5,7 +5,7 @@ import type { EmailBlock } from "@/types/marketing";
 import { renderEmailHtml } from "@/lib/render-email-html";
 import { type TierLevel, getEffectiveLimits } from "@/lib/tier-config";
 
-const FROM_DOMAIN = "ghostroasting.co.uk";
+const FROM_DOMAIN = "ghostroastery.com";
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.RESEND_API_KEY || "fallback-secret";
 const BATCH_SIZE = 50;
 
@@ -18,7 +18,7 @@ export function renderCampaignEmail(
   emailBgColor?: string
 ): string {
   const blocks = content as EmailBlock[];
-  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroasting.co.uk"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
+  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
   return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined);
 }
 
@@ -119,13 +119,16 @@ interface SendBatchParams {
   fromName: string;
   replyTo: string;
   supabase: SupabaseClient;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }
 
 export async function sendCampaignBatch(params: SendBatchParams): Promise<void> {
   const { campaignId, recipients, subject, html, fromName, replyTo, supabase } = params;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const fromEmail = `${fromName} <noreply@${FROM_DOMAIN}>`;
+  const domain = params.customDomain?.domain || FROM_DOMAIN;
+  const prefix = params.customDomain?.senderPrefix || "noreply";
+  const fromEmail = `${fromName} <${prefix}@${domain}>`;
 
   // Process in batches of BATCH_SIZE
   for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
@@ -148,7 +151,7 @@ export async function sendCampaignBatch(params: SendBatchParams): Promise<void> 
           html: personalizedHtml,
           replyTo,
           headers: {
-            "List-Unsubscribe": `<${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroasting.co.uk"}/api/marketing/unsubscribe?token=${token}>`,
+            "List-Unsubscribe": `<${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token=${token}>`,
           },
         });
 

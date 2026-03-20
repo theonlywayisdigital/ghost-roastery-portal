@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import { wrapEmailWithBranding } from "@/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "Ghost Roastery <noreply@ghostroasting.co.uk>";
+const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
 
 export async function POST(
   req: NextRequest,

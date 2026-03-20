@@ -37,7 +37,8 @@ export type SalesFeatureKey =
   | "customPipelineStages"
   | "salesAnalyticsBasic"
   | "salesAnalyticsFull"
-  | "crmEmailIntegration";
+  | "crmEmailIntegration"
+  | "customEmailDomain";
 
 export type MarketingFeatureKey =
   | "contentCalendar"
@@ -85,6 +86,7 @@ const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
   salesAnalyticsBasic:  { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   salesAnalyticsFull:   { free: false, starter: false, growth: true,  pro: true,  scale: true },
   crmEmailIntegration:  { free: false, starter: false, growth: true,  pro: true,  scale: true },
+  customEmailDomain:    { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
 // ─── Marketing Suite Limits ───
@@ -214,6 +216,7 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     salesAnalyticsBasic: SALES_FEATURES.salesAnalyticsBasic[salesTier],
     salesAnalyticsFull: SALES_FEATURES.salesAnalyticsFull[salesTier],
     crmEmailIntegration: SALES_FEATURES.crmEmailIntegration[salesTier],
+    customEmailDomain: SALES_FEATURES.customEmailDomain[salesTier],
     // Marketing features
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
@@ -346,6 +349,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   salesAnalyticsBasic: "Basic Sales Analytics",
   salesAnalyticsFull: "Advanced Sales Analytics",
   crmEmailIntegration: "CRM Email Integration",
+  customEmailDomain: "Custom Email Domain",
   contentCalendar: "Content Calendar",
   socialScheduling: "Social Scheduling",
   automations: "Automations",

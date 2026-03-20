@@ -3,12 +3,13 @@ import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
 import { findOrCreatePerson } from "@/lib/people";
+import { getVerifiedDomain } from "@/lib/email";
 import { Resend } from "resend";
 import { wrapEmailWithBranding, emailButton, EmailBranding } from "@/lib/email-template";
 import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_DOMAIN = "ghostroasting.co.uk";
+const FROM_DOMAIN = "ghostroastery.com";
 
 export async function POST(
   request: NextRequest,
@@ -144,6 +145,11 @@ export async function POST(
       const verifyUrl = `${portalUrl}/api/forms/verify?token=${verificationToken}`;
       const subject = (settings.double_opt_in_email_subject as string) || "Please confirm your subscription";
 
+      // Look up custom domain for the roaster
+      const customDomain = roaster ? await getVerifiedDomain(roaster.id) : null;
+      const emailDomain = customDomain?.domain || FROM_DOMAIN;
+      const emailPrefix = customDomain?.senderPrefix || "noreply";
+
       try {
         const businessName = roaster?.business_name || "Ghost Roastery";
         const bodyHtml = `
@@ -158,7 +164,7 @@ export async function POST(
         `;
 
         await resend.emails.send({
-          from: `${businessName} <noreply@${FROM_DOMAIN}>`,
+          from: `${businessName} <${emailPrefix}@${emailDomain}>`,
           to: email,
           subject,
           html: wrapEmailWithBranding({ body: bodyHtml, businessName, branding }),
@@ -223,8 +229,9 @@ export async function POST(
               </table>
             `;
 
+            const notifDomain = roaster ? await getVerifiedDomain(roaster.id) : null;
             await resend.emails.send({
-              from: `Ghost Roastery Platform <noreply@${FROM_DOMAIN}>`,
+              from: `Ghost Roastery Platform <${notifDomain?.senderPrefix || "noreply"}@${notifDomain?.domain || FROM_DOMAIN}>`,
               to: roasterEmail,
               subject: `New submission: ${form.name}`,
               html: wrapEmailWithBranding({ body: bodyHtml, businessName: roaster.business_name, branding }),

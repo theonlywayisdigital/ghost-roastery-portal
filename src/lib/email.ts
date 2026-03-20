@@ -1,16 +1,44 @@
 import { Resend } from "resend";
 import { wrapEmailWithBranding, emailButton, type EmailBranding } from "@/lib/email-template";
+import { createServerClient } from "@/lib/supabase";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
+const DEFAULT_DOMAIN = "ghostroastery.com";
+const FROM_EMAIL = `Ghost Roastery <noreply@${DEFAULT_DOMAIN}>`;
 
 export { type EmailBranding } from "@/lib/email-template";
 
-function getFromEmail(branding?: EmailBranding | null): string {
+/**
+ * Look up a verified custom email domain for a roaster.
+ * Returns { domain, senderPrefix } if found, null otherwise.
+ */
+export async function getVerifiedDomain(
+  roasterId: string
+): Promise<{ domain: string; senderPrefix: string } | null> {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from("roaster_email_domains")
+    .select("domain, sender_prefix")
+    .eq("roaster_id", roasterId)
+    .eq("status", "verified")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+
+  if (!data) return null;
+  return { domain: data.domain, senderPrefix: data.sender_prefix || "noreply" };
+}
+
+function getFromEmail(
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
+): string {
+  const domain = customDomain?.domain || DEFAULT_DOMAIN;
+  const prefix = customDomain?.senderPrefix || "noreply";
   if (branding?.businessName) {
-    return `${branding.businessName} <noreply@ghostroastery.com>`;
+    return `${branding.businessName} <${prefix}@${domain}>`;
   }
-  return FROM_EMAIL;
+  return `Ghost Roastery <${prefix}@${domain}>`;
 }
 
 export async function sendEmailConfirmation(
@@ -88,7 +116,8 @@ export async function sendWholesaleApplicationReceived(
   email: string,
   contactName: string,
   roasterName: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Application Received</h1>
@@ -109,7 +138,7 @@ export async function sendWholesaleApplicationReceived(
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, customDomain),
     to: email,
     subject: `Wholesale application received — ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -121,7 +150,8 @@ export async function sendWholesaleApplicationNotification(
   roasterName: string,
   businessName: string,
   portalUrl: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New Wholesale Application</h1>
@@ -141,7 +171,7 @@ export async function sendWholesaleApplicationNotification(
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, customDomain),
     to: roasterEmail,
     subject: `New wholesale application from ${businessName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -155,7 +185,8 @@ export async function sendWholesaleApproved(
   priceTier: string,
   paymentTerms: string,
   catalogueUrl: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const tierLabels: Record<string, string> = {
     standard: "Standard",
@@ -192,7 +223,7 @@ export async function sendWholesaleApproved(
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, customDomain),
     to: email,
     subject: `Wholesale account approved — ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -204,7 +235,8 @@ export async function sendWholesaleRejected(
   contactName: string,
   roasterName: string,
   reason: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Application Update</h1>
@@ -230,7 +262,7 @@ export async function sendWholesaleRejected(
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, customDomain),
     to: email,
     subject: `Wholesale application update — ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -243,7 +275,8 @@ export async function sendWholesaleAccountSetup(
   roasterName: string,
   setupUrl: string,
   wholesaleUrl: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;ve been invited to ${roasterName} Wholesale</h1>
@@ -283,7 +316,7 @@ export async function sendWholesaleAccountSetup(
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, customDomain),
     to: email,
     subject: `Set up your Ghost Roastery account — ${roasterName} Wholesale`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -296,7 +329,8 @@ export async function sendWholesaleWelcome(
   roasterName: string,
   paymentTerms: string,
   wholesaleUrl: string,
-  branding?: EmailBranding | null
+  branding?: EmailBranding | null,
+  customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const termsLabels: Record<string, string> = {
     prepay: "Prepay",
@@ -330,7 +364,7 @@ export async function sendWholesaleWelcome(
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, customDomain),
     to: email,
     subject: `You've been added to ${roasterName} Wholesale`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -382,6 +416,7 @@ export async function sendOrderCancellationEmail(params: {
   reason: string;
   wasPaid: boolean;
   branding?: EmailBranding | null;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, customerName, orderNumber, reason, wasPaid, branding } = params;
 
@@ -415,7 +450,7 @@ export async function sendOrderCancellationEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Your order #${orderNumber} has been cancelled`,
     html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
@@ -428,6 +463,7 @@ export async function sendOrderCancelledPartnerNotification(params: {
   orderNumber: string;
   cancelledBy: string;
   branding?: EmailBranding | null;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, partnerName, orderNumber, cancelledBy, branding } = params;
 
@@ -452,7 +488,7 @@ export async function sendOrderCancelledPartnerNotification(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Order #${orderNumber} has been cancelled`,
     html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
@@ -471,6 +507,7 @@ export async function sendStorefrontOrderConfirmation(params: {
   branding?: EmailBranding | null;
   slug?: string;
   orderId?: string;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, customerName, orderNumber, items, total, roasterName, branding } = params;
 
@@ -518,7 +555,7 @@ export async function sendStorefrontOrderConfirmation(params: {
     </p>` : ""}`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Order confirmed — #${orderNumber}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -535,6 +572,7 @@ export async function sendWholesaleOrderConfirmation(params: {
   branding?: EmailBranding | null;
   slug?: string;
   orderId?: string;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, customerName, orderNumber, items, total, roasterName, branding, slug, orderId } = params;
 
@@ -580,7 +618,7 @@ export async function sendWholesaleOrderConfirmation(params: {
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Wholesale order confirmed — #${orderNumber}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -597,6 +635,7 @@ export async function sendOrderDispatchedEmail(params: {
   trackingCarrier?: string | null;
   roasterName: string;
   branding?: EmailBranding | null;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, customerName, orderNumber, trackingNumber, trackingCarrier, roasterName, branding } = params;
 
@@ -627,7 +666,7 @@ export async function sendOrderDispatchedEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Your order #${orderNumber} has been dispatched`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -640,6 +679,7 @@ export async function sendOrderDeliveredEmail(params: {
   orderNumber: string;
   roasterName: string;
   branding?: EmailBranding | null;
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const { to, customerName, orderNumber, roasterName, branding } = params;
 
@@ -665,7 +705,7 @@ export async function sendOrderDeliveredEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: FROM_EMAIL,
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Your order #${orderNumber} has been delivered`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
@@ -784,6 +824,7 @@ export async function sendInvoiceEmail(params: {
   }[];
   branding?: EmailBranding | null;
   attachments?: { filename: string; content: Buffer }[];
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const {
     to,
@@ -856,7 +897,7 @@ export async function sendInvoiceEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Invoice ${invoiceNumber} from ${ownerName}`,
     html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
@@ -877,6 +918,7 @@ export async function sendInvoiceReminderEmail(params: {
   stripePaymentLinkUrl?: string | null;
   branding?: EmailBranding | null;
   attachments?: { filename: string; content: Buffer }[];
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const {
     to,
@@ -934,7 +976,7 @@ export async function sendInvoiceReminderEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Payment reminder: Invoice ${invoiceNumber}`,
     html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),
@@ -952,6 +994,7 @@ export async function sendInvoicePaymentConfirmationEmail(params: {
   currency: string;
   branding?: EmailBranding | null;
   attachments?: { filename: string; content: Buffer }[];
+  customDomain?: { domain: string; senderPrefix: string } | null;
 }) {
   const {
     to,
@@ -994,7 +1037,7 @@ export async function sendInvoicePaymentConfirmationEmail(params: {
     </p>`;
 
   await resend.emails.send({
-    from: getFromEmail(branding),
+    from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Payment received: Invoice ${invoiceNumber}`,
     html: wrapEmailWithBranding({ body, businessName: ownerName, branding }),

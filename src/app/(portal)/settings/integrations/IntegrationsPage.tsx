@@ -41,6 +41,7 @@ interface EcommerceStatus {
   last_order_sync_at?: string | null;
   last_stock_sync_at?: string | null;
   connected_at?: string | null;
+  webhook_ids?: Record<string, string>;
 }
 
 interface PreviewProduct {
@@ -155,6 +156,9 @@ export function IntegrationsPage() {
   const [exportSelected, setExportSelected] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+
+  // Webhook registration state
+  const [registeringWebhooks, setRegisteringWebhooks] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -560,6 +564,32 @@ export function IntegrationsPage() {
       setExportSelected(new Set());
     } else {
       setExportSelected(new Set(exportProducts.map((p) => p.id)));
+    }
+  }
+
+  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce") {
+    setRegisteringWebhooks(provider);
+    try {
+      const res = await fetch(`/api/integrations/${provider}/register-webhooks`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const hasOrdersWebhook = !!data.registered?.["orders/create"];
+        const msg = hasOrdersWebhook
+          ? "Webhooks registered successfully!"
+          : "Product webhooks registered. Order webhook requires Protected Customer Data access — see Shopify Partner Dashboard.";
+        setSuccessMessage(msg);
+        setTimeout(() => setSuccessMessage(null), 8000);
+        // Refresh status to get updated webhook_ids
+        loadStatus();
+      } else {
+        setSuccessMessage(null);
+      }
+    } catch {
+      // Silent fail
+    } finally {
+      setRegisteringWebhooks(null);
     }
   }
 
@@ -1033,6 +1063,53 @@ export function IntegrationsPage() {
                 </div>
               )}
             </div>
+
+            {/* Webhook status — Shopify only */}
+            {provider === "shopify" && status.webhook_ids && (
+              <div className="bg-slate-50 rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-500 uppercase">
+                    Webhooks
+                  </p>
+                  <button
+                    onClick={() => handleRegisterWebhooks(provider)}
+                    disabled={registeringWebhooks === provider}
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                  >
+                    {registeringWebhooks === provider
+                      ? "Registering..."
+                      : "Re-register"}
+                  </button>
+                </div>
+                {(["orders/create", "products/update", "products/create"] as const).map(
+                  (topic) => (
+                    <div
+                      key={topic}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span className="text-slate-600">{topic}</span>
+                      {status.webhook_ids?.[topic] ? (
+                        <span className="text-green-600 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Not registered
+                        </span>
+                      )}
+                    </div>
+                  )
+                )}
+                {!status.webhook_ids?.["orders/create"] && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    Order webhook requires Protected Customer Data access in
+                    your Shopify Partner Dashboard.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Sync toggles */}
             <div className="space-y-3">

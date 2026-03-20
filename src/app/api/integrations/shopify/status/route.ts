@@ -13,7 +13,7 @@ export async function GET() {
   const { data: connection } = await supabase
     .from("ecommerce_connections")
     .select(
-      "id, store_url, shop_name, is_active, sync_products, sync_orders, sync_stock, last_product_sync_at, last_order_sync_at, last_stock_sync_at, settings, created_at, updated_at"
+      "id, store_url, shop_name, is_active, sync_products, sync_orders, sync_stock, last_product_sync_at, last_order_sync_at, last_stock_sync_at, settings, webhook_ids, created_at, updated_at"
     )
     .eq("roaster_id", user.roaster.id)
     .eq("provider", "shopify")
@@ -38,6 +38,7 @@ export async function GET() {
     last_order_sync_at: connection.last_order_sync_at,
     last_stock_sync_at: connection.last_stock_sync_at,
     connected_at: settings.connected_at || connection.created_at,
+    webhook_ids: connection.webhook_ids || {},
   });
 }
 

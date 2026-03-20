@@ -16,7 +16,12 @@ export async function POST(request: Request) {
   const shopDomain = request.headers.get("x-shopify-shop-domain");
   const topic = request.headers.get("x-shopify-topic");
 
+  console.log(
+    `[shopify-webhook] Received: topic=${topic}, shop=${shopDomain}, bodyLen=${body.length}`
+  );
+
   if (!hmacHeader || !shopDomain) {
+    console.error("[shopify-webhook] Missing headers — hmac:", !!hmacHeader, "shop:", !!shopDomain);
     return NextResponse.json({ error: "Missing headers" }, { status: 401 });
   }
 

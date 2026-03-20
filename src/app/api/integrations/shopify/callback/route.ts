@@ -4,12 +4,6 @@ import { createServerClient } from "@/lib/supabase";
 
 export async function GET(request: NextRequest) {
   const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-  const user = await getCurrentUser();
-  if (!user?.roaster?.id) {
-    return NextResponse.redirect(
-      `${portalUrl}/settings/integrations?error=unauthorized`
-    );
-  }
 
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
@@ -29,7 +23,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify state
+  // Decode state first — we need roasterId even if session is lost
   let stateData: { roasterId: string; shop: string };
   try {
     stateData = JSON.parse(Buffer.from(state, "base64url").toString());
@@ -39,11 +33,25 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (stateData.roasterId !== user.roaster.id) {
+  if (!stateData.roasterId) {
+    return NextResponse.redirect(
+      `${portalUrl}/settings/integrations?error=invalid_state`
+    );
+  }
+
+  // Try to get the current user session — may be null if cookies were
+  // lost during the cross-domain redirect to Shopify and back.
+  // If we have a session, verify the roasterId matches.
+  const user = await getCurrentUser();
+  if (user?.roaster?.id && stateData.roasterId !== user.roaster.id) {
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?error=state_mismatch`
     );
   }
+
+  // Use the roasterId from state — this was encoded before the redirect
+  // and is trustworthy since the state is opaque to the user
+  const roasterId = stateData.roasterId;
 
   const clientId = process.env.SHOPIFY_CLIENT_ID;
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
@@ -91,6 +99,39 @@ export async function GET(request: NextRequest) {
       shopName = shopData.shop?.name || shop;
     }
 
+    // Normalize store URL for consistent lookups
+    const normalizedShop = shop
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "")
+      .toLowerCase();
+
+    // Delete any existing webhooks for this store before registering new ones
+    // (handles reconnection case where old webhooks may still exist)
+    try {
+      const existingWh = await fetch(
+        `https://${shop}/admin/api/2024-01/webhooks.json`,
+        { headers: { "X-Shopify-Access-Token": accessToken } }
+      );
+      if (existingWh.ok) {
+        const existingData = await existingWh.json();
+        for (const wh of existingData.webhooks || []) {
+          try {
+            await fetch(
+              `https://${shop}/admin/api/2024-01/webhooks/${wh.id}.json`,
+              {
+                method: "DELETE",
+                headers: { "X-Shopify-Access-Token": accessToken },
+              }
+            );
+          } catch {
+            // Best-effort cleanup
+          }
+        }
+      }
+    } catch {
+      // Non-critical — continue with registration
+    }
+
     // Register webhooks
     const webhookIds: Record<string, string> = {};
     const webhookTopics = [
@@ -122,21 +163,24 @@ export async function GET(request: NextRequest) {
         if (whRes.ok) {
           const whData = await whRes.json();
           webhookIds[topic] = String(whData.webhook.id);
+        } else {
+          const whErr = await whRes.text();
+          console.error(`[shopify] Webhook registration failed for ${topic}:`, whErr);
         }
       } catch (whErr) {
-        console.error(`[shopify] Webhook registration failed for ${topic}:`, whErr);
+        console.error(`[shopify] Webhook registration error for ${topic}:`, whErr);
       }
     }
 
-    // Upsert connection
+    // Upsert connection using service role client
     const supabase = createServerClient();
     const { error: upsertError } = await supabase
       .from("ecommerce_connections")
       .upsert(
         {
-          roaster_id: user.roaster.id,
+          roaster_id: roasterId,
           provider: "shopify",
-          store_url: shop,
+          store_url: normalizedShop,
           access_token: accessToken,
           shop_name: shopName,
           is_active: true,

@@ -19,6 +19,11 @@ const PUBLIC_PATHS = [
   "/api/auth",
   "/api/social/google/callback",
   "/api/social/meta/callback",
+  "/api/integrations/shopify/callback",
+  "/api/integrations/xero/callback",
+  "/api/integrations/sage/callback",
+  "/api/integrations/quickbooks/callback",
+  "/api/webhooks",
 ];
 
 export async function middleware(request: NextRequest) {

@@ -18,7 +18,17 @@ import {
   Package,
   Check,
   Link2,
+  CreditCard,
+  ArrowRight,
+  Landmark,
+  Plus,
+  Trash2,
+  Pencil,
+  X,
+  Copy,
+  Zap,
 } from "lucide-react";
+import { WEBHOOK_EVENTS } from "@/lib/webhooks";
 
 interface AccountOption {
   code?: string;
@@ -80,6 +90,40 @@ interface ExportResult {
   total: number;
 }
 
+type IntegrationsTab = "payments" | "accounting" | "webhooks";
+
+interface StripeStatus {
+  connected: boolean;
+  onboarding_complete: boolean;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  external_accounts: { id: string; last4: string | null; bank_name: string | null; type: string }[];
+  requirements: {
+    currently_due: string[];
+    eventually_due: string[];
+    past_due: string[];
+    errors: { code: string; reason: string; requirement: string }[];
+  } | null;
+}
+
+interface Webhook {
+  id: string;
+  url: string;
+  secret: string;
+  events: string[] | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+const WEBHOOK_EVENT_LABELS: Record<string, string> = {
+  "invoice.created": "Invoice Created",
+  "invoice.paid": "Invoice Paid",
+  "order.placed": "Order Placed",
+  "order.cancelled": "Order Cancelled",
+  "buyer.approved": "Buyer Approved",
+  "contact.created": "Contact Created",
+};
+
 interface IntegrationStatus {
   connected: boolean;
   is_active?: boolean;
@@ -107,6 +151,43 @@ interface IntegrationStatus {
 }
 
 export function IntegrationsPage() {
+  // Tab routing via URL search params
+  const initialTab = typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("tab") as IntegrationsTab) || "accounting"
+    : "accounting";
+  const [activeTab, setActiveTab] = useState<IntegrationsTab>(initialTab);
+
+  function switchTab(tab: IntegrationsTab) {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  // Stripe Connect state
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
+  const [stripeConnecting, setStripeConnecting] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(true);
+
+  // Webhooks state
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+  const [webhooksLoading, setWebhooksLoading] = useState(true);
+  const [whShowForm, setWhShowForm] = useState(false);
+  const [whEditingId, setWhEditingId] = useState<string | null>(null);
+  const [whUrl, setWhUrl] = useState("");
+  const [whSelectedEvents, setWhSelectedEvents] = useState<string[]>([]);
+  const [whAllEvents, setWhAllEvents] = useState(true);
+  const [whSaving, setWhSaving] = useState(false);
+  const [whError, setWhError] = useState<string | null>(null);
+  const [whCopiedId, setWhCopiedId] = useState<string | null>(null);
+  const [whTestingId, setWhTestingId] = useState<string | null>(null);
+  const [whTestResult, setWhTestResult] = useState<{
+    id: string;
+    success: boolean;
+    message: string;
+  } | null>(null);
+
+  // Accounting/Ecommerce state
   const [xeroStatus, setXeroStatus] = useState<IntegrationStatus | null>(null);
   const [sageStatus, setSageStatus] = useState<IntegrationStatus | null>(null);
   const [quickbooksStatus, setQuickbooksStatus] = useState<IntegrationStatus | null>(null);
@@ -171,7 +252,7 @@ export function IntegrationsPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes, wixRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes, wixRes, stripeRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
         fetch("/api/integrations/quickbooks/status"),
@@ -179,8 +260,9 @@ export function IntegrationsPage() {
         fetch("/api/integrations/woocommerce/status"),
         fetch("/api/integrations/squarespace/status"),
         fetch("/api/integrations/wix/status"),
+        fetch("/api/wholesale-portal/stripe/status"),
       ]);
-      const [xeroData, sageData, qbData, shopifyData, wooData, sqData, wixData] = await Promise.all([
+      const [xeroData, sageData, qbData, shopifyData, wooData, sqData, wixData, stripeData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
         qbRes.json(),
@@ -188,6 +270,7 @@ export function IntegrationsPage() {
         wooRes.json(),
         sqRes.json(),
         wixRes.json(),
+        stripeRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
@@ -196,6 +279,8 @@ export function IntegrationsPage() {
       setWooStatus(wooData);
       setSqStatus(sqData);
       setWixStatus(wixData);
+      setStripeStatus(stripeData);
+      setStripeLoading(false);
 
       // Fetch unmapped count if any ecommerce connection exists
       if (shopifyData.connected || wooData.connected || sqData.connected || wixData.connected) {
@@ -264,7 +349,206 @@ export function IntegrationsPage() {
       );
       window.history.replaceState({}, "", window.location.pathname);
     }
+
+    // Check for Stripe return params
+    const stripeParam = params.get("stripe");
+    if (stripeParam === "complete" || stripeParam === "refresh") {
+      switchTab("payments");
+      if (stripeParam === "complete") {
+        setSuccessMessage("Stripe Connect setup updated successfully!");
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
+      // Clean up the stripe param but keep tab
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("stripe");
+      cleanUrl.searchParams.set("tab", "payments");
+      window.history.replaceState({}, "", cleanUrl.toString());
+    }
   }, [loadStatus]);
+
+  // Load webhooks when tab is active
+  useEffect(() => {
+    if (activeTab === "webhooks" && webhooksLoading) {
+      loadWebhooks();
+    }
+  }, [activeTab, webhooksLoading]);
+
+  async function loadWebhooks() {
+    try {
+      const res = await fetch("/api/settings/webhooks");
+      const data = await res.json();
+      setWebhooks(data.webhooks || []);
+    } finally {
+      setWebhooksLoading(false);
+    }
+  }
+
+  // ─── Stripe Connect handlers ───
+
+  async function handleStripeConnect() {
+    setStripeConnecting(true);
+    try {
+      const res = await fetch("/api/wholesale-portal/stripe/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          returnPath: "/settings/integrations?tab=payments&stripe=complete",
+          refreshPath: "/settings/integrations?tab=payments&stripe=refresh",
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error("Failed to start Stripe Connect:", error);
+      setStripeConnecting(false);
+    }
+  }
+
+  // ─── Webhooks handlers ───
+
+  function whOpenAddForm() {
+    setWhEditingId(null);
+    setWhUrl("");
+    setWhSelectedEvents([]);
+    setWhAllEvents(true);
+    setWhError(null);
+    setWhShowForm(true);
+  }
+
+  function whOpenEditForm(wh: Webhook) {
+    setWhEditingId(wh.id);
+    setWhUrl(wh.url);
+    if (wh.events && wh.events.length > 0) {
+      setWhSelectedEvents(wh.events);
+      setWhAllEvents(false);
+    } else {
+      setWhSelectedEvents([]);
+      setWhAllEvents(true);
+    }
+    setWhError(null);
+    setWhShowForm(true);
+  }
+
+  function whCloseForm() {
+    setWhShowForm(false);
+    setWhEditingId(null);
+    setWhUrl("");
+    setWhSelectedEvents([]);
+    setWhAllEvents(true);
+    setWhError(null);
+  }
+
+  function whToggleEvent(event: string) {
+    setWhSelectedEvents((prev) =>
+      prev.includes(event)
+        ? prev.filter((e) => e !== event)
+        : [...prev, event]
+    );
+  }
+
+  async function whHandleSave() {
+    if (!whUrl) {
+      setWhError("URL is required");
+      return;
+    }
+    try {
+      new URL(whUrl);
+    } catch {
+      setWhError("Please enter a valid URL");
+      return;
+    }
+    setWhSaving(true);
+    setWhError(null);
+    const events = whAllEvents ? null : whSelectedEvents;
+    try {
+      if (whEditingId) {
+        const res = await fetch(`/api/settings/webhooks/${whEditingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: whUrl, events }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setWhError(data.error || "Failed to update");
+          return;
+        }
+        const data = await res.json();
+        setWebhooks((prev) =>
+          prev.map((w) => (w.id === whEditingId ? data.webhook : w))
+        );
+      } else {
+        const res = await fetch("/api/settings/webhooks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: whUrl, events }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setWhError(data.error || "Failed to create");
+          return;
+        }
+        const data = await res.json();
+        setWebhooks((prev) => [...prev, data.webhook]);
+      }
+      whCloseForm();
+    } catch {
+      setWhError("Something went wrong");
+    } finally {
+      setWhSaving(false);
+    }
+  }
+
+  async function whHandleDelete(id: string) {
+    if (!confirm("Delete this webhook?")) return;
+    await fetch(`/api/settings/webhooks/${id}`, { method: "DELETE" });
+    setWebhooks((prev) => prev.filter((w) => w.id !== id));
+  }
+
+  async function whHandleToggleActive(wh: Webhook) {
+    const res = await fetch(`/api/settings/webhooks/${wh.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !wh.is_active }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setWebhooks((prev) =>
+        prev.map((w) => (w.id === wh.id ? data.webhook : w))
+      );
+    }
+  }
+
+  async function whHandleTest(id: string) {
+    setWhTestingId(id);
+    setWhTestResult(null);
+    try {
+      const res = await fetch(`/api/settings/webhooks/${id}/test`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      setWhTestResult({
+        id,
+        success: data.success,
+        message: data.success
+          ? `OK (${data.status} ${data.statusText})`
+          : data.error || "Failed",
+      });
+    } catch {
+      setWhTestResult({ id, success: false, message: "Request failed" });
+    } finally {
+      setWhTestingId(null);
+    }
+  }
+
+  function whCopySecret(id: string, secret: string) {
+    navigator.clipboard.writeText(secret);
+    setWhCopiedId(id);
+    setTimeout(() => setWhCopiedId(null), 2000);
+  }
+
+  // ─── Accounting handlers ───
 
   async function handleDisconnect(provider: "xero" | "sage" | "quickbooks") {
     const label = provider === "xero" ? "Xero" : provider === "sage" ? "Sage" : "QuickBooks";
@@ -1474,6 +1758,12 @@ export function IntegrationsPage() {
     );
   }
 
+  const stripeIsConnected = stripeStatus?.connected && stripeStatus.onboarding_complete;
+  const stripeHasRequirements =
+    stripeStatus?.requirements &&
+    (stripeStatus.requirements.currently_due.length > 0 ||
+      stripeStatus.requirements.past_due.length > 0);
+
   return (
     <>
       <div className="mb-6">
@@ -1490,183 +1780,616 @@ export function IntegrationsPage() {
         </div>
       )}
 
-      {xeroStatus?.error && !xeroStatus.connected && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {xeroStatus.error}
-        </div>
-      )}
-
-      {sageStatus?.error && !sageStatus.connected && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {sageStatus.error}
-        </div>
-      )}
-
-      {quickbooksStatus?.error && !quickbooksStatus.connected && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {quickbooksStatus.error}
-        </div>
-      )}
-
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold text-slate-900">Accounting</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Connect your accounting software to automatically sync invoices, contacts, and payments.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {renderIntegrationCard("xero", xeroStatus, {
-          label: "Xero",
-          description:
-            "Automatically sync invoices, contacts, and payments with your Xero accounting software.",
-          bgColor: "bg-[#13B5EA]",
-          hoverColor: "hover:bg-[#0e9dcc]",
-          logoLetter: "X",
-        })}
-
-        {renderIntegrationCard("sage", sageStatus, {
-          label: "Sage",
-          description:
-            "Automatically sync invoices, contacts, and payments with your Sage accounting software.",
-          bgColor: "bg-[#00DC82]",
-          hoverColor: "hover:bg-[#00c070]",
-          logoLetter: "S",
-        })}
-
-        {renderIntegrationCard("quickbooks", quickbooksStatus, {
-          label: "QuickBooks",
-          description:
-            "Automatically sync invoices, contacts, and payments with your QuickBooks accounting software.",
-          bgColor: "bg-[#2CA01C]",
-          hoverColor: "hover:bg-[#238a17]",
-          logoLetter: "Q",
-        })}
-      </div>
-
-      {/* Ecommerce section */}
-      <div className="mt-8 mb-6">
-        <h2 className="text-lg font-semibold text-slate-900">Ecommerce</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Connect your online store to sync products, orders, and stock levels.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {renderEcommerceCard("shopify", shopifyStatus, {
-          label: "Shopify",
-          description:
-            "Sync products, orders, and stock levels with your Shopify store.",
-          bgColor: "bg-[#96BF48]",
-          hoverColor: "hover:bg-[#7ea83d]",
-          icon: <ShoppingCart className="w-6 h-6 text-white" />,
-        })}
-
-        {renderEcommerceCard("woocommerce", wooStatus, {
-          label: "WooCommerce",
-          description:
-            "Sync products, orders, and stock levels with your WooCommerce store.",
-          bgColor: "bg-[#7F54B3]",
-          hoverColor: "hover:bg-[#6b479a]",
-          icon: <Store className="w-6 h-6 text-white" />,
-        })}
-
-        {renderEcommerceCard("squarespace", sqStatus, {
-          label: "Squarespace",
-          description:
-            "Sync products, orders, and stock levels with your Squarespace store.",
-          bgColor: "bg-[#222222]",
-          hoverColor: "hover:bg-[#111111]",
-          icon: <Store className="w-6 h-6 text-white" />,
-        })}
-
-        {renderEcommerceCard("wix", wixStatus, {
-          label: "Wix",
-          description:
-            "Sync products, orders, and stock levels with your Wix store.",
-          bgColor: "bg-[#0C6EFC]",
-          hoverColor: "hover:bg-[#0a5dd4]",
-          icon: <Store className="w-6 h-6 text-white" />,
-        })}
-      </div>
-
-      {/* Product Mapping link — shown when any ecommerce connection exists */}
-      {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected || wixStatus?.connected) && (
-        <div className="mt-4">
-          <Link
-            href="/settings/integrations/product-mapping"
-            className="flex items-center justify-between w-full bg-white rounded-xl border border-slate-200 p-4 hover:bg-slate-50 transition-colors group"
+      {/* Tabs */}
+      <div className="border-b border-slate-200 mb-6">
+        <nav className="flex gap-6" aria-label="Integration tabs">
+          <button
+            onClick={() => switchTab("payments")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "payments"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200 transition-colors">
-                <Link2 className="w-5 h-5 text-slate-600" />
+            Payments
+          </button>
+          <button
+            onClick={() => switchTab("accounting")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "accounting"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Accounting & Ecommerce
+          </button>
+          <button
+            onClick={() => switchTab("webhooks")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "webhooks"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Webhooks
+          </button>
+        </nav>
+      </div>
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Payments                                  */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "payments" && (
+        <div className="space-y-6">
+          <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-slate-600" />
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Stripe Connect
+                </h2>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  Product Stock Mapping
-                </p>
-                <p className="text-xs text-slate-500">
-                  Link imported products to your roasted stock and green bean
-                  records
-                </p>
-              </div>
+              <p className="text-sm text-slate-500 mt-1">
+                Accept payments through your storefront via Stripe.
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              {unmappedCount > 0 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                  {unmappedCount} unmapped
-                </span>
+            <div className="p-6">
+              {stripeLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                </div>
+              ) : !stripeStatus?.connected ? (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <CreditCard className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h3 className="text-base font-medium text-slate-900 mb-1">
+                    Connect your Stripe account
+                  </h3>
+                  <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
+                    Connect Stripe to accept card payments, Apple Pay, and Google
+                    Pay on your storefront. Payouts go directly to your bank
+                    account.
+                  </p>
+                  <button
+                    onClick={handleStripeConnect}
+                    disabled={stripeConnecting}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                  >
+                    {stripeConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ArrowRight className="w-4 h-4" />
+                    )}
+                    {stripeConnecting ? "Redirecting..." : "Connect Stripe"}
+                  </button>
+                </div>
+              ) : !stripeStatus.onboarding_complete ? (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium text-slate-900">
+                      Setup incomplete
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 mb-4">
+                      Your Stripe account has been created but onboarding isn&apos;t
+                      finished. Complete setup to start accepting payments.
+                    </p>
+                    <button
+                      onClick={handleStripeConnect}
+                      disabled={stripeConnecting}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {stripeConnecting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ArrowRight className="w-4 h-4" />
+                      )}
+                      {stripeConnecting ? "Redirecting..." : "Complete Setup"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-medium text-slate-900">
+                        Stripe connected
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        Your account is set up and ready to accept payments.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <StripeCapabilityBadge
+                      label="Charges"
+                      enabled={stripeStatus.charges_enabled}
+                    />
+                    <StripeCapabilityBadge
+                      label="Payouts"
+                      enabled={stripeStatus.payouts_enabled}
+                    />
+                    {stripeStatus.external_accounts.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+                        <Landmark className="w-4 h-4 text-slate-500" />
+                        <span className="text-sm text-slate-700">
+                          {stripeStatus.external_accounts[0].bank_name
+                            ? `${stripeStatus.external_accounts[0].bank_name} ****${stripeStatus.external_accounts[0].last4}`
+                            : `****${stripeStatus.external_accounts[0].last4}`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {stripeHasRequirements && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="w-4 h-4 text-yellow-600" />
+                        <h4 className="text-sm font-medium text-yellow-800">
+                          Action required
+                        </h4>
+                      </div>
+                      <p className="text-sm text-yellow-700 mb-3">
+                        Stripe requires additional information to keep your
+                        account active.
+                      </p>
+                      <button
+                        onClick={handleStripeConnect}
+                        disabled={stripeConnecting}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                      >
+                        {stripeConnecting ? "Redirecting..." : "Update information"}
+                      </button>
+                    </div>
+                  )}
+
+                  <a
+                    href="https://dashboard.stripe.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700"
+                  >
+                    Manage in Stripe Dashboard
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               )}
-              <svg
-                className="w-5 h-5 text-slate-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
-          </Link>
+          </section>
         </div>
       )}
 
-      {/* Info section */}
-      <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-900 mb-2">
-          What gets synced?
-        </h3>
-        <ul className="text-sm text-slate-600 space-y-1.5">
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-            <span>
-              <strong>Invoices</strong> — automatically created when you generate
-              an invoice
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-            <span>
-              <strong>Contacts</strong> — synced when you approve a wholesale
-              buyer or create a contact
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
-            <span>
-              <strong>Payments</strong> — recorded when invoice payments are
-              logged
-            </span>
-          </li>
-        </ul>
-      </div>
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Accounting & Ecommerce                    */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "accounting" && (
+        <>
+          {xeroStatus?.error && !xeroStatus.connected && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {xeroStatus.error}
+            </div>
+          )}
+
+          {sageStatus?.error && !sageStatus.connected && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {sageStatus.error}
+            </div>
+          )}
+
+          {quickbooksStatus?.error && !quickbooksStatus.connected && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {quickbooksStatus.error}
+            </div>
+          )}
+
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-slate-900">Accounting</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Connect your accounting software to automatically sync invoices, contacts, and payments.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {renderIntegrationCard("xero", xeroStatus, {
+              label: "Xero",
+              description:
+                "Automatically sync invoices, contacts, and payments with your Xero accounting software.",
+              bgColor: "bg-[#13B5EA]",
+              hoverColor: "hover:bg-[#0e9dcc]",
+              logoLetter: "X",
+            })}
+
+            {renderIntegrationCard("sage", sageStatus, {
+              label: "Sage",
+              description:
+                "Automatically sync invoices, contacts, and payments with your Sage accounting software.",
+              bgColor: "bg-[#00DC82]",
+              hoverColor: "hover:bg-[#00c070]",
+              logoLetter: "S",
+            })}
+
+            {renderIntegrationCard("quickbooks", quickbooksStatus, {
+              label: "QuickBooks",
+              description:
+                "Automatically sync invoices, contacts, and payments with your QuickBooks accounting software.",
+              bgColor: "bg-[#2CA01C]",
+              hoverColor: "hover:bg-[#238a17]",
+              logoLetter: "Q",
+            })}
+          </div>
+
+          {/* Ecommerce section */}
+          <div className="mt-8 mb-6">
+            <h2 className="text-lg font-semibold text-slate-900">Ecommerce</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Connect your online store to sync products, orders, and stock levels.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {renderEcommerceCard("shopify", shopifyStatus, {
+              label: "Shopify",
+              description:
+                "Sync products, orders, and stock levels with your Shopify store.",
+              bgColor: "bg-[#96BF48]",
+              hoverColor: "hover:bg-[#7ea83d]",
+              icon: <ShoppingCart className="w-6 h-6 text-white" />,
+            })}
+
+            {renderEcommerceCard("woocommerce", wooStatus, {
+              label: "WooCommerce",
+              description:
+                "Sync products, orders, and stock levels with your WooCommerce store.",
+              bgColor: "bg-[#7F54B3]",
+              hoverColor: "hover:bg-[#6b479a]",
+              icon: <Store className="w-6 h-6 text-white" />,
+            })}
+
+            {renderEcommerceCard("squarespace", sqStatus, {
+              label: "Squarespace",
+              description:
+                "Sync products, orders, and stock levels with your Squarespace store.",
+              bgColor: "bg-[#222222]",
+              hoverColor: "hover:bg-[#111111]",
+              icon: <Store className="w-6 h-6 text-white" />,
+            })}
+
+            {renderEcommerceCard("wix", wixStatus, {
+              label: "Wix",
+              description:
+                "Sync products, orders, and stock levels with your Wix store.",
+              bgColor: "bg-[#0C6EFC]",
+              hoverColor: "hover:bg-[#0a5dd4]",
+              icon: <Store className="w-6 h-6 text-white" />,
+            })}
+          </div>
+
+          {/* Product Mapping link — shown when any ecommerce connection exists */}
+          {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected || wixStatus?.connected) && (
+            <div className="mt-4">
+              <Link
+                href="/settings/integrations/product-mapping"
+                className="flex items-center justify-between w-full bg-white rounded-xl border border-slate-200 p-4 hover:bg-slate-50 transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                    <Link2 className="w-5 h-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Product Stock Mapping
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Link imported products to your roasted stock and green bean
+                      records
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {unmappedCount > 0 && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                      {unmappedCount} unmapped
+                    </span>
+                  )}
+                  <svg
+                    className="w-5 h-5 text-slate-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+              </Link>
+            </div>
+          )}
+
+          {/* Info section */}
+          <div className="mt-6 bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+              What gets synced?
+            </h3>
+            <ul className="text-sm text-slate-600 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Invoices</strong> — automatically created when you generate
+                  an invoice
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Contacts</strong> — synced when you approve a wholesale
+                  buyer or create a contact
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Payments</strong> — recorded when invoice payments are
+                  logged
+                </span>
+              </li>
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Webhooks                                  */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "webhooks" && (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Webhooks</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Send real-time event data to external services like Zapier or your
+                accounting system.
+              </p>
+            </div>
+            <button
+              onClick={whOpenAddForm}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold hover:bg-brand-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Webhook
+            </button>
+          </div>
+
+          {webhooksLoading ? (
+            <div className="animate-pulse space-y-4">
+              <div className="h-32 bg-slate-100 rounded-xl" />
+            </div>
+          ) : (
+            <>
+              {/* Webhook list */}
+              {webhooks.length === 0 && !whShowForm && (
+                <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                  <Zap className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 mb-1">No webhooks configured</p>
+                  <p className="text-sm text-slate-400">
+                    Add a webhook to send event notifications to external services.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {webhooks.map((wh) => (
+                  <div
+                    key={wh.id}
+                    className={`bg-white rounded-xl border p-5 ${
+                      wh.is_active
+                        ? "border-slate-200"
+                        : "border-slate-200 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="text-sm font-mono text-slate-900 truncate block">
+                            {wh.url}
+                          </code>
+                          <span
+                            className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              wh.is_active
+                                ? "bg-green-100 text-green-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {wh.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-500 mb-2">
+                          {wh.events && wh.events.length > 0
+                            ? wh.events.map((e) => WEBHOOK_EVENT_LABELS[e] || e).join(", ")
+                            : "All events"}
+                        </p>
+
+                        {/* Secret */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-slate-400">Secret:</span>
+                          <code className="text-xs font-mono text-slate-500 bg-slate-50 px-2 py-0.5 rounded">
+                            {`${wh.secret.slice(0, 8)}...${wh.secret.slice(-4)}`}
+                          </code>
+                          <button
+                            onClick={() => whCopySecret(wh.id, wh.secret)}
+                            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title="Copy full secret"
+                          >
+                            {whCopiedId === wh.id ? (
+                              <Check className="w-3.5 h-3.5 text-green-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Test result */}
+                        {whTestResult?.id === wh.id && (
+                          <p
+                            className={`text-xs mt-2 ${
+                              whTestResult.success
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {whTestResult.success ? "Test sent: " : "Test failed: "}
+                            {whTestResult.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => whHandleTest(wh.id)}
+                          disabled={whTestingId === wh.id}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                        >
+                          {whTestingId === wh.id ? "Sending..." : "Test"}
+                        </button>
+                        <button
+                          onClick={() => whHandleToggleActive(wh)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                          title={wh.is_active ? "Disable" : "Enable"}
+                        >
+                          <Zap
+                            className={`w-4 h-4 ${wh.is_active ? "text-green-500" : ""}`}
+                          />
+                        </button>
+                        <button
+                          onClick={() => whOpenEditForm(wh)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => whHandleDelete(wh.id)}
+                          className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add/Edit form */}
+              {whShowForm && (
+                <div className="mt-4 bg-white rounded-xl border border-slate-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      {whEditingId ? "Edit Webhook" : "New Webhook"}
+                    </h3>
+                    <button
+                      onClick={whCloseForm}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Endpoint URL
+                      </label>
+                      <input
+                        type="url"
+                        value={whUrl}
+                        onChange={(e) => setWhUrl(e.target.value)}
+                        placeholder="https://hooks.zapier.com/..."
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Events
+                      </label>
+                      <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={whAllEvents}
+                          onChange={(e) => {
+                            setWhAllEvents(e.target.checked);
+                            if (e.target.checked) setWhSelectedEvents([]);
+                          }}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span className="text-sm text-slate-700">All events</span>
+                      </label>
+
+                      {!whAllEvents && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          {WEBHOOK_EVENTS.map((event) => (
+                            <label
+                              key={event}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={whSelectedEvents.includes(event)}
+                                onChange={() => whToggleEvent(event)}
+                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                              />
+                              <span className="text-sm text-slate-600">
+                                {WEBHOOK_EVENT_LABELS[event] || event}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {whError && <p className="mt-3 text-sm text-red-600">{whError}</p>}
+
+                  <div className="flex justify-end gap-2 mt-5">
+                    <button
+                      onClick={whCloseForm}
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={whHandleSave}
+                      disabled={whSaving}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {whSaving
+                        ? "Saving..."
+                        : whEditingId
+                          ? "Update Webhook"
+                          : "Create Webhook"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       {/* Import Products Modal */}
       {importModalProvider && (
@@ -2152,5 +2875,20 @@ export function IntegrationsPage() {
         </div>
       )}
     </>
+  );
+}
+
+function StripeCapabilityBadge({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+      {enabled ? (
+        <CheckCircle2 className="w-4 h-4 text-green-500" />
+      ) : (
+        <XCircle className="w-4 h-4 text-red-500" />
+      )}
+      <span className="text-sm text-slate-700">
+        {`${label}: ${enabled ? "Enabled" : "Disabled"}`}
+      </span>
+    </div>
   );
 }

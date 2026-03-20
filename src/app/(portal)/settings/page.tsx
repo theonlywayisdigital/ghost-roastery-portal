@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   Coffee,
   Funnel,
-  Webhook,
   Link2,
 } from "@/components/icons";
 
@@ -48,7 +47,7 @@ const settingsItems = [
   {
     href: "/settings/billing",
     label: "Billing & Payouts",
-    description: "Stripe Connect status, payout history, and invoices.",
+    description: "Subscription plan, payout history, and invoices.",
     icon: CreditCard,
     roasterOnly: true,
   },
@@ -76,15 +75,8 @@ const settingsItems = [
   {
     href: "/settings/integrations",
     label: "Integrations",
-    description: "Connect Xero, Sage, and other accounting software.",
+    description: "Payments, accounting, ecommerce connections, and webhooks.",
     icon: Link2,
-    roasterOnly: true,
-  },
-  {
-    href: "/settings/webhooks",
-    label: "Webhooks",
-    description: "Send event data to external services like Zapier.",
-    icon: Webhook,
     roasterOnly: true,
   },
   {

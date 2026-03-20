@@ -14,6 +14,7 @@ import {
   EyeOff,
   Loader2,
   Download,
+  Upload,
   Package,
   Check,
   Link2,
@@ -58,6 +59,22 @@ interface ImportResult {
   imported: number;
   updated: number;
   skipped: number;
+  errors?: string[];
+  total: number;
+}
+
+interface ExportableProduct {
+  id: string;
+  name: string;
+  image_url: string | null;
+  retail_price: number | null;
+  sku: string | null;
+  variant_count: number;
+  status: string;
+}
+
+interface ExportResult {
+  exported: number;
   errors?: string[];
   total: number;
 }
@@ -129,6 +146,15 @@ export function IntegrationsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [unmappedCount, setUnmappedCount] = useState(0);
+
+  // Export modal state
+  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | null>(null);
+  const [exportConnectionId, setExportConnectionId] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportProducts, setExportProducts] = useState<ExportableProduct[]>([]);
+  const [exportSelected, setExportSelected] = useState<Set<string>>(new Set());
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -479,6 +505,100 @@ export function IntegrationsPage() {
       });
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleOpenExportModal(
+    provider: "shopify" | "woocommerce",
+    connectionId: string
+  ) {
+    setExportModalProvider(provider);
+    setExportConnectionId(connectionId);
+    setExportLoading(true);
+    setExportProducts([]);
+    setExportSelected(new Set());
+    setExportResult(null);
+
+    try {
+      // Fetch roaster's products that are NOT already mapped to this connection
+      const res = await fetch(
+        `/api/integrations/ecommerce/export-products?connectionId=${connectionId}`
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch products");
+      }
+      setExportProducts(data.products || []);
+      // Auto-select all exportable products
+      const newSelection = new Set<string>();
+      for (const p of data.products || []) {
+        newSelection.add(p.id);
+      }
+      setExportSelected(newSelection);
+    } catch (err) {
+      console.error("[export] Preview error:", err);
+      setExportProducts([]);
+    } finally {
+      setExportLoading(false);
+    }
+  }
+
+  function handleToggleExportSelect(productId: string) {
+    setExportSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  }
+
+  function handleSelectAllExport() {
+    if (exportSelected.size === exportProducts.length) {
+      setExportSelected(new Set());
+    } else {
+      setExportSelected(new Set(exportProducts.map((p) => p.id)));
+    }
+  }
+
+  async function handleRunExport() {
+    if (!exportConnectionId || exportSelected.size === 0) return;
+    setExporting(true);
+    setExportResult(null);
+
+    try {
+      const res = await fetch(
+        "/api/integrations/ecommerce/export-products",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connectionId: exportConnectionId,
+            productIds: Array.from(exportSelected),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setExportResult({
+          exported: 0,
+          errors: [data.error || "Export failed"],
+          total: 0,
+        });
+        return;
+      }
+      setExportResult(data);
+      loadStatus();
+    } catch (err) {
+      setExportResult({
+        exported: 0,
+        errors: [err instanceof Error ? err.message : "Export failed"],
+        total: 0,
+      });
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -941,15 +1061,26 @@ export function IntegrationsPage() {
 
             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
               {status.connection_id && (
-                <button
-                  onClick={() =>
-                    handleOpenImportModal(provider, status.connection_id!)
-                  }
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Import Products
-                </button>
+                <>
+                  <button
+                    onClick={() =>
+                      handleOpenImportModal(provider, status.connection_id!)
+                    }
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Import Products
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleOpenExportModal(provider, status.connection_id!)
+                    }
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Export Products
+                  </button>
+                </>
               )}
               <button
                 onClick={() => handleEcomDisconnect(provider)}
@@ -1527,6 +1658,225 @@ export function IntegrationsPage() {
                   {importing
                     ? "Importing..."
                     : `Import ${importSelected.size} Product${importSelected.size !== 1 ? "s" : ""}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Products Modal */}
+      {exportModalProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Export Products to{" "}
+                  {exportModalProvider === "shopify" ? "Shopify" : "WooCommerce"}
+                </h2>
+                {!exportResult && !exportLoading && exportProducts.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {exportProducts.length} product
+                    {exportProducts.length !== 1 ? "s" : ""} available to export
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setExportModalProvider(null);
+                  setExportResult(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {exportLoading && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin mb-3" />
+                  <p className="text-sm">Loading your products...</p>
+                </div>
+              )}
+
+              {!exportLoading && !exportResult && exportProducts.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
+                  <Package className="w-8 h-8 mb-3" />
+                  <p className="text-sm">
+                    All your products are already exported to this store.
+                  </p>
+                </div>
+              )}
+
+              {!exportLoading && !exportResult && exportProducts.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 border-b border-slate-200">
+                    <button
+                      onClick={handleSelectAllExport}
+                      className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                    >
+                      <span
+                        className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          exportSelected.size === exportProducts.length &&
+                          exportSelected.size > 0
+                            ? "bg-brand-600 border-brand-600"
+                            : "border-slate-300"
+                        }`}
+                      >
+                        {exportSelected.size === exportProducts.length &&
+                          exportSelected.size > 0 && (
+                            <Check className="w-3 h-3 text-white" />
+                          )}
+                      </span>
+                      Select all ({exportProducts.length})
+                    </button>
+                    {exportSelected.size > 0 && (
+                      <span className="text-xs text-slate-500">
+                        {exportSelected.size} selected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {exportProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50"
+                      >
+                        <button
+                          onClick={() => handleToggleExportSelect(product.id)}
+                          className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                            exportSelected.has(product.id)
+                              ? "bg-brand-600 border-brand-600"
+                              : "border-slate-300"
+                          }`}
+                        >
+                          {exportSelected.has(product.id) && (
+                            <Check className="w-3 h-3 text-white" />
+                          )}
+                        </button>
+
+                        {product.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-slate-400" />
+                          </div>
+                        )}
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {product.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            {product.sku && <span>SKU: {product.sku}</span>}
+                            {product.variant_count > 1 && (
+                              <span>
+                                {product.variant_count} variant
+                                {product.variant_count !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                                product.status === "published"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {product.status === "published"
+                                ? "Published"
+                                : "Draft"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {product.retail_price != null && (
+                          <span className="text-sm font-medium text-slate-700 flex-shrink-0">
+                            &pound;{product.retail_price.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {exportResult && (
+                <div className="p-6 space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-medium text-green-800">
+                      Export complete
+                    </p>
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                      <div>
+                        <p className="text-2xl font-bold text-green-700">
+                          {exportResult.exported}
+                        </p>
+                        <p className="text-xs text-green-600">Exported</p>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-slate-500">
+                          {exportResult.total - exportResult.exported}
+                        </p>
+                        <p className="text-xs text-slate-400">Skipped</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {exportResult.errors && exportResult.errors.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-sm font-medium text-amber-800 mb-2">
+                        Errors ({exportResult.errors.length})
+                      </p>
+                      <ul className="text-xs text-amber-700 space-y-1">
+                        {exportResult.errors.map((err, i) => (
+                          <li
+                            key={i}
+                            className="flex items-start gap-1.5"
+                          >
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            {err}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setExportModalProvider(null);
+                  setExportResult(null);
+                }}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                {exportResult ? "Done" : "Cancel"}
+              </button>
+
+              {!exportResult && !exportLoading && exportProducts.length > 0 && (
+                <button
+                  onClick={handleRunExport}
+                  disabled={exporting || exportSelected.size === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  {exporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                  {exporting
+                    ? "Exporting..."
+                    : `Export ${exportSelected.size} Product${exportSelected.size !== 1 ? "s" : ""}`}
                 </button>
               )}
             </div>

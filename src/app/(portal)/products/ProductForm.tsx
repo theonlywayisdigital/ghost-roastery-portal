@@ -290,6 +290,13 @@ export function ProductForm({ product }: { product?: Product }) {
   const [roastedStocks, setRoastedStocks] = useState<RoastedStockOption[]>([]);
   const [greenBeanId, setGreenBeanId] = useState(product?.green_bean_id || "");
   const [greenBeans, setGreenBeans] = useState<GreenBeanOption[]>([]);
+
+  // Ecommerce channel status
+  const [channelStatus, setChannelStatus] = useState<{
+    connections: { id: string; provider: string; shop_name: string | null; store_url: string }[];
+    published: { connection_id: string; provider: string; shop_name: string | null }[];
+  }>({ connections: [], published: [] });
+  const [exportingTo, setExportingTo] = useState<string | null>(null);
   const [status, setStatus] = useState<"draft" | "published">(product?.status ?? "published");
   const [isPurchasable, setIsPurchasable] = useState(product?.is_purchasable ?? true);
 
@@ -395,6 +402,17 @@ export function ProductForm({ product }: { product?: Product }) {
         .catch(() => {});
     }
   }, [category]);
+
+  // Fetch ecommerce channel status when editing
+  useEffect(() => {
+    if (!isEditing) return;
+    fetch(`/api/products/${product.id}/channels`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.connections) setChannelStatus(data);
+      })
+      .catch(() => {});
+  }, [isEditing, product?.id]);
 
   // Fetch existing variants when editing — reconstruct per-channel matrices
   useEffect(() => {
@@ -1872,6 +1890,104 @@ export function ProductForm({ product }: { product?: Product }) {
                       }
                     />
                   </div>
+
+                  {/* Ecommerce channels */}
+                  {isEditing && channelStatus.connections.length > 0 && (
+                    <div className="pt-3 border-t border-slate-200">
+                      <label className={labelClassName}>Published to</label>
+                      <div className="space-y-2">
+                        {channelStatus.connections.map((conn) => {
+                          const isPublished = channelStatus.published.some(
+                            (p) => p.connection_id === conn.id
+                          );
+                          return (
+                            <div
+                              key={conn.id}
+                              className="flex items-center justify-between py-1.5"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                                    conn.provider === "shopify"
+                                      ? "bg-[#96BF48] text-white"
+                                      : "bg-[#7F54B3] text-white"
+                                  }`}
+                                >
+                                  {conn.provider === "shopify" ? "S" : "W"}
+                                </span>
+                                <span className="text-sm text-slate-700">
+                                  {conn.shop_name || conn.store_url}
+                                </span>
+                              </div>
+                              {isPublished ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                  Synced
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setExportingTo(conn.id);
+                                    try {
+                                      const res = await fetch(
+                                        "/api/integrations/ecommerce/export-products",
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            connectionId: conn.id,
+                                            productIds: [product!.id],
+                                          }),
+                                        }
+                                      );
+                                      if (res.ok) {
+                                        setChannelStatus((prev) => ({
+                                          ...prev,
+                                          published: [
+                                            ...prev.published,
+                                            {
+                                              connection_id: conn.id,
+                                              provider: conn.provider,
+                                              shop_name: conn.shop_name,
+                                            },
+                                          ],
+                                        }));
+                                      }
+                                    } catch {
+                                      // Silent fail
+                                    } finally {
+                                      setExportingTo(null);
+                                    }
+                                  }}
+                                  disabled={exportingTo === conn.id}
+                                  className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                                >
+                                  {exportingTo === conn.id
+                                    ? "Pushing..."
+                                    : "Push to store"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

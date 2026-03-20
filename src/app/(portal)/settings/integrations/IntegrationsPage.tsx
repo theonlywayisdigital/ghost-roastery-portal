@@ -27,10 +27,6 @@ import {
   X,
   Copy,
   Zap,
-  Mail,
-  Globe,
-  Shield,
-  Crown,
 } from "lucide-react";
 import { WEBHOOK_EVENTS } from "@/lib/webhooks";
 
@@ -94,7 +90,7 @@ interface ExportResult {
   total: number;
 }
 
-type IntegrationsTab = "payments" | "email" | "accounting" | "ecommerce" | "webhooks";
+type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks";
 
 interface StripeStatus {
   connected: boolean;
@@ -254,30 +250,6 @@ export function IntegrationsPage() {
   // Webhook registration state
   const [registeringWebhooks, setRegisteringWebhooks] = useState<string | null>(null);
 
-  // Email domain state
-  interface EmailDomain {
-    id: string;
-    domain: string;
-    resend_domain_id: string | null;
-    status: string;
-    dns_records: { type: string; name: string; value: string; ttl?: string; priority?: number }[] | null;
-    sender_prefix: string;
-    verified_at: string | null;
-    created_at: string;
-  }
-  const [emailDomains, setEmailDomains] = useState<EmailDomain[]>([]);
-  const [emailDomainsLoading, setEmailDomainsLoading] = useState(true);
-  const [emailDomainInput, setEmailDomainInput] = useState("");
-  const [emailPrefixInput, setEmailPrefixInput] = useState("noreply");
-  const [emailAddingDomain, setEmailAddingDomain] = useState(false);
-  const [emailVerifying, setEmailVerifying] = useState<string | null>(null);
-  const [emailDeleting, setEmailDeleting] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [emailCopied, setEmailCopied] = useState<string | null>(null);
-  const [emailEditingPrefix, setEmailEditingPrefix] = useState<string | null>(null);
-  const [emailPrefixValue, setEmailPrefixValue] = useState("");
-  const [emailSavingPrefix, setEmailSavingPrefix] = useState(false);
-  const [emailUpgradeRequired, setEmailUpgradeRequired] = useState(false);
 
   const loadStatus = useCallback(async () => {
     try {
@@ -402,12 +374,6 @@ export function IntegrationsPage() {
     }
   }, [activeTab, webhooksLoading]);
 
-  // Load email domains when tab is active
-  useEffect(() => {
-    if (activeTab === "email" && emailDomainsLoading) {
-      loadEmailDomains();
-    }
-  }, [activeTab, emailDomainsLoading]);
 
   async function loadWebhooks() {
     try {
@@ -417,118 +383,6 @@ export function IntegrationsPage() {
     } finally {
       setWebhooksLoading(false);
     }
-  }
-
-  async function loadEmailDomains() {
-    try {
-      const res = await fetch("/api/settings/email-domain");
-      const data = await res.json();
-      setEmailDomains(data.domains || []);
-      if (data.featureAllowed === false) {
-        setEmailUpgradeRequired(true);
-      }
-    } catch {
-      // Non-critical
-    } finally {
-      setEmailDomainsLoading(false);
-    }
-  }
-
-  async function handleAddEmailDomain() {
-    if (!emailDomainInput.trim()) return;
-    setEmailAddingDomain(true);
-    setEmailError(null);
-    try {
-      const res = await fetch("/api/settings/email-domain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: emailDomainInput.trim(), senderPrefix: emailPrefixInput.trim() || "noreply" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.upgrade_required) {
-          setEmailUpgradeRequired(true);
-        }
-        setEmailError(data.error || "Failed to add domain");
-        return;
-      }
-      setEmailDomains((prev) => [data.domain, ...prev]);
-      setEmailDomainInput("");
-      setEmailPrefixInput("noreply");
-    } catch {
-      setEmailError("Failed to add domain");
-    } finally {
-      setEmailAddingDomain(false);
-    }
-  }
-
-  async function handleVerifyEmailDomain(domainId: string) {
-    setEmailVerifying(domainId);
-    setEmailError(null);
-    try {
-      const res = await fetch("/api/settings/email-domain/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domainId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setEmailError(data.error || "Verification failed");
-        return;
-      }
-      setEmailDomains((prev) => prev.map((d) => (d.id === domainId ? data.domain : d)));
-    } catch {
-      setEmailError("Verification failed");
-    } finally {
-      setEmailVerifying(null);
-    }
-  }
-
-  async function handleDeleteEmailDomain(domainId: string) {
-    setEmailDeleting(domainId);
-    setEmailError(null);
-    try {
-      const res = await fetch(`/api/settings/email-domain/${domainId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json();
-        setEmailError(data.error || "Failed to delete domain");
-        return;
-      }
-      setEmailDomains((prev) => prev.filter((d) => d.id !== domainId));
-    } catch {
-      setEmailError("Failed to delete domain");
-    } finally {
-      setEmailDeleting(null);
-    }
-  }
-
-  async function handleSaveSenderPrefix(domainId: string) {
-    setEmailSavingPrefix(true);
-    setEmailError(null);
-    try {
-      const res = await fetch(`/api/settings/email-domain/${domainId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderPrefix: emailPrefixValue.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setEmailError(data.error || "Failed to update prefix");
-        return;
-      }
-      setEmailDomains((prev) => prev.map((d) => (d.id === domainId ? data.domain : d)));
-      setEmailEditingPrefix(null);
-    } catch {
-      setEmailError("Failed to update prefix");
-    } finally {
-      setEmailSavingPrefix(false);
-    }
-  }
-
-  function copyToClipboard(text: string, id: string) {
-    navigator.clipboard.writeText(text);
-    setEmailCopied(id);
-    setTimeout(() => setEmailCopied(null), 2000);
   }
 
   // ─── Stripe Connect handlers ───
@@ -1942,16 +1796,6 @@ export function IntegrationsPage() {
             Payments
           </button>
           <button
-            onClick={() => switchTab("email")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "email"
-                ? "border-brand-600 text-brand-600"
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-            }`}
-          >
-            Email
-          </button>
-          <button
             onClick={() => switchTab("accounting")}
             className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "accounting"
@@ -2127,275 +1971,6 @@ export function IntegrationsPage() {
                     Manage in Stripe Dashboard
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════ */}
-      {/* Tab: Email                                     */}
-      {/* ═══════════════════════════════════════════════ */}
-      {activeTab === "email" && (
-        <div className="space-y-6">
-          {/* Current default domain */}
-          <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-slate-600" />
-                <h2 className="text-lg font-semibold text-slate-900">Email Sending Domain</h2>
-              </div>
-              <p className="text-sm text-slate-500 mt-1">
-                Emails are sent from your configured domain. Add a custom domain for better deliverability and branding.
-              </p>
-            </div>
-
-            <div className="p-6">
-              {/* Default domain info */}
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg mb-6">
-                <Globe className="w-5 h-5 text-slate-400" />
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Default sending domain</p>
-                  <p className="text-sm text-slate-500 font-mono">noreply@ghostroastery.com</p>
-                </div>
-                <div className="ml-auto">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Active
-                  </span>
-                </div>
-              </div>
-
-              {/* Upgrade required */}
-              {emailUpgradeRequired && (
-                <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
-                  <Crown className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-800">Upgrade required</p>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Custom email domains are available on the Starter plan and above.
-                    </p>
-                    <Link
-                      href="/settings/billing?tab=subscription"
-                      className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-amber-800 hover:text-amber-900"
-                    >
-                      Upgrade your plan
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              )}
-
-              {/* Error message */}
-              {emailError && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-4 text-sm text-red-700">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>{emailError}</span>
-                  <button onClick={() => setEmailError(null)} className="ml-auto">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Loading */}
-              {emailDomainsLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
-                </div>
-              )}
-
-              {/* Add custom domain form */}
-              {!emailDomainsLoading && !emailUpgradeRequired && (
-                <>
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Add Custom Domain</h3>
-                  <div className="flex gap-3 mb-6">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={emailDomainInput}
-                        onChange={(e) => setEmailDomainInput(e.target.value)}
-                        placeholder="yourdomain.com"
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                      />
-                    </div>
-                    <button
-                      onClick={handleAddEmailDomain}
-                      disabled={emailAddingDomain || !emailDomainInput.trim()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {emailAddingDomain ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Add Domain
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Existing domains */}
-              {!emailDomainsLoading && emailDomains.length > 0 && (
-                <div className="space-y-4">
-                  {emailDomains.map((domain) => (
-                    <div key={domain.id} className="border border-slate-200 rounded-lg overflow-hidden">
-                      {/* Domain header */}
-                      <div className="flex items-center gap-3 px-4 py-3 bg-slate-50">
-                        <Globe className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm font-medium text-slate-900 font-mono">{domain.domain}</span>
-                        <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
-                          domain.status === "verified"
-                            ? "bg-green-50 text-green-700"
-                            : domain.status === "failed" || domain.status === "temporary_failure"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-amber-50 text-amber-700"
-                        }`}>
-                          {domain.status === "verified" ? (
-                            <><CheckCircle2 className="w-3 h-3" /> Verified</>
-                          ) : domain.status === "failed" || domain.status === "temporary_failure" ? (
-                            <><XCircle className="w-3 h-3" /> Failed</>
-                          ) : domain.status === "pending" ? (
-                            <><Loader2 className="w-3 h-3 animate-spin" /> Pending</>
-                          ) : (
-                            <><AlertCircle className="w-3 h-3" /> Not Started</>
-                          )}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleVerifyEmailDomain(domain.id)}
-                            disabled={emailVerifying === domain.id || domain.status === "verified"}
-                            className="p-1.5 text-slate-400 hover:text-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Verify DNS"
-                          >
-                            {emailVerifying === domain.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <RefreshCw className="w-4 h-4" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEmailDomain(domain.id)}
-                            disabled={emailDeleting === domain.id}
-                            className="p-1.5 text-slate-400 hover:text-red-600 disabled:opacity-50"
-                            title="Remove domain"
-                          >
-                            {emailDeleting === domain.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Sender prefix */}
-                      <div className="px-4 py-3 border-t border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-slate-500">Sender:</span>
-                          {emailEditingPrefix === domain.id ? (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={emailPrefixValue}
-                                onChange={(e) => setEmailPrefixValue(e.target.value)}
-                                className="px-2 py-1 text-xs font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-500 w-32"
-                              />
-                              <span className="text-xs text-slate-400 font-mono">@{domain.domain}</span>
-                              <button
-                                onClick={() => handleSaveSenderPrefix(domain.id)}
-                                disabled={emailSavingPrefix}
-                                className="p-1 text-green-600 hover:text-green-700"
-                              >
-                                {emailSavingPrefix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              </button>
-                              <button onClick={() => setEmailEditingPrefix(null)} className="p-1 text-slate-400 hover:text-slate-600">
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-slate-700">{domain.sender_prefix}@{domain.domain}</span>
-                              <button
-                                onClick={() => {
-                                  setEmailEditingPrefix(domain.id);
-                                  setEmailPrefixValue(domain.sender_prefix);
-                                }}
-                                className="p-1 text-slate-400 hover:text-slate-600"
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* DNS records */}
-                      {domain.dns_records && domain.dns_records.length > 0 && domain.status !== "verified" && (
-                        <div className="px-4 py-3 border-t border-slate-100">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Shield className="w-4 h-4 text-slate-400" />
-                            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">DNS Records</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mb-3">
-                            Add these records to your domain&apos;s DNS settings, then click the refresh button above to verify.
-                          </p>
-                          <div className="space-y-2">
-                            {domain.dns_records.map((record, idx) => (
-                              <div key={idx} className="flex items-start gap-2 p-2 bg-slate-50 rounded text-xs font-mono">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-semibold uppercase">
-                                      {record.type}
-                                    </span>
-                                    {record.priority !== undefined && (
-                                      <span className="text-slate-400">Priority: {record.priority}</span>
-                                    )}
-                                  </div>
-                                  <div className="text-slate-600 truncate" title={record.name}>
-                                    <span className="text-slate-400">Name: </span>{record.name}
-                                  </div>
-                                  <div className="text-slate-600 break-all" title={record.value}>
-                                    <span className="text-slate-400">Value: </span>{record.value}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => copyToClipboard(record.value, `${domain.id}-${idx}`)}
-                                  className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
-                                  title="Copy value"
-                                >
-                                  {emailCopied === `${domain.id}-${idx}` ? (
-                                    <Check className="w-3.5 h-3.5 text-green-500" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Verified confirmation */}
-                      {domain.status === "verified" && (
-                        <div className="px-4 py-3 border-t border-slate-100 bg-green-50">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            <span className="text-sm text-green-700">
-                              Domain verified. All emails will be sent from <strong>{domain.sender_prefix}@{domain.domain}</strong>.
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Empty state */}
-              {!emailDomainsLoading && emailDomains.length === 0 && !emailUpgradeRequired && (
-                <div className="text-center py-6">
-                  <Mail className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">No custom domains configured.</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Add your own domain above for branded email sending.
-                  </p>
                 </div>
               )}
             </div>

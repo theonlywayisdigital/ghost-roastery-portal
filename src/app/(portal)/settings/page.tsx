@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Coffee,
   Funnel,
+  Globe,
   Link2,
 } from "@/components/icons";
 
@@ -70,6 +71,13 @@ const settingsItems = [
     label: "Pipeline Stages",
     description: "Customise your sales pipeline stages.",
     icon: Funnel,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/domain",
+    label: "Domain",
+    description: "Storefront URL, custom email domain, and inbox address.",
+    icon: Globe,
     roasterOnly: true,
   },
   {

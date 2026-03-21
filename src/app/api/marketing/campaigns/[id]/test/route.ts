@@ -54,7 +54,8 @@ export async function POST(
       to: user.email,
       subject: `[TEST] ${campaign.subject}`,
       html,
-      replyTo: (campaign.reply_to as string) || owner.email,
+      replyTo: (campaign.reply_to as string)
+        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com"),
     });
 
     return NextResponse.json({ success: true, sentTo: user.email });

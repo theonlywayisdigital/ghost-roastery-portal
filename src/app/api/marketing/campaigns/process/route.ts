@@ -126,10 +126,13 @@ export async function GET(request: Request) {
 
       // Send
       const fromName = (campaign.from_name as string) || displayName;
-      const replyTo = (campaign.reply_to as string) || roaster?.email || "hello@ghostroastery.com";
       const customDomain = campaign.roaster_id
         ? await getVerifiedDomain(campaign.roaster_id)
         : null;
+
+      // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@ghostroastery.com
+      const replyTo = (campaign.reply_to as string)
+        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com");
 
       await sendCampaignBatch({
         campaignId: campaign.id,

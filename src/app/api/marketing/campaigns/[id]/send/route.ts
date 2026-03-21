@@ -114,10 +114,13 @@ export async function POST(
 
     // Send in batches
     const fromName = (campaign.from_name as string) || owner.display_name;
-    const replyTo = (campaign.reply_to as string) || owner.email;
 
     // Look up custom domain if this is a roaster campaign
     const customDomain = owner.owner_id ? await getVerifiedDomain(owner.owner_id) : null;
+
+    // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@ghostroastery.com
+    const replyTo = (campaign.reply_to as string)
+      || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com");
 
     await sendCampaignBatch({
       campaignId: id,

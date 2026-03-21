@@ -6,6 +6,19 @@ import { checkFeature } from "@/lib/feature-gates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+/** Map roaster country code to Resend region for domain creation */
+function getResendRegion(country: string): "us-east-1" | "eu-west-1" | "sa-east-1" | "ap-northeast-1" {
+  const eu = new Set(["GB", "IE", "DE", "FR", "NL", "ES", "IT", "PT", "AT", "BE", "CH", "SE", "NO", "DK", "FI", "PL", "CZ", "GR", "RO", "HU", "BG", "HR", "SK", "SI", "LT", "LV", "EE", "LU", "MT", "CY", "IS"]);
+  const apac = new Set(["JP", "KR", "CN", "AU", "NZ", "SG", "HK", "TW", "IN", "TH", "MY", "PH", "ID", "VN"]);
+  const sa = new Set(["BR", "AR", "CL", "CO", "PE", "MX", "UY", "PY", "EC", "VE", "BO"]);
+
+  const code = country.toUpperCase();
+  if (eu.has(code)) return "eu-west-1";
+  if (apac.has(code)) return "ap-northeast-1";
+  if (sa.has(code)) return "sa-east-1";
+  return "us-east-1";
+}
+
 // GET — list all custom domains for the roaster
 export async function GET() {
   const user = await getCurrentUser();
@@ -80,9 +93,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Create domain in Resend
+    // Create domain in Resend with region based on roaster country
+    const region = getResendRegion((roaster.country as string) || "GB");
     const resendDomain = await resend.domains.create({
       name: cleanDomain,
+      region,
     });
 
     if (!resendDomain.data) {

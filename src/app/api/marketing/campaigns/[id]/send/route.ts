@@ -103,13 +103,25 @@ export async function POST(
 
     await supabase.from("campaign_recipients").insert(recipientRecords);
 
+    // Fetch roaster's logo for email header
+    let logoUrl: string | null = null;
+    if (owner.owner_id) {
+      const { data: roaster } = await supabase
+        .from("partner_roasters")
+        .select("brand_logo_url")
+        .eq("id", owner.owner_id)
+        .single();
+      logoUrl = (roaster?.brand_logo_url as string) || null;
+    }
+
     // Render email HTML — use a placeholder roaster_id for admin unsubscribe links
     const renderRoasterId = owner.owner_id || "platform";
     const html = renderCampaignEmail(
       campaign.content as unknown[],
       owner.display_name,
       renderRoasterId,
-      (campaign.email_bg_color as string) || undefined
+      (campaign.email_bg_color as string) || undefined,
+      logoUrl
     );
 
     // Send in batches

@@ -15,11 +15,12 @@ export function renderCampaignEmail(
   content: unknown[],
   businessName: string,
   roasterId: string,
-  emailBgColor?: string
+  emailBgColor?: string,
+  logoUrl?: string | null
 ): string {
   const blocks = content as EmailBlock[];
   const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
-  return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined);
+  return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined, logoUrl);
 }
 
 // ─── Unsubscribe Tokens ───

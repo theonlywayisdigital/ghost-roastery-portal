@@ -33,12 +33,24 @@ export async function POST(
   }
 
   try {
+    // Fetch roaster's logo for email header
+    let logoUrl: string | null = null;
+    if (owner.owner_id) {
+      const { data: roaster } = await supabase
+        .from("partner_roasters")
+        .select("brand_logo_url")
+        .eq("id", owner.owner_id)
+        .single();
+      logoUrl = (roaster?.brand_logo_url as string) || null;
+    }
+
     const renderRoasterId = owner.owner_id || "platform";
     const html = renderCampaignEmail(
       campaign.content as unknown[],
       owner.display_name,
       renderRoasterId,
-      (campaign.email_bg_color as string) || undefined
+      (campaign.email_bg_color as string) || undefined,
+      logoUrl
     );
 
     const resend = new Resend(process.env.RESEND_API_KEY);

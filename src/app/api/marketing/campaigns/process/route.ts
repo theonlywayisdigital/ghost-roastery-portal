@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   // Find scheduled campaigns that are due
   const { data: dueCampaigns, error } = await supabase
     .from("campaigns")
-    .select("*, partner_roasters(id, business_name, email)")
+    .select("*, partner_roasters(id, business_name, email, brand_logo_url)")
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true })
@@ -41,6 +41,7 @@ export async function GET(request: Request) {
       id: string;
       business_name: string;
       email: string;
+      brand_logo_url: string | null;
     } | null;
 
     try {
@@ -117,11 +118,13 @@ export async function GET(request: Request) {
       // Render email
       const displayName = roaster?.business_name || "Ghost Roastery";
       const renderRoasterId = campaign.roaster_id || "platform";
+      const logoUrl = roaster?.brand_logo_url || null;
       const html = renderCampaignEmail(
         campaign.content as unknown[],
         displayName,
         renderRoasterId,
-        (campaign.email_bg_color as string) || undefined
+        (campaign.email_bg_color as string) || undefined,
+        logoUrl
       );
 
       // Send

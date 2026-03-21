@@ -4,10 +4,20 @@ export function renderEmailHtml(
   blocks: EmailBlock[],
   businessName: string,
   unsubscribeUrl: string,
-  emailBgColor?: string
+  emailBgColor?: string,
+  logoUrl?: string | null
 ): string {
   const renderedBlocks = blocks.map(renderBlock).join("");
   const bgColor = emailBgColor || "#f8fafc";
+
+  const logoHeader = logoUrl
+    ? `<div style="background-color:#0f172a;border-radius:12px 12px 0 0;padding:24px;text-align:center;">
+        <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:40px;max-width:200px;object-fit:contain;" />
+      </div>`
+    : "";
+
+  const cardTopRadius = logoUrl ? "0" : "12px";
+  const cardBorderTop = logoUrl ? "border-top:none;" : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -18,7 +28,8 @@ export function renderEmailHtml(
 </head>
 <body style="margin:0;padding:0;background-color:${bgColor};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    ${logoHeader}
+    <div style="background:#ffffff;border-radius:${cardTopRadius} ${cardTopRadius} 12px 12px;border:1px solid #e2e8f0;${cardBorderTop}overflow:hidden;">
       <div style="padding:32px 32px 16px;">
         ${renderedBlocks}
       </div>

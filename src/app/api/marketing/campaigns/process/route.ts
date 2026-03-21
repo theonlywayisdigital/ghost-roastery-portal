@@ -1,0 +1,186 @@
+import { NextResponse } from "next/server";
+import { createServerClient } from "@/lib/supabase";
+import { sendCampaignBatch, renderCampaignEmail, checkEmailLimits } from "@/lib/marketing-email";
+import { getVerifiedDomain } from "@/lib/email";
+
+/**
+ * CRON endpoint: send scheduled campaigns that are due.
+ * Called every minute via Vercel Cron (GET with Bearer CRON_SECRET).
+ */
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const supabase = createServerClient();
+
+  // Find scheduled campaigns that are due
+  const { data: dueCampaigns, error } = await supabase
+    .from("campaigns")
+    .select("*, partner_roasters(id, business_name, email)")
+    .eq("status", "scheduled")
+    .lte("scheduled_at", new Date().toISOString())
+    .order("scheduled_at", { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.error("Campaign process cron error:", error);
+    return NextResponse.json({ error: "Failed to fetch due campaigns" }, { status: 500 });
+  }
+
+  if (!dueCampaigns || dueCampaigns.length === 0) {
+    return NextResponse.json({ processed: 0 });
+  }
+
+  let processed = 0;
+  const errors: string[] = [];
+
+  for (const campaign of dueCampaigns) {
+    const roaster = campaign.partner_roasters as {
+      id: string;
+      business_name: string;
+      email: string;
+    } | null;
+
+    try {
+      if (!campaign.subject) {
+        errors.push(`Campaign ${campaign.id}: missing subject`);
+        continue;
+      }
+
+      // Build recipient list
+      let contactQuery = supabase
+        .from("contacts")
+        .select("id, email, first_name, last_name")
+        .eq("status", "active")
+        .not("email", "is", null)
+        .eq("unsubscribed", false);
+
+      // Scope to roaster or ghost_roastery
+      if (campaign.roaster_id) {
+        contactQuery = contactQuery.eq("roaster_id", campaign.roaster_id);
+      } else {
+        contactQuery = contactQuery.is("roaster_id", null);
+      }
+
+      const audienceType = campaign.audience_type as string;
+      if (audienceType !== "all") {
+        const typeMap: Record<string, string> = {
+          customers: "retail",
+          wholesale: "wholesale",
+          suppliers: "supplier",
+          leads: "lead",
+        };
+        const contactType = typeMap[audienceType];
+        if (contactType) {
+          contactQuery = contactQuery.contains("types", [contactType]);
+        }
+      }
+
+      const { data: contacts } = await contactQuery;
+      const recipients = (contacts || []).filter((c) => c.email);
+
+      if (recipients.length === 0) {
+        await supabase
+          .from("campaigns")
+          .update({ status: "failed" })
+          .eq("id", campaign.id);
+        errors.push(`Campaign ${campaign.id}: no eligible recipients`);
+        continue;
+      }
+
+      // Check email limits (only for roaster campaigns)
+      if (campaign.roaster_id) {
+        const limitCheck = await checkEmailLimits(campaign.roaster_id, recipients.length, supabase);
+        if (!limitCheck.allowed) {
+          errors.push(`Campaign ${campaign.id}: ${limitCheck.message}`);
+          continue;
+        }
+      }
+
+      // Mark as sending
+      await supabase
+        .from("campaigns")
+        .update({ status: "sending", recipient_count: recipients.length })
+        .eq("id", campaign.id);
+
+      // Insert recipient records
+      const recipientRecords = recipients.map((c) => ({
+        campaign_id: campaign.id,
+        contact_id: c.id,
+        email: c.email!,
+        status: "pending" as const,
+      }));
+      await supabase.from("campaign_recipients").insert(recipientRecords);
+
+      // Render email
+      const displayName = roaster?.business_name || "Ghost Roastery";
+      const renderRoasterId = campaign.roaster_id || "platform";
+      const html = renderCampaignEmail(
+        campaign.content as unknown[],
+        displayName,
+        renderRoasterId,
+        (campaign.email_bg_color as string) || undefined
+      );
+
+      // Send
+      const fromName = (campaign.from_name as string) || displayName;
+      const replyTo = (campaign.reply_to as string) || roaster?.email || "hello@ghostroastery.com";
+      const customDomain = campaign.roaster_id
+        ? await getVerifiedDomain(campaign.roaster_id)
+        : null;
+
+      await sendCampaignBatch({
+        campaignId: campaign.id,
+        recipients: recipients.map((c) => ({
+          contactId: c.id,
+          email: c.email!,
+          name: [c.first_name, c.last_name].filter(Boolean).join(" ") || undefined,
+        })),
+        subject: campaign.subject as string,
+        previewText: (campaign.preview_text as string) || undefined,
+        html,
+        fromName,
+        replyTo,
+        supabase,
+        customDomain,
+      });
+
+      // Mark as sent
+      await supabase
+        .from("campaigns")
+        .update({ status: "sent", sent_at: new Date().toISOString() })
+        .eq("id", campaign.id);
+
+      // Increment monthly email count
+      if (campaign.roaster_id) {
+        const { error: rpcError } = await supabase.rpc("increment_monthly_emails", {
+          p_roaster_id: campaign.roaster_id,
+          p_count: recipients.length,
+        });
+
+        if (rpcError) {
+          await supabase
+            .from("partner_roasters")
+            .update({ monthly_emails_sent: recipients.length })
+            .eq("id", campaign.roaster_id);
+        }
+      }
+
+      processed++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      errors.push(`Campaign ${campaign.id}: ${msg}`);
+      console.error(`Failed to process campaign ${campaign.id}:`, err);
+
+      // Mark as failed
+      await supabase
+        .from("campaigns")
+        .update({ status: "failed" })
+        .eq("id", campaign.id);
+    }
+  }
+
+  return NextResponse.json({ processed, total: dueCampaigns.length, errors });
+}

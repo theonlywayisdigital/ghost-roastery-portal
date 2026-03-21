@@ -124,6 +124,7 @@ export async function POST(
 
     await sendCampaignBatch({
       campaignId: id,
+      roasterId: renderRoasterId,
       recipients: recipients.map((c) => ({
         contactId: c.id,
         email: c.email!,

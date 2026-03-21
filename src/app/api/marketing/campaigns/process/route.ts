@@ -136,6 +136,7 @@ export async function GET(request: Request) {
 
       await sendCampaignBatch({
         campaignId: campaign.id,
+        roasterId: renderRoasterId,
         recipients: recipients.map((c) => ({
           contactId: c.id,
           email: c.email!,

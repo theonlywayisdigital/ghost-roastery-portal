@@ -112,6 +112,7 @@ export async function checkEmailLimits(
 
 interface SendBatchParams {
   campaignId: string;
+  roasterId: string;
   recipients: { contactId: string; email: string; name?: string }[];
   subject: string;
   previewText?: string;
@@ -138,8 +139,7 @@ export async function sendCampaignBatch(params: SendBatchParams): Promise<void> 
       try {
         // Generate personalized unsubscribe token
         const token = generateUnsubscribeToken(
-          // Extract roaster_id from the campaign context
-          "",
+          params.roasterId,
           recipient.email
         );
         const personalizedHtml = html.replace("{{unsubscribe_token}}", token);

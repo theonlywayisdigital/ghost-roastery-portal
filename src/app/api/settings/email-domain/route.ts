@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 
   try {
     // Create domain in Resend with region based on roaster country
-    const region = getResendRegion((roaster.country as string) || "GB");
+    const region = getResendRegion(roaster.country);
     const resendDomain = await resend.domains.create({
       name: cleanDomain,
       region,

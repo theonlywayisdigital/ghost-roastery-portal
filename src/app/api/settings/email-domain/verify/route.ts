@@ -39,24 +39,37 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Trigger verification in Resend
+    // Trigger verification in Resend (async — kicks off DNS check)
     await resend.domains.verify(emailDomain.resend_domain_id);
 
-    // Fetch updated domain status from Resend
-    const resendDomain = await resend.domains.get(emailDomain.resend_domain_id);
+    // Poll for updated status — verify() is async on Resend's side,
+    // so the status won't change immediately. Poll up to 4 times with
+    // increasing delays to give Resend time to complete the DNS check.
+    const delays = [1500, 2000, 2500, 3000];
+    let finalStatus = emailDomain.status as string;
+    let finalRecords = emailDomain.dns_records;
 
-    if (!resendDomain.data) {
-      return NextResponse.json({ error: "Failed to fetch domain status" }, { status: 500 });
+    for (const delay of delays) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      const resendDomain = await resend.domains.get(emailDomain.resend_domain_id);
+      if (!resendDomain.data) continue;
+
+      finalStatus = resendDomain.data.status;
+      finalRecords = resendDomain.data.records || finalRecords;
+
+      // Stop polling once we get a definitive result
+      if (finalStatus === "verified" || finalStatus === "failed") break;
     }
 
-    const isVerified = resendDomain.data.status === "verified";
+    const isVerified = finalStatus === "verified";
 
     // Update local record
     const { data: updated, error: updateError } = await supabase
       .from("roaster_email_domains")
       .update({
-        status: resendDomain.data.status || emailDomain.status,
-        dns_records: resendDomain.data.records || emailDomain.dns_records,
+        status: finalStatus,
+        dns_records: finalRecords,
         verified_at: isVerified ? new Date().toISOString() : null,
       })
       .eq("id", domainId)

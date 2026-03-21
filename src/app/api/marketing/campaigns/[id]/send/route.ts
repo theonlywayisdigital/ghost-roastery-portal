@@ -103,15 +103,17 @@ export async function POST(
 
     await supabase.from("campaign_recipients").insert(recipientRecords);
 
-    // Fetch roaster's logo for email header
+    // Fetch roaster's branding for email header
     let logoUrl: string | null = null;
+    let brandAccentColour: string | null = null;
     if (owner.owner_id) {
       const { data: roaster } = await supabase
         .from("partner_roasters")
-        .select("brand_logo_url")
+        .select("brand_logo_url, brand_accent_colour")
         .eq("id", owner.owner_id)
         .single();
       logoUrl = (roaster?.brand_logo_url as string) || null;
+      brandAccentColour = (roaster?.brand_accent_colour as string) || null;
     }
 
     // Render email HTML — use a placeholder roaster_id for admin unsubscribe links
@@ -121,7 +123,8 @@ export async function POST(
       owner.display_name,
       renderRoasterId,
       (campaign.email_bg_color as string) || undefined,
-      logoUrl
+      logoUrl,
+      brandAccentColour
     );
 
     // Send in batches

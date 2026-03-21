@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Find active enrollments that are due for their next step
     const { data: dueEnrollments } = await supabase
       .from("automation_enrollments")
-      .select("*, automations(*, partner_roasters(id, business_name, contact_email, brand_logo_url))")
+      .select("*, automations(*, partner_roasters(id, business_name, contact_email, brand_logo_url, brand_accent_colour))")
       .eq("status", "active")
       .lte("next_step_at", new Date().toISOString())
       .limit(100);
@@ -101,7 +101,8 @@ export async function POST(request: NextRequest) {
             roaster.business_name as string,
             roaster.id as string,
             undefined,
-            (roaster.brand_logo_url as string) || null
+            (roaster.brand_logo_url as string) || null,
+            (roaster.brand_accent_colour as string) || null
           );
 
           const fromName = (config.from_name as string) || (roaster.business_name as string);

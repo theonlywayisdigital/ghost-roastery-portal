@@ -1,13 +1,17 @@
 import type { EmailBlock } from "@/types/marketing";
 
+const DEFAULT_ACCENT = "#0083dc";
+
 export function renderEmailHtml(
   blocks: EmailBlock[],
   businessName: string,
   unsubscribeUrl: string,
   emailBgColor?: string,
-  logoUrl?: string | null
+  logoUrl?: string | null,
+  brandAccentColour?: string | null
 ): string {
-  const renderedBlocks = blocks.map(renderBlock).join("");
+  const accent = brandAccentColour || DEFAULT_ACCENT;
+  const renderedBlocks = blocks.map((b) => renderBlock(b, accent)).join("");
   const bgColor = emailBgColor || "#f8fafc";
 
   const logoHeader = logoUrl
@@ -51,7 +55,7 @@ export function renderEmailHtml(
 
 /** Render for preview thumbnail — no wrapper chrome, just the email card */
 export function renderEmailHtmlForPreview(blocks: EmailBlock[], emailBgColor?: string): string {
-  const renderedBlocks = blocks.map(renderBlock).join("");
+  const renderedBlocks = blocks.map((b) => renderBlock(b, DEFAULT_ACCENT)).join("");
   const bgColor = emailBgColor || "#f8fafc";
   return `<!DOCTYPE html>
 <html>
@@ -72,7 +76,7 @@ export function renderEmailHtmlForPreview(blocks: EmailBlock[], emailBgColor?: s
 </html>`;
 }
 
-function renderBlock(block: EmailBlock): string {
+function renderBlock(block: EmailBlock, accentColour: string): string {
   switch (block.type) {
     case "header": {
       const sizes: Record<number, string> = { 1: "28px", 2: "22px", 3: "18px" };
@@ -103,10 +107,10 @@ function renderBlock(block: EmailBlock): string {
 
     case "button": {
       const bgColor = block.data.backgroundColor
-        || (block.data.style === "filled" ? "#0083dc" : "transparent");
+        || (block.data.style === "filled" ? accentColour : "transparent");
       const textColor = block.data.textColor
-        || (block.data.style === "filled" ? "#ffffff" : "#0083dc");
-      const border = block.data.style === "outline" ? `2px solid ${block.data.backgroundColor || "#0083dc"}` : "none";
+        || (block.data.style === "filled" ? "#ffffff" : accentColour);
+      const border = block.data.style === "outline" ? `2px solid ${block.data.backgroundColor || accentColour}` : "none";
       const br = block.data.borderRadius != null ? `${block.data.borderRadius}px` : "8px";
       return `<div style="margin:0 0 16px;text-align:${block.data.align};">
         <a href="${escapeHtml(block.data.url)}" style="display:inline-block;padding:12px 28px;background-color:${bgColor};color:${textColor};border:${border};border-radius:${br};font-weight:600;font-size:14px;text-decoration:none;line-height:1;">${escapeHtml(block.data.text)}</a>

@@ -95,6 +95,8 @@ export function BrandingEditor({
   const effectiveButtonColour = buttonColour || accentColour;
   const effectiveButtonTextColour = buttonTextColour || "#ffffff";
   const buttonRadius = { sharp: "0px", rounded: "8px", pill: "9999px" }[buttonStyle];
+  const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
+  const previewLogoHeight = Math.round(logoHeight * 0.25);
 
   // Load selected fonts for preview
   useEffect(() => {
@@ -562,7 +564,12 @@ export function BrandingEditor({
                 <div className="flex items-center gap-2.5">
                   {logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={logoUrl} alt="" className="w-8 h-8 object-contain rounded" />
+                    <img
+                      src={logoUrl}
+                      alt=""
+                      className="object-contain rounded"
+                      style={{ height: previewLogoHeight, width: "auto" }}
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center">
                       <span className="text-[10px] text-slate-400">Logo</span>
@@ -640,7 +647,12 @@ export function BrandingEditor({
               >
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoUrl} alt="" className="h-7 object-contain" />
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="object-contain"
+                    style={{ height: previewLogoHeight, width: "auto" }}
+                  />
                 ) : (
                   <p className="text-white text-xs font-semibold opacity-80">
                     {businessName || "Your Business"}

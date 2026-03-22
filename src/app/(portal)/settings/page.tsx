@@ -41,7 +41,7 @@ const settingsItems = [
   {
     href: "/settings/branding",
     label: "Branding",
-    description: "Logo, colours, and visual identity for your storefront.",
+    description: "Logo, colours, fonts, and visual identity across your business.",
     icon: Palette,
     roasterOnly: true,
   },
@@ -76,7 +76,7 @@ const settingsItems = [
   {
     href: "/settings/domain",
     label: "Domain",
-    description: "Storefront URL, custom email domain, and inbox address.",
+    description: "Wholesale portal URL, custom email domain, and inbox address.",
     icon: Globe,
     roasterOnly: true,
   },

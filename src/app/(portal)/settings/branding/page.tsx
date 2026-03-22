@@ -24,7 +24,7 @@ export default async function BrandingSettingsPage() {
     <div>
       <SettingsHeader
         title="Branding"
-        description="Your brand identity across invoices, emails, and storefront"
+        description="Your brand identity across invoices, emails, and your wholesale portal"
         breadcrumb="Branding"
       />
       <BrandingEditor

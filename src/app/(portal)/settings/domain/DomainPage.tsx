@@ -296,7 +296,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 text-slate-400 hover:text-brand-600"
-                      title="Visit storefront"
+                      title="Visit wholesale portal"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>

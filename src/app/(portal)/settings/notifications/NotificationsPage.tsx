@@ -24,8 +24,8 @@ interface PreferenceConfig {
 const ORDER_PREFERENCES: PreferenceConfig[] = [
   {
     key: "new_storefront_order",
-    label: "New storefront order",
-    description: "Get notified when a customer places an order through your storefront.",
+    label: "New portal order",
+    description: "Get notified when a customer places an order through your wholesale portal.",
   },
   {
     key: "new_wholesale_order",
@@ -53,7 +53,7 @@ const CUSTOMER_PREFERENCES: PreferenceConfig[] = [
   {
     key: "new_contact_enquiry",
     label: "New contact form enquiry",
-    description: "Get notified when someone submits a contact form on your storefront.",
+    description: "Get notified when someone submits a contact form on your wholesale portal.",
   },
 ];
 
@@ -66,7 +66,7 @@ const MARKETING_PREFERENCES: PreferenceConfig[] = [
   {
     key: "product_tips_updates",
     label: "Product tips and updates",
-    description: "Tips on improving your storefront, SEO, and product listings.",
+    description: "Tips on improving your wholesale portal, SEO, and product listings.",
   },
   {
     key: "platform_maintenance",

@@ -79,7 +79,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
       {/* Storefront type */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <h3 className="text-sm font-semibold text-slate-900 mb-4">
-          {RETAIL_ENABLED ? "Storefront type" : "Wholesale settings"}
+          {RETAIL_ENABLED ? "Portal type" : "Wholesale settings"}
         </h3>
         <div className="space-y-5">
           {RETAIL_ENABLED && (
@@ -164,7 +164,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
           Contact details
         </h3>
         <p className="text-xs text-slate-500 mb-4">
-          {RETAIL_ENABLED ? "Displayed on your storefront contact page." : "Displayed on your wholesale portal contact page."}
+          Displayed on your wholesale portal contact page.
         </p>
         <div className="space-y-5">
           <div>

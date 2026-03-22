@@ -129,7 +129,7 @@ export function BrandingEditor({
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">Logo</h3>
           <p className="text-xs text-slate-500 mb-4">
-            Your logo appears on invoices, emails, your storefront, and wholesale catalogue
+            Your logo appears on invoices, emails, and your wholesale portal
           </p>
           <input
             ref={logoInputRef}
@@ -265,7 +265,7 @@ export function BrandingEditor({
                 style={{ fontFamily: `"${bodyFamily}", sans-serif` }}
               >
                 This is your body text font. It&rsquo;s used for paragraphs, descriptions, and
-                general content across your invoices, emails, and storefront.
+                general content across your invoices, emails, and wholesale portal.
               </p>
             </div>
           </div>
@@ -275,7 +275,7 @@ export function BrandingEditor({
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">Tagline</h3>
           <p className="text-xs text-slate-500 mb-4">
-            Displayed on your storefront and optionally in email footers
+            Displayed on your wholesale portal and optionally in email footers
           </p>
           <input
             type="text"

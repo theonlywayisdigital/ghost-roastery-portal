@@ -57,7 +57,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">(branding.storefront_logo_size);
   const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
 
-  // Storefront-specific form state
+  // Portal-specific form state
   const [heroImageUrl, setHeroImageUrl] = useState(branding.brand_hero_image_url);
   const [about, setAbout] = useState(branding.brand_about);
   const [instagram, setInstagram] = useState(branding.brand_instagram);
@@ -65,7 +65,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
   const [tiktok, setTiktok] = useState(branding.brand_tiktok);
   const [enabled, setEnabled] = useState(branding.storefront_enabled);
 
-  // Storefront appearance state
+  // Portal appearance overrides (inherit from brand settings when empty)
   const [navColour, setNavColour] = useState(branding.storefront_nav_colour || branding.brand_primary_colour);
   const [navTextColour, setNavTextColour] = useState(branding.storefront_nav_text_colour || "#ffffff");
   const [buttonColour, setButtonColour] = useState(branding.storefront_button_colour || branding.brand_accent_colour);
@@ -162,12 +162,12 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
       {/* Form column */}
       <div className="xl:col-span-3 space-y-6">
-        {/* Storefront status */}
+        {/* Portal status */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium text-slate-900">
-                Storefront status
+                Wholesale portal status
               </h3>
               <p className="text-sm text-slate-500 mt-0.5">
                 {branding.storefront_slug}.ghostroastery.co.uk
@@ -218,11 +218,11 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
             </Link>
           </div>
           <p className="text-xs text-slate-500 mb-4">
-            Logo, colours, fonts, and tagline are managed in{" "}
+            These values are inherited from your{" "}
             <Link href="/settings/branding" className="text-brand-600 hover:text-brand-700 font-medium">
-              Settings → Branding
-            </Link>{" "}
-            and apply to your storefront, invoices, and emails.
+              Brand Settings
+            </Link>
+            . They apply across invoices, emails, and your wholesale portal.
           </p>
 
           <div className="grid grid-cols-2 gap-4">
@@ -340,13 +340,13 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           </div>
         </div>
 
-        {/* Storefront appearance */}
+        {/* Wholesale portal appearance */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">
-            Storefront appearance
+            Wholesale portal appearance
           </h3>
           <p className="text-xs text-slate-500 mb-5">
-            Customise colours and button style for your storefront.
+            Override colours and button style for your wholesale portal. These settings take priority over your global brand settings.
           </p>
 
           <div className="space-y-5">
@@ -437,10 +437,10 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
           </div>
         </div>
 
-        {/* Storefront content */}
+        {/* Wholesale portal content */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4">
-            Storefront content
+            Wholesale portal content
           </h3>
 
           <div className="space-y-5">

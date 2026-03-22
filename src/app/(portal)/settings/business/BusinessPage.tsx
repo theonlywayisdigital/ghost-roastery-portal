@@ -162,7 +162,7 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
     <div>
       <SettingsHeader
         title="Business Info"
-        description="These details appear on your invoices and public storefront."
+        description="These details appear on your invoices and wholesale portal."
         breadcrumb="Business Info"
       />
 

@@ -3,7 +3,6 @@ import { createServerClient } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 import { StorefrontTabs } from "./StorefrontTabs";
 import { WebsiteBuilderBanner } from "./WebsiteBuilderBanner";
-import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 export default async function StorefrontLayout({
   children,
@@ -29,7 +28,7 @@ export default async function StorefrontLayout({
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{RETAIL_ENABLED ? "My Storefront" : "Wholesale Portal"}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Wholesale Portal</h1>
         {isSetupComplete && slug && (
           <p className="text-sm text-slate-500 mt-1">
             {slug}.ghostroastery.com

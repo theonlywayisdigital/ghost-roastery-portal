@@ -13,7 +13,7 @@ export default async function BrandingSettingsPage() {
   const { data: roaster } = await supabase
     .from("partner_roasters")
     .select(
-      "business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline"
+      "business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, storefront_button_colour, storefront_button_text_colour, storefront_bg_colour, storefront_text_colour, storefront_button_style, storefront_logo_size, brand_hero_image_url, brand_instagram, brand_facebook, brand_tiktok"
     )
     .eq("id", user.roaster.id)
     .single();
@@ -39,6 +39,16 @@ export default async function BrandingSettingsPage() {
           brand_body_font: roaster.brand_body_font || "inter",
           brand_tagline: roaster.brand_tagline || "",
           business_name: roaster.business_name || "",
+          storefront_button_colour: roaster.storefront_button_colour || "",
+          storefront_button_text_colour: roaster.storefront_button_text_colour || "",
+          storefront_bg_colour: roaster.storefront_bg_colour || "",
+          storefront_text_colour: roaster.storefront_text_colour || "",
+          storefront_button_style: roaster.storefront_button_style || "rounded",
+          storefront_logo_size: roaster.storefront_logo_size || "medium",
+          brand_hero_image_url: roaster.brand_hero_image_url || "",
+          brand_instagram: roaster.brand_instagram || "",
+          brand_facebook: roaster.brand_facebook || "",
+          brand_tiktok: roaster.brand_tiktok || "",
         }}
       />
     </div>

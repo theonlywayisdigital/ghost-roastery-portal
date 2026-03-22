@@ -184,6 +184,7 @@ import {
   Timer as _Timer,
   Trophy as _Trophy,
   SidebarSimple as _SidebarSimple,
+  TiktokLogo as _TiktokLogo,
 } from "@phosphor-icons/react";
 
 // ── Wrapper ──
@@ -306,6 +307,7 @@ export const Store = wrapIcon(_Storefront, "Store");
 export const Tablet = wrapIcon(_DeviceTablet, "Tablet");
 export const Tag = wrapIcon(_Tag, "Tag");
 export const Ticket = wrapIcon(_Ticket, "Ticket");
+export const TikTok = wrapIcon(_TiktokLogo, "TikTok");
 export const Trash2 = wrapIcon(_Trash, "Trash2");
 export const TrendingUp = wrapIcon(_TrendUp, "TrendingUp");
 export const Truck = wrapIcon(_Truck, "Truck");

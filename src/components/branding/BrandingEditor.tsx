@@ -6,6 +6,9 @@ import {
   ImageIcon,
   Check,
   ChevronDown,
+  Instagram,
+  Facebook,
+  TikTok,
 } from "@/components/icons";
 import {
   FONT_LIBRARY,
@@ -25,6 +28,17 @@ export interface BrandingValues {
   brand_body_font: string;
   brand_tagline: string;
   business_name: string;
+  // Extended fields
+  storefront_button_colour: string;
+  storefront_button_text_colour: string;
+  storefront_bg_colour: string;
+  storefront_text_colour: string;
+  storefront_button_style: "sharp" | "rounded" | "pill";
+  storefront_logo_size: "small" | "medium" | "large";
+  brand_hero_image_url: string;
+  brand_instagram: string;
+  brand_facebook: string;
+  brand_tiktok: string;
 }
 
 interface BrandingEditorProps {
@@ -44,6 +58,7 @@ export function BrandingEditor({
   initialValues,
   businessNameEditHref,
 }: BrandingEditorProps) {
+  // Core brand fields
   const [logoUrl, setLogoUrl] = useState(initialValues.brand_logo_url);
   const [primaryColour, setPrimaryColour] = useState(initialValues.brand_primary_colour);
   const [accentColour, setAccentColour] = useState(initialValues.brand_accent_colour);
@@ -51,15 +66,35 @@ export function BrandingEditor({
   const [bodyFont, setBodyFont] = useState(initialValues.brand_body_font);
   const [tagline, setTagline] = useState(initialValues.brand_tagline);
 
+  // Extended brand fields
+  const [buttonColour, setButtonColour] = useState(initialValues.storefront_button_colour);
+  const [buttonTextColour, setButtonTextColour] = useState(initialValues.storefront_button_text_colour);
+  const [bgColour, setBgColour] = useState(initialValues.storefront_bg_colour);
+  const [textColour, setTextColour] = useState(initialValues.storefront_text_colour);
+  const [buttonStyle, setButtonStyle] = useState<"sharp" | "rounded" | "pill">(initialValues.storefront_button_style);
+  const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">(initialValues.storefront_logo_size);
+  const [heroImageUrl, setHeroImageUrl] = useState(initialValues.brand_hero_image_url);
+  const [instagram, setInstagram] = useState(initialValues.brand_instagram);
+  const [facebook, setFacebook] = useState(initialValues.brand_facebook);
+  const [tiktok, setTiktok] = useState(initialValues.brand_tiktok);
+
+  // UI state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const heroInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve font families for preview
   const headingFamily = resolveFamily(headingFont);
   const bodyFamily = resolveFamily(bodyFont);
+
+  // Derived values for preview
+  const effectiveButtonColour = buttonColour || accentColour;
+  const effectiveButtonTextColour = buttonTextColour || "#ffffff";
+  const buttonRadius = { sharp: "0px", rounded: "8px", pill: "9999px" }[buttonStyle];
 
   // Load selected fonts for preview
   useEffect(() => {
@@ -67,8 +102,12 @@ export function BrandingEditor({
     loadGoogleFont(bodyFamily);
   }, [headingFamily, bodyFamily]);
 
-  async function handleUpload(file: File) {
-    setUploadingLogo(true);
+  async function handleUpload(
+    file: File,
+    setUrl: (url: string) => void,
+    setUploading: (v: boolean) => void
+  ) {
+    setUploading(true);
     setError(null);
     const formData = new FormData();
     formData.append("file", file);
@@ -79,11 +118,11 @@ export function BrandingEditor({
         setError(data.error || "Upload failed");
         return;
       }
-      setLogoUrl(data.url);
+      setUrl(data.url);
     } catch {
       setError("Upload failed. Please try again.");
     } finally {
-      setUploadingLogo(false);
+      setUploading(false);
     }
   }
 
@@ -103,6 +142,16 @@ export function BrandingEditor({
           brand_heading_font: headingFont,
           brand_body_font: bodyFont,
           brand_tagline: tagline || null,
+          storefront_button_colour: buttonColour || null,
+          storefront_button_text_colour: buttonTextColour || null,
+          storefront_bg_colour: bgColour || null,
+          storefront_text_colour: textColour || null,
+          storefront_button_style: buttonStyle,
+          storefront_logo_size: logoSize,
+          brand_hero_image_url: heroImageUrl || null,
+          brand_instagram: instagram || null,
+          brand_facebook: facebook || null,
+          brand_tiktok: tiktok || null,
         }),
       });
 
@@ -119,7 +168,7 @@ export function BrandingEditor({
     } finally {
       setSaving(false);
     }
-  }, [apiEndpoint, logoUrl, primaryColour, accentColour, headingFont, bodyFont, tagline]);
+  }, [apiEndpoint, logoUrl, primaryColour, accentColour, headingFont, bodyFont, tagline, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, logoSize, heroImageUrl, instagram, facebook, tiktok]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -137,7 +186,7 @@ export function BrandingEditor({
             accept="image/jpeg,image/png,image/webp,image/svg+xml"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handleUpload(file);
+              if (file) handleUpload(file, setLogoUrl, setUploadingLogo);
               e.target.value = "";
             }}
             className="hidden"
@@ -184,52 +233,127 @@ export function BrandingEditor({
               </span>
             </button>
           )}
+
+          {/* Logo size */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Logo size
+            </label>
+            <p className="text-xs text-slate-500 mb-2">Controls logo display size on your wholesale portal</p>
+            <select
+              value={logoSize}
+              onChange={(e) => setLogoSize(e.target.value as "small" | "medium" | "large")}
+              className={inputClassName}
+            >
+              <option value="small">Small (80px)</option>
+              <option value="medium">Medium (120px)</option>
+              <option value="large">Large (160px)</option>
+            </select>
+          </div>
         </div>
 
         {/* Colours */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="text-sm font-semibold text-slate-900 mb-4">Colours</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Primary colour
-              </label>
-              <p className="text-xs text-slate-500 mb-2">Headings, navigation, and key elements</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={primaryColour}
-                  onChange={(e) => setPrimaryColour(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text"
-                  value={primaryColour}
-                  onChange={(e) => setPrimaryColour(e.target.value)}
-                  className={inputClassName}
-                />
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Primary colour
+                </label>
+                <p className="text-xs text-slate-500 mb-2">Headings, navigation, and key elements</p>
+                <ColorField value={primaryColour} onChange={setPrimaryColour} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Accent colour
+                </label>
+                <p className="text-xs text-slate-500 mb-2">Links and highlights</p>
+                <ColorField value={accentColour} onChange={setAccentColour} />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Accent colour
-              </label>
-              <p className="text-xs text-slate-500 mb-2">Buttons, links, and highlights</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={accentColour}
-                  onChange={(e) => setAccentColour(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text"
-                  value={accentColour}
-                  onChange={(e) => setAccentColour(e.target.value)}
-                  className={inputClassName}
-                />
+
+            <div className="border-t border-slate-100 pt-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Button colour
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">CTA buttons across your portal</p>
+                  <ColorField value={buttonColour || accentColour} onChange={setButtonColour} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Button text colour
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">Text on your buttons</p>
+                  <ColorField value={buttonTextColour || "#ffffff"} onChange={setButtonTextColour} />
+                </div>
               </div>
             </div>
+
+            <div className="border-t border-slate-100 pt-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Background colour
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">Page background on your portal</p>
+                  <ColorField value={bgColour || "#ffffff"} onChange={setBgColour} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Text colour
+                  </label>
+                  <p className="text-xs text-slate-500 mb-2">Body text on your portal</p>
+                  <ColorField value={textColour || "#0f172a"} onChange={setTextColour} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Button Style */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Button Style</h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Choose the corner style for buttons on your wholesale portal
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {(
+              [
+                { id: "sharp" as const, label: "Sharp", radius: "0px" },
+                { id: "rounded" as const, label: "Rounded", radius: "8px" },
+                { id: "pill" as const, label: "Pill", radius: "9999px" },
+              ] as const
+            ).map((style) => (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() => setButtonStyle(style.id)}
+                className={`text-center rounded-lg border-2 p-3 transition-colors ${
+                  buttonStyle === style.id
+                    ? "border-brand-600 bg-brand-50/50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="flex justify-center mb-2">
+                  <div
+                    className="h-8 w-24 flex items-center justify-center text-xs font-semibold"
+                    style={{
+                      backgroundColor: effectiveButtonColour,
+                      color: effectiveButtonTextColour,
+                      borderRadius: style.radius,
+                    }}
+                  >
+                    Button
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-slate-700">
+                  {style.label}
+                </p>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -284,6 +408,116 @@ export function BrandingEditor({
             placeholder="e.g. Specialty coffee, roasted fresh daily"
             className={inputClassName}
           />
+        </div>
+
+        {/* Hero Image */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Hero Image</h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Banner image displayed at the top of your wholesale portal
+          </p>
+          <input
+            ref={heroInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUpload(file, setHeroImageUrl, setUploadingHero);
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+          {heroImageUrl ? (
+            <div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImageUrl}
+                alt="Hero"
+                className="w-full h-40 object-cover rounded-lg border border-slate-200"
+              />
+              <div className="mt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => heroInputRef.current?.click()}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                >
+                  Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHeroImageUrl("")}
+                  className="text-sm text-slate-400 hover:text-slate-600"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => heroInputRef.current?.click()}
+              disabled={uploadingHero}
+              className="w-full border-2 border-dashed border-slate-300 rounded-lg py-6 flex flex-col items-center gap-1.5 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
+            >
+              {uploadingHero ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <ImageIcon className="w-6 h-6" />
+              )}
+              <span className="text-sm font-medium">
+                {uploadingHero ? "Uploading…" : "Upload hero image"}
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Social Links */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Social Links</h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Displayed on your wholesale portal and optionally in email footers
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                <Instagram className="w-4 h-4 text-slate-400" />
+                Instagram
+              </label>
+              <input
+                type="text"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="@handle"
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                <Facebook className="w-4 h-4 text-slate-400" />
+                Facebook
+              </label>
+              <input
+                type="text"
+                value={facebook}
+                onChange={(e) => setFacebook(e.target.value)}
+                placeholder="https://facebook.com/..."
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                <TikTok className="w-4 h-4 text-slate-400" />
+                TikTok
+              </label>
+              <input
+                type="text"
+                value={tiktok}
+                onChange={(e) => setTiktok(e.target.value)}
+                placeholder="@handle"
+                className={inputClassName}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Save bar */}
@@ -380,8 +614,12 @@ export function BrandingEditor({
               </div>
               <div className="mt-3 text-center">
                 <span
-                  className="inline-block px-4 py-1.5 rounded text-[10px] font-semibold text-white"
-                  style={{ backgroundColor: accentColour }}
+                  className="inline-block px-4 py-1.5 text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: effectiveButtonColour,
+                    color: effectiveButtonTextColour,
+                    borderRadius: buttonRadius,
+                  }}
                 >
                   Pay Now
                 </span>
@@ -424,8 +662,12 @@ export function BrandingEditor({
                 </p>
                 <div className="text-center">
                   <span
-                    className="inline-block px-5 py-1.5 rounded text-[10px] font-semibold text-white"
-                    style={{ backgroundColor: accentColour }}
+                    className="inline-block px-5 py-1.5 text-[10px] font-semibold"
+                    style={{
+                      backgroundColor: effectiveButtonColour,
+                      color: effectiveButtonTextColour,
+                      borderRadius: buttonRadius,
+                    }}
                   >
                     View Order
                   </span>
@@ -452,6 +694,33 @@ export function BrandingEditor({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Shared color field ──
+
+function ColorField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer p-0.5"
+      />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={inputClassName}
+      />
     </div>
   );
 }
@@ -512,7 +781,7 @@ function FontSelector({
           <div className="overflow-y-auto max-h-56">
             {search ? (
               filtered.map((font) => (
-                <FontOption
+                <FontOptionItem
                   key={font.family}
                   font={font}
                   selected={font.family === resolved}
@@ -532,7 +801,7 @@ function FontSelector({
                       {FONT_CATEGORY_LABELS[cat]}
                     </p>
                     {fonts.map((font) => (
-                      <FontOption
+                      <FontOptionItem
                         key={font.family}
                         font={font}
                         selected={font.family === resolved}
@@ -557,7 +826,7 @@ function FontSelector({
   );
 }
 
-function FontOption({
+function FontOptionItem({
   font,
   selected,
   onClick,

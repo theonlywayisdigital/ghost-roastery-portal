@@ -16,6 +16,16 @@ export async function GET() {
     brand_body_font: roaster.brand_body_font || "inter",
     brand_tagline: roaster.brand_tagline || "",
     business_name: roaster.business_name || "",
+    storefront_button_colour: roaster.storefront_button_colour || "",
+    storefront_button_text_colour: roaster.storefront_button_text_colour || "",
+    storefront_bg_colour: roaster.storefront_bg_colour || "",
+    storefront_text_colour: roaster.storefront_text_colour || "",
+    storefront_button_style: roaster.storefront_button_style || "rounded",
+    storefront_logo_size: roaster.storefront_logo_size || "medium",
+    brand_hero_image_url: roaster.brand_hero_image_url || "",
+    brand_instagram: roaster.brand_instagram || "",
+    brand_facebook: roaster.brand_facebook || "",
+    brand_tiktok: roaster.brand_tiktok || "",
   });
 }
 
@@ -34,6 +44,16 @@ export async function PUT(request: Request) {
     brand_heading_font: body.brand_heading_font || "inter",
     brand_body_font: body.brand_body_font || "inter",
     brand_tagline: body.brand_tagline ?? null,
+    storefront_button_colour: body.storefront_button_colour ?? null,
+    storefront_button_text_colour: body.storefront_button_text_colour ?? null,
+    storefront_bg_colour: body.storefront_bg_colour ?? null,
+    storefront_text_colour: body.storefront_text_colour ?? null,
+    storefront_button_style: body.storefront_button_style || "rounded",
+    storefront_logo_size: body.storefront_logo_size || "medium",
+    brand_hero_image_url: body.brand_hero_image_url ?? null,
+    brand_instagram: body.brand_instagram ?? null,
+    brand_facebook: body.brand_facebook ?? null,
+    brand_tiktok: body.brand_tiktok ?? null,
   };
 
   const supabase = createServerClient();

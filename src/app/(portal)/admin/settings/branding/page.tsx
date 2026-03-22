@@ -41,6 +41,16 @@ export default async function AdminBrandingSettingsPage() {
           brand_body_font: settings?.brand_body_font || "inter",
           brand_tagline: settings?.brand_tagline || "",
           business_name: "Ghost Roastery",
+          storefront_button_colour: "",
+          storefront_button_text_colour: "",
+          storefront_bg_colour: "",
+          storefront_text_colour: "",
+          storefront_button_style: "rounded",
+          storefront_logo_size: "medium",
+          brand_hero_image_url: "",
+          brand_instagram: "",
+          brand_facebook: "",
+          brand_tiktok: "",
         }}
       />
     </div>

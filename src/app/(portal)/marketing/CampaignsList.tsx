@@ -178,10 +178,12 @@ export function CampaignsList() {
 
   function formatDate(dateStr: string | null) {
     if (!dateStr) return "\u2014";
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+    return new Date(dateStr).toLocaleString("en-GB", {
       day: "numeric",
       month: "short",
       year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 

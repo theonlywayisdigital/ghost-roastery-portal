@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         subject: body.subject || null,
         preview_text: body.preview_text || null,
         from_name: body.from_name || owner.display_name,
-        reply_to: body.reply_to || owner.email,
+        reply_to: body.reply_to || null,
         content: body.content || [],
         template_id: body.template_id || null,
         audience_type: body.audience_type || "all",

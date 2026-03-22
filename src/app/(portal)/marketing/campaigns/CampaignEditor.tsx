@@ -123,7 +123,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
           subject,
           preview_text: previewText,
           from_name: fromName,
-          reply_to: replyTo,
+          reply_to: replyTo || null,
           content,
           email_bg_color: emailBgColor,
           audience_type: audienceType,

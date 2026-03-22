@@ -90,7 +90,16 @@ interface ExportResult {
   total: number;
 }
 
-type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks";
+type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks" | "communications";
+
+interface EmailConnectionInfo {
+  id: string;
+  provider: "gmail" | "outlook";
+  email_address: string;
+  status: "connected" | "disconnected" | "expired";
+  connected_at: string;
+  token_expires_at: string | null;
+}
 
 interface StripeStatus {
   connected: boolean;
@@ -207,6 +216,12 @@ export function IntegrationsPage() {
   const [wixStatus, setWixStatus] = useState<EcommerceStatus | null>(null);
   const [ecomDisconnecting, setEcomDisconnecting] = useState<string | null>(null);
   const [ecomToggling, setEcomToggling] = useState<string | null>(null);
+
+  // Email connections state
+  const [emailConnections, setEmailConnections] = useState<EmailConnectionInfo[]>([]);
+  const [emailConnectionsLoading, setEmailConnectionsLoading] = useState(true);
+  const [emailConnecting, setEmailConnecting] = useState<string | null>(null);
+  const [emailDisconnecting, setEmailDisconnecting] = useState<string | null>(null);
 
   // Shopify connect
   const [shopifyShopUrl, setShopifyShopUrl] = useState("");
@@ -328,6 +343,28 @@ export function IntegrationsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     }
 
+    // Check for email connection success
+    const connectedParam = params.get("connected");
+    if (connectedParam === "gmail") {
+      switchTab("communications");
+      setSuccessMessage("Gmail connected successfully!");
+      loadEmailConnections();
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("connected");
+      cleanUrl.searchParams.set("tab", "communications");
+      window.history.replaceState({}, "", cleanUrl.toString());
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } else if (connectedParam === "outlook") {
+      switchTab("communications");
+      setSuccessMessage("Outlook connected successfully!");
+      loadEmailConnections();
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete("connected");
+      cleanUrl.searchParams.set("tab", "communications");
+      window.history.replaceState({}, "", cleanUrl.toString());
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
+
     if (params.get("error")) {
       const errorMap: Record<string, string> = {
         unauthorized: "You must be logged in as a roaster to connect.",
@@ -374,6 +411,57 @@ export function IntegrationsPage() {
     }
   }, [activeTab, webhooksLoading]);
 
+  // Load email connections when tab is active
+  useEffect(() => {
+    if (activeTab === "communications" && emailConnectionsLoading) {
+      loadEmailConnections();
+    }
+  }, [activeTab, emailConnectionsLoading]);
+
+  async function loadEmailConnections() {
+    try {
+      const res = await fetch("/api/email/connections");
+      if (res.ok) {
+        const data = await res.json();
+        setEmailConnections(data.connections || []);
+      }
+    } catch (err) {
+      console.error("Failed to load email connections:", err);
+    } finally {
+      setEmailConnectionsLoading(false);
+    }
+  }
+
+  async function handleEmailConnect(provider: "gmail" | "outlook") {
+    setEmailConnecting(provider);
+    try {
+      const res = await fetch(`/api/email/${provider}/auth`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setSuccessMessage(null);
+      }
+    } catch {
+      setEmailConnecting(null);
+    }
+  }
+
+  async function handleEmailDisconnect(provider: "gmail" | "outlook") {
+    const label = provider === "gmail" ? "Gmail" : "Outlook";
+    if (!confirm(`Disconnect ${label}? You won't be able to send or receive emails through this account until you reconnect.`)) return;
+
+    setEmailDisconnecting(provider);
+    try {
+      const res = await fetch(`/api/email/${provider}/disconnect`, { method: "POST" });
+      if (res.ok) {
+        await loadEmailConnections();
+      }
+    } catch {
+      // handled silently
+    }
+    setEmailDisconnecting(null);
+  }
 
   async function loadWebhooks() {
     try {
@@ -1825,6 +1913,16 @@ export function IntegrationsPage() {
           >
             Webhooks
           </button>
+          <button
+            onClick={() => switchTab("communications")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "communications"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Communications
+          </button>
         </nav>
       </div>
 
@@ -2405,6 +2503,207 @@ export function IntegrationsPage() {
             </>
           )}
         </>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Communications                           */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "communications" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Email Connections</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Connect your email accounts for two-way email sync. You can connect one Gmail and one Outlook account simultaneously.
+            </p>
+          </div>
+
+          {emailConnectionsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Gmail Card */}
+              {(() => {
+                const gmail = emailConnections.find((c) => c.provider === "gmail");
+                const isConnected = gmail?.status === "connected";
+                const isExpired = gmail?.token_expires_at && new Date(gmail.token_expires_at) < new Date();
+                return (
+                  <div className={`bg-white rounded-xl border p-5 ${isExpired ? "border-amber-200" : "border-slate-200"}`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                          <path d="M22 6L12 13L2 6" stroke="#EA4335" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <rect x="2" y="4" width="20" height="16" rx="2" stroke="#EA4335" strokeWidth="2"/>
+                        </svg>
+                      </div>
+                      {isConnected && !isExpired && (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <span className="w-2 h-2 rounded-full bg-green-500" />
+                          Connected
+                        </span>
+                      )}
+                      {isConnected && isExpired && (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                          <AlertCircle className="w-3 h-3" />
+                          Token Expired
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-sm font-semibold text-slate-900 mb-1">Gmail</h3>
+                    <p className="text-xs text-slate-500 mb-4">
+                      Connect your Gmail account for reading and sending emails.
+                    </p>
+
+                    {isConnected && gmail && (
+                      <div className="space-y-2 mb-4">
+                        <p className="text-xs text-slate-600">
+                          <span className="text-slate-400">Email:</span> {gmail.email_address}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Connected {new Date(gmail.connected_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                    )}
+
+                    {isConnected && !isExpired ? (
+                      <button
+                        onClick={() => handleEmailDisconnect("gmail")}
+                        disabled={emailDisconnecting === "gmail"}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {emailDisconnecting === "gmail" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5" />
+                        )}
+                        Disconnect
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleEmailConnect("gmail")}
+                        disabled={emailConnecting === "gmail"}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-50 ${
+                          isExpired
+                            ? "bg-amber-600 text-white hover:bg-amber-700"
+                            : "bg-brand-600 text-white hover:bg-brand-700"
+                        }`}
+                      >
+                        {emailConnecting === "gmail" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        )}
+                        {isExpired ? "Reconnect" : "Connect"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Outlook Card */}
+              {(() => {
+                const outlook = emailConnections.find((c) => c.provider === "outlook");
+                const isConnected = outlook?.status === "connected";
+                const isExpired = outlook?.token_expires_at && new Date(outlook.token_expires_at) < new Date();
+                return (
+                  <div className={`bg-white rounded-xl border p-5 ${isExpired ? "border-amber-200" : "border-slate-200"}`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                          <rect x="2" y="4" width="20" height="16" rx="2" stroke="#0078D4" strokeWidth="2"/>
+                          <path d="M22 6L12 13L2 6" stroke="#0078D4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      {isConnected && !isExpired && (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <span className="w-2 h-2 rounded-full bg-green-500" />
+                          Connected
+                        </span>
+                      )}
+                      {isConnected && isExpired && (
+                        <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
+                          <AlertCircle className="w-3 h-3" />
+                          Token Expired
+                        </span>
+                      )}
+                    </div>
+
+                    <h3 className="text-sm font-semibold text-slate-900 mb-1">Outlook</h3>
+                    <p className="text-xs text-slate-500 mb-4">
+                      Connect your Microsoft Outlook account for reading and sending emails.
+                    </p>
+
+                    {isConnected && outlook && (
+                      <div className="space-y-2 mb-4">
+                        <p className="text-xs text-slate-600">
+                          <span className="text-slate-400">Email:</span> {outlook.email_address}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Connected {new Date(outlook.connected_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                    )}
+
+                    {isConnected && !isExpired ? (
+                      <button
+                        onClick={() => handleEmailDisconnect("outlook")}
+                        disabled={emailDisconnecting === "outlook"}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {emailDisconnecting === "outlook" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5" />
+                        )}
+                        Disconnect
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleEmailConnect("outlook")}
+                        disabled={emailConnecting === "outlook"}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-50 ${
+                          isExpired
+                            ? "bg-amber-600 text-white hover:bg-amber-700"
+                            : "bg-brand-600 text-white hover:bg-brand-700"
+                        }`}
+                      >
+                        {emailConnecting === "outlook" ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        )}
+                        {isExpired ? "Reconnect" : "Connect"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Scopes info */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+            <h4 className="text-xs font-semibold text-slate-700 mb-2">Permissions requested</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1">Gmail</p>
+                <ul className="text-xs text-slate-500 space-y-0.5">
+                  <li className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" /> Read emails (gmail.readonly)</li>
+                  <li className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" /> Send emails (gmail.send)</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1">Outlook</p>
+                <ul className="text-xs text-slate-500 space-y-0.5">
+                  <li className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" /> Read emails (Mail.Read)</li>
+                  <li className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" /> Send emails (Mail.Send)</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Import Products Modal */}

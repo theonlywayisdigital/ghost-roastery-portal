@@ -300,6 +300,8 @@ export function CampaignsList() {
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
                       Recipients
                     </th>
+                    <SortableHeader label="Scheduled" field="scheduled_at" current={sortField} order={sortOrder} onSort={handleSort} className="hidden lg:table-cell" />
+                    <SortableHeader label="Sent" field="sent_at" current={sortField} order={sortOrder} onSort={handleSort} className="hidden lg:table-cell" />
                     <SortableHeader label="Updated" field="updated_at" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 w-10">
                     </th>
@@ -344,6 +346,16 @@ export function CampaignsList() {
                         <td className="px-4 py-3 hidden lg:table-cell">
                           <span className="text-sm text-slate-600">
                             {campaign.recipient_count || "\u2014"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className="text-xs text-slate-500">
+                            {formatDate(campaign.scheduled_at)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <span className="text-xs text-slate-500">
+                            {formatDate(campaign.sent_at)}
                           </span>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">

@@ -126,7 +126,7 @@ interface SendBatchParams {
 }
 
 export async function sendCampaignBatch(params: SendBatchParams): Promise<void> {
-  const { campaignId, recipients, subject, html, fromName, replyTo, supabase } = params;
+  const { campaignId, recipients, subject, previewText, html, fromName, replyTo, supabase } = params;
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const domain = params.customDomain?.domain || FROM_DOMAIN;
@@ -152,6 +152,7 @@ export async function sendCampaignBatch(params: SendBatchParams): Promise<void> 
           subject,
           html: personalizedHtml,
           replyTo,
+          ...(previewText ? { previewText } : {}),
           headers: {
             "List-Unsubscribe": `<${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token=${token}>`,
           },

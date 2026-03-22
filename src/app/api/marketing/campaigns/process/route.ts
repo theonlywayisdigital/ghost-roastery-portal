@@ -52,36 +52,63 @@ export async function GET(request: Request) {
       }
 
       // Build recipient list
-      let contactQuery = supabase
-        .from("contacts")
-        .select("id, email, first_name, last_name")
-        .eq("status", "active")
-        .not("email", "is", null)
-        .eq("unsubscribed", false);
-
-      // Scope to roaster or ghost_roastery
-      if (campaign.roaster_id) {
-        contactQuery = contactQuery.eq("roaster_id", campaign.roaster_id);
-      } else {
-        contactQuery = contactQuery.is("roaster_id", null);
-      }
-
       const audienceType = campaign.audience_type as string;
-      if (audienceType !== "all") {
-        const typeMap: Record<string, string> = {
-          customers: "retail",
-          wholesale: "wholesale",
-          suppliers: "supplier",
-          leads: "lead",
-        };
-        const contactType = typeMap[audienceType];
-        if (contactType) {
-          contactQuery = contactQuery.contains("types", [contactType]);
-        }
-      }
+      let recipients: { id: string | null; email: string; first_name: string | null; last_name: string | null }[];
 
-      const { data: contacts } = await contactQuery;
-      const recipients = (contacts || []).filter((c) => c.email);
+      if (audienceType === "custom") {
+        // Use recipients from audience_filter
+        const filter = campaign.audience_filter as { emails?: { email: string; name?: string; contactId?: string }[] } | null;
+        const customEmails = filter?.emails || [];
+        if (customEmails.length === 0) {
+          await supabase
+            .from("campaigns")
+            .update({ status: "failed" })
+            .eq("id", campaign.id);
+          errors.push(`Campaign ${campaign.id}: no recipients specified`);
+          continue;
+        }
+        recipients = customEmails.map((r) => ({
+          id: r.contactId || null,
+          email: r.email,
+          first_name: r.name?.split(" ")[0] || null,
+          last_name: r.name?.split(" ").slice(1).join(" ") || null,
+        }));
+      } else {
+        let contactQuery = supabase
+          .from("contacts")
+          .select("id, email, first_name, last_name")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .eq("unsubscribed", false);
+
+        // Scope to roaster or ghost_roastery
+        if (campaign.roaster_id) {
+          contactQuery = contactQuery.eq("roaster_id", campaign.roaster_id);
+        } else {
+          contactQuery = contactQuery.is("roaster_id", null);
+        }
+
+        if (audienceType !== "all") {
+          const typeMap: Record<string, string> = {
+            customers: "retail",
+            wholesale: "wholesale",
+            suppliers: "supplier",
+            leads: "lead",
+          };
+          const contactType = typeMap[audienceType];
+          if (contactType) {
+            contactQuery = contactQuery.contains("types", [contactType]);
+          }
+        }
+
+        const { data: contacts } = await contactQuery;
+        recipients = (contacts || []).filter((c) => c.email).map((c) => ({
+          id: c.id,
+          email: c.email!,
+          first_name: c.first_name,
+          last_name: c.last_name,
+        }));
+      }
 
       if (recipients.length === 0) {
         await supabase
@@ -110,8 +137,8 @@ export async function GET(request: Request) {
       // Insert recipient records
       const recipientRecords = recipients.map((c) => ({
         campaign_id: campaign.id,
-        contact_id: c.id,
-        email: c.email!,
+        contact_id: c.id || undefined,
+        email: c.email,
         status: "pending" as const,
       }));
       await supabase.from("campaign_recipients").insert(recipientRecords);
@@ -144,8 +171,8 @@ export async function GET(request: Request) {
         campaignId: campaign.id,
         roasterId: renderRoasterId,
         recipients: recipients.map((c) => ({
-          contactId: c.id,
-          email: c.email!,
+          contactId: c.id || "",
+          email: c.email,
           name: [c.first_name, c.last_name].filter(Boolean).join(" ") || undefined,
         })),
         subject: campaign.subject as string,

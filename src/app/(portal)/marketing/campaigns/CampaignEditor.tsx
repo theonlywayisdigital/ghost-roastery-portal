@@ -15,6 +15,9 @@ import {
   Paintbrush,
   Users,
   Eye,
+  X,
+  Plus,
+  Search,
 } from "@/components/icons";
 import type { Campaign, EmailBlock, AudienceType, EmailTemplate } from "@/types/marketing";
 import { VisualEditor } from "./editor/VisualEditor";
@@ -58,6 +61,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
   const [content, setContent] = useState<EmailBlock[]>([]);
   const [emailBgColor, setEmailBgColor] = useState("#f8fafc");
   const [audienceType, setAudienceType] = useState<AudienceType>("all");
+  const [customRecipients, setCustomRecipients] = useState<{ email: string; name?: string; contactId?: string }[]>([]);
   const [scheduledAt, setScheduledAt] = useState("");
 
   // Template selection
@@ -83,6 +87,9 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
         setContent(c.content || []);
         setEmailBgColor(c.email_bg_color || "#f8fafc");
         setAudienceType(c.audience_type || "all");
+        if (c.audience_filter?.emails) {
+          setCustomRecipients(c.audience_filter.emails);
+        }
         setSelectedTemplateId(c.template_id || null);
       } catch {
         router.replace(`${pageBase}/campaigns`);
@@ -120,6 +127,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
           content,
           email_bg_color: emailBgColor,
           audience_type: audienceType,
+          audience_filter: audienceType === "custom" ? { emails: customRecipients } : {},
           template_id: selectedTemplateId,
         }),
       });
@@ -127,7 +135,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
       // Silently fail on auto-save
     }
     setSaving(false);
-  }, [campaign, campaignId, name, subject, previewText, fromName, replyTo, content, emailBgColor, audienceType, selectedTemplateId]);
+  }, [campaign, campaignId, name, subject, previewText, fromName, replyTo, content, emailBgColor, audienceType, customRecipients, selectedTemplateId]);
 
   useEffect(() => {
     if (!campaign) return;
@@ -415,6 +423,8 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
             <AudienceStep
               audienceType={audienceType}
               setAudienceType={setAudienceType}
+              customRecipients={customRecipients}
+              setCustomRecipients={setCustomRecipients}
             />
           )}
 
@@ -426,6 +436,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
               fromName={fromName}
               replyTo={replyTo}
               audienceType={audienceType}
+              customRecipients={customRecipients}
               content={content}
               scheduledAt={scheduledAt}
               setScheduledAt={setScheduledAt}
@@ -558,14 +569,21 @@ const AUDIENCE_OPTIONS: { value: AudienceType; label: string; description: strin
   { value: "wholesale", label: "Wholesale Buyers", description: "Contacts tagged as wholesale." },
   { value: "suppliers", label: "Suppliers", description: "Contacts tagged as suppliers." },
   { value: "leads", label: "Leads", description: "Contacts tagged as leads." },
+  { value: "custom", label: "Specific Recipients", description: "Send to specific email addresses or selected contacts." },
 ];
+
+type CustomRecipient = { email: string; name?: string; contactId?: string };
 
 function AudienceStep({
   audienceType,
   setAudienceType,
+  customRecipients,
+  setCustomRecipients,
 }: {
   audienceType: AudienceType;
   setAudienceType: (v: AudienceType) => void;
+  customRecipients: CustomRecipient[];
+  setCustomRecipients: (v: CustomRecipient[]) => void;
 }) {
   return (
     <div className="max-w-xl">
@@ -597,6 +615,218 @@ function AudienceStep({
           </label>
         ))}
       </div>
+
+      {audienceType === "custom" && (
+        <div className="mt-4">
+          <SpecificRecipientsEditor
+            recipients={customRecipients}
+            setRecipients={setCustomRecipients}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Specific Recipients Editor ───
+
+function SpecificRecipientsEditor({
+  recipients,
+  setRecipients,
+}: {
+  recipients: CustomRecipient[];
+  setRecipients: (v: CustomRecipient[]) => void;
+}) {
+  const { apiBase } = useMarketingContext();
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [contactSearch, setContactSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; email: string; first_name: string | null; last_name: string | null }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Debounced contact search
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!contactSearch.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/contacts?search=${encodeURIComponent(contactSearch)}&status=active&page=1`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.contacts || []);
+          setShowResults(true);
+        }
+      } catch {
+        // Silently fail
+      }
+      setSearchLoading(false);
+    }, 300);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [contactSearch]);
+
+  function isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function addEmails() {
+    setEmailError(null);
+    const raw = emailInput
+      .split(/[,;\s]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (raw.length === 0) return;
+
+    const invalid = raw.filter((e) => !isValidEmail(e));
+    if (invalid.length > 0) {
+      setEmailError(`Invalid: ${invalid.join(", ")}`);
+      return;
+    }
+
+    const existing = new Set(recipients.map((r) => r.email.toLowerCase()));
+    const newRecipients = raw
+      .filter((e) => !existing.has(e))
+      .map((email) => ({ email }));
+
+    if (newRecipients.length > 0) {
+      setRecipients([...recipients, ...newRecipients]);
+    }
+    setEmailInput("");
+  }
+
+  function addContact(contact: { id: string; email: string; first_name: string | null; last_name: string | null }) {
+    if (!contact.email) return;
+    const existing = new Set(recipients.map((r) => r.email.toLowerCase()));
+    if (existing.has(contact.email.toLowerCase())) {
+      setContactSearch("");
+      setShowResults(false);
+      return;
+    }
+    const name = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || undefined;
+    setRecipients([...recipients, { email: contact.email, name, contactId: contact.id }]);
+    setContactSearch("");
+    setShowResults(false);
+  }
+
+  function removeRecipient(email: string) {
+    setRecipients(recipients.filter((r) => r.email !== email));
+  }
+
+  return (
+    <div className="space-y-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+      {/* Email input */}
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Add by email
+        </label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={emailInput}
+            onChange={(e) => { setEmailInput(e.target.value); setEmailError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEmails(); } }}
+            placeholder="email@example.com or paste multiple, comma-separated"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <button
+            onClick={addEmails}
+            className="inline-flex items-center gap-1 px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add
+          </button>
+        </div>
+        {emailError && (
+          <p className="text-xs text-red-600 mt-1">{emailError}</p>
+        )}
+      </div>
+
+      {/* Contact search */}
+      <div ref={searchRef} className="relative">
+        <label className="block text-sm font-medium text-slate-700 mb-1">
+          Search contacts
+        </label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={contactSearch}
+            onChange={(e) => setContactSearch(e.target.value)}
+            placeholder="Search by name or email..."
+            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          {searchLoading && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+          )}
+        </div>
+        {showResults && searchResults.length > 0 && (
+          <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            {searchResults.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => addContact(c)}
+                className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-0"
+              >
+                <span className="font-medium text-slate-900">
+                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "No name"}
+                </span>
+                <span className="text-slate-500 ml-2">{c.email}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {showResults && searchResults.length === 0 && contactSearch.trim() && !searchLoading && (
+          <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-2 text-sm text-slate-500">
+            No contacts found
+          </div>
+        )}
+      </div>
+
+      {/* Recipient list */}
+      {recipients.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+            {recipients.length} recipient{recipients.length !== 1 ? "s" : ""}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {recipients.map((r) => (
+              <span
+                key={r.email}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-slate-200 rounded-full text-xs text-slate-700"
+              >
+                {r.name ? `${r.name} (${r.email})` : r.email}
+                <button
+                  onClick={() => removeRecipient(r.email)}
+                  className="text-slate-400 hover:text-red-500 ml-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -605,11 +835,12 @@ function AudienceStep({
 
 function ReviewStep({
   name, subject, previewText, fromName, replyTo, audienceType,
-  content, scheduledAt, setScheduledAt,
+  customRecipients, content, scheduledAt, setScheduledAt,
   onSendTest, sendingTest, onSend, sending,
 }: {
   name: string; subject: string; previewText: string;
   fromName: string; replyTo: string; audienceType: AudienceType;
+  customRecipients: CustomRecipient[];
   content: EmailBlock[]; scheduledAt: string; setScheduledAt: (v: string) => void;
   onSendTest: () => void; sendingTest: boolean;
   onSend: () => void; sending: boolean;
@@ -617,6 +848,7 @@ function ReviewStep({
   const issues: string[] = [];
   if (!subject) issues.push("Subject line is required");
   if (content.length === 0) issues.push("Email has no content blocks");
+  if (audienceType === "custom" && customRecipients.length === 0) issues.push("At least one recipient is required");
 
   return (
     <div className="space-y-6">
@@ -629,7 +861,7 @@ function ReviewStep({
             <SummaryItem label="Preview Text" value={previewText || "None"} />
             <SummaryItem label="From" value={fromName || "Default"} />
             <SummaryItem label="Reply-To" value={replyTo || "Default"} />
-            <SummaryItem label="Audience" value={audienceType === "all" ? "All Contacts" : audienceType} />
+            <SummaryItem label="Audience" value={audienceType === "custom" ? `${customRecipients.length} specific recipient${customRecipients.length !== 1 ? "s" : ""}` : audienceType === "all" ? "All Contacts" : audienceType} />
             <SummaryItem label="Content Blocks" value={`${content.length} blocks`} warn={content.length === 0} />
           </div>
 

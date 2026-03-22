@@ -47,33 +47,56 @@ export async function POST(
       return NextResponse.json({ success: true, scheduled: true });
     }
 
-    // Build recipient list from contacts
-    let contactQuery = applyOwnerFilter(
-      supabase
-        .from("contacts")
-        .select("id, email, first_name, last_name")
-        .eq("status", "active")
-        .not("email", "is", null)
-        .eq("unsubscribed", false),
-      owner
-    );
-
+    // Build recipient list
     const audienceType = campaign.audience_type as string;
-    if (audienceType !== "all") {
-      const typeMap: Record<string, string> = {
-        customers: "retail",
-        wholesale: "wholesale",
-        suppliers: "supplier",
-        leads: "lead",
-      };
-      const contactType = typeMap[audienceType];
-      if (contactType) {
-        contactQuery = contactQuery.contains("types", [contactType]);
-      }
-    }
+    let recipients: { id: string | null; email: string; first_name: string | null; last_name: string | null }[];
 
-    const { data: contacts } = await contactQuery;
-    const recipients = (contacts || []).filter((c) => c.email);
+    if (audienceType === "custom") {
+      // Use recipients from audience_filter
+      const filter = campaign.audience_filter as { emails?: { email: string; name?: string; contactId?: string }[] } | null;
+      const customEmails = filter?.emails || [];
+      if (customEmails.length === 0) {
+        return NextResponse.json({ error: "No recipients specified" }, { status: 400 });
+      }
+      recipients = customEmails.map((r) => ({
+        id: r.contactId || null,
+        email: r.email,
+        first_name: r.name?.split(" ")[0] || null,
+        last_name: r.name?.split(" ").slice(1).join(" ") || null,
+      }));
+    } else {
+      // Build recipient list from contacts
+      let contactQuery = applyOwnerFilter(
+        supabase
+          .from("contacts")
+          .select("id, email, first_name, last_name")
+          .eq("status", "active")
+          .not("email", "is", null)
+          .eq("unsubscribed", false),
+        owner
+      );
+
+      if (audienceType !== "all") {
+        const typeMap: Record<string, string> = {
+          customers: "retail",
+          wholesale: "wholesale",
+          suppliers: "supplier",
+          leads: "lead",
+        };
+        const contactType = typeMap[audienceType];
+        if (contactType) {
+          contactQuery = contactQuery.contains("types", [contactType]);
+        }
+      }
+
+      const { data: contacts } = await contactQuery;
+      recipients = (contacts || []).filter((c) => c.email).map((c) => ({
+        id: c.id,
+        email: c.email!,
+        first_name: c.first_name,
+        last_name: c.last_name,
+      }));
+    }
 
     if (recipients.length === 0) {
       return NextResponse.json({ error: "No eligible recipients found" }, { status: 400 });
@@ -96,8 +119,8 @@ export async function POST(
     // Insert recipient records
     const recipientRecords = recipients.map((c) => ({
       campaign_id: id,
-      contact_id: c.id,
-      email: c.email!,
+      contact_id: c.id || undefined,
+      email: c.email,
       status: "pending" as const,
     }));
 
@@ -141,8 +164,8 @@ export async function POST(
       campaignId: id,
       roasterId: renderRoasterId,
       recipients: recipients.map((c) => ({
-        contactId: c.id,
-        email: c.email!,
+        contactId: c.id || "",
+        email: c.email,
         name: [c.first_name, c.last_name].filter(Boolean).join(" ") || undefined,
       })),
       subject: campaign.subject as string,

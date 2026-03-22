@@ -25,6 +25,11 @@ const PUBLIC_PATHS = [
   "/api/integrations/quickbooks/callback",
   "/api/integrations/wix/callback",
   "/api/webhooks",
+  "/api/cron",
+  "/api/marketing/campaigns/process",
+  "/api/marketing/automations/process",
+  "/api/social/process",
+  "/api/social/analytics",
 ];
 
 export async function middleware(request: NextRequest) {

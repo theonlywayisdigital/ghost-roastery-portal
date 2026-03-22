@@ -149,16 +149,15 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     };
   }, []);
 
-  // ── Fetch inbox unread count ──
+  // ── Fetch inbox unread count (orders + direct comms) ──
   useEffect(() => {
-    fetch("/api/inbox?pageSize=1")
-      .then((r) => r.json())
-      .then((d) => {
-        if (typeof d.unreadCount === "number") {
-          setBadgeCounts((prev) => ({ ...prev, inboxUnread: d.unreadCount }));
-        }
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/inbox?pageSize=1").then((r) => r.json()).catch(() => ({ unreadCount: 0 })),
+      fetch("/api/inbox/direct?pageSize=1").then((r) => r.json()).catch(() => ({ unreadCount: 0 })),
+    ]).then(([orders, direct]) => {
+      const total = (orders.unreadCount || 0) + (direct.unreadCount || 0);
+      setBadgeCounts((prev) => ({ ...prev, inboxUnread: total }));
+    });
   }, [pathname]);
 
   // ── Suite configs ──

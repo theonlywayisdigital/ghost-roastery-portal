@@ -64,6 +64,9 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
   const [customRecipients, setCustomRecipients] = useState<{ email: string; name?: string; contactId?: string }[]>([]);
   const [scheduledAt, setScheduledAt] = useState("");
 
+  // Branding
+  const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
+
   // Template selection
   const [templates, setTemplates] = useState<{ prebuilt: EmailTemplate[]; custom: EmailTemplate[] }>({ prebuilt: [], custom: [] });
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -99,7 +102,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
     load();
   }, [campaignId, router]);
 
-  // Load templates
+  // Load templates and branding
   useEffect(() => {
     fetch(`${apiBase}/templates`)
       .then((r) => {
@@ -107,6 +110,13 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
         return { prebuilt: [], custom: [] };
       })
       .then((data) => setTemplates(data))
+      .catch(() => {});
+
+    fetch("/api/settings/branding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
+      })
       .catch(() => {});
   }, []);
 
@@ -400,6 +410,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
             onAiPreviewText={setPreviewText}
             templates={[...templates.prebuilt, ...templates.custom]}
             onSelectTemplate={handleSelectTemplate}
+            brandAccentColour={brandAccentColour}
           />
         </div>
       ) : (

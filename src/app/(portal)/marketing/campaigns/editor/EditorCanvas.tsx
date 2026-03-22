@@ -24,6 +24,7 @@ interface EditorCanvasProps {
   onDeleteBlock: (id: string) => void;
   onDuplicateBlock: (id: string) => void;
   onMoveBlock: (id: string, direction: "up" | "down") => void;
+  brandAccentColour?: string | null;
 }
 
 export function EditorCanvas({
@@ -34,6 +35,7 @@ export function EditorCanvas({
   onDeleteBlock,
   onDuplicateBlock,
   onMoveBlock,
+  brandAccentColour,
 }: EditorCanvasProps) {
   return (
     <div
@@ -56,6 +58,7 @@ export function EditorCanvas({
             onDuplicate={() => onDuplicateBlock(block.id)}
             onMoveUp={() => onMoveBlock(block.id, "up")}
             onMoveDown={() => onMoveBlock(block.id, "down")}
+            brandAccentColour={brandAccentColour}
           />
         ))}
       </div>
@@ -74,6 +77,7 @@ function CanvasBlock({
   onDuplicate,
   onMoveUp,
   onMoveDown,
+  brandAccentColour,
 }: {
   block: EmailBlock;
   isSelected: boolean;
@@ -85,6 +89,7 @@ function CanvasBlock({
   onDuplicate: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  brandAccentColour?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: block.id });
@@ -155,7 +160,7 @@ function CanvasBlock({
       )}
 
       {/* Visual block rendering */}
-      <VisualBlock block={block} onUpdate={onUpdate} isSelected={isSelected} />
+      <VisualBlock block={block} onUpdate={onUpdate} isSelected={isSelected} brandAccentColour={brandAccentColour} />
     </div>
   );
 }
@@ -164,10 +169,12 @@ function VisualBlock({
   block,
   onUpdate,
   isSelected,
+  brandAccentColour,
 }: {
   block: EmailBlock;
   onUpdate: (data: Record<string, unknown>) => void;
   isSelected: boolean;
+  brandAccentColour?: string | null;
 }) {
   switch (block.type) {
     case "header":
@@ -177,7 +184,7 @@ function VisualBlock({
     case "image":
       return <ImageVisual block={block} onUpdate={onUpdate} />;
     case "button":
-      return <ButtonVisual block={block} onUpdate={onUpdate} isSelected={isSelected} />;
+      return <ButtonVisual block={block} onUpdate={onUpdate} isSelected={isSelected} brandAccentColour={brandAccentColour} />;
     case "divider":
       return <DividerVisual block={block} />;
     case "spacer":
@@ -377,20 +384,23 @@ function ButtonVisual({
   block,
   onUpdate,
   isSelected,
+  brandAccentColour,
 }: {
   block: Extract<EmailBlock, { type: "button" }>;
   onUpdate: (data: Record<string, unknown>) => void;
   isSelected: boolean;
+  brandAccentColour?: string | null;
 }) {
+  const accent = brandAccentColour || "#0083dc";
   const bgColor =
     block.data.backgroundColor ||
-    (block.data.style === "filled" ? "#0083dc" : "transparent");
+    (block.data.style === "filled" ? accent : "transparent");
   const textColor =
     block.data.textColor ||
-    (block.data.style === "filled" ? "#ffffff" : "#0083dc");
+    (block.data.style === "filled" ? "#ffffff" : accent);
   const border =
     block.data.style === "outline"
-      ? `2px solid ${block.data.backgroundColor || "#0083dc"}`
+      ? `2px solid ${block.data.backgroundColor || accent}`
       : "none";
   const borderRadius = block.data.borderRadius ?? 8;
 

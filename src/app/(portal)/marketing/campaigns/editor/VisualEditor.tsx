@@ -34,11 +34,12 @@ interface VisualEditorProps {
   onAiPreviewText?: (previewText: string) => void;
   templates?: EmailTemplate[];
   onSelectTemplate?: (template: EmailTemplate) => void;
+  brandAccentColour?: string | null;
 }
 
 const MAX_HISTORY = 40;
 
-export function VisualEditor({ blocks, onChange, emailBgColor, onEmailBgColorChange, onAiSubject, onAiPreviewText, templates, onSelectTemplate }: VisualEditorProps) {
+export function VisualEditor({ blocks, onChange, emailBgColor, onEmailBgColorChange, onAiSubject, onAiPreviewText, templates, onSelectTemplate, brandAccentColour }: VisualEditorProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop");
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
@@ -288,6 +289,7 @@ export function VisualEditor({ blocks, onChange, emailBgColor, onEmailBgColorCha
                   onDeleteBlock={handleDeleteBlock}
                   onDuplicateBlock={handleDuplicateBlock}
                   onMoveBlock={handleMoveBlock}
+                  brandAccentColour={brandAccentColour}
                 />
               </SortableContext>
 
@@ -372,6 +374,7 @@ export function VisualEditor({ blocks, onChange, emailBgColor, onEmailBgColorCha
               }}
               emailBgColor={emailBgColor}
               onEmailBgColorChange={onEmailBgColorChange}
+              brandAccentColour={brandAccentColour}
             />
             </div>
           </div>

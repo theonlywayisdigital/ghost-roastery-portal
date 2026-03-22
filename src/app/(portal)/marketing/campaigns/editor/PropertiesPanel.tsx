@@ -9,9 +9,10 @@ interface PropertiesPanelProps {
   onDelete: () => void;
   emailBgColor: string;
   onEmailBgColorChange: (color: string) => void;
+  brandAccentColour?: string | null;
 }
 
-export function PropertiesPanel({ block, onUpdate, onDelete, emailBgColor, onEmailBgColorChange }: PropertiesPanelProps) {
+export function PropertiesPanel({ block, onUpdate, onDelete, emailBgColor, onEmailBgColorChange, brandAccentColour }: PropertiesPanelProps) {
   if (!block) {
     return (
       <div className="p-4">
@@ -72,7 +73,7 @@ export function PropertiesPanel({ block, onUpdate, onDelete, emailBgColor, onEma
       </div>
 
       <div className="space-y-4">
-        <BlockProperties block={block} onUpdate={onUpdate} />
+        <BlockProperties block={block} onUpdate={onUpdate} brandAccentColour={brandAccentColour} />
       </div>
     </div>
   );
@@ -81,9 +82,11 @@ export function PropertiesPanel({ block, onUpdate, onDelete, emailBgColor, onEma
 function BlockProperties({
   block,
   onUpdate,
+  brandAccentColour,
 }: {
   block: EmailBlock;
   onUpdate: (data: Record<string, unknown>) => void;
+  brandAccentColour?: string | null;
 }) {
   switch (block.type) {
     case "header":
@@ -228,7 +231,7 @@ function BlockProperties({
           <AlignField value={block.data.align} onChange={(align) => onUpdate({ align })} />
           <ColorField
             label="Background"
-            value={block.data.backgroundColor || "#0083dc"}
+            value={block.data.backgroundColor || brandAccentColour || "#0083dc"}
             onChange={(backgroundColor) => onUpdate({ backgroundColor })}
           />
           <ColorField

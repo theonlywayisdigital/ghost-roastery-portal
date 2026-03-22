@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/marketing/campaigns/process",
-      "schedule": "* * * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }

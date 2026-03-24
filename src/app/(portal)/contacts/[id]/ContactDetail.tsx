@@ -31,6 +31,10 @@ import {
   Funnel,
   Settings,
   Pencil,
+  Sparkles,
+  ChevronDown,
+  Check,
+  BookOpen,
 } from "@/components/icons";
 import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
@@ -135,6 +139,13 @@ interface ContactEmailMessage {
   connection_id: string;
 }
 
+interface ContactEmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+}
+
 // ─── Constants ───
 
 const TYPE_COLORS: Record<string, string> = {
@@ -227,9 +238,17 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   const [contactEmails, setContactEmails] = useState<ContactEmailMessage[]>([]);
   const [emailsLoaded, setEmailsLoaded] = useState(false);
 
-  // Template picker placeholder hook (for prompt 4)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  // Email templates
+  const [emailTemplates, setEmailTemplates] = useState<ContactEmailTemplate[]>([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
+
+  // AI compose
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   // Actions dropdown
   const [showActions, setShowActions] = useState(false);
@@ -391,11 +410,93 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     }
   }
 
-  // Load emails on mount
+  // Load emails and templates on mount
   useEffect(() => {
     loadContactEmails();
+    loadEmailTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
+
+  async function loadEmailTemplates() {
+    try {
+      const res = await fetch("/api/settings/email-templates");
+      if (res.ok) {
+        const d = await res.json();
+        setEmailTemplates(d.templates || []);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function applyTemplate(template: ContactEmailTemplate) {
+    setComposeForm((f) => ({
+      ...f,
+      subject: template.subject,
+      body: template.body,
+    }));
+    setShowTemplatePicker(false);
+  }
+
+  async function handleSaveAsTemplate() {
+    if (!composeForm.subject.trim() && !composeForm.body.trim()) return;
+    const name = prompt("Template name:");
+    if (!name?.trim()) return;
+
+    setSavingTemplate(true);
+    try {
+      const res = await fetch("/api/settings/email-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          subject: composeForm.subject.trim(),
+          body: composeForm.body.trim(),
+        }),
+      });
+      if (res.ok) {
+        setSaveTemplateSuccess(true);
+        setTimeout(() => setSaveTemplateSuccess(false), 2000);
+        loadEmailTemplates();
+      }
+    } catch {
+      // ignore
+    }
+    setSavingTemplate(false);
+  }
+
+  async function handleAiCompose() {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiError("");
+
+    const contactName = [contact?.first_name, contact?.last_name].filter(Boolean).join(" ") || undefined;
+
+    try {
+      const res = await fetch("/api/ai/compose-contact-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: aiPrompt.trim(),
+          contactName,
+        }),
+      });
+
+      const d = await res.json();
+      if (!res.ok) {
+        setAiError(d.error || "Failed to generate email");
+        return;
+      }
+
+      setComposeForm((f) => ({ ...f, body: d.body }));
+      setShowAiPrompt(false);
+      setAiPrompt("");
+    } catch {
+      setAiError("Failed to generate email. Please try again.");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
 
   async function handleSendEmail() {
     if (!composeForm.subject.trim() || !composeForm.body.trim() || !composeForm.connectionId) return;
@@ -1655,8 +1756,122 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                     </div>
                   )}
 
-                  {/* Template picker placeholder */}
-                  {/* TODO: Prompt 4 — add template selection dropdown here */}
+                  {/* Template picker + AI compose toolbar */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Template picker */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Templates
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                      {showTemplatePicker && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setShowTemplatePicker(false)}
+                          />
+                          <div className="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
+                            {emailTemplates.length === 0 ? (
+                              <div className="px-3 py-3 text-center">
+                                <p className="text-xs text-slate-400 mb-2">No templates yet</p>
+                                <Link
+                                  href="/settings/email-templates"
+                                  className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                                >
+                                  Create templates
+                                </Link>
+                              </div>
+                            ) : (
+                              emailTemplates.map((tpl) => (
+                                <button
+                                  key={tpl.id}
+                                  onClick={() => applyTemplate(tpl)}
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
+                                >
+                                  <p className="text-sm font-medium text-slate-900 truncate">{tpl.name}</p>
+                                  {tpl.subject && (
+                                    <p className="text-xs text-slate-400 truncate">{tpl.subject}</p>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* AI Compose */}
+                    <button
+                      onClick={() => setShowAiPrompt(!showAiPrompt)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-medium text-purple-600 hover:bg-purple-50 transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Compose
+                    </button>
+
+                    {/* Save as Template */}
+                    {(composeForm.subject.trim() || composeForm.body.trim()) && (
+                      <button
+                        onClick={handleSaveAsTemplate}
+                        disabled={savingTemplate}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                      >
+                        {saveTemplateSuccess ? (
+                          <Check className="w-3.5 h-3.5 text-green-600" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5" />
+                        )}
+                        {saveTemplateSuccess ? "Saved!" : savingTemplate ? "Saving..." : "Save as Template"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* AI Compose prompt input */}
+                  {showAiPrompt && (
+                    <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/50">
+                      <label className="block text-xs font-medium text-purple-700 mb-1.5">
+                        Describe what you want to say
+                      </label>
+                      <textarea
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder='e.g. "Thank them for their order and ask if they want to try our new Ethiopian blend"'
+                        rows={3}
+                        className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                      />
+                      {aiError && (
+                        <p className="text-xs text-red-600 mt-1">{aiError}</p>
+                      )}
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        <button
+                          onClick={() => {
+                            setShowAiPrompt(false);
+                            setAiPrompt("");
+                            setAiError("");
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleAiCompose}
+                          disabled={aiGenerating || !aiPrompt.trim()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                        >
+                          {aiGenerating ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          {aiGenerating ? "Generating..." : "Generate"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Subject */}
                   <div>

@@ -15,6 +15,7 @@ import {
   Funnel,
   Globe,
   Link2,
+  Mail,
 } from "@/components/icons";
 
 const settingsItems = [
@@ -71,6 +72,13 @@ const settingsItems = [
     label: "Pipeline Stages",
     description: "Customise your sales pipeline stages.",
     icon: Funnel,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/email-templates",
+    label: "Email Templates",
+    description: "Reusable templates for direct contact emails.",
+    icon: Mail,
     roasterOnly: true,
   },
   {

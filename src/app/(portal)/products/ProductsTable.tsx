@@ -26,6 +26,13 @@ interface StockRecord {
   is_active: boolean;
 }
 
+interface ProductImageRef {
+  id: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -39,9 +46,19 @@ interface Product {
   is_wholesale?: boolean;
   retail_price: number | null;
   product_variants: ProductVariant[] | null;
+  product_images?: ProductImageRef[] | null;
   roasted_stock: StockRecord | null;
   green_beans: StockRecord | null;
   category?: string;
+}
+
+function getPrimaryImageUrl(product: Product): string | null {
+  const imgs = product.product_images;
+  if (imgs && imgs.length > 0) {
+    const primary = imgs.find((i) => i.is_primary) || imgs.sort((a, b) => a.sort_order - b.sort_order)[0];
+    return primary?.url || null;
+  }
+  return product.image_url;
 }
 
 type TabValue = "all" | "retail" | "wholesale";
@@ -263,9 +280,9 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   <tr key={product.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        {product.image_url ? (
+                        {getPrimaryImageUrl(product) ? (
                           <img
-                            src={product.image_url}
+                            src={getPrimaryImageUrl(product)!}
                             alt={product.name}
                             className="w-10 h-10 rounded-lg object-cover bg-slate-100"
                           />

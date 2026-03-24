@@ -30,6 +30,13 @@ interface ProductVariant {
   channel: string | null;
 }
 
+interface ProductImageRef {
+  id: string;
+  url: string;
+  sort_order: number;
+  is_primary: boolean;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -38,12 +45,22 @@ interface Product {
   price: number;
   unit: string;
   image_url: string | null;
+  product_images?: ProductImageRef[] | null;
   status: "draft" | "published";
   sort_order: number;
   is_retail: boolean;
   is_wholesale: boolean;
   retail_price: number | null;
   product_variants: ProductVariant[];
+}
+
+function getPrimaryImageUrl(product: Product): string | null {
+  const imgs = product.product_images;
+  if (imgs && imgs.length > 0) {
+    const primary = imgs.find((i) => i.is_primary) || imgs.sort((a, b) => a.sort_order - b.sort_order)[0];
+    return primary?.url || null;
+  }
+  return product.image_url;
 }
 
 function SortableProductCard({ id, children }: { id: string; children: React.ReactNode }) {
@@ -234,10 +251,10 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                   >
                     {/* Product image */}
                     <div className="relative">
-                      {product.image_url ? (
+                      {getPrimaryImageUrl(product) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={product.image_url}
+                          src={getPrimaryImageUrl(product)!}
                           alt={product.name}
                           className="w-full h-40 object-cover"
                         />

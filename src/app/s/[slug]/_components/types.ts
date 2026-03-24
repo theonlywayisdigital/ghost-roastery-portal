@@ -80,6 +80,7 @@ export interface Product {
   retail_stock_count: number | null;
   track_stock: boolean;
   product_variants?: ProductVariant[] | null;
+  product_images?: { id: string; url: string; sort_order: number; is_primary: boolean }[] | null;
 }
 
 export interface CartItem {

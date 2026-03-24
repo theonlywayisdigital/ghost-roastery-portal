@@ -5808,6 +5808,54 @@ export type Database = {
           },
         ]
       }
+      product_images: {
+        Row: {
+          id: string
+          product_id: string
+          roaster_id: string
+          storage_path: string
+          url: string
+          sort_order: number
+          is_primary: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          roaster_id: string
+          storage_path: string
+          url: string
+          sort_order?: number
+          is_primary?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          roaster_id?: string
+          storage_path?: string
+          url?: string
+          sort_order?: number
+          is_primary?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_images_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           brand: string | null

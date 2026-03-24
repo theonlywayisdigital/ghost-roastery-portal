@@ -6,8 +6,18 @@ import { motion } from "framer-motion";
 import { useStorefront } from "./StorefrontProvider";
 import type { Product } from "./types";
 
+function getPrimaryImageUrl(product: Product): string | null {
+  const imgs = product.product_images;
+  if (imgs && imgs.length > 0) {
+    const primary = imgs.find((i) => i.is_primary) || imgs.sort((a, b) => a.sort_order - b.sort_order)[0];
+    return primary?.url || null;
+  }
+  return product.image_url;
+}
+
 export function ProductCard({ product }: { product: Product }) {
   const { slug, embedded } = useStorefront();
+  const imageUrl = getPrimaryImageUrl(product);
 
   // Variant prices take priority over product-level retail_price
   const retailVariantPrices = (product.product_variants || [])
@@ -49,9 +59,9 @@ export function ProductCard({ product }: { product: Product }) {
           className="relative aspect-square"
           style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
         >
-          {product.image_url ? (
+          {imageUrl ? (
             <Image
-              src={product.image_url}
+              src={imageUrl}
               alt={product.name}
               fill
               className="object-cover"

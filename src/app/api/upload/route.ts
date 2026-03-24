@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       .from(BUCKET)
       .getPublicUrl(path);
 
-    return NextResponse.json({ url: publicUrlData.publicUrl });
+    return NextResponse.json({ url: publicUrlData.publicUrl, path });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(

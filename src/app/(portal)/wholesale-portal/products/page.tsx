@@ -14,7 +14,7 @@ export default async function StorefrontProductsPage() {
   const supabase = createServerClient();
   const { data: products } = await supabase
     .from("products")
-    .select("*, product_variants(id, retail_price, wholesale_price, is_active, unit, channel)")
+    .select("*, product_variants(id, retail_price, wholesale_price, is_active, unit, channel), product_images(id, url, sort_order, is_primary)")
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });

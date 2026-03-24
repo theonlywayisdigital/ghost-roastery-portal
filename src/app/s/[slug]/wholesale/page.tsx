@@ -32,7 +32,7 @@ export default async function WholesalePageRoute({
   // Always fetch preview products (no prices) for all visitors
   const { data: previewProducts } = await supabase
     .from("products")
-    .select("id, name, description, image_url, unit, sort_order")
+    .select("id, name, description, image_url, unit, sort_order, product_images(id, url, sort_order, is_primary)")
     .eq("roaster_id", roaster.id)
     .eq("status", "published")
     .eq("is_wholesale", true)
@@ -94,7 +94,8 @@ export default async function WholesalePageRoute({
              wholesale_price, minimum_wholesale_quantity, is_active, weight_grams,
              product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name)),
              roasted_stock(id, current_stock_kg, low_stock_threshold_kg),
-             green_beans(id, current_stock_kg, low_stock_threshold_kg)`
+             green_beans(id, current_stock_kg, low_stock_threshold_kg),
+             product_images(id, url, sort_order, is_primary)`
           )
           .eq("roaster_id", roaster.id)
           .eq("status", "published")

@@ -36,7 +36,8 @@ export default async function EmbedShopPage({
     .from("products")
     .select(
       `id, name, origin, tasting_notes, description, price, unit, image_url, sort_order,
-       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock`
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
+       product_images(id, url, sort_order, is_primary)`
     )
     .eq("roaster_id", roaster.id)
     .eq("is_active", true)

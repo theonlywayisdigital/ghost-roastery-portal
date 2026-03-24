@@ -11,6 +11,15 @@ import { Footer } from "../../../_components/Footer";
 import { ProductCard } from "../../../_components/ProductCard";
 import type { Product, ProductVariant, StorefrontOptionType } from "../../../_components/types";
 
+function getProductImages(product: Product): { url: string; id: string }[] {
+  const imgs = (product.product_images || [])
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((img) => ({ url: img.url, id: img.id }));
+  if (imgs.length > 0) return imgs;
+  if (product.image_url) return [{ url: product.image_url, id: "legacy" }];
+  return [];
+}
+
 export function ProductDetail({
   product,
   relatedProducts,
@@ -24,6 +33,9 @@ export function ProductDetail({
   const qs = embedded ? "?embedded=true" : "";
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
+
+  const productImages = getProductImages(product);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const isOther = product.category === "other";
 
@@ -203,32 +215,60 @@ export function ProductDetail({
 
         {/* Product */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-          {/* Image */}
-          <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden">
-            {product.image_url ? (
-              <Image
-                src={product.image_url}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg
-                  className="w-20 h-20 text-slate-300"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
+          {/* Image Gallery */}
+          <div>
+            <div className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden">
+              {productImages.length > 0 ? (
+                <Image
+                  key={productImages[selectedImageIndex]?.id}
+                  src={productImages[selectedImageIndex]?.url}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg
+                    className="w-20 h-20 text-slate-300"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
+            {productImages.length > 1 && (
+              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                {productImages.map((img, idx) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
+                      idx === selectedImageIndex
+                        ? "border-current opacity-100"
+                        : "border-transparent opacity-60 hover:opacity-80"
+                    }`}
+                    style={idx === selectedImageIndex ? { borderColor: accent } : undefined}
+                  >
+                    <Image
+                      src={img.url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>

@@ -31,8 +31,18 @@ import {
   arrayMove,
   useSortable,
 } from "@dnd-kit/sortable";
+import {
+  restrictToParentElement,
+} from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 
+interface ProductImage {
+  id: string;
+  url: string;
+  storage_path: string;
+  sort_order: number;
+  is_primary: boolean;
+}
 
 interface Product {
   id: string;
@@ -252,6 +262,46 @@ function SortableGrindItem({
   );
 }
 
+function SortableImageThumb({ image, onRemove }: { image: ProductImage; onRemove: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: image.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={image.url}
+          alt=""
+          className="w-24 h-24 object-cover rounded-lg border border-slate-200"
+        />
+        {image.is_primary && (
+          <span className="absolute bottom-1 left-1 text-[10px] bg-brand-600 text-white px-1.5 py-0.5 rounded font-medium">
+            Primary
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => onRemove(image.id)}
+        className="absolute -top-2 -right-2 w-5 h-5 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
 type Tab = "overview" | "retail" | "wholesale";
 
 const inputClassName =
@@ -279,7 +329,7 @@ export function ProductForm({ product }: { product?: Product }) {
   const [metaDescription, setMetaDescription] = useState(product?.meta_description || "");
   const [isRetail, setIsRetail] = useState(product?.is_retail ?? false);
   const [isWholesale, setIsWholesale] = useState(product?.is_wholesale ?? true);
-  const [imageUrl, setImageUrl] = useState(product?.image_url || "");
+  const [images, setImages] = useState<ProductImage[]>([]);
   const [sku, setSku] = useState(product?.sku || "");
   const [unit, setUnit] = useState(product?.unit || "250g");
   const [weightKg, setWeightKg] = useState(
@@ -516,6 +566,11 @@ export function ProductForm({ product }: { product?: Product }) {
               setOtherVariantCells(cells);
             }
           }
+
+          // Load product images
+          if (data.images) {
+            setImages(data.images);
+          }
         })
         .catch(() => {
           // Non-critical
@@ -643,40 +698,91 @@ export function ProductForm({ product }: { product?: Product }) {
   const wholesaleShowMatrix = wholesaleWeightOptions.length > 0 && wholesaleSelectedGrindTypes.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const rawFile = e.target.files?.[0];
-    if (!rawFile) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     // Reset the input so the same file can be re-selected
     e.target.value = "";
 
+    if (images.length + files.length > 10) {
+      setError("Maximum 10 images per product");
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
 
-    const file = await compressImage(rawFile);
-    const formData = new FormData();
-    formData.append("file", file);
+    for (const rawFile of Array.from(files)) {
+      const file = await compressImage(rawFile);
+      const formData = new FormData();
+      formData.append("file", file);
 
-    try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (!res.ok) {
-        setError(data.error || "Failed to upload image");
-        setIsUploading(false);
-        return;
+        if (!res.ok) {
+          setError(data.error || "Failed to upload image");
+          continue;
+        }
+
+        // Add to local state with a temporary ID
+        const tempImage: ProductImage = {
+          id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          url: data.url,
+          storage_path: data.path,
+          sort_order: images.length,
+          is_primary: images.length === 0,
+        };
+        setImages((prev) => {
+          const next = [...prev, { ...tempImage, sort_order: prev.length, is_primary: prev.length === 0 }];
+          return next;
+        });
+      } catch {
+        setError("Failed to upload image. Please try again.");
       }
-
-      setImageUrl(data.url);
-    } catch {
-      setError("Failed to upload image. Please try again.");
-    } finally {
-      setIsUploading(false);
     }
+
+    setIsUploading(false);
   }
+
+  function handleRemoveImage(imageId: string) {
+    setImages((prev) => {
+      const filtered = prev.filter((img) => img.id !== imageId);
+      // Re-number sort orders and set first as primary
+      return filtered.map((img, i) => ({
+        ...img,
+        sort_order: i,
+        is_primary: i === 0,
+      }));
+    });
+  }
+
+  function handleImageDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    setImages((prev) => {
+      const oldIndex = prev.findIndex((img) => img.id === active.id);
+      const newIndex = prev.findIndex((img) => img.id === over.id);
+      const reordered = arrayMove(prev, oldIndex, newIndex);
+      return reordered.map((img, i) => ({
+        ...img,
+        sort_order: i,
+        is_primary: i === 0,
+      }));
+    });
+  }
+
+  // DnD sensors for image reorder
+  const imageSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   // ─── Option Type Helpers (for "other" products) ───
   function handleAddOptionType() {
@@ -961,7 +1067,7 @@ export function ProductForm({ product }: { product?: Product }) {
       meta_description: metaDescription || null,
       price: parseFloat(price) || 0,
       unit,
-      image_url: imageUrl || null,
+      image_url: images[0]?.url || null,
       status,
       is_retail: isRetail,
       is_wholesale: isWholesale,
@@ -1089,6 +1195,65 @@ export function ProductForm({ product }: { product?: Product }) {
         setError(data.error || "Failed to save product");
         setIsLoading(false);
         return;
+      }
+
+      const savedData = await res.json();
+      const productId = isEditing ? product.id : savedData.product?.id;
+
+      // Sync images for this product
+      if (productId) {
+        try {
+          // Get existing images from server
+          const imgRes = await fetch(`/api/products/${productId}/images`);
+          const imgData = imgRes.ok ? await imgRes.json() : { images: [] };
+          const existingImages: ProductImage[] = imgData.images || [];
+          const existingIds = new Set(existingImages.map((i: ProductImage) => i.id));
+
+          // Delete images removed from UI
+          for (const existing of existingImages) {
+            if (!images.find((i) => i.id === existing.id)) {
+              await fetch(`/api/products/${productId}/images/${existing.id}`, {
+                method: "DELETE",
+              });
+            }
+          }
+
+          // Add new images (temp IDs)
+          for (const img of images) {
+            if (!existingIds.has(img.id)) {
+              await fetch(`/api/products/${productId}/images`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  url: img.url,
+                  storage_path: img.storage_path,
+                }),
+              });
+            }
+          }
+
+          // Reorder all images
+          const reorderRes = await fetch(`/api/products/${productId}/images`);
+          if (reorderRes.ok) {
+            const reorderData = await reorderRes.json();
+            const serverImages: ProductImage[] = reorderData.images || [];
+            // Build final order by matching URLs to current UI order
+            const orderedIds: string[] = [];
+            for (const uiImg of images) {
+              const match = serverImages.find((s) => s.url === uiImg.url);
+              if (match) orderedIds.push(match.id);
+            }
+            if (orderedIds.length > 0) {
+              await fetch(`/api/products/${productId}/images/reorder`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ imageIds: orderedIds }),
+              });
+            }
+          }
+        } catch {
+          // Non-critical — images may be partially synced
+        }
       }
 
       router.push("/products");
@@ -1777,64 +1942,66 @@ export function ProductForm({ product }: { product?: Product }) {
                     )}
                   </div>
 
-                  {/* Product Image */}
+                  {/* Product Images */}
                   <div>
                     <label className={labelClassName}>
-                      Product Image{" "}
-                      <span className="text-slate-400 font-normal">(optional)</span>
+                      Product Images{" "}
+                      <span className="text-slate-400 font-normal">(up to 10, drag to reorder)</span>
                     </label>
                     <input
                       ref={fileInputRef}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileSelect}
+                      multiple
                       className="hidden"
                     />
-                    {imageUrl ? (
-                      <div className="relative inline-block">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imageUrl}
-                          alt="Product preview"
-                          className="w-40 h-40 object-cover rounded-lg border border-slate-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setImageUrl("")}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors"
+                    <div className="flex flex-wrap gap-3 items-start">
+                      {images.length > 0 && (
+                        <DndContext
+                          sensors={imageSensors}
+                          collisionDetection={closestCenter}
+                          modifiers={[restrictToParentElement]}
+                          onDragEnd={handleImageDragEnd}
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                          <SortableContext
+                            items={images.map((img) => img.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            <div className="flex flex-wrap gap-3">
+                              {images.map((img) => (
+                                <SortableImageThumb
+                                  key={img.id}
+                                  image={img}
+                                  onRemove={handleRemoveImage}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+                      )}
+                      {images.length < 10 && (
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="mt-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                          disabled={isUploading}
+                          className="w-24 h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center gap-1 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
                         >
-                          Replace image
+                          {isUploading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <ImageIcon className="w-5 h-5" />
+                              <span className="text-[10px] font-medium">Add</span>
+                            </>
+                          )}
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
-                        className="w-full border-2 border-dashed border-slate-300 rounded-lg py-8 px-4 flex flex-col items-center gap-2 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
-                      >
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="w-8 h-8 animate-spin" />
-                            <span className="text-sm font-medium">Uploading…</span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
-                              <ImageIcon className="w-6 h-6" />
-                            </div>
-                            <span className="text-sm font-medium">Click to upload an image</span>
-                            <span className="text-xs">JPG, PNG or WebP — max 5MB</span>
-                          </>
-                        )}
-                      </button>
+                      )}
+                    </div>
+                    {images.length > 0 && (
+                      <p className="text-xs text-slate-400 mt-1.5">
+                        {`${images.length}/10 images — first image is the primary`}
+                      </p>
                     )}
                   </div>
 

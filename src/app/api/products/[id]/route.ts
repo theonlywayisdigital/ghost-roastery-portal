@@ -70,7 +70,15 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
   }
 
-  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types });
+  // Fetch product images
+  const { data: images } = await supabase
+    .from("product_images")
+    .select("*")
+    .eq("product_id", id)
+    .eq("roaster_id", roaster.id)
+    .order("sort_order", { ascending: true });
+
+  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types, images: images || [] });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {

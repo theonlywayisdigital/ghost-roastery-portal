@@ -22,14 +22,12 @@ import {
   CreditCard,
   Tag,
   Send,
-  ExternalLink,
   X,
   Save,
   UserCheck,
   Activity,
   TrendingUp,
   Funnel,
-  Settings,
   Pencil,
   Sparkles,
   ChevronDown,
@@ -113,30 +111,6 @@ interface ContactData {
   orders: Order[];
   invoices: Invoice[];
   wholesaleAccess: WholesaleAccess | null;
-}
-
-interface EmailConnectionInfo {
-  id: string;
-  provider: "gmail" | "outlook";
-  email_address: string;
-  status: string;
-}
-
-interface ContactEmailMessage {
-  id: string;
-  provider: string;
-  from_email: string;
-  from_name: string | null;
-  to_emails: { email: string; name?: string }[];
-  subject: string | null;
-  body_text: string | null;
-  body_html: string | null;
-  snippet: string | null;
-  is_read: boolean;
-  has_attachments: boolean;
-  folder: string | null;
-  received_at: string;
-  connection_id: string;
 }
 
 interface ContactEmailTemplate {
@@ -228,15 +202,10 @@ export function ContactDetail({ contactId }: { contactId: string }) {
 
   // Compose email modal
   const [showComposeModal, setShowComposeModal] = useState(false);
-  const [composeForm, setComposeForm] = useState({ subject: "", body: "", connectionId: "" });
+  const [composeForm, setComposeForm] = useState({ subject: "", body: "" });
   const [sendingEmail, setSendingEmail] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sendSuccess, setSendSuccess] = useState(false);
-
-  // Email connections + contact email thread
-  const [emailConnections, setEmailConnections] = useState<EmailConnectionInfo[]>([]);
-  const [contactEmails, setContactEmails] = useState<ContactEmailMessage[]>([]);
-  const [emailsLoaded, setEmailsLoaded] = useState(false);
 
   // Email templates
   const [emailTemplates, setEmailTemplates] = useState<ContactEmailTemplate[]>([]);
@@ -392,27 +361,8 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     }
   }
 
-  async function loadContactEmails() {
-    try {
-      const res = await fetch(`/api/contacts/${contactId}/email`);
-      if (!res.ok) return;
-      const d = await res.json();
-      setEmailConnections(d.connections || []);
-      setContactEmails(d.messages || []);
-      // Default to first connection
-      if (d.connections?.length > 0 && !composeForm.connectionId) {
-        setComposeForm((f) => ({ ...f, connectionId: d.connections[0].id }));
-      }
-    } catch {
-      // ignore
-    } finally {
-      setEmailsLoaded(true);
-    }
-  }
-
-  // Load emails and templates on mount
+  // Load templates on mount
   useEffect(() => {
-    loadContactEmails();
     loadEmailTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
@@ -499,30 +449,30 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   }
 
   async function handleSendEmail() {
-    if (!composeForm.subject.trim() || !composeForm.body.trim() || !composeForm.connectionId) return;
+    if (!composeForm.subject.trim() || !composeForm.body.trim()) return;
     setSendingEmail(true);
     setSendError("");
     setSendSuccess(false);
 
     try {
-      const htmlBody = composeForm.body
-        .split("\n")
-        .map((line) => `<p>${line || "&nbsp;"}</p>`)
-        .join("");
-
-      const res = await fetch(`/api/contacts/${contactId}/email`, {
+      // Log the email as activity
+      const res = await fetch(`/api/contacts/${contactId}/activity`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subject: composeForm.subject.trim(),
-          bodyHtml: htmlBody,
-          connectionId: composeForm.connectionId,
+          activity_type: "email_sent",
+          description: composeForm.subject.trim(),
+          metadata: {
+            subject: composeForm.subject.trim(),
+            body: composeForm.body.trim(),
+            to: contact?.email,
+          },
         }),
       });
 
       if (!res.ok) {
         const d = await res.json();
-        setSendError(d.error || "Failed to send email");
+        setSendError(d.error || "Failed to log email");
         return;
       }
 
@@ -533,11 +483,9 @@ export function ContactDetail({ contactId }: { contactId: string }) {
         setShowComposeModal(false);
       }, 2000);
 
-      // Refresh emails and activity
-      loadContactEmails();
       loadContact();
     } catch {
-      setSendError("Failed to send email. Please try again.");
+      setSendError("Failed to log email. Please try again.");
     } finally {
       setSendingEmail(false);
     }
@@ -937,16 +885,11 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-medium text-slate-700">
-                      Email Thread
+                      Email History
                     </span>
-                    {contactEmails.length > 0 && (
-                      <span className="text-xs text-slate-400">
-                        {`${contactEmails.length} message${contactEmails.length === 1 ? "" : "s"}`}
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {contact.email && emailConnections.length > 0 && (
+                    {contact.email && (
                       <button
                         onClick={() => setShowComposeModal(true)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors"
@@ -964,127 +907,57 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                     </button>
                   </div>
                 </div>
-                {emailConnections.length === 0 && emailsLoaded && (
-                  <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
-                    <p className="text-xs text-amber-700">
-                      No email accounts connected.{" "}
-                      <Link
-                        href="/settings/integrations?tab=communications"
-                        className="font-medium underline hover:text-amber-800"
-                      >
-                        Connect Gmail or Outlook
-                      </Link>{" "}
-                      to send emails directly from here.
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {/* Email thread display */}
-              {!emailsLoaded ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
-                </div>
-              ) : contactEmails.length === 0 ? (
-                <div className="bg-white rounded-xl border border-slate-200 text-center py-10">
-                  <Mail className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                  <p className="text-sm text-slate-400">
-                    No emails with this contact yet
-                  </p>
-                  {(() => {
-                    const emailActivity = deduped.filter(
-                      (item) =>
-                        item.subtype === "email_sent" ||
-                        item.subtype === "email_received"
-                    );
-                    if (emailActivity.length > 0) {
-                      return (
-                        <div className="mt-4">
-                          <p className="text-xs text-slate-400 mb-3">Logged email activity:</p>
-                          <div className="max-w-md mx-auto text-left">
-                            {emailActivity.map((item) => (
-                              <div key={`${item.type}-${item.id}`} className="flex items-start gap-2 py-1.5">
-                                <Send className="w-3 h-3 text-slate-400 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-xs text-slate-600">{item.content}</p>
-                                  <p className="text-xs text-slate-400">{formatDateTime(item.created_at)}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {contactEmails.map((msg) => {
-                    const isSent = msg.folder === "SENT" || msg.folder === "Sent Items";
-                    const conn = emailConnections.find((c) => c.id === msg.connection_id);
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`bg-white rounded-xl border overflow-hidden ${
-                          isSent ? "border-blue-200" : "border-slate-200"
-                        }`}
-                      >
-                        <div className="px-4 py-3">
+              {/* Logged email activity */}
+              {(() => {
+                const emailActivity = deduped.filter(
+                  (item) =>
+                    item.subtype === "email_sent" ||
+                    item.subtype === "email_received"
+                );
+                if (emailActivity.length === 0) {
+                  return (
+                    <div className="bg-white rounded-xl border border-slate-200 text-center py-10">
+                      <Mail className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                      <p className="text-sm text-slate-400">
+                        No emails with this contact yet
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="bg-white rounded-xl border border-slate-200">
+                    <div className="divide-y divide-slate-50">
+                      {emailActivity.map((item) => (
+                        <div key={`${item.type}-${item.id}`} className="px-4 py-3">
                           <div className="flex items-start gap-3">
-                            {/* Avatar */}
                             <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 ${
-                                isSent ? "bg-blue-500" : "bg-slate-500"
+                              className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                item.subtype === "email_sent"
+                                  ? "bg-blue-50 text-blue-600"
+                                  : "bg-green-50 text-green-600"
                               }`}
                             >
-                              {(msg.from_name || msg.from_email).charAt(0).toUpperCase()}
+                              {item.subtype === "email_sent" ? (
+                                <Send className="w-3.5 h-3.5" />
+                              ) : (
+                                <Mail className="w-3.5 h-3.5" />
+                              )}
                             </div>
-
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-sm font-medium text-slate-900 truncate">
-                                    {isSent ? "You" : (msg.from_name || msg.from_email)}
-                                  </span>
-                                  {isSent && (
-                                    <span className="text-xs text-blue-600 font-medium flex-shrink-0">Sent</span>
-                                  )}
-                                  {conn && (
-                                    <span className="text-xs text-slate-400 flex-shrink-0">
-                                      via {conn.provider === "gmail" ? "Gmail" : "Outlook"}
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-xs text-slate-400 flex-shrink-0">
-                                  {formatDateTime(msg.received_at)}
-                                </span>
-                              </div>
-
-                              {msg.subject && (
-                                <p className="text-sm font-medium text-slate-700 mt-0.5">
-                                  {msg.subject}
-                                </p>
-                              )}
-
-                              <p className="text-sm text-slate-500 mt-1 line-clamp-2">
-                                {msg.snippet || msg.body_text?.slice(0, 200) || ""}
+                              <p className="text-sm text-slate-600">{item.content}</p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                {formatDateTime(item.created_at)}
                               </p>
-
-                              {msg.has_attachments && (
-                                <div className="flex items-center gap-1 mt-1.5">
-                                  <FileText className="w-3 h-3 text-slate-400" />
-                                  <span className="text-xs text-slate-400">Attachment</span>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -1692,238 +1565,193 @@ export function ContactDetail({ contactId }: { contactId: string }) {
               </button>
             </div>
 
-            {emailConnections.length === 0 ? (
-              /* No connection CTA */
-              <div className="text-center py-6">
-                <Settings className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                <p className="text-sm text-slate-600 mb-1">No email accounts connected</p>
-                <p className="text-xs text-slate-400 mb-4">
-                  Connect your Gmail or Outlook account to send emails directly.
-                </p>
-                <Link
-                  href="/settings/integrations?tab=communications"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-                >
-                  <Settings className="w-4 h-4" />
-                  Connect Email Account
-                </Link>
+            {sendSuccess && (
+              <div className="mb-4 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+                Email logged successfully!
               </div>
-            ) : (
-              <>
-                {sendSuccess && (
-                  <div className="mb-4 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
-                    Email sent successfully!
-                  </div>
-                )}
-
-                {sendError && (
-                  <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-                    {sendError}
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  {/* To */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">To</label>
-                    <div className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-500 bg-slate-50">
-                      {contact.email}
-                    </div>
-                  </div>
-
-                  {/* From selector */}
-                  {emailConnections.length > 1 ? (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
-                      <select
-                        value={composeForm.connectionId}
-                        onChange={(e) => setComposeForm((f) => ({ ...f, connectionId: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      >
-                        {emailConnections.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {`${c.email_address} (${c.provider === "gmail" ? "Gmail" : "Outlook"})`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
-                      <div className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-500 bg-slate-50">
-                        {`${emailConnections[0]?.email_address} (${emailConnections[0]?.provider === "gmail" ? "Gmail" : "Outlook"})`}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Template picker + AI compose toolbar */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Template picker */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowTemplatePicker(!showTemplatePicker)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        <BookOpen className="w-3.5 h-3.5" />
-                        Templates
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                      {showTemplatePicker && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setShowTemplatePicker(false)}
-                          />
-                          <div className="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
-                            {emailTemplates.length === 0 ? (
-                              <div className="px-3 py-3 text-center">
-                                <p className="text-xs text-slate-400 mb-2">No templates yet</p>
-                                <Link
-                                  href="/settings/email-templates"
-                                  className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                                >
-                                  Create templates
-                                </Link>
-                              </div>
-                            ) : (
-                              emailTemplates.map((tpl) => (
-                                <button
-                                  key={tpl.id}
-                                  onClick={() => applyTemplate(tpl)}
-                                  className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
-                                >
-                                  <p className="text-sm font-medium text-slate-900 truncate">{tpl.name}</p>
-                                  {tpl.subject && (
-                                    <p className="text-xs text-slate-400 truncate">{tpl.subject}</p>
-                                  )}
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* AI Compose */}
-                    <button
-                      onClick={() => setShowAiPrompt(!showAiPrompt)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-medium text-purple-600 hover:bg-purple-50 transition-colors"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      AI Compose
-                    </button>
-
-                    {/* Save as Template */}
-                    {(composeForm.subject.trim() || composeForm.body.trim()) && (
-                      <button
-                        onClick={handleSaveAsTemplate}
-                        disabled={savingTemplate}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                      >
-                        {saveTemplateSuccess ? (
-                          <Check className="w-3.5 h-3.5 text-green-600" />
-                        ) : (
-                          <Save className="w-3.5 h-3.5" />
-                        )}
-                        {saveTemplateSuccess ? "Saved!" : savingTemplate ? "Saving..." : "Save as Template"}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* AI Compose prompt input */}
-                  {showAiPrompt && (
-                    <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/50">
-                      <label className="block text-xs font-medium text-purple-700 mb-1.5">
-                        Describe what you want to say
-                      </label>
-                      <textarea
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder='e.g. "Thank them for their order and ask if they want to try our new Ethiopian blend"'
-                        rows={3}
-                        className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
-                      />
-                      {aiError && (
-                        <p className="text-xs text-red-600 mt-1">{aiError}</p>
-                      )}
-                      <div className="flex items-center justify-end gap-2 mt-2">
-                        <button
-                          onClick={() => {
-                            setShowAiPrompt(false);
-                            setAiPrompt("");
-                            setAiError("");
-                          }}
-                          className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleAiCompose}
-                          disabled={aiGenerating || !aiPrompt.trim()}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
-                        >
-                          {aiGenerating ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-3.5 h-3.5" />
-                          )}
-                          {aiGenerating ? "Generating..." : "Generate"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Subject */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-                    <input
-                      type="text"
-                      value={composeForm.subject}
-                      onChange={(e) => setComposeForm((f) => ({ ...f, subject: e.target.value }))}
-                      placeholder="Email subject"
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
-                  </div>
-
-                  {/* Body */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Body</label>
-                    <textarea
-                      value={composeForm.body}
-                      onChange={(e) => setComposeForm((f) => ({ ...f, body: e.target.value }))}
-                      placeholder="Write your email..."
-                      rows={8}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowComposeModal(false);
-                      setSendError("");
-                      setSendSuccess(false);
-                    }}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSendEmail}
-                    disabled={sendingEmail || !composeForm.subject.trim() || !composeForm.body.trim()}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-                  >
-                    {sendingEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                    {sendingEmail ? "Sending..." : "Send Email"}
-                  </button>
-                </div>
-              </>
             )}
+
+            {sendError && (
+              <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                {sendError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* To */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">To</label>
+                <div className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-500 bg-slate-50">
+                  {contact.email}
+                </div>
+              </div>
+
+              {/* Template picker + AI compose toolbar */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Template picker */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Templates
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  {showTemplatePicker && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowTemplatePicker(false)}
+                      />
+                      <div className="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
+                        {emailTemplates.length === 0 ? (
+                          <div className="px-3 py-3 text-center">
+                            <p className="text-xs text-slate-400 mb-2">No templates yet</p>
+                            <Link
+                              href="/settings/email-templates"
+                              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                            >
+                              Create templates
+                            </Link>
+                          </div>
+                        ) : (
+                          emailTemplates.map((tpl) => (
+                            <button
+                              key={tpl.id}
+                              onClick={() => applyTemplate(tpl)}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
+                            >
+                              <p className="text-sm font-medium text-slate-900 truncate">{tpl.name}</p>
+                              {tpl.subject && (
+                                <p className="text-xs text-slate-400 truncate">{tpl.subject}</p>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* AI Compose */}
+                <button
+                  onClick={() => setShowAiPrompt(!showAiPrompt)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-purple-200 rounded-lg text-xs font-medium text-purple-600 hover:bg-purple-50 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI Compose
+                </button>
+
+                {/* Save as Template */}
+                {(composeForm.subject.trim() || composeForm.body.trim()) && (
+                  <button
+                    onClick={handleSaveAsTemplate}
+                    disabled={savingTemplate}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    {saveTemplateSuccess ? (
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    {saveTemplateSuccess ? "Saved!" : savingTemplate ? "Saving..." : "Save as Template"}
+                  </button>
+                )}
+              </div>
+
+              {/* AI Compose prompt input */}
+              {showAiPrompt && (
+                <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/50">
+                  <label className="block text-xs font-medium text-purple-700 mb-1.5">
+                    Describe what you want to say
+                  </label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    placeholder='e.g. "Thank them for their order and ask if they want to try our new Ethiopian blend"'
+                    rows={3}
+                    className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                  />
+                  {aiError && (
+                    <p className="text-xs text-red-600 mt-1">{aiError}</p>
+                  )}
+                  <div className="flex items-center justify-end gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        setShowAiPrompt(false);
+                        setAiPrompt("");
+                        setAiError("");
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAiCompose}
+                      disabled={aiGenerating || !aiPrompt.trim()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                    >
+                      {aiGenerating ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      )}
+                      {aiGenerating ? "Generating..." : "Generate"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Subject */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={composeForm.subject}
+                  onChange={(e) => setComposeForm((f) => ({ ...f, subject: e.target.value }))}
+                  placeholder="Email subject"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Body</label>
+                <textarea
+                  value={composeForm.body}
+                  onChange={(e) => setComposeForm((f) => ({ ...f, body: e.target.value }))}
+                  placeholder="Write your email..."
+                  rows={8}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowComposeModal(false);
+                  setSendError("");
+                  setSendSuccess(false);
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sendingEmail || !composeForm.subject.trim() || !composeForm.body.trim()}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              >
+                {sendingEmail ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                {sendingEmail ? "Saving..." : "Log Email"}
+              </button>
+            </div>
           </div>
         </div>
       )}

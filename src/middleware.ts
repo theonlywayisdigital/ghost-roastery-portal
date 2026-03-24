@@ -24,8 +24,6 @@ const PUBLIC_PATHS = [
   "/api/integrations/sage/callback",
   "/api/integrations/quickbooks/callback",
   "/api/integrations/wix/callback",
-  "/api/email/gmail/callback",
-  "/api/email/outlook/callback",
   "/api/webhooks",
   "/api/cron",
   "/api/marketing/campaigns/process",

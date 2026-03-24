@@ -130,6 +130,18 @@ function findVariant(
   );
 }
 
+/** Resolve the first active variant for the given channel, or null if none. */
+function getDefaultVariant(
+  product: Product,
+  channel: "wholesale" | "storefront"
+): ProductVariant | null {
+  const channelFilter = channel === "wholesale" ? "wholesale" : "retail";
+  const active = product.product_variants?.filter(
+    (v) => v.is_active && (!v.channel || v.channel === channelFilter || v.channel === "both")
+  ) || [];
+  return active.length > 0 ? active[0] : null;
+}
+
 function getPrice(
   product: Product,
   variant: ProductVariant | null,
@@ -697,12 +709,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   function handleAddProduct(product: Product, variant?: ProductVariant) {
     // Cache product data for re-pricing on channel switch
     productCacheRef.current.set(product.id, product);
-    // Auto-select first active variant for the current channel if none provided
-    const channelFilter = orderChannel === "wholesale" ? "wholesale" : "retail";
-    const activeVariants = product.product_variants?.filter(
-      (v) => v.is_active && (!v.channel || v.channel === channelFilter)
-    ) || [];
-    const selectedVariant = variant || (activeVariants.length > 0 ? activeVariants[0] : undefined);
+    // Auto-select default variant for the current channel if none provided
+    const selectedVariant = variant || getDefaultVariant(product, orderChannel) || undefined;
     const unitPrice = getPrice(product, selectedVariant || null, orderChannel, customerPriceTier);
     const newItem: OrderItem = {
       productId: product.id,
@@ -1221,29 +1229,32 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                       </div>
                     )}
                     {!isSearchingProducts &&
-                      productResults.map((product) => (
-                        <button
-                          key={product.id}
-                          onClick={() => handleAddProduct(product)}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {product.name}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {product.unit}
-                              </p>
+                      productResults.map((product) => {
+                        const defaultVariant = getDefaultVariant(product, orderChannel);
+                        return (
+                          <button
+                            key={product.id}
+                            onClick={() => handleAddProduct(product)}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {product.name}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {defaultVariant?.unit || product.unit}
+                                </p>
+                              </div>
+                              <span className="text-sm font-semibold text-brand-700 whitespace-nowrap shrink-0">
+                                {formatPrice(
+                                  getPrice(product, defaultVariant, orderChannel, customerPriceTier)
+                                )}
+                              </span>
                             </div>
-                            <span className="text-sm font-semibold text-brand-700 whitespace-nowrap shrink-0">
-                              {formatPrice(
-                                getPrice(product, null, orderChannel, customerPriceTier)
-                              )}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
               )}

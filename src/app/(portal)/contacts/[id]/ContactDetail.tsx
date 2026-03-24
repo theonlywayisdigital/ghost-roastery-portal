@@ -29,6 +29,8 @@ import {
   Activity,
   TrendingUp,
   Funnel,
+  Settings,
+  Pencil,
 } from "@/components/icons";
 import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
@@ -107,6 +109,30 @@ interface ContactData {
   orders: Order[];
   invoices: Invoice[];
   wholesaleAccess: WholesaleAccess | null;
+}
+
+interface EmailConnectionInfo {
+  id: string;
+  provider: "gmail" | "outlook";
+  email_address: string;
+  status: string;
+}
+
+interface ContactEmailMessage {
+  id: string;
+  provider: string;
+  from_email: string;
+  from_name: string | null;
+  to_emails: { email: string; name?: string }[];
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
+  snippet: string | null;
+  is_read: boolean;
+  has_attachments: boolean;
+  folder: string | null;
+  received_at: string;
+  connection_id: string;
 }
 
 // ─── Constants ───
@@ -188,6 +214,22 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailForm, setEmailForm] = useState({ subject: "", body: "" });
   const [loggingEmail, setLoggingEmail] = useState(false);
+
+  // Compose email modal
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeForm, setComposeForm] = useState({ subject: "", body: "", connectionId: "" });
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState(false);
+
+  // Email connections + contact email thread
+  const [emailConnections, setEmailConnections] = useState<EmailConnectionInfo[]>([]);
+  const [contactEmails, setContactEmails] = useState<ContactEmailMessage[]>([]);
+  const [emailsLoaded, setEmailsLoaded] = useState(false);
+
+  // Template picker placeholder hook (for prompt 4)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Actions dropdown
   const [showActions, setShowActions] = useState(false);
@@ -328,6 +370,75 @@ export function ContactDetail({ contactId }: { contactId: string }) {
       loadContact();
     } catch {
       // ignore
+    }
+  }
+
+  async function loadContactEmails() {
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/email`);
+      if (!res.ok) return;
+      const d = await res.json();
+      setEmailConnections(d.connections || []);
+      setContactEmails(d.messages || []);
+      // Default to first connection
+      if (d.connections?.length > 0 && !composeForm.connectionId) {
+        setComposeForm((f) => ({ ...f, connectionId: d.connections[0].id }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setEmailsLoaded(true);
+    }
+  }
+
+  // Load emails on mount
+  useEffect(() => {
+    loadContactEmails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactId]);
+
+  async function handleSendEmail() {
+    if (!composeForm.subject.trim() || !composeForm.body.trim() || !composeForm.connectionId) return;
+    setSendingEmail(true);
+    setSendError("");
+    setSendSuccess(false);
+
+    try {
+      const htmlBody = composeForm.body
+        .split("\n")
+        .map((line) => `<p>${line || "&nbsp;"}</p>`)
+        .join("");
+
+      const res = await fetch(`/api/contacts/${contactId}/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: composeForm.subject.trim(),
+          bodyHtml: htmlBody,
+          connectionId: composeForm.connectionId,
+        }),
+      });
+
+      if (!res.ok) {
+        const d = await res.json();
+        setSendError(d.error || "Failed to send email");
+        return;
+      }
+
+      setSendSuccess(true);
+      setComposeForm((f) => ({ ...f, subject: "", body: "" }));
+      setTimeout(() => {
+        setSendSuccess(false);
+        setShowComposeModal(false);
+      }, 2000);
+
+      // Refresh emails and activity
+      loadContactEmails();
+      loadContact();
+    } catch {
+      setSendError("Failed to send email. Please try again.");
+    } finally {
+      setSendingEmail(false);
     }
   }
 
@@ -472,6 +583,15 @@ export function ContactDetail({ contactId }: { contactId: string }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {contact.email && (
+              <button
+                onClick={() => setShowComposeModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Compose Email
+              </button>
+            )}
             <button
               onClick={() => setEditing(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
@@ -494,13 +614,16 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                   />
                   <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1">
                     {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      <button
+                        onClick={() => {
+                          setShowActions(false);
+                          setShowComposeModal(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       >
                         <Mail className="w-4 h-4" />
                         Send Email
-                      </a>
+                      </button>
                     )}
                     <button
                       onClick={() => {
@@ -589,6 +712,12 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                         ? StickyNote
                         : ACTIVITY_ICONS[item.subtype] || Activity;
 
+                    const isEmailActivity =
+                      item.subtype === "email_sent" || item.subtype === "email_received";
+                    const emailMeta = isEmailActivity && item.metadata
+                      ? (item.metadata as { provider?: string; from_email?: string; snippet?: string })
+                      : null;
+
                     return (
                       <div
                         key={`${item.type}-${item.id}`}
@@ -599,7 +728,11 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                             className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
                               item.type === "note"
                                 ? "bg-amber-50 text-amber-600"
-                                : "bg-slate-100 text-slate-500"
+                                : isEmailActivity
+                                  ? item.subtype === "email_sent"
+                                    ? "bg-blue-50 text-blue-600"
+                                    : "bg-green-50 text-green-600"
+                                  : "bg-slate-100 text-slate-500"
                             }`}
                           >
                             <Icon className="w-3.5 h-3.5" />
@@ -612,9 +745,21 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                                 </p>
                               </div>
                             ) : (
-                              <p className="text-sm text-slate-600">
-                                {item.content}
-                              </p>
+                              <>
+                                <p className="text-sm text-slate-600">
+                                  {item.content}
+                                </p>
+                                {emailMeta?.snippet && (
+                                  <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">
+                                    {emailMeta.snippet}
+                                  </p>
+                                )}
+                                {emailMeta?.from_email && (
+                                  <p className="text-xs text-slate-400 mt-0.5">
+                                    {`via ${emailMeta.provider === "gmail" ? "Gmail" : emailMeta.provider === "outlook" ? "Outlook" : emailMeta.provider || "email"} (${emailMeta.from_email})`}
+                                  </p>
+                                )}
+                              </>
                             )}
                             <p className="text-xs text-slate-400 mt-1">
                               {formatDateTime(item.created_at)}
@@ -685,85 +830,160 @@ export function ContactDetail({ contactId }: { contactId: string }) {
           {/* Communication Tab */}
           {activeDetailTab === "communication" && (
             <>
+              {/* Action bar */}
               <div className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-slate-400" />
                     <span className="text-sm font-medium text-slate-700">
-                      Email
+                      Email Thread
                     </span>
+                    {contactEmails.length > 0 && (
+                      <span className="text-xs text-slate-400">
+                        {`${contactEmails.length} message${contactEmails.length === 1 ? "" : "s"}`}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {contact.email && (
-                      <a
-                        href={`mailto:${contact.email}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    {contact.email && emailConnections.length > 0 && (
+                      <button
+                        onClick={() => setShowComposeModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                        Open in Mail
-                      </a>
+                        <Pencil className="w-3 h-3" />
+                        Compose
+                      </button>
                     )}
                     <button
                       onClick={() => setShowEmailModal(true)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                     >
-                      <Send className="w-3 h-3" />
+                      <MessageSquare className="w-3 h-3" />
                       Log Email
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
-                  Gmail integration coming soon. For now, log emails manually to
-                  keep a record.
-                </p>
+                {emailConnections.length === 0 && emailsLoaded && (
+                  <div className="mt-3 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="text-xs text-amber-700">
+                      No email accounts connected.{" "}
+                      <Link
+                        href="/settings/integrations?tab=communications"
+                        className="font-medium underline hover:text-amber-800"
+                      >
+                        Connect Gmail or Outlook
+                      </Link>{" "}
+                      to send emails directly from here.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {(() => {
-                const emailActivity = deduped.filter(
-                  (item) =>
-                    item.subtype === "email_sent" ||
-                    item.subtype === "email_received"
-                );
-                if (emailActivity.length === 0) {
-                  return (
-                    <div className="bg-white rounded-xl border border-slate-200 text-center py-10">
-                      <Mail className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                      <p className="text-sm text-slate-400">
-                        No email activity yet
-                      </p>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="bg-white rounded-xl border border-slate-200">
-                    <div className="divide-y divide-slate-50">
-                      {emailActivity.map((item) => {
-                        const Icon = ACTIVITY_ICONS[item.subtype] || Mail;
-                        return (
-                          <div
-                            key={`${item.type}-${item.id}`}
-                            className="px-4 py-3"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-slate-100 text-slate-500">
-                                <Icon className="w-3.5 h-3.5" />
+              {/* Email thread display */}
+              {!emailsLoaded ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+                </div>
+              ) : contactEmails.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 text-center py-10">
+                  <Mail className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">
+                    No emails with this contact yet
+                  </p>
+                  {(() => {
+                    const emailActivity = deduped.filter(
+                      (item) =>
+                        item.subtype === "email_sent" ||
+                        item.subtype === "email_received"
+                    );
+                    if (emailActivity.length > 0) {
+                      return (
+                        <div className="mt-4">
+                          <p className="text-xs text-slate-400 mb-3">Logged email activity:</p>
+                          <div className="max-w-md mx-auto text-left">
+                            {emailActivity.map((item) => (
+                              <div key={`${item.type}-${item.id}`} className="flex items-start gap-2 py-1.5">
+                                <Send className="w-3 h-3 text-slate-400 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-xs text-slate-600">{item.content}</p>
+                                  <p className="text-xs text-slate-400">{formatDateTime(item.created_at)}</p>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-slate-600">
-                                  {item.content}
-                                </p>
-                                <p className="text-xs text-slate-400 mt-1">
-                                  {formatDateTime(item.created_at)}
-                                </p>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {contactEmails.map((msg) => {
+                    const isSent = msg.folder === "SENT" || msg.folder === "Sent Items";
+                    const conn = emailConnections.find((c) => c.id === msg.connection_id);
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`bg-white rounded-xl border overflow-hidden ${
+                          isSent ? "border-blue-200" : "border-slate-200"
+                        }`}
+                      >
+                        <div className="px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            {/* Avatar */}
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 ${
+                                isSent ? "bg-blue-500" : "bg-slate-500"
+                              }`}
+                            >
+                              {(msg.from_name || msg.from_email).charAt(0).toUpperCase()}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-sm font-medium text-slate-900 truncate">
+                                    {isSent ? "You" : (msg.from_name || msg.from_email)}
+                                  </span>
+                                  {isSent && (
+                                    <span className="text-xs text-blue-600 font-medium flex-shrink-0">Sent</span>
+                                  )}
+                                  {conn && (
+                                    <span className="text-xs text-slate-400 flex-shrink-0">
+                                      via {conn.provider === "gmail" ? "Gmail" : "Outlook"}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-slate-400 flex-shrink-0">
+                                  {formatDateTime(msg.received_at)}
+                                </span>
                               </div>
+
+                              {msg.subject && (
+                                <p className="text-sm font-medium text-slate-700 mt-0.5">
+                                  {msg.subject}
+                                </p>
+                              )}
+
+                              <p className="text-sm text-slate-500 mt-1 line-clamp-2">
+                                {msg.snippet || msg.body_text?.slice(0, 200) || ""}
+                              </p>
+
+                              {msg.has_attachments && (
+                                <div className="flex items-center gap-1 mt-1.5">
+                                  <FileText className="w-3 h-3 text-slate-400" />
+                                  <span className="text-xs text-slate-400">Attachment</span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 
@@ -1347,6 +1567,148 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 {loggingEmail ? "Logging..." : "Log Email"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compose Email Modal */}
+      {showComposeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">
+                Compose Email
+              </h3>
+              <button
+                onClick={() => {
+                  setShowComposeModal(false);
+                  setSendError("");
+                  setSendSuccess(false);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {emailConnections.length === 0 ? (
+              /* No connection CTA */
+              <div className="text-center py-6">
+                <Settings className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-sm text-slate-600 mb-1">No email accounts connected</p>
+                <p className="text-xs text-slate-400 mb-4">
+                  Connect your Gmail or Outlook account to send emails directly.
+                </p>
+                <Link
+                  href="/settings/integrations?tab=communications"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  Connect Email Account
+                </Link>
+              </div>
+            ) : (
+              <>
+                {sendSuccess && (
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+                    Email sent successfully!
+                  </div>
+                )}
+
+                {sendError && (
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                    {sendError}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* To */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">To</label>
+                    <div className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-500 bg-slate-50">
+                      {contact.email}
+                    </div>
+                  </div>
+
+                  {/* From selector */}
+                  {emailConnections.length > 1 ? (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
+                      <select
+                        value={composeForm.connectionId}
+                        onChange={(e) => setComposeForm((f) => ({ ...f, connectionId: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        {emailConnections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {`${c.email_address} (${c.provider === "gmail" ? "Gmail" : "Outlook"})`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">From</label>
+                      <div className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-500 bg-slate-50">
+                        {`${emailConnections[0]?.email_address} (${emailConnections[0]?.provider === "gmail" ? "Gmail" : "Outlook"})`}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Template picker placeholder */}
+                  {/* TODO: Prompt 4 — add template selection dropdown here */}
+
+                  {/* Subject */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                    <input
+                      type="text"
+                      value={composeForm.subject}
+                      onChange={(e) => setComposeForm((f) => ({ ...f, subject: e.target.value }))}
+                      placeholder="Email subject"
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Body</label>
+                    <textarea
+                      value={composeForm.body}
+                      onChange={(e) => setComposeForm((f) => ({ ...f, body: e.target.value }))}
+                      placeholder="Write your email..."
+                      rows={8}
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowComposeModal(false);
+                      setSendError("");
+                      setSendSuccess(false);
+                    }}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail || !composeForm.subject.trim() || !composeForm.body.trim()}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                  >
+                    {sendingEmail ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    {sendingEmail ? "Sending..." : "Send Email"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

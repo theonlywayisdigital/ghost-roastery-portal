@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Minus, Plus, Package, Trash2, ShoppingCart } from "@/components/icons";
 
 interface ProductVariant {
@@ -353,38 +354,47 @@ export function StorefrontWholesaleCatalogue({
                   borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
                 }}
               >
-                {product.image_url ? (
-                  <div
-                    className="relative aspect-square"
-                    style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
-                  >
-                    <Image
-                      src={product.image_url}
-                      alt={product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="aspect-square flex items-center justify-center"
-                    style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
-                  >
-                    <Package className="w-12 h-12 opacity-30" />
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
-                    {product.name}
-                  </h3>
-                  {product.description && (
-                    <p
-                      className="text-sm mb-3 line-clamp-2"
-                      style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                <Link
+                  href={context.type === "storefront"
+                    ? `/s/${context.slug}/wholesale/product/${product.id}`
+                    : `/w/${context.domain}/wholesale/product/${product.id}`}
+                  className="block hover:opacity-90 transition-opacity"
+                >
+                  {product.image_url ? (
+                    <div
+                      className="relative aspect-square"
+                      style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
                     >
-                      {product.description}
-                    </p>
+                      <Image
+                        src={product.image_url}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className="aspect-square flex items-center justify-center"
+                      style={{ backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)" }}
+                    >
+                      <Package className="w-12 h-12 opacity-30" />
+                    </div>
                   )}
+                  <div className="px-4 pt-4">
+                    <h3 className="font-semibold mb-1" style={{ color: "var(--sf-text)" }}>
+                      {product.name}
+                    </h3>
+                    {product.description && (
+                      <p
+                        className="text-sm mb-3 line-clamp-2"
+                        style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
+                      >
+                        {product.description}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+                <div className="px-4 pb-4">
 
                   {hasVariants ? (
                     /* Variant list — each variant is individually orderable */

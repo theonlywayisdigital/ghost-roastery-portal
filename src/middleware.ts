@@ -35,17 +35,37 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = request.headers.get("host") || "";
   const portalHost = process.env.NEXT_PUBLIC_PORTAL_HOST || "localhost:3001";
-  const platformDomain = "roasteryplatform.com";
 
-  // Check if hostname is the portal itself or a known platform domain
+  // Platform domains — both old and new for transition period
+  const platformDomains = ["roasteryplatform.com", "ghostroastery.com"];
+  // Subdomains that are NOT storefront slugs (they serve the portal app itself)
+  const reservedSubdomains = ["app", "www", "platform", "portal", "inbox"];
+
   const isPortalHost = hostname === portalHost || hostname.endsWith(`.${portalHost}`);
-  const isPlatformDomain = hostname === platformDomain || hostname.endsWith(`.${platformDomain}`);
   const isDevHost = hostname.includes("localhost") || hostname.includes("vercel.app");
 
-  // Custom domain rewriting — if the hostname is not the portal host
-  // and not a platform domain, treat it as a custom website domain
-  // and rewrite to /w/[hostname]/[path]
-  if (!isPortalHost && !isPlatformDomain && !isDevHost) {
+  // Check if hostname is a subdomain of a platform domain (e.g. {slug}.roasteryplatform.com)
+  const platformMatch = platformDomains.find(
+    (d) => hostname === d || hostname.endsWith(`.${d}`)
+  );
+
+  if (platformMatch) {
+    // Extract subdomain: "acme.roasteryplatform.com" → "acme"
+    const subdomain = hostname === platformMatch
+      ? null
+      : hostname.slice(0, -(platformMatch.length + 1));
+
+    // If it's a storefront subdomain, rewrite to /s/[slug]/...
+    if (subdomain && !reservedSubdomains.includes(subdomain)) {
+      const rewriteUrl = new URL(`/s/${subdomain}${pathname}`, request.url);
+      rewriteUrl.search = request.nextUrl.search;
+      return NextResponse.rewrite(rewriteUrl);
+    }
+
+    // Otherwise it's the portal app itself (app., www., bare domain) — fall through
+  } else if (!isPortalHost && !isDevHost) {
+    // Custom domain rewriting — hostname is not a platform domain,
+    // treat it as a custom website domain and rewrite to /w/[hostname]/[path]
     const rewriteUrl = new URL(`/w/${hostname}${pathname}`, request.url);
     rewriteUrl.search = request.nextUrl.search;
     return NextResponse.rewrite(rewriteUrl);

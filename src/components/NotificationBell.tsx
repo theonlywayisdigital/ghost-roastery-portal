@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -76,7 +77,9 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   const fetchNotifications = useCallback(async (full = false) => {
     try {
@@ -109,16 +112,68 @@ export function NotificationBell() {
     }
   }, [open, fetchNotifications]);
 
+  // Position the portal panel relative to the bell button
+  const calcPosition = useCallback(() => {
+    const bell = bellRef.current;
+    const menu = menuRef.current;
+    if (!bell || !menu) return;
+    const rect = bell.getBoundingClientRect();
+    const menuH = menu.getBoundingClientRect().height;
+    const menuW = 320; // w-80 = 20rem = 320px
+    const gap = 8;
+    const viewportH = window.innerHeight;
+    const viewportW = window.innerWidth;
+
+    // Always open upward since bell is at the bottom of the sidebar
+    const spaceBelow = viewportH - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+    const openUp = spaceBelow < menuH && spaceAbove > spaceBelow;
+
+    const top = openUp
+      ? rect.top + window.scrollY - menuH - gap
+      : rect.bottom + window.scrollY + gap;
+
+    // Position to the right of the bell on desktop, left-aligned on mobile
+    let left = rect.left + window.scrollX;
+    if (left + menuW > viewportW - 8) left = viewportW - menuW - 8;
+    if (left < 8) left = 8;
+
+    setPos({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!open) { setPos(null); return; }
+    // Initial calc after render
+    requestAnimationFrame(calcPosition);
+    window.addEventListener("scroll", calcPosition, true);
+    window.addEventListener("resize", calcPosition);
+    return () => {
+      window.removeEventListener("scroll", calcPosition, true);
+      window.removeEventListener("resize", calcPosition);
+    };
+  }, [open, calcPosition]);
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        bellRef.current && !bellRef.current.contains(target) &&
+        menuRef.current && !menuRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [open]);
 
   async function handleMarkAllRead() {
@@ -150,9 +205,10 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <>
       {/* Bell button */}
       <button
+        ref={bellRef}
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
         aria-label="Notifications"
@@ -165,9 +221,13 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown panel */}
-      {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden lg:bottom-auto lg:top-full lg:left-auto lg:right-0 lg:mt-2 lg:mb-0">
+      {/* Dropdown panel — rendered via portal to escape sidebar overflow */}
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          style={pos ? { position: "absolute", top: pos.top, left: pos.left } : { position: "absolute", top: -9999, left: -9999 }}
+          className="w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-[9990] overflow-hidden"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
@@ -239,8 +299,9 @@ export function NotificationBell() {
               View all notifications
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }

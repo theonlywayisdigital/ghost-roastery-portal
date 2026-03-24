@@ -1,8 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { Package, Coffee, TrendingUp, ArrowRight, ClipboardList, Users, Store } from "@/components/icons";
+import {
+  Package, Coffee, TrendingUp, ArrowRight, ClipboardList, Users, Store,
+  ShoppingCart, Wallet, AlertTriangle, Receipt, Plus, Tag, Megaphone,
+} from "@/components/icons";
 import Link from "next/link";
+import { DashboardWidgets } from "./DashboardWidgets";
+import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -17,108 +22,379 @@ export default async function DashboardPage() {
     user.roles.includes("ghost_roastery_customer") ||
     user.roles.includes("retail_buyer") ||
     user.roles.includes("wholesale_buyer");
+  const isGhostRoaster = !!(user.roaster?.is_ghost_roaster);
+  const roasterId = user.roaster?.id;
 
-  // Roaster stats
-  let wholesaleCount = 0;
-  let ghostOrderCount = 0;
-  let pendingWholesaleRequests = 0;
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
 
-  if (isRoaster && user.roaster) {
-    const { count: wc } = await supabase
-      .from("ghost_orders")
-      .select("*", { count: "exact", head: true })
-      .eq("roaster_id", user.roaster.id)
-      .eq("status", "pending");
-    wholesaleCount = wc || 0;
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { count: wrc } = await supabase
-      .from("wholesale_access")
-      .select("*", { count: "exact", head: true })
-      .eq("roaster_id", user.roaster.id)
-      .eq("status", "pending");
-    pendingWholesaleRequests = wrc || 0;
+  // ── Parallel queries ──
+  const [
+    // Existing stat queries
+    pendingWholesaleResult,
+    wholesaleRequestsResult,
+    ghostOrderCountResult,
+    wsRevenueResult,
+    ghostRevenueResult,
+    customerOrderResult,
+    wholesaleAccountResult,
+    // New stat queries
+    openOrdersResult,
+    pendingPayoutsResult,
+    overdueInvoicesResult,
+    lowStockResult,
+    // Recent orders
+    recentStorefrontResult,
+    recentGhostResult,
+    // Activity feed sources
+    activityOrdersResult,
+    activityGhostOrdersResult,
+    activityFormSubmissionsResult,
+    activityWholesaleAppsResult,
+    activityPayoutsResult,
+  ] = await Promise.all([
+    // ── Existing stats ──
+    isRoaster && roasterId
+      ? supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .eq("status", "pending")
+      : Promise.resolve({ count: 0 }),
 
-    if (user.roaster.is_ghost_roaster) {
-      const { count } = await supabase
-        .from("roaster_orders")
-        .select("*", { count: "exact", head: true })
-        .eq("roaster_id", user.roaster.id)
-        .eq("status", "pending");
-      ghostOrderCount = count || 0;
-    }
+    isRoaster && roasterId
+      ? supabase
+          .from("wholesale_access")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .eq("status", "pending")
+      : Promise.resolve({ count: 0 }),
+
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("roaster_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .eq("status", "pending")
+      : Promise.resolve({ count: 0 }),
+
+    isRoaster && roasterId
+      ? supabase
+          .from("orders")
+          .select("roaster_payout, subtotal")
+          .eq("roaster_id", roasterId)
+          .gte("created_at", startOfMonth.toISOString())
+          .not("status", "eq", "cancelled")
+      : Promise.resolve({ data: [] }),
+
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("ghost_orders")
+          .select("partner_payout_total")
+          .eq("partner_roaster_id", roasterId)
+          .gte("created_at", startOfMonth.toISOString())
+          .not("order_status", "eq", "Cancelled")
+      : Promise.resolve({ data: [] }),
+
+    isCustomer
+      ? supabase
+          .from("ghost_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+      : Promise.resolve({ count: 0 }),
+
+    user.roles.includes("wholesale_buyer")
+      ? supabase
+          .from("wholesale_access")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("status", "approved")
+      : Promise.resolve({ count: 0 }),
+
+    // ── New stats ──
+    // Open orders (confirmed + processing)
+    isRoaster && roasterId
+      ? supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .in("status", ["confirmed", "processing"])
+      : Promise.resolve({ count: 0 }),
+
+    // Pending payouts (ghost roaster only)
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("partner_payout_items")
+          .select("amount")
+          .eq("roaster_id", roasterId)
+          .eq("status", "pending")
+      : Promise.resolve({ data: [] }),
+
+    // Overdue invoices
+    isRoaster && roasterId
+      ? supabase
+          .from("invoices")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .eq("status", "overdue")
+      : Promise.resolve({ count: 0 }),
+
+    // Low stock products
+    isRoaster && roasterId
+      ? supabase
+          .from("products")
+          .select("*", { count: "exact", head: true })
+          .eq("roaster_id", roasterId)
+          .eq("track_stock", true)
+          .eq("is_purchasable", true)
+          .lte("retail_stock_count", 5)
+      : Promise.resolve({ count: 0 }),
+
+    // ── Recent orders ──
+    isRoaster && roasterId
+      ? supabase
+          .from("orders")
+          .select("id, order_number, customer_name, subtotal, status, order_channel, created_at")
+          .eq("roaster_id", roasterId)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] }),
+
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("ghost_orders")
+          .select("id, order_number, customer_name, total_price, partner_payout_total, order_status, created_at")
+          .eq("partner_roaster_id", roasterId)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] }),
+
+    // ── Activity feed ──
+    // New storefront/wholesale orders
+    isRoaster && roasterId
+      ? supabase
+          .from("orders")
+          .select("id, customer_name, order_channel, created_at")
+          .eq("roaster_id", roasterId)
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+
+    // New ghost orders
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("ghost_orders")
+          .select("id, order_number, customer_name, created_at")
+          .eq("partner_roaster_id", roasterId)
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+
+    // Form submissions
+    isRoaster && roasterId
+      ? supabase
+          .from("form_submissions")
+          .select("id, created_at, forms!inner(roaster_id, name)")
+          .eq("forms.roaster_id", roasterId)
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+
+    // Wholesale applications
+    isRoaster && roasterId
+      ? supabase
+          .from("wholesale_access")
+          .select("id, business_name, created_at")
+          .eq("roaster_id", roasterId)
+          .eq("status", "pending")
+          .gte("created_at", sevenDaysAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+
+    // Payouts received
+    isGhostRoaster && roasterId
+      ? supabase
+          .from("partner_payout_items")
+          .select("id, amount, paid_at")
+          .eq("roaster_id", roasterId)
+          .eq("status", "paid")
+          .not("paid_at", "is", null)
+          .gte("paid_at", sevenDaysAgo.toISOString())
+          .order("paid_at", { ascending: false })
+          .limit(8)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // ── Compute stats ──
+  const wholesaleCount = pendingWholesaleResult.count || 0;
+  const pendingWholesaleRequests = wholesaleRequestsResult.count || 0;
+  const ghostOrderCount = ghostOrderCountResult.count || 0;
+  const customerOrderCount = customerOrderResult.count || 0;
+  const wholesaleAccountCount = wholesaleAccountResult.count || 0;
+  const openOrdersCount = openOrdersResult.count || 0;
+  const overdueInvoicesCount = overdueInvoicesResult.count || 0;
+  const lowStockCount = lowStockResult.count || 0;
+
+  // Pending payout total
+  let pendingPayoutTotal = 0;
+  for (const item of (pendingPayoutsResult.data as { amount: number }[] | null) || []) {
+    pendingPayoutTotal += item.amount || 0;
   }
 
-  // Customer stats
-  let customerOrderCount = 0;
-  if (isCustomer) {
-    const { count } = await supabase
-      .from("ghost_orders")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-    customerOrderCount = count || 0;
-  }
-
-  // Revenue this month
+  // Monthly revenue
   let monthlyRevenue = 0;
-  if (isRoaster && user.roaster) {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    // Wholesale/storefront revenue
-    const { data: wsOrders } = await supabase
-      .from("ghost_orders")
-      .select("roaster_payout, subtotal")
-      .eq("roaster_id", user.roaster.id)
-      .gte("created_at", startOfMonth.toISOString())
-      .not("status", "eq", "cancelled");
-
-    for (const wo of wsOrders || []) {
-      monthlyRevenue += wo.roaster_payout || wo.subtotal || 0;
-    }
-
-    // Ghost Roastery partner payouts
-    if (user.roaster.is_ghost_roaster) {
-      const { data: ghostOrders } = await supabase
-        .from("ghost_orders")
-        .select("partner_payout_total")
-        .eq("partner_roaster_id", user.roaster.id)
-        .gte("created_at", startOfMonth.toISOString())
-        .not("order_status", "eq", "Cancelled");
-
-      for (const go of ghostOrders || []) {
-        monthlyRevenue += go.partner_payout_total || 0;
-      }
-    }
+  for (const wo of (wsRevenueResult.data as { roaster_payout: number | null; subtotal: number | null }[] | null) || []) {
+    monthlyRevenue += wo.roaster_payout || wo.subtotal || 0;
+  }
+  for (const go of (ghostRevenueResult.data as { partner_payout_total: number | null }[] | null) || []) {
+    monthlyRevenue += go.partner_payout_total || 0;
   }
 
-  // Wholesale buyer stats
-  let wholesaleAccountCount = 0;
-  if (user.roles.includes("wholesale_buyer")) {
-    const { count: wac } = await supabase
-      .from("wholesale_access")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "approved");
-    wholesaleAccountCount = wac || 0;
+  // ── Build recent orders ──
+  const recentOrders: RecentOrder[] = [];
+
+  for (const o of (recentStorefrontResult.data as any[] | null) || []) {
+    recentOrders.push({
+      id: o.id,
+      orderNumber: o.order_number || o.id.slice(0, 8).toUpperCase(),
+      date: o.created_at,
+      customerName: o.customer_name,
+      type: o.order_channel === "wholesale" ? "wholesale" : "storefront",
+      status: o.status,
+      total: o.subtotal || 0,
+    });
   }
+
+  for (const o of (recentGhostResult.data as any[] | null) || []) {
+    recentOrders.push({
+      id: o.id,
+      orderNumber: o.order_number,
+      date: o.created_at,
+      customerName: o.customer_name,
+      type: "ghost",
+      status: o.order_status,
+      total: o.partner_payout_total || 0,
+    });
+  }
+
+  recentOrders.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const topRecentOrders = recentOrders.slice(0, 5);
+
+  // ── Build activity feed ──
+  const activityItems: ActivityItem[] = [];
+
+  for (const o of (activityOrdersResult.data as any[] | null) || []) {
+    const channel = o.order_channel === "wholesale" ? "wholesale" : "retail";
+    activityItems.push({
+      id: `order-${o.id}`,
+      type: "order",
+      description: `New ${channel} order from ${o.customer_name || "a customer"}`,
+      timestamp: o.created_at,
+    });
+  }
+
+  for (const o of (activityGhostOrdersResult.data as any[] | null) || []) {
+    activityItems.push({
+      id: `ghost-${o.id}`,
+      type: "ghost_order",
+      description: `New platform order #${o.order_number} from ${o.customer_name || "a customer"}`,
+      timestamp: o.created_at,
+    });
+  }
+
+  for (const s of (activityFormSubmissionsResult.data as any[] | null) || []) {
+    const formName = s.forms?.name || "a form";
+    activityItems.push({
+      id: `form-${s.id}`,
+      type: "form_submission",
+      description: `New submission on "${formName}"`,
+      timestamp: s.created_at,
+    });
+  }
+
+  for (const w of (activityWholesaleAppsResult.data as any[] | null) || []) {
+    activityItems.push({
+      id: `wholesale-${w.id}`,
+      type: "wholesale_application",
+      description: `Wholesale application from ${w.business_name || "a business"}`,
+      timestamp: w.created_at,
+    });
+  }
+
+  for (const p of (activityPayoutsResult.data as any[] | null) || []) {
+    const amount = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(p.amount || 0);
+    activityItems.push({
+      id: `payout-${p.id}`,
+      type: "payout",
+      description: `Payout of ${amount} received`,
+      timestamp: p.paid_at,
+    });
+  }
+
+  activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const topActivityItems = activityItems.slice(0, 8);
 
   const displayName =
     user.roaster?.contact_name || user.fullName || user.email;
 
+  const formatCurrency = (v: number) =>
+    new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
+
   return (
     <>
       <h1 className="text-2xl font-bold text-slate-900 mb-2">Dashboard</h1>
-      <p className="text-slate-500 mb-8">
+      <p className="text-slate-500 mb-6">
         {`Welcome back, ${displayName}.`}
       </p>
 
+      {/* Quick Actions */}
+      {isRoaster && (
+        <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
+          <Link
+            href="/orders/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            Create Order
+          </Link>
+          <Link
+            href="/products/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
+          >
+            <Tag className="w-4 h-4" />
+            Add Product
+          </Link>
+          <Link
+            href="/marketing/campaigns/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
+          >
+            <Megaphone className="w-4 h-4" />
+            Send Campaign
+          </Link>
+          <Link
+            href="/invoices/new"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
+          >
+            <Receipt className="w-4 h-4" />
+            Create Invoice
+          </Link>
+        </div>
+      )}
+
       {/* Stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Roaster stats */}
         {isRoaster && (
           <>
-            {/* Wholesale orders */}
+            {/* Pending Wholesale */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
@@ -140,7 +416,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Ghost orders (only if Ghost Roaster) */}
-            {user.roaster?.is_ghost_roaster && (
+            {isGhostRoaster && (
               <div className="bg-white rounded-xl border border-slate-200 p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center">
@@ -162,7 +438,7 @@ export default async function DashboardPage() {
               </div>
             )}
 
-            {/* Pending Wholesale Requests */}
+            {/* Trade Requests */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
@@ -192,7 +468,7 @@ export default async function DashboardPage() {
                 <div>
                   <p className="text-sm text-slate-500">This Month</p>
                   <p className="text-2xl font-bold text-slate-900">
-                    {new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(monthlyRevenue)}
+                    {formatCurrency(monthlyRevenue)}
                   </p>
                 </div>
               </div>
@@ -203,6 +479,92 @@ export default async function DashboardPage() {
                 View revenue <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
+
+            {/* Open Orders */}
+            <Link
+              href="/orders"
+              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <ShoppingCart className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Open Orders</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {openOrdersCount}
+                  </p>
+                </div>
+              </div>
+              <span className="text-sm text-brand-600 flex items-center gap-1">
+                View orders <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </Link>
+
+            {/* Pending Payouts (Ghost Roaster only) */}
+            {isGhostRoaster && (
+              <Link
+                href="/ghost-orders"
+                className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500">Pending Payouts</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {formatCurrency(pendingPayoutTotal)}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-sm text-brand-600 flex items-center gap-1">
+                  View payouts <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </Link>
+            )}
+
+            {/* Overdue Invoices */}
+            <Link
+              href="/invoices"
+              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Overdue Invoices</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {overdueInvoicesCount}
+                  </p>
+                </div>
+              </div>
+              <span className="text-sm text-brand-600 flex items-center gap-1">
+                View invoices <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </Link>
+
+            {/* Low Stock */}
+            <Link
+              href="/products"
+              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                  <Package className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Low Stock</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {lowStockCount}
+                  </p>
+                </div>
+              </div>
+              <span className="text-sm text-brand-600 flex items-center gap-1">
+                View products <ArrowRight className="w-3.5 h-3.5" />
+              </span>
+            </Link>
           </>
         )}
 
@@ -253,8 +615,16 @@ export default async function DashboardPage() {
         )}
       </div>
 
+      {/* Recent Orders + Activity Feed (roaster only) */}
+      {isRoaster && (
+        <DashboardWidgets
+          recentOrders={topRecentOrders}
+          activityItems={topActivityItems}
+        />
+      )}
+
       {/* Ghost Roaster CTA (only if roaster but NOT a Ghost Roaster) */}
-      {isRoaster && user.roaster && !user.roaster.is_ghost_roaster && (
+      {isRoaster && user.roaster && !isGhostRoaster && (
         <div className="bg-gradient-to-r from-brand-50 to-brand-100 rounded-xl border border-brand-200 p-8">
           <h2 className="text-xl font-bold text-slate-900 mb-2">
             Earn more from your existing roasting capacity

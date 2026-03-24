@@ -10,7 +10,6 @@ import {
   generateInvoiceNumber,
   generateAccessToken,
 } from "@/lib/invoice-utils";
-import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -325,13 +324,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Calculate platform fee on discounted subtotal
+    // Invoice orders: no platform fee — roaster keeps full subtotal
     const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
-    const platformFeePercent = getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free");
-    const platformFeePence = Math.round(
-      effectiveSubtotalPence * (platformFeePercent / 100)
-    );
-    const roasterPayoutPence = effectiveSubtotalPence - platformFeePence;
+    const platformFeePence = 0;
+    const roasterPayoutPence = effectiveSubtotalPence;
 
     // ─── Find or create user account ───
     let userId: string | null = null;
@@ -670,8 +666,8 @@ export async function POST(request: Request) {
           due_days: dueDays,
           payment_due_date: paymentDueDate,
           invoice_access_token: accessToken,
-          platform_fee_percent: platformFeePercent,
-          platform_fee_amount: platformFeePence / 100,
+          platform_fee_percent: 0,
+          platform_fee_amount: 0,
         })
         .select("id, invoice_number")
         .single();
@@ -721,7 +717,6 @@ export async function POST(request: Request) {
       if (autoSend && roaster.stripe_account_id) {
         try {
           const amountPence = Math.round(invoiceTotal * 100);
-          const platformFeePence2 = Math.round(amountPence * (platformFeePercent / 100));
 
           const session = await stripe.checkout.sessions.create({
             mode: "payment",
@@ -740,7 +735,6 @@ export async function POST(request: Request) {
               },
             ],
             payment_intent_data: {
-              application_fee_amount: platformFeePence2 > 0 ? platformFeePence2 : undefined,
               transfer_data: {
                 destination: roaster.stripe_account_id,
               },
@@ -865,29 +859,24 @@ export async function POST(request: Request) {
       });
     }
 
-    // ─── Record platform fee ledger entry ───
-    if (platformFeePence > 0) {
-      supabase
-        .from("platform_fee_ledger")
-        .insert({
-          roaster_id: roasterId,
-          order_type: "storefront",
-          reference_id: order.id,
-          gross_amount: subtotalPence / 100,
-          fee_percent:
-            subtotalPence > 0
-              ? Math.round((platformFeePence / subtotalPence) * 10000) / 100
-              : 0,
-          fee_amount: platformFeePence / 100,
-          net_to_roaster: roasterPayoutPence / 100,
-          currency: "GBP",
-          status: "pending",
-        })
-        .then(({ error: ledgerError }) => {
-          if (ledgerError)
-            console.error("Failed to write ledger entry:", ledgerError);
-        });
-    }
+    // ─── Record platform fee ledger entry (0 fee for invoice orders) ───
+    supabase
+      .from("platform_fee_ledger")
+      .insert({
+        roaster_id: roasterId,
+        order_type: "wholesale",
+        reference_id: order.id,
+        gross_amount: effectiveSubtotalPence / 100,
+        fee_percent: 0,
+        fee_amount: 0,
+        net_to_roaster: roasterPayoutPence / 100,
+        currency: "GBP",
+        status: "collected",
+      })
+      .then(({ error: ledgerError }) => {
+        if (ledgerError)
+          console.error("Failed to write ledger entry:", ledgerError);
+      });
 
     // Dispatch order.placed webhook
     dispatchWebhook(roasterId, "order.placed", {

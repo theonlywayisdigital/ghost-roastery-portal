@@ -14,7 +14,6 @@ import {
   generateInvoiceNumber,
   generateAccessToken,
 } from "@/lib/invoice-utils";
-import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -281,11 +280,9 @@ export async function processEcommerceOrder(
     subtotalPence += unitAmountPence * item.quantity;
   }
 
-  // ─── Calculate fees ───────────────────────────────────────────────
-  const tier = (roaster.sales_tier as TierLevel) || "free";
-  const platformFeePercent = getEffectivePlatformFee(tier);
-  const platformFeePence = Math.round(subtotalPence * (platformFeePercent / 100));
-  const roasterPayoutPence = subtotalPence - platformFeePence;
+  // ─── Calculate fees (ecommerce orders: no platform fee) ──────────
+  const platformFeePence = 0;
+  const roasterPayoutPence = subtotalPence;
 
   // ─── Look up user_id from customer email ──────────────────────────
   let userId: string | null = null;
@@ -547,8 +544,8 @@ export async function processEcommerceOrder(
           due_days: dueDays,
           payment_due_date: paymentDueDate.toISOString().split("T")[0],
           invoice_access_token: accessToken,
-          platform_fee_percent: platformFeePercent,
-          platform_fee_amount: platformFeePence / 100,
+          platform_fee_percent: 0,
+          platform_fee_amount: 0,
         })
         .select("id, invoice_number")
         .single();
@@ -656,32 +653,27 @@ export async function processEcommerceOrder(
     }
   }
 
-  // ─── Platform fee ledger ──────────────────────────────────────────
-  if (platformFeePence > 0) {
-    supabase
-      .from("platform_fee_ledger")
-      .insert({
-        roaster_id: roasterId,
-        order_type: "storefront",
-        reference_id: createdOrder.id,
-        gross_amount: subtotalPence / 100,
-        fee_percent:
-          subtotalPence > 0
-            ? Math.round((platformFeePence / subtotalPence) * 10000) / 100
-            : 0,
-        fee_amount: platformFeePence / 100,
-        net_to_roaster: roasterPayoutPence / 100,
-        currency: "GBP",
-        status: "pending",
-      })
-      .then(({ error: ledgerError }) => {
-        if (ledgerError)
-          console.error(
-            "[ecommerce-order] Ledger entry error:",
-            ledgerError
-          );
-      });
-  }
+  // ─── Platform fee ledger (0 fee for ecommerce orders) ────────────
+  supabase
+    .from("platform_fee_ledger")
+    .insert({
+      roaster_id: roasterId,
+      order_type: "storefront",
+      reference_id: createdOrder.id,
+      gross_amount: subtotalPence / 100,
+      fee_percent: 0,
+      fee_amount: 0,
+      net_to_roaster: roasterPayoutPence / 100,
+      currency: "GBP",
+      status: "collected",
+    })
+    .then(({ error: ledgerError }) => {
+      if (ledgerError)
+        console.error(
+          "[ecommerce-order] Ledger entry error:",
+          ledgerError
+        );
+    });
 
   return {
     success: true,

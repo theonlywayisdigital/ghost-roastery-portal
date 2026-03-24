@@ -126,17 +126,13 @@ const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>
   formBrandingRemoved:     { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
-// ─── Platform Fee (GR application fee %, excludes Stripe processing) ───
-// Total card payment fees shown to roasters: Free = 5% + 20p, Paid = 2% + 20p
-// Stripe takes ~1.5% + 20p, so GR keeps: Free = 3.5%, Paid = 0.5%
+// ─── Stripe Processing Fee (passed through as application_fee on card payments) ───
+// Only applies to Stripe card payments. Invoice/manual/ecommerce orders have 0% fee.
+// Stripe UK standard: 1.5% + 20p (UK cards), 2.5% + 20p (non-UK cards).
+// We use 1.5% + 20p as the default.
 
-const PLATFORM_FEE: Record<TierLevel, number> = {
-  free: 3.5,
-  starter: 0.5,
-  growth: 0.5,
-  pro: 0.5,
-  scale: 0.5,
-};
+const STRIPE_PROCESSING_FEE_PERCENT = 1.5;
+const STRIPE_PROCESSING_FEE_FIXED_PENCE = 20;
 
 // ─── Pricing (pence) ───
 
@@ -231,10 +227,24 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
   };
 }
 
-// ─── Platform Fee ───
+// ─── Stripe Processing Fee ───
 
-export function getEffectivePlatformFee(salesTier: TierLevel): number {
-  return PLATFORM_FEE[salesTier];
+/** Returns the Stripe processing fee percentage (1.5%) for card payments. */
+export function getEffectivePlatformFee(_salesTier: TierLevel): number {
+  return STRIPE_PROCESSING_FEE_PERCENT;
+}
+
+/** Returns the fixed per-transaction Stripe fee in pence (20p). */
+export function getStripeFixedFeePence(): number {
+  return STRIPE_PROCESSING_FEE_FIXED_PENCE;
+}
+
+/**
+ * Calculate the total Stripe processing fee in pence for a given amount.
+ * Formula: round(amountPence * 1.5% ) + 20p
+ */
+export function calculateStripeProcessingFee(amountPence: number): number {
+  return Math.round(amountPence * (STRIPE_PROCESSING_FEE_PERCENT / 100)) + STRIPE_PROCESSING_FEE_FIXED_PENCE;
 }
 
 // ─── Formatting ───

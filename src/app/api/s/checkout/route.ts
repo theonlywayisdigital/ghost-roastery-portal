@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { stripe } from "@/lib/stripe";
-import { type TierLevel, getEffectivePlatformFee } from "@/lib/tier-config";
+import { calculateStripeProcessingFee } from "@/lib/tier-config";
 
 interface CheckoutItem {
   productId: string;
@@ -366,12 +366,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // Calculate platform fee on discounted subtotal
+    // Calculate Stripe processing fee on discounted subtotal (1.5% + 20p)
     const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
-    const platformFeePercent = getEffectivePlatformFee((roaster.sales_tier as TierLevel) || "free");
-    const platformFeePence = Math.round(
-      effectiveSubtotalPence * (platformFeePercent / 100)
-    );
+    const platformFeePence = calculateStripeProcessingFee(effectiveSubtotalPence);
 
     // Create Stripe checkout session
     const effectiveEmail = isWholesale ? wholesaleBuyerEmail! : customerEmail!;

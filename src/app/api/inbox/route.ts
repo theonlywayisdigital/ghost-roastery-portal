@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("inbox_messages")
-    .select("id, from_email, from_name, subject, body_text, is_read, is_archived, is_converted, converted_order_id, attachments, received_at", { count: "exact" })
+    .select("id, from_email, from_name, subject, body_text, is_read, is_archived, is_converted, converted_order_id, attachments, received_at, contact_id, contacts(id, first_name, last_name, email)", { count: "exact" })
     .eq("roaster_id", roasterId);
 
   // Apply filter

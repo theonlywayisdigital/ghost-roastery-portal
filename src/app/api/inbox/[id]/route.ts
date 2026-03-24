@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const { data: message, error } = await supabase
     .from("inbox_messages")
-    .select("*")
+    .select("*, contacts(id, first_name, last_name, email)")
     .eq("id", id)
     .eq("roaster_id", user.roaster.id)
     .single();

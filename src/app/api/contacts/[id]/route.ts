@@ -43,6 +43,14 @@ export async function GET(
     .eq("contact_id", id)
     .order("created_at", { ascending: false });
 
+  // Get linked inbox messages
+  const { data: inboxMessages } = await supabase
+    .from("inbox_messages")
+    .select("id, from_email, from_name, subject, body_text, body_html, received_at, is_read, is_converted, attachments")
+    .eq("contact_id", id)
+    .order("received_at", { ascending: false })
+    .limit(50);
+
   // Get orders (by email match)
   let orders: unknown[] = [];
   if (contact.email) {
@@ -104,6 +112,7 @@ export async function GET(
     orders,
     invoices,
     wholesaleAccess,
+    inboxMessages: inboxMessages || [],
   });
 }
 

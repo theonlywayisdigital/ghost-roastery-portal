@@ -8,6 +8,8 @@ import {
   Archive,
   Package,
   Loader2,
+  UserPlus,
+  User,
 } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
@@ -29,6 +31,8 @@ interface InboxMessage {
   converted_order_id: string | null;
   attachments: { filename: string }[];
   received_at: string;
+  contact_id: string | null;
+  contacts: { id: string; first_name: string; last_name: string; email: string } | null;
 }
 
 type OrderFilter = "all" | "unread" | "converted" | "archived";
@@ -69,11 +73,12 @@ export function InboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ── Orders state ──
+  // ── State ──
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [orderTotal, setOrderTotal] = useState(0);
   const [orderUnreadCount, setOrderUnreadCount] = useState(0);
   const [orderLoading, setOrderLoading] = useState(true);
+  const [linkingEmail, setLinkingEmail] = useState<string | null>(null);
 
   // ── URL params ──
   const page = parseInt(searchParams.get("page") || "1");
@@ -136,7 +141,38 @@ export function InboxPage() {
     { key: "search", label: "Search sender or subject...", type: "search" },
   ];
 
-  // ── Order columns ──
+  // ── Add as contact handler ──
+  async function handleAddAsContact(e: React.MouseEvent, row: InboxMessage) {
+    e.stopPropagation();
+    setLinkingEmail(row.from_email);
+    try {
+      const res = await fetch("/api/inbox/link-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromEmail: row.from_email,
+          fromName: row.from_name,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update local state to reflect the link
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.from_email.toLowerCase() === row.from_email.toLowerCase() && !m.contact_id
+              ? { ...m, contact_id: data.contactId, contacts: null }
+              : m
+          )
+        );
+      }
+    } catch {
+      console.error("Failed to add as contact");
+    } finally {
+      setLinkingEmail(null);
+    }
+  }
+
+  // ── Columns ──
   const orderColumns: Column<InboxMessage>[] = [
     {
       key: "from_name",
@@ -147,9 +183,16 @@ export function InboxPage() {
             <span className="w-2 h-2 rounded-full bg-brand-600 flex-shrink-0" />
           )}
           <div className={row.is_read ? "" : "font-semibold"}>
-            <p className="text-sm text-slate-900">
-              {row.from_name || row.from_email}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm text-slate-900">
+                {row.from_name || row.from_email}
+              </p>
+              {row.contact_id && (
+                <span title="Linked to contact">
+                  <User className="w-3.5 h-3.5 text-brand-500" />
+                </span>
+              )}
+            </div>
             {row.from_name && (
               <p className="text-xs text-slate-500">{row.from_email}</p>
             )}
@@ -181,6 +224,21 @@ export function InboxPage() {
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
               Converted
             </span>
+          )}
+          {!row.contact_id && (
+            <button
+              onClick={(e) => handleAddAsContact(e, row)}
+              disabled={linkingEmail === row.from_email}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
+              title="Add sender as contact"
+            >
+              {linkingEmail === row.from_email ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <UserPlus className="w-3 h-3" />
+              )}
+              Add Contact
+            </button>
           )}
           {row.attachments?.length > 0 && (
             <span className="text-xs text-slate-400" title={`${row.attachments.length} attachment(s)`}>

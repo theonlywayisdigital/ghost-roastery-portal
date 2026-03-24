@@ -33,6 +33,8 @@ import {
   ChevronDown,
   Check,
   BookOpen,
+  Inbox,
+  ChevronUp,
 } from "@/components/icons";
 import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
@@ -104,6 +106,19 @@ interface WholesaleAccess {
   created_at: string;
 }
 
+interface InboxMessageItem {
+  id: string;
+  from_email: string;
+  from_name: string | null;
+  subject: string | null;
+  body_text: string | null;
+  body_html: string | null;
+  received_at: string;
+  is_read: boolean;
+  is_converted: boolean;
+  attachments: { filename: string }[];
+}
+
 interface ContactData {
   contact: Contact;
   activity: ActivityItem[];
@@ -111,6 +126,7 @@ interface ContactData {
   orders: Order[];
   invoices: Invoice[];
   wholesaleAccess: WholesaleAccess | null;
+  inboxMessages: InboxMessageItem[];
 }
 
 interface ContactEmailTemplate {
@@ -221,6 +237,9 @@ export function ContactDetail({ contactId }: { contactId: string }) {
 
   // Actions dropdown
   const [showActions, setShowActions] = useState(false);
+
+  // Expanded inbox messages
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
 
   // Detail tabs
   const [activeDetailTab, setActiveDetailTab] = useState<
@@ -515,12 +534,12 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     );
   }
 
-  const { contact, activity, notes, orders, invoices, wholesaleAccess } = data;
+  const { contact, activity, notes, orders, invoices, wholesaleAccess, inboxMessages } = data;
   const fullName =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     "Unnamed Contact";
 
-  // Merge notes into activity timeline
+  // Merge notes + inbox messages into activity timeline
   const timeline = [
     ...activity.map((a) => ({
       id: a.id,
@@ -537,6 +556,21 @@ export function ContactDetail({ contactId }: { contactId: string }) {
       content: n.content,
       metadata: {},
       created_at: n.created_at,
+    })),
+    ...(inboxMessages || []).map((m) => ({
+      id: m.id,
+      type: "inbox" as const,
+      subtype: "email_received",
+      content: m.subject || "(No subject)",
+      metadata: {
+        body_text: m.body_text,
+        body_html: m.body_html,
+        from_email: m.from_email,
+        from_name: m.from_name,
+        is_converted: m.is_converted,
+        attachments: m.attachments,
+      } as Record<string, unknown>,
+      created_at: m.received_at,
     })),
   ].sort(
     (a, b) =>
@@ -909,12 +943,13 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 </div>
               </div>
 
-              {/* Logged email activity */}
+              {/* Email activity + inbox messages */}
               {(() => {
                 const emailActivity = deduped.filter(
                   (item) =>
                     item.subtype === "email_sent" ||
-                    item.subtype === "email_received"
+                    item.subtype === "email_received" ||
+                    item.subtype === "email_logged"
                 );
                 if (emailActivity.length === 0) {
                   return (
@@ -929,31 +964,95 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 return (
                   <div className="bg-white rounded-xl border border-slate-200">
                     <div className="divide-y divide-slate-50">
-                      {emailActivity.map((item) => (
-                        <div key={`${item.type}-${item.id}`} className="px-4 py-3">
-                          <div className="flex items-start gap-3">
+                      {emailActivity.map((item) => {
+                        const isInbox = item.type === "inbox";
+                        const isExpanded = expandedMessages.has(item.id);
+                        const bodyHtml = isInbox ? (item.metadata?.body_html as string) : null;
+                        const bodyText = isInbox ? (item.metadata?.body_text as string) : null;
+                        const snippet = bodyText ? (bodyText.replace(/\s+/g, " ").trim().slice(0, 120) + (bodyText.length > 120 ? "..." : "")) : "";
+
+                        return (
+                          <div key={`${item.type}-${item.id}`} className="px-4 py-3">
                             <div
-                              className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                item.subtype === "email_sent"
-                                  ? "bg-blue-50 text-blue-600"
-                                  : "bg-green-50 text-green-600"
-                              }`}
+                              className={`flex items-start gap-3 ${isInbox ? "cursor-pointer" : ""}`}
+                              onClick={isInbox ? () => {
+                                setExpandedMessages((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(item.id)) next.delete(item.id);
+                                  else next.add(item.id);
+                                  return next;
+                                });
+                              } : undefined}
                             >
-                              {item.subtype === "email_sent" ? (
-                                <Send className="w-3.5 h-3.5" />
-                              ) : (
-                                <Mail className="w-3.5 h-3.5" />
-                              )}
+                              <div
+                                className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  item.subtype === "email_sent" || item.subtype === "email_logged"
+                                    ? "bg-blue-50 text-blue-600"
+                                    : "bg-green-50 text-green-600"
+                                }`}
+                              >
+                                {item.subtype === "email_sent" || item.subtype === "email_logged" ? (
+                                  <Send className="w-3.5 h-3.5" />
+                                ) : isInbox ? (
+                                  <Inbox className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Mail className="w-3.5 h-3.5" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {isInbox ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm text-slate-900 font-medium">{item.content}</p>
+                                      <span className="flex-shrink-0">
+                                        {isExpanded ? (
+                                          <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                                        ) : (
+                                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                        )}
+                                      </span>
+                                    </div>
+                                    {!isExpanded && snippet && (
+                                      <p className="text-xs text-slate-500 mt-0.5 truncate">{snippet}</p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-slate-600">{item.content}</p>
+                                )}
+                                <p className="text-xs text-slate-400 mt-1">
+                                  {formatDateTime(item.created_at)}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-slate-600">{item.content}</p>
-                              <p className="text-xs text-slate-400 mt-1">
-                                {formatDateTime(item.created_at)}
-                              </p>
-                            </div>
+
+                            {/* Expanded email body */}
+                            {isInbox && isExpanded && (
+                              <div className="ml-10 mt-3 border-t border-slate-100 pt-3">
+                                {bodyHtml ? (
+                                  <div
+                                    className="prose prose-sm max-w-none prose-slate"
+                                    dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                                  />
+                                ) : bodyText ? (
+                                  <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                                    {bodyText}
+                                  </pre>
+                                ) : (
+                                  <p className="text-sm text-slate-400 italic">No content</p>
+                                )}
+                                <div className="mt-2">
+                                  <Link
+                                    href={`/inbox/${item.id}`}
+                                    className="text-xs text-brand-600 hover:text-brand-700"
+                                  >
+                                    View full email
+                                  </Link>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );

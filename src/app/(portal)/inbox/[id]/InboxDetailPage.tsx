@@ -20,6 +20,8 @@ import {
   Sparkles,
   Edit2,
   Lock,
+  User,
+  UserPlus,
 } from "@/components/icons";
 
 interface Attachment {
@@ -45,6 +47,8 @@ interface InboxMessage {
   received_at: string;
   prevId: string | null;
   nextId: string | null;
+  contact_id: string | null;
+  contacts: { id: string; first_name: string; last_name: string; email: string } | null;
 }
 
 function formatDateTime(dateStr: string) {
@@ -77,6 +81,7 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
   const [extractError, setExtractError] = useState("");
   const [showConvertDropdown, setShowConvertDropdown] = useState(false);
   const [aiCreditsLimit, setAiCreditsLimit] = useState<number | null>(null);
+  const [linkingContact, setLinkingContact] = useState(false);
   const convertDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -110,6 +115,33 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
       })
       .catch(() => setAiCreditsLimit(0));
   }, [showConvertDropdown, aiCreditsLimit]);
+
+  async function handleAddAsContact() {
+    if (!message) return;
+    setLinkingContact(true);
+    try {
+      const res = await fetch("/api/inbox/link-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromEmail: message.from_email,
+          fromName: message.from_name,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessage({
+          ...message,
+          contact_id: data.contactId,
+          contacts: null,
+        });
+      }
+    } catch {
+      console.error("Failed to add as contact");
+    } finally {
+      setLinkingContact(false);
+    }
+  }
 
   async function handleArchive() {
     if (!message) return;
@@ -340,6 +372,31 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
                     ? `${message.from_name} <${message.from_email}>`
                     : message.from_email}
                 </span>
+                {message.contact_id ? (
+                  <Link
+                    href={`/contacts/${message.contacts?.id || message.contact_id}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <User className="w-3 h-3" />
+                    {message.contacts
+                      ? `${message.contacts.first_name} ${message.contacts.last_name}`.trim() || "Contact"
+                      : "Contact"}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleAddAsContact}
+                    disabled={linkingContact}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                  >
+                    {linkingContact ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-3 h-3" />
+                    )}
+                    Add as Contact
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-slate-500 w-12">To</span>

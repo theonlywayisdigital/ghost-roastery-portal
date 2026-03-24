@@ -194,6 +194,27 @@ export async function POST(request: Request) {
     // Parse from field
     const parsed = parseFromField(from);
 
+    // Try to match sender email to a contact for this roaster
+    let contactId: string | null = null;
+    try {
+      const { data: matchedContact } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("roaster_id", roaster.id)
+        .ilike("email", parsed.email)
+        .limit(1)
+        .maybeSingle();
+
+      if (matchedContact) {
+        contactId = matchedContact.id;
+        console.log("[inbound-email] Matched sender to contact:", contactId);
+      } else {
+        console.log("[inbound-email] No contact match for:", parsed.email);
+      }
+    } catch (err) {
+      console.error("[inbound-email] Contact lookup error:", err);
+    }
+
     const insertPayload = {
       roaster_id: roaster.id,
       from_email: parsed.email,
@@ -205,6 +226,7 @@ export async function POST(request: Request) {
       attachments: attachmentsMeta,
       resend_email_id: resendEmailId,
       received_at: (eventData.created_at as string) || new Date().toISOString(),
+      contact_id: contactId,
     };
 
     console.log("[inbound-email] Inserting message:", JSON.stringify({

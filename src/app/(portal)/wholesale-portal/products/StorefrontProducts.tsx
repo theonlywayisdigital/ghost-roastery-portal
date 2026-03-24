@@ -249,35 +249,39 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                   <div
                     className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${isDraft ? "opacity-70" : ""}`}
                   >
-                    {/* Product image */}
-                    <div className="relative">
-                      {getPrimaryImageUrl(product) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={getPrimaryImageUrl(product)!}
-                          alt={product.name}
-                          className="w-full h-40 object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
-                          <Package className="w-8 h-8 text-slate-300" />
-                        </div>
-                      )}
-                      {isDraft && (
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                          Draft
-                        </span>
-                      )}
-                    </div>
+                    {/* Product image + name — clickable link to edit */}
+                    <Link href={`/products/${product.id}`} className="block hover:opacity-90 transition-opacity">
+                      <div className="relative">
+                        {getPrimaryImageUrl(product) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={getPrimaryImageUrl(product)!}
+                            alt={product.name}
+                            className="w-full h-40 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-40 bg-slate-100 flex items-center justify-center">
+                            <Package className="w-8 h-8 text-slate-300" />
+                          </div>
+                        )}
+                        {isDraft && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            Draft
+                          </span>
+                        )}
+                      </div>
+                      <div className="px-4 pt-4">
+                        <h3 className="text-sm font-medium text-slate-900 mb-0.5">
+                          {product.name}
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          {getPriceDisplay(product)}{product.category !== "other" && ` / ${getUnitDisplay(product)}`}
+                        </p>
+                      </div>
+                    </Link>
 
-                    {/* Product info */}
-                    <div className="p-4">
-                      <h3 className="text-sm font-medium text-slate-900 mb-0.5">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-slate-500">
-                        {getPriceDisplay(product)}{product.category !== "other" && ` / ${getUnitDisplay(product)}`}
-                      </p>
+                    {/* Product controls */}
+                    <div className="px-4 pb-4">
 
                       {/* Channel toggles */}
                       <div className="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">

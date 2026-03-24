@@ -1227,16 +1227,16 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                           onClick={() => handleAddProduct(product)}
                           className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-slate-900">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">
                                 {product.name}
                               </p>
                               <p className="text-xs text-slate-500">
                                 {product.unit}
                               </p>
                             </div>
-                            <span className="text-sm font-medium text-slate-900">
+                            <span className="text-sm font-semibold text-brand-700 whitespace-nowrap shrink-0">
                               {formatPrice(
                                 getPrice(product, null, orderChannel, customerPriceTier)
                               )}

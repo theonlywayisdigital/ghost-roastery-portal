@@ -1,10 +1,9 @@
 "use client";
 
-import { Building2, Facebook, Instagram, Lock } from "@/components/icons";
+import { Facebook, Instagram, Lock } from "@/components/icons";
 import type { SocialPlatform, PlatformConfigs, SocialConnection } from "@/types/social";
 
-const PLATFORMS: { id: SocialPlatform; label: string; icon: typeof Building2 }[] = [
-  { id: "google_business", label: "Google Business", icon: Building2 },
+const PLATFORMS: { id: SocialPlatform; label: string; icon: typeof Facebook }[] = [
   { id: "facebook", label: "Facebook", icon: Facebook },
   { id: "instagram", label: "Instagram", icon: Instagram },
 ];

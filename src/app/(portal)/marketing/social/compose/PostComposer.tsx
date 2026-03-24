@@ -44,10 +44,6 @@ export function PostComposer() {
   const [tagInput, setTagInput] = useState("");
   const [status, setStatus] = useState<SocialPost["status"]>("draft");
 
-  // Google-specific
-  const [googleCtaType, setGoogleCtaType] = useState<string>("");
-  const [googleCtaUrl, setGoogleCtaUrl] = useState("");
-
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load connections
@@ -75,11 +71,6 @@ export function PostComposer() {
             if (post.scheduled_for) {
               setScheduleMode("schedule");
               setScheduledFor(post.scheduled_for.slice(0, 16));
-            }
-            // Restore Google CTA
-            if (post.platforms?.google_business?.cta_type) {
-              setGoogleCtaType(post.platforms.google_business.cta_type);
-              setGoogleCtaUrl(post.platforms.google_business.cta_url || "");
             }
           } else {
             router.replace(`${pageBase}/social`);
@@ -120,19 +111,6 @@ export function PostComposer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Build platforms object with Google CTA
-  function buildPlatforms(): PlatformConfigs {
-    const p = { ...platforms };
-    if (p.google_business?.enabled && googleCtaType) {
-      p.google_business = {
-        ...p.google_business,
-        cta_type: googleCtaType as GoogleCtaType,
-        cta_url: googleCtaUrl,
-      };
-    }
-    return p;
-  }
-
   // Auto-save
   const saveDraft = useCallback(async () => {
     if (!id) return;
@@ -144,7 +122,7 @@ export function PostComposer() {
         body: JSON.stringify({
           content,
           media_urls: mediaUrls,
-          platforms: buildPlatforms(),
+          platforms,
           scheduled_for: scheduleMode === "schedule" && scheduledFor
             ? new Date(scheduledFor).toISOString()
             : null,
@@ -158,7 +136,7 @@ export function PostComposer() {
     }
     setSaving(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, content, mediaUrls, platforms, scheduledFor, scheduleMode, tags, googleCtaType, googleCtaUrl]);
+  }, [id, content, mediaUrls, platforms, scheduledFor, scheduleMode, tags]);
 
   useEffect(() => {
     if (!id || loading) return;
@@ -187,7 +165,7 @@ export function PostComposer() {
         body: JSON.stringify({
           content,
           media_urls: mediaUrls,
-          platforms: buildPlatforms(),
+          platforms,
           scheduled_for: new Date(scheduledFor).toISOString(),
           status: "scheduled",
           tags,
@@ -341,7 +319,7 @@ export function PostComposer() {
             {connections.length === 0 && (
               <p className="text-xs text-slate-400 mt-2">
                 No platforms connected.{" "}
-                <button onClick={() => router.push(`${pageBase}/social/connections`)} className="text-brand-600 hover:underline">
+                <button onClick={() => router.push("/settings/integrations?tab=social")} className="text-brand-600 hover:underline">
                   Connect a platform
                 </button>
               </p>
@@ -378,40 +356,6 @@ export function PostComposer() {
             <label className="block text-sm font-medium text-slate-700 mb-3">Media</label>
             <MediaUploader mediaUrls={mediaUrls} onChange={setMediaUrls} />
           </div>
-
-          {/* Google CTA (conditional) */}
-          {platforms.google_business?.enabled && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <label className="block text-sm font-medium text-slate-700 mb-3">Google Business CTA</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">Action type</label>
-                  <select
-                    value={googleCtaType}
-                    onChange={(e) => setGoogleCtaType(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">None</option>
-                    <option value="BOOK">Book</option>
-                    <option value="ORDER">Order Online</option>
-                    <option value="LEARN_MORE">Learn More</option>
-                    <option value="SIGN_UP">Sign Up</option>
-                    <option value="CALL">Call</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-500 mb-1">URL</label>
-                  <input
-                    type="url"
-                    value={googleCtaUrl}
-                    onChange={(e) => setGoogleCtaUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Schedule */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -498,4 +442,3 @@ export function PostComposer() {
   );
 }
 
-type GoogleCtaType = "BOOK" | "ORDER" | "LEARN_MORE" | "SIGN_UP" | "CALL";

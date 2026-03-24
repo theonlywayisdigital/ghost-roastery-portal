@@ -13,7 +13,6 @@ import type { SocialTemplate, SocialPlatform } from "@/types/social";
 import { useMarketingContext } from "@/lib/marketing-context";
 
 const AVAILABLE_PLATFORMS: { id: SocialPlatform; label: string }[] = [
-  { id: "google_business", label: "Google Business" },
   { id: "facebook", label: "Facebook" },
   { id: "instagram", label: "Instagram" },
 ];

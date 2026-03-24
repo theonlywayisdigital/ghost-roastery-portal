@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2,
   Facebook,
   Instagram,
   Loader2,
@@ -12,7 +11,6 @@ import {
   ChevronUp,
 } from "@/components/icons";
 import type { SocialConnection, SocialPlatform } from "@/types/social";
-import { useMarketingContext } from "@/lib/marketing-context";
 
 const PLATFORMS: {
   id: SocialPlatform;
@@ -21,14 +19,12 @@ const PLATFORMS: {
   color: string;
   bgColor: string;
 }[] = [
-  { id: "google_business", label: "Google Business", icon: Building2, color: "text-blue-600", bgColor: "bg-blue-50" },
   { id: "facebook", label: "Facebook", icon: Facebook, color: "text-indigo-600", bgColor: "bg-indigo-50" },
   { id: "instagram", label: "Instagram", icon: Instagram, color: "text-pink-600", bgColor: "bg-pink-50" },
 ];
 
 export function SocialConnectionsBar() {
   const router = useRouter();
-  const { pageBase } = useMarketingContext();
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -73,12 +69,8 @@ export function SocialConnectionsBar() {
     return { label: "Disconnected", dot: "bg-slate-300" };
   }
 
-  async function handleConnect(platform: SocialPlatform) {
-    if (platform === "google_business") {
-      router.push("/api/social/auth/google");
-    } else {
-      router.push("/api/social/auth/meta");
-    }
+  async function handleConnect(_platform: SocialPlatform) {
+    router.push("/settings/integrations?tab=social");
   }
 
   if (loading) {
@@ -167,7 +159,7 @@ export function SocialConnectionsBar() {
             })}
           </div>
           <button
-            onClick={() => router.push(`${pageBase}/social/connections`)}
+            onClick={() => router.push("/settings/integrations?tab=social")}
             className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
           >
             Manage Connections

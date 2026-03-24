@@ -183,7 +183,6 @@ function buildSocialConstraints(platforms?: string[]): string {
   }
 
   const limits: Record<string, number> = {
-    google_business: 1500,
     facebook: 63206,
     instagram: 2200,
   };

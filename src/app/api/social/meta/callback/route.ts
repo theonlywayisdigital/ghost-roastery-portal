@@ -15,20 +15,20 @@ export async function GET(request: NextRequest) {
 
   if (!isMetaConfigured()) {
     return NextResponse.redirect(
-      `${origin}/marketing/social/connections?error=meta_not_configured`
+      `${origin}/settings/integrations?tab=social?error=meta_not_configured`
     );
   }
 
   if (errorParam) {
     console.error("Meta OAuth error:", errorParam);
     return NextResponse.redirect(
-      `${origin}/marketing/social/connections?error=meta_denied`
+      `${origin}/settings/integrations?tab=social?error=meta_denied`
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      `${origin}/marketing/social/connections?error=missing_params`
+      `${origin}/settings/integrations?tab=social?error=missing_params`
     );
   }
 
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     if (!roasterId || !nonce) {
       return NextResponse.redirect(
-        `${origin}/marketing/social/connections?error=invalid_state`
+        `${origin}/settings/integrations?tab=social?error=invalid_state`
       );
     }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     const cookieNonce = request.cookies.get("meta_oauth_nonce")?.value;
     if (!cookieNonce || cookieNonce !== nonce) {
       return NextResponse.redirect(
-        `${origin}/marketing/social/connections?error=invalid_nonce`
+        `${origin}/settings/integrations?tab=social?error=invalid_nonce`
       );
     }
 
@@ -115,14 +115,14 @@ export async function GET(request: NextRequest) {
     }
 
     const response = NextResponse.redirect(
-      `${origin}/marketing/social/connections?connected=meta`
+      `${origin}/settings/integrations?tab=social?connected=meta`
     );
     response.cookies.delete("meta_oauth_nonce");
     return response;
   } catch (error) {
     console.error("Meta callback error:", error);
     return NextResponse.redirect(
-      `${origin}/marketing/social/connections?error=callback_failed`
+      `${origin}/settings/integrations?tab=social?error=callback_failed`
     );
   }
 }

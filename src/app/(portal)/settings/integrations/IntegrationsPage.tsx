@@ -29,6 +29,7 @@ import {
   Zap,
 } from "lucide-react";
 import { WEBHOOK_EVENTS } from "@/lib/webhooks";
+import { SocialConnectionsTab } from "./SocialConnectionsTab";
 
 interface AccountOption {
   code?: string;
@@ -90,7 +91,7 @@ interface ExportResult {
   total: number;
 }
 
-type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks";
+type IntegrationsTab = "payments" | "accounting" | "ecommerce" | "webhooks" | "social";
 
 interface StripeStatus {
   connected: boolean;
@@ -1824,6 +1825,16 @@ export function IntegrationsPage() {
           >
             Webhooks
           </button>
+          <button
+            onClick={() => switchTab("social")}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "social"
+                ? "border-brand-600 text-brand-600"
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            Social
+          </button>
         </nav>
       </div>
 
@@ -2404,6 +2415,13 @@ export function IntegrationsPage() {
             </>
           )}
         </>
+      )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* Tab: Social                                    */}
+      {/* ═══════════════════════════════════════════════ */}
+      {activeTab === "social" && (
+        <SocialConnectionsTab />
       )}
 
       {/* Import Products Modal */}

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { getGooglePostMetrics } from "@/lib/social/google";
 import { getMetaPostMetrics, isMetaConfigured } from "@/lib/social/meta";
 import type { SocialConnection } from "@/types/social";
 
@@ -62,10 +61,7 @@ export async function POST(request: NextRequest) {
       try {
         let metrics: { impressions?: number; clicks?: number; likes?: number; shares?: number; comments?: number; reach?: number };
 
-        if (platform === "google_business") {
-          const gMetrics = await getGooglePostMetrics(connection, platformPostId, supabase);
-          metrics = { impressions: gMetrics.impressions, clicks: gMetrics.clicks };
-        } else if ((platform === "facebook" || platform === "instagram") && isMetaConfigured()) {
+        if ((platform === "facebook" || platform === "instagram") && isMetaConfigured()) {
           metrics = await getMetaPostMetrics(connection, platformPostId, platform);
         } else {
           continue;

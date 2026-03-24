@@ -17,7 +17,6 @@ const PUBLIC_PATHS = [
   "/api/s",
   "/api/w",
   "/api/auth",
-  "/api/social/google/callback",
   "/api/social/meta/callback",
   "/api/integrations/shopify/callback",
   "/api/integrations/xero/callback",

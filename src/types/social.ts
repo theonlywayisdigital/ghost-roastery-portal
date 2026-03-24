@@ -2,7 +2,7 @@
 // Social Media Types
 // ═══════════════════════════════════════════════════════════
 
-export type SocialPlatform = "google_business" | "facebook" | "instagram";
+export type SocialPlatform = "facebook" | "instagram";
 export type ConnectionStatus = "connected" | "disconnected" | "expired";
 export type PostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed" | "partially_failed";
 
@@ -33,12 +33,6 @@ export interface SocialConnection {
 // Social Posts
 // ═══════════════════════════════════════════════════════════
 
-export interface GooglePlatformConfig {
-  enabled: boolean;
-  cta_type?: "BOOK" | "ORDER" | "LEARN_MORE" | "SIGN_UP" | "CALL" | null;
-  cta_url?: string;
-}
-
 export interface FacebookPlatformConfig {
   enabled: boolean;
   page_id?: string;
@@ -49,7 +43,6 @@ export interface InstagramPlatformConfig {
 }
 
 export interface PlatformConfigs {
-  google_business?: GooglePlatformConfig;
   facebook?: FacebookPlatformConfig;
   instagram?: InstagramPlatformConfig;
 }
@@ -93,7 +86,6 @@ export interface SocialPostAnalytics {
 // ═══════════════════════════════════════════════════════════
 
 export const PLATFORM_CHAR_LIMITS: Record<SocialPlatform, number> = {
-  google_business: 1500,
   facebook: 63206,
   instagram: 2200,
 };

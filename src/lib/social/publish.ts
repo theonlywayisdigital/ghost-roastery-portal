@@ -1,6 +1,5 @@
 import type { SocialConnection, SocialPost, SocialPlatform, PublishResult } from "@/types/social";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { publishToGoogle } from "./google";
 import { publishToMeta, isMetaConfigured } from "./meta";
 import { createNotification } from "@/lib/notifications";
 
@@ -26,7 +25,6 @@ export async function publishPost(
 
   // Determine which platforms to publish to
   const enabledPlatforms: SocialPlatform[] = [];
-  if (post.platforms.google_business?.enabled) enabledPlatforms.push("google_business");
   if (post.platforms.facebook?.enabled) enabledPlatforms.push("facebook");
   if (post.platforms.instagram?.enabled) enabledPlatforms.push("instagram");
 
@@ -42,11 +40,7 @@ export async function publishPost(
     }
 
     try {
-      if (platform === "google_business") {
-        const result = await publishToGoogle(connection, post, supabase);
-        platformPostIds[platform] = result.name;
-        results.push({ platform, success: true, platform_post_id: result.name });
-      } else if (platform === "facebook" || platform === "instagram") {
+      if (platform === "facebook" || platform === "instagram") {
         if (!isMetaConfigured()) {
           results.push({ platform, success: false, error: "Meta integration not configured" });
           failures[platform] = "Meta integration not configured";

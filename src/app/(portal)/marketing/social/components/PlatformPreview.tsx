@@ -1,17 +1,15 @@
 "use client";
 
-import { Building2, Facebook, Instagram, ImageIcon } from "@/components/icons";
+import { Facebook, Instagram, ImageIcon } from "@/components/icons";
 import type { SocialPlatform, PlatformConfigs } from "@/types/social";
 import { PLATFORM_CHAR_LIMITS } from "@/types/social";
 
-const PLATFORM_ICONS: Record<SocialPlatform, typeof Building2> = {
-  google_business: Building2,
+const PLATFORM_ICONS: Record<SocialPlatform, typeof Facebook> = {
   facebook: Facebook,
   instagram: Instagram,
 };
 
 const PLATFORM_LABELS: Record<SocialPlatform, string> = {
-  google_business: "Google Business Profile",
   facebook: "Facebook Page",
   instagram: "Instagram",
 };

@@ -1,10 +1,9 @@
 "use client";
 
-import { Building2, Facebook, Instagram } from "@/components/icons";
+import { Facebook, Instagram } from "@/components/icons";
 import type { SocialPlatform } from "@/types/social";
 
-const PLATFORM_CONFIG: Record<SocialPlatform, { label: string; icon: typeof Building2; color: string; bg: string }> = {
-  google_business: { label: "Google", icon: Building2, color: "text-blue-700", bg: "bg-blue-50" },
+const PLATFORM_CONFIG: Record<SocialPlatform, { label: string; icon: typeof Facebook; color: string; bg: string }> = {
   facebook: { label: "Facebook", icon: Facebook, color: "text-indigo-700", bg: "bg-indigo-50" },
   instagram: { label: "Instagram", icon: Instagram, color: "text-pink-700", bg: "bg-pink-50" },
 };

@@ -5,7 +5,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -365,11 +365,23 @@ export async function POST(request: Request) {
 
     // ─── Ensure people record exists ───
     const nameParts = (wholesaleBuyerName || "").split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
     const personId = await findOrCreatePerson(
       supabase,
       wholesaleBuyerEmail,
-      nameParts[0] || "",
-      nameParts.slice(1).join(" ") || ""
+      firstName,
+      lastName
+    );
+
+    // ─── Find or create contact ───
+    const contactId = await findOrCreateContact(
+      supabase,
+      roasterId,
+      wholesaleBuyerEmail,
+      firstName,
+      lastName,
+      deliveryAddress || null
     );
 
     // ─── Grant retail_buyer role if needed ───
@@ -417,7 +429,10 @@ export async function POST(request: Request) {
       .insert({
         roaster_id: roasterId,
         customer_name: wholesaleBuyerName,
+        customer_first_name: firstName,
+        customer_last_name: lastName,
         customer_email: wholesaleBuyerEmail,
+        contact_id: contactId,
         delivery_address: deliveryAddress || null,
         items: orderItems,
         subtotal: subtotalPence / 100,
@@ -451,17 +466,10 @@ export async function POST(request: Request) {
       validatedDiscountPence >= 0 &&
       validatedDiscountCode
     ) {
-      const { data: contact } = await supabase
-        .from("contacts")
-        .select("id")
-        .eq("email", wholesaleBuyerEmail.toLowerCase())
-        .eq("roaster_id", roasterId)
-        .maybeSingle();
-
       await supabase.from("discount_redemptions").insert({
         discount_code_id: validatedDiscountCodeId,
         order_id: order.id,
-        contact_id: contact?.id || null,
+        contact_id: contactId || null,
         customer_email: wholesaleBuyerEmail.toLowerCase(),
         order_value: subtotalPence / 100,
         discount_amount: validatedDiscountPence / 100,
@@ -566,18 +574,11 @@ export async function POST(request: Request) {
     }
 
     // ─── Fire automation triggers ───
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("roaster_id", roasterId)
-      .eq("email", wholesaleBuyerEmail.toLowerCase())
-      .maybeSingle();
-
-    if (contact) {
+    if (contactId) {
       fireAutomationTrigger({
         trigger_type: "order_placed",
         roaster_id: roasterId,
-        contact_id: contact.id,
+        contact_id: contactId,
         context: {
           order: { subtotal: subtotalPence / 100, id: order.id },
         },
@@ -587,12 +588,12 @@ export async function POST(request: Request) {
         fireAutomationTrigger({
           trigger_type: "discount_code_redeemed",
           roaster_id: roasterId,
-          contact_id: contact.id,
+          contact_id: contactId,
           event_data: { discount_code_id: validatedDiscountCodeId },
         }).catch(() => {});
       }
 
-      updateContactActivity(contact.id).catch(() => {});
+      updateContactActivity(contactId).catch(() => {});
     }
 
     // ─── Common totals for invoice / Xero / Sage ───
@@ -608,11 +609,11 @@ export async function POST(request: Request) {
     const wholesaleBusinessId = (access as Record<string, unknown>).business_id as string | null;
     let invoiceBusinessId = wholesaleBusinessId || null;
 
-    if (!invoiceBusinessId && contact) {
+    if (!invoiceBusinessId && contactId) {
       const { data: contactRow } = await supabase
         .from("contacts")
         .select("business_id")
-        .eq("id", contact.id)
+        .eq("id", contactId)
         .single();
       if (contactRow?.business_id) {
         invoiceBusinessId = contactRow.business_id;

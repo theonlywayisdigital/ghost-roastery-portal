@@ -47,7 +47,8 @@ function CheckoutContent() {
   const checkoutStartedRef = useRef(false);
 
   const [roasterId, setRoasterId] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [addressLine1, setAddressLine1] = useState("");
   const [addressLine2, setAddressLine2] = useState("");
@@ -183,7 +184,7 @@ function CheckoutContent() {
             variantLabel: item.variantLabel ?? undefined,
           })),
           customerEmail: email,
-          customerName: name,
+          customerName: [firstName, lastName].filter(Boolean).join(" "),
           deliveryAddress: {
             address_line_1: addressLine1,
             address_line_2: addressLine2 || undefined,
@@ -279,18 +280,33 @@ function CheckoutContent() {
                 <h2 className="text-base font-semibold text-slate-900">
                   Your Details
                 </h2>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="John Smith"
-                    required
-                    className={inputClassName}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="John"
+                      required
+                      className={inputClassName}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Smith"
+                      required
+                      className={inputClassName}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">

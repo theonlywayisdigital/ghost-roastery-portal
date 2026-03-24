@@ -1,7 +1,7 @@
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
 import {
   sendStorefrontOrderConfirmation,
   sendWholesaleOrderConfirmation,
@@ -163,15 +163,23 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   }
 
   // 3. Find or create person/contact record
+  const nameParts = (customerName || "").split(" ");
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ") || "";
+
   if (customerEmail) {
-    const nameParts = (customerName || "").split(" ");
-    await findOrCreatePerson(
-      supabase,
-      customerEmail,
-      nameParts[0] || "",
-      nameParts.slice(1).join(" ") || ""
-    );
+    await findOrCreatePerson(supabase, customerEmail, firstName, lastName);
   }
+
+  // 3b. Find or create contact record (for roaster CRM)
+  const contactId = await findOrCreateContact(
+    supabase,
+    roasterId,
+    customerEmail,
+    firstName,
+    lastName,
+    deliveryAddress as Record<string, string> | null
+  );
 
   // Build items array for order insertion (with names, units, and stock data)
   const orderItems = normalizedItems.map((item) => {
@@ -203,7 +211,10 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     .insert({
       roaster_id: roasterId,
       customer_name: customerName,
+      customer_first_name: firstName,
+      customer_last_name: lastName,
       customer_email: customerEmail,
+      contact_id: contactId,
       delivery_address: deliveryAddress,
       items: orderItems,
       subtotal: subtotalPence / 100,
@@ -262,17 +273,10 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
 
   // 6. Discount redemption + increment used_count
   if (discountCodeId && discountAmountPence >= 0 && discountCode && order) {
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("email", customerEmail.toLowerCase())
-      .eq("roaster_id", roasterId)
-      .maybeSingle();
-
     await supabase.from("discount_redemptions").insert({
       discount_code_id: discountCodeId,
       order_id: order.id,
-      contact_id: contact?.id || null,
+      contact_id: contactId || null,
       customer_email: customerEmail.toLowerCase(),
       order_value: subtotalPence / 100,
       discount_amount: discountAmountPence / 100,
@@ -484,33 +488,24 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   }
 
   // 12. Fire automation triggers + update contact activity
-  if (customerEmail) {
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("roaster_id", roasterId)
-      .eq("email", customerEmail.toLowerCase())
-      .maybeSingle();
+  if (contactId) {
+    fireAutomationTrigger({
+      trigger_type: "order_placed",
+      roaster_id: roasterId,
+      contact_id: contactId,
+      context: { order: { subtotal: subtotalPence / 100, id: order.id } },
+    }).catch(() => {});
 
-    if (contact) {
+    if (discountCodeId) {
       fireAutomationTrigger({
-        trigger_type: "order_placed",
+        trigger_type: "discount_code_redeemed",
         roaster_id: roasterId,
-        contact_id: contact.id,
-        context: { order: { subtotal: subtotalPence / 100, id: order.id } },
+        contact_id: contactId,
+        event_data: { discount_code_id: discountCodeId },
       }).catch(() => {});
-
-      if (discountCodeId) {
-        fireAutomationTrigger({
-          trigger_type: "discount_code_redeemed",
-          roaster_id: roasterId,
-          contact_id: contact.id,
-          event_data: { discount_code_id: discountCodeId },
-        }).catch(() => {});
-      }
-
-      updateContactActivity(contact.id).catch(() => {});
     }
+
+    updateContactActivity(contactId).catch(() => {});
   }
 
   // Dispatch order.placed webhook

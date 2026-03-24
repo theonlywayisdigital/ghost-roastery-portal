@@ -1027,10 +1027,15 @@ export type Database = {
       }
       contacts: {
         Row: {
+          address_line_1: string | null
+          address_line_2: string | null
           birthday: string | null
           business_id: string | null
           business_name: string | null
+          city: string | null
           contact_type: string | null
+          country: string
+          county: string | null
           created_at: string | null
           email: string | null
           first_name: string
@@ -1044,6 +1049,7 @@ export type Database = {
           owner_type: string
           people_id: string | null
           phone: string | null
+          postcode: string | null
           roaster_id: string | null
           role: string | null
           source: string
@@ -1057,10 +1063,15 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           birthday?: string | null
           business_id?: string | null
           business_name?: string | null
+          city?: string | null
           contact_type?: string | null
+          country?: string
+          county?: string | null
           created_at?: string | null
           email?: string | null
           first_name?: string
@@ -1074,6 +1085,7 @@ export type Database = {
           owner_type?: string
           people_id?: string | null
           phone?: string | null
+          postcode?: string | null
           roaster_id?: string | null
           role?: string | null
           source?: string
@@ -1087,10 +1099,15 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           birthday?: string | null
           business_id?: string | null
           business_name?: string | null
+          city?: string | null
           contact_type?: string | null
+          country?: string
+          county?: string | null
           created_at?: string | null
           email?: string | null
           first_name?: string
@@ -1104,6 +1121,7 @@ export type Database = {
           owner_type?: string
           people_id?: string | null
           phone?: string | null
+          postcode?: string | null
           roaster_id?: string | null
           role?: string | null
           source?: string
@@ -5610,9 +5628,12 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           confirmed_at: string | null
+          contact_id: string | null
           created_at: string | null
           customer_business: string | null
           customer_email: string
+          customer_first_name: string | null
+          customer_last_name: string | null
           customer_name: string
           delivered_at: string | null
           delivery_address: Json
@@ -5642,9 +5663,12 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
+          contact_id?: string | null
           created_at?: string | null
           customer_business?: string | null
           customer_email: string
+          customer_first_name?: string | null
+          customer_last_name?: string | null
           customer_name: string
           delivered_at?: string | null
           delivery_address: Json
@@ -5674,9 +5698,12 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           confirmed_at?: string | null
+          contact_id?: string | null
           created_at?: string | null
           customer_business?: string | null
           customer_email?: string
+          customer_first_name?: string | null
+          customer_last_name?: string | null
           customer_name?: string
           delivered_at?: string | null
           delivery_address?: Json
@@ -5703,6 +5730,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wholesale_orders_discount_code_id_fkey"
             columns: ["discount_code_id"]

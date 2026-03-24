@@ -9,7 +9,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -305,6 +305,20 @@ export async function processEcommerceOrder(
   // ─── Determine order status ───────────────────────────────────────
   const orderStatus = "confirmed"; // External orders are already paid
 
+  // ─── Find or create contact record ──────────────────────────────
+  const nameParts = (order.customer_name || "").split(" ");
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ") || "";
+
+  const contactId = await findOrCreateContact(
+    supabase,
+    roasterId,
+    order.customer_email,
+    firstName,
+    lastName,
+    order.shipping_address
+  );
+
   // ─── Create order ─────────────────────────────────────────────────
   const sourceLabel =
     order.external_source === "shopify"
@@ -328,7 +342,10 @@ export async function processEcommerceOrder(
     .insert({
       roaster_id: roasterId,
       customer_name: order.customer_name,
+      customer_first_name: firstName,
+      customer_last_name: lastName,
       customer_email: order.customer_email,
+      contact_id: contactId,
       delivery_address: order.shipping_address,
       items: orderItems,
       subtotal: subtotalPence / 100,
@@ -452,23 +469,16 @@ export async function processEcommerceOrder(
   }
 
   // ─── Fire automation triggers ─────────────────────────────────────
-  const { data: contact } = await supabase
-    .from("contacts")
-    .select("id")
-    .eq("roaster_id", roasterId)
-    .eq("email", order.customer_email.toLowerCase())
-    .maybeSingle();
-
-  if (contact) {
+  if (contactId) {
     fireAutomationTrigger({
       trigger_type: "order_placed",
       roaster_id: roasterId,
-      contact_id: contact.id,
+      contact_id: contactId,
       context: {
         order: { subtotal: subtotalPence / 100, id: createdOrder.id },
       },
     }).catch(() => {});
-    updateContactActivity(contact.id).catch(() => {});
+    updateContactActivity(contactId).catch(() => {});
   }
 
   // ─── Dispatch order.placed webhook ────────────────────────────────
@@ -513,9 +523,6 @@ export async function processEcommerceOrder(
       const now = new Date().toISOString();
 
       // Find or create person
-      const nameParts = (order.customer_name || "").split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
       const personId = await findOrCreatePerson(supabase, order.customer_email, firstName, lastName);
 
       const { data: invoice } = await supabase

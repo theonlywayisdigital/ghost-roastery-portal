@@ -133,6 +133,7 @@ export async function PUT(
     const allowedFields = [
       "first_name", "last_name", "email", "phone", "business_name",
       "types", "status", "lead_status", "business_id", "role",
+      "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };

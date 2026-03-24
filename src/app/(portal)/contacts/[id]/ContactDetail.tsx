@@ -36,6 +36,7 @@ import {
   BookOpen,
   Inbox,
   ChevronUp,
+  MapPin,
 } from "@/components/icons";
 import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
@@ -59,6 +60,12 @@ interface Contact {
   updated_at: string;
   business_id: string | null;
   role: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
+  city: string | null;
+  county: string | null;
+  postcode: string | null;
+  country: string | null;
   businesses: { id: string; name: string; types: string[]; total_spend: number; industry: string | null } | null;
 }
 
@@ -202,6 +209,12 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     types: [] as string[],
     status: "",
     lead_status: "",
+    address_line_1: "",
+    address_line_2: "",
+    city: "",
+    county: "",
+    postcode: "",
+    country: "GB",
   });
   const [saving, setSaving] = useState(false);
 
@@ -267,6 +280,12 @@ export function ContactDetail({ contactId }: { contactId: string }) {
         types: d.contact.types || [],
         status: d.contact.status,
         lead_status: d.contact.lead_status || "",
+        address_line_1: d.contact.address_line_1 || "",
+        address_line_2: d.contact.address_line_2 || "",
+        city: d.contact.city || "",
+        county: d.contact.county || "",
+        postcode: d.contact.postcode || "",
+        country: d.contact.country || "GB",
       });
       fetch("/api/pipeline-stages").then(res => res.ok ? res.json() : null).then(data => {
         if (data?.stages) setStages(data.stages);
@@ -1228,6 +1247,23 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                   </span>
                 </div>
               )}
+              {(() => {
+                const addressLines = [
+                  contact.address_line_1,
+                  contact.address_line_2,
+                  [contact.city, contact.county, contact.postcode].filter(Boolean).join(", "),
+                ].filter(Boolean);
+                return addressLines.length > 0 ? (
+                  <div className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-slate-700">
+                      {addressLines.map((line, i) => (
+                        <span key={i}>{line}{i < addressLines.length - 1 && <br />}</span>
+                      ))}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
               <hr className="border-slate-100" />
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1482,6 +1518,46 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                         business_name: e.target.value,
                       }))
                     }
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                <input
+                  type="text"
+                  value={editForm.address_line_1}
+                  onChange={(e) => setEditForm((f) => ({ ...f, address_line_1: e.target.value }))}
+                  placeholder="Address line 1"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
+                />
+                <input
+                  type="text"
+                  value={editForm.address_line_2}
+                  onChange={(e) => setEditForm((f) => ({ ...f, address_line_2: e.target.value }))}
+                  placeholder="Address line 2"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 mb-2"
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={editForm.city}
+                    onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
+                    placeholder="City"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.county}
+                    onChange={(e) => setEditForm((f) => ({ ...f, county: e.target.value }))}
+                    placeholder="County"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.postcode}
+                    onChange={(e) => setEditForm((f) => ({ ...f, postcode: e.target.value }))}
+                    placeholder="Postcode"
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </div>

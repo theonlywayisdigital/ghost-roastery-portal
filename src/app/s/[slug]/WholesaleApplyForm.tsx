@@ -33,7 +33,8 @@ export function WholesaleApplyForm({
   accentColour: string;
   accentText: string;
 }) {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -64,7 +65,7 @@ export function WholesaleApplyForm({
         body: JSON.stringify({
           roasterId,
           slug,
-          name,
+          name: [firstName, lastName].filter(Boolean).join(" "),
           email,
           phone: phone || null,
           businessName,
@@ -140,19 +141,35 @@ export function WholesaleApplyForm({
       onSubmit={handleSubmit}
       className="bg-white rounded-xl border border-slate-200 p-6 md:p-8 space-y-4"
     >
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Name <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            First Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="First name"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Last Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Last name"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

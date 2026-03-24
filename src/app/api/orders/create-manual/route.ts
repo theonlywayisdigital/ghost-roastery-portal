@@ -6,7 +6,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -231,12 +231,24 @@ export async function POST(request: Request) {
 
     // ─── Find or create person ───
     const nameParts = (customerName || "").split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
     const personId = await findOrCreatePerson(
       supabase,
       customerEmail,
-      nameParts[0] || "",
-      nameParts.slice(1).join(" ") || "",
+      firstName,
+      lastName,
       customerPhone || null
+    );
+
+    // ─── Find or create contact ───
+    const contactId = await findOrCreateContact(
+      supabase,
+      roasterId,
+      customerEmail,
+      firstName,
+      lastName,
+      deliveryAddress || null
     );
 
     // ─── Find existing user ───
@@ -258,7 +270,10 @@ export async function POST(request: Request) {
       .insert({
         roaster_id: roasterId,
         customer_name: customerName,
+        customer_first_name: firstName,
+        customer_last_name: lastName,
         customer_email: customerEmail,
+        contact_id: contactId,
         customer_business: customerBusiness || null,
         delivery_address: deliveryAddress || null,
         items: orderItems,
@@ -385,24 +400,17 @@ export async function POST(request: Request) {
     }
 
     // ─── Fire automation triggers ───
-    const { data: contact } = await supabase
-      .from("contacts")
-      .select("id")
-      .eq("roaster_id", roasterId)
-      .eq("email", customerEmail.toLowerCase())
-      .maybeSingle();
-
-    if (contact) {
+    if (contactId) {
       fireAutomationTrigger({
         trigger_type: "order_placed",
         roaster_id: roasterId,
-        contact_id: contact.id,
+        contact_id: contactId,
         context: {
           order: { subtotal: subtotalPence / 100, id: order.id },
         },
       }).catch(() => {});
 
-      updateContactActivity(contact.id).catch(() => {});
+      updateContactActivity(contactId).catch(() => {});
     }
 
     // ─── Common totals for invoice / accounting sync ───
@@ -449,11 +457,11 @@ export async function POST(request: Request) {
 
       // Resolve business_id from contact if available
       let invoiceBusinessId: string | null = null;
-      if (contact) {
+      if (contactId) {
         const { data: contactRow } = await supabase
           .from("contacts")
           .select("business_id")
-          .eq("id", contact.id)
+          .eq("id", contactId)
           .single();
         if (contactRow?.business_id) {
           invoiceBusinessId = contactRow.business_id;
@@ -754,11 +762,11 @@ export async function POST(request: Request) {
     } | null = null;
 
     // Try to resolve business from contact
-    if (contact) {
+    if (contactId) {
       const { data: contactRow } = await supabase
         .from("contacts")
         .select("business_id")
-        .eq("id", contact.id)
+        .eq("id", contactId)
         .single();
 
       if (contactRow?.business_id) {

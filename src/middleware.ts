@@ -55,9 +55,17 @@ export async function middleware(request: NextRequest) {
       ? null
       : hostname.slice(0, -(platformMatch.length + 1));
 
-    // If it's a storefront subdomain, rewrite to /s/[slug]/...
-    if (subdomain && !reservedSubdomains.includes(subdomain)) {
-      const rewriteUrl = new URL(`/s/${subdomain}${pathname}`, request.url);
+    // If it's a storefront subdomain, rewrite page requests to /s/[slug]/...
+    // API routes (/api/...) are NOT rewritten — they serve from the root
+    if (subdomain && !reservedSubdomains.includes(subdomain) && !pathname.startsWith("/api/")) {
+      // Strip /s/{slug} prefix if already present (from server-side redirects
+      // that use the internal path, e.g. redirect("/s/acme/login"))
+      const prefix = `/s/${subdomain}`;
+      const strippedPath = pathname.startsWith(prefix)
+        ? pathname.slice(prefix.length) || "/"
+        : pathname;
+
+      const rewriteUrl = new URL(`/s/${subdomain}${strippedPath}`, request.url);
       rewriteUrl.search = request.nextUrl.search;
       return NextResponse.rewrite(rewriteUrl);
     }

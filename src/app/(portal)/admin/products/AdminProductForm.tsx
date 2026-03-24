@@ -180,39 +180,41 @@ export function AdminProductForm({ product }: { product?: Product }) {
     setIsUploading(true);
     setError(null);
 
-    for (const rawFile of Array.from(files)) {
-      const file = await compressImage(rawFile);
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      for (const rawFile of Array.from(files)) {
+        try {
+          const file = await compressImage(rawFile);
+          const formData = new FormData();
+          formData.append("file", file);
 
-      try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Failed to upload image");
-          continue;
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.error || "Failed to upload image");
+            continue;
+          }
+
+          setImages((prev) => [
+            ...prev,
+            {
+              id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              url: data.url,
+              storage_path: data.path,
+              sort_order: prev.length,
+              is_primary: prev.length === 0,
+            },
+          ]);
+        } catch {
+          setError("Failed to upload image. Please try again.");
         }
-
-        setImages((prev) => [
-          ...prev,
-          {
-            id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-            url: data.url,
-            storage_path: data.path,
-            sort_order: prev.length,
-            is_primary: prev.length === 0,
-          },
-        ]);
-      } catch {
-        setError("Failed to upload image. Please try again.");
       }
+    } finally {
+      setIsUploading(false);
     }
-
-    setIsUploading(false);
   }
 
   function handleRemoveImage(imageId: string) {
@@ -519,7 +521,7 @@ export function AdminProductForm({ product }: { product?: Product }) {
               accept="image/jpeg,image/png,image/webp"
               onChange={handleFileSelect}
               multiple
-              className="hidden"
+              className="sr-only"
             />
             <div className="flex flex-wrap gap-3 items-start">
               {images.length > 0 && (

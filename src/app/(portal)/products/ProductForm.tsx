@@ -712,42 +712,42 @@ export function ProductForm({ product }: { product?: Product }) {
     setIsUploading(true);
     setError(null);
 
-    for (const rawFile of Array.from(files)) {
-      const file = await compressImage(rawFile);
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      for (const rawFile of Array.from(files)) {
+        try {
+          const file = await compressImage(rawFile);
+          const formData = new FormData();
+          formData.append("file", file);
 
-      try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await res.json();
+          const data = await res.json();
 
-        if (!res.ok) {
-          setError(data.error || "Failed to upload image");
-          continue;
+          if (!res.ok) {
+            setError(data.error || "Failed to upload image");
+            continue;
+          }
+
+          setImages((prev) => [
+            ...prev,
+            {
+              id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              url: data.url,
+              storage_path: data.path,
+              sort_order: prev.length,
+              is_primary: prev.length === 0,
+            },
+          ]);
+        } catch {
+          setError("Failed to upload image. Please try again.");
         }
-
-        // Add to local state with a temporary ID
-        const tempImage: ProductImage = {
-          id: `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          url: data.url,
-          storage_path: data.path,
-          sort_order: images.length,
-          is_primary: images.length === 0,
-        };
-        setImages((prev) => {
-          const next = [...prev, { ...tempImage, sort_order: prev.length, is_primary: prev.length === 0 }];
-          return next;
-        });
-      } catch {
-        setError("Failed to upload image. Please try again.");
       }
+    } finally {
+      setIsUploading(false);
     }
-
-    setIsUploading(false);
   }
 
   function handleRemoveImage(imageId: string) {
@@ -1954,7 +1954,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       accept="image/jpeg,image/png,image/webp"
                       onChange={handleFileSelect}
                       multiple
-                      className="hidden"
+                      className="sr-only"
                     />
                     <div className="flex flex-wrap gap-3 items-start">
                       {images.length > 0 && (

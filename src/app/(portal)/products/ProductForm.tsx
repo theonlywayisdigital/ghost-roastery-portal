@@ -698,8 +698,12 @@ export function ProductForm({ product }: { product?: Product }) {
   const wholesaleShowMatrix = wholesaleWeightOptions.length > 0 && wholesaleSelectedGrindTypes.length > 0;
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    // Copy files BEFORE resetting input — FileList is a live reference
+    // that gets emptied when the input value is cleared
+    const files = Array.from(fileList);
 
     // Reset the input so the same file can be re-selected
     e.target.value = "";
@@ -713,7 +717,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setError(null);
 
     try {
-      for (const rawFile of Array.from(files)) {
+      for (const rawFile of files) {
         try {
           const file = await compressImage(rawFile);
           const formData = new FormData();

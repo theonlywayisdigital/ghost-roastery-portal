@@ -167,8 +167,12 @@ export function AdminProductForm({ product }: { product?: Product }) {
   }, [isEditing, product?.id]);
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    // Copy files BEFORE resetting input — FileList is a live reference
+    // that gets emptied when the input value is cleared
+    const files = Array.from(fileList);
 
     e.target.value = "";
 
@@ -181,7 +185,7 @@ export function AdminProductForm({ product }: { product?: Product }) {
     setError(null);
 
     try {
-      for (const rawFile of Array.from(files)) {
+      for (const rawFile of files) {
         try {
           const file = await compressImage(rawFile);
           const formData = new FormData();

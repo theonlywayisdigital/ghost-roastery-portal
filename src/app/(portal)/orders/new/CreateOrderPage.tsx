@@ -384,6 +384,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   });
   const [paymentMethod, setPaymentMethod] = useState("invoice");
   const [paymentTerms, setPaymentTerms] = useState("net30");
+  const [markedAsPaid, setMarkedAsPaid] = useState(false);
+  const [paidViaMethod, setPaidViaMethod] = useState("cash");
+  const [paidViaOther, setPaidViaOther] = useState("");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -867,11 +870,16 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                 country: address.country,
               }
             : undefined,
-          paymentMethod,
+          paymentMethod: markedAsPaid ? paidViaMethod : paymentMethod,
           paymentTerms:
-            orderChannel === "wholesale" ? paymentTerms : undefined,
+            orderChannel === "wholesale" && !markedAsPaid ? paymentTerms : undefined,
           notes: notes || undefined,
           inboxMessageId: inboxMessageId || undefined,
+          ...(markedAsPaid ? {
+            markedAsPaid: true,
+            status: "paid",
+            paidViaOther: paidViaMethod === "other" ? paidViaOther : undefined,
+          } : {}),
         }),
       });
       const data = await res.json();
@@ -1587,47 +1595,117 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           <h2 className="text-lg font-semibold text-slate-900 mb-4">
             Payment &amp; Terms
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Payment Method
-              </label>
-              <div className="relative">
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
-                >
-                  <option value="invoice">Invoice</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="other">Other</option>
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-            {orderChannel === "wholesale" && (
+          {!markedAsPaid && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Payment Terms
+                  Payment Method
                 </label>
                 <div className="relative">
                   <select
-                    value={paymentTerms}
-                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
                     className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
                   >
-                    <option value="prepay">Prepay</option>
-                    <option value="net7">Net 7</option>
-                    <option value="net14">Net 14</option>
-                    <option value="net30">Net 30</option>
+                    <option value="invoice">Invoice</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="other">Other</option>
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 </div>
               </div>
-            )}
+              {orderChannel === "wholesale" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Payment Terms
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={paymentTerms}
+                      onChange={(e) => setPaymentTerms(e.target.value)}
+                      className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
+                    >
+                      <option value="prepay">Prepay</option>
+                      <option value="net7">Net 7</option>
+                      <option value="net14">Net 14</option>
+                      <option value="net30">Net 30</option>
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mark as Paid toggle */}
+          <div className={cn("mt-4 pt-4 border-t border-slate-100", markedAsPaid && "mt-0 pt-0 border-t-0")}>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={markedAsPaid}
+                onClick={() => setMarkedAsPaid(!markedAsPaid)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                  markedAsPaid ? "bg-brand-600" : "bg-slate-200"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                    markedAsPaid ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
+              </button>
+              <div>
+                <span className="text-sm font-medium text-slate-700">Mark as paid</span>
+                <p className="text-xs text-slate-500">Order is already paid — no invoice will be sent</p>
+              </div>
+            </label>
           </div>
+
+          {/* Paid via method selector */}
+          {markedAsPaid && (
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm font-medium text-slate-700">
+                Paid via
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "cash", label: "Cash" },
+                  { value: "card", label: "Card (in person)" },
+                  { value: "bank_transfer", label: "Bank transfer" },
+                  { value: "stripe", label: "Paid on retail platform" },
+                  { value: "other", label: "Other" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPaidViaMethod(opt.value)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+                      paidViaMethod === opt.value
+                        ? "bg-brand-50 border-brand-300 text-brand-700"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {paidViaMethod === "other" && (
+                <input
+                  type="text"
+                  value={paidViaOther}
+                  onChange={(e) => setPaidViaOther(e.target.value)}
+                  placeholder="Specify payment method..."
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Section 6: Notes ── */}

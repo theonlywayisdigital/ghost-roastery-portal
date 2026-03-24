@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertCircle } from "@/components/icons";
+import { ArrowLeft, AlertCircle, CheckCircle, X } from "@/components/icons";
 import { StatusBadge } from "@/components/admin";
 
 import {
@@ -38,6 +38,10 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [markPaidMethod, setMarkPaidMethod] = useState("cash");
+  const [markPaidOther, setMarkPaidOther] = useState("");
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}?type=${initialType}`)
@@ -105,6 +109,28 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
     return result.activity;
   }
 
+  async function handleMarkPaid() {
+    setMarkingPaid(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentMethod: markPaidMethod,
+          paidViaOther: markPaidMethod === "other" ? markPaidOther : undefined,
+        }),
+      });
+      if (res.ok) {
+        setShowMarkPaidModal(false);
+        setMarkPaidMethod("cash");
+        setMarkPaidOther("");
+        await refreshData();
+      }
+    } finally {
+      setMarkingPaid(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -127,6 +153,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const transitions = isGhost ? [] : (VALID_TRANSITIONS[status] || []);
   const isCancelled = status === "cancelled" || status === "Cancelled";
   const hasStatusActions = !isCancelled && !isGhost && transitions.length > 0;
+  const canMarkPaid = !isGhost && !isCancelled && ["pending", "confirmed", "processing"].includes(status);
 
   return (
     <div>
@@ -272,6 +299,16 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
             </div>
           )}
 
+          {/* Mark as Paid */}
+          {canMarkPaid && (
+            <button
+              onClick={() => setShowMarkPaidModal(true)}
+              className="flex items-center gap-2 w-full px-4 py-3 bg-white border border-green-200 rounded-xl text-sm font-medium text-green-700 hover:bg-green-50 transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" /> Mark as Paid
+            </button>
+          )}
+
           {/* Report Issue — always visible */}
           {!isGhost && (
             <Link
@@ -314,6 +351,73 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
           onCancel={() => setShowCancelDialog(false)}
           isLoading={updatingStatus}
         />
+      )}
+
+      {/* Mark as Paid Modal */}
+      {showMarkPaidModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowMarkPaidModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Mark as Paid</h3>
+              <button
+                onClick={() => setShowMarkPaidModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">
+              How was this order paid?
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {[
+                { value: "cash", label: "Cash" },
+                { value: "card", label: "Card (in person)" },
+                { value: "bank_transfer", label: "Bank transfer" },
+                { value: "stripe", label: "Paid on retail platform" },
+                { value: "other", label: "Other" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setMarkPaidMethod(opt.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                    markPaidMethod === opt.value
+                      ? "bg-brand-50 border-brand-300 text-brand-700"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {markPaidMethod === "other" && (
+              <input
+                type="text"
+                value={markPaidOther}
+                onChange={(e) => setMarkPaidOther(e.target.value)}
+                placeholder="Specify payment method..."
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 mb-4"
+              />
+            )}
+            <div className="flex gap-3 justify-end mt-2">
+              <button
+                onClick={() => setShowMarkPaidModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkPaid}
+                disabled={markingPaid}
+                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {markingPaid ? "Updating..." : "Confirm Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

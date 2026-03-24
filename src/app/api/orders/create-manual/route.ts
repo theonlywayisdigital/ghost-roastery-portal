@@ -62,6 +62,8 @@ export async function POST(request: Request) {
       notes,
       status: requestedStatus,
       inboxMessageId,
+      markedAsPaid,
+      paidViaOther,
     } = body as {
       orderChannel: "wholesale" | "storefront";
       customerId?: string;
@@ -84,6 +86,8 @@ export async function POST(request: Request) {
       notes?: string;
       status?: string;
       inboxMessageId?: string;
+      markedAsPaid?: boolean;
+      paidViaOther?: string;
     };
 
     // ─── Validation ───
@@ -248,7 +252,7 @@ export async function POST(request: Request) {
     }
 
     // ─── Insert order ───
-    const orderStatus = requestedStatus || "confirmed";
+    const orderStatus = markedAsPaid ? "paid" : (requestedStatus || "confirmed");
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -262,11 +266,11 @@ export async function POST(request: Request) {
         platform_fee: platformFeePence / 100,
         roaster_payout: roasterPayoutPence / 100,
         payment_method: paymentMethod,
-        payment_terms: paymentTerms || null,
+        payment_terms: markedAsPaid ? null : (paymentTerms || null),
         status: orderStatus,
         user_id: userId,
         order_channel: orderChannel,
-        notes: notes || null,
+        notes: [notes, markedAsPaid && paidViaOther ? `Paid via: ${paidViaOther}` : null].filter(Boolean).join("\n") || null,
       })
       .select("id")
       .single();
@@ -374,7 +378,7 @@ export async function POST(request: Request) {
         userId: roaster.user_id,
         type: "new_order",
         title: "New manual order created",
-        body: `Manual ${orderChannel} order for ${customerName} (${customerEmail}) — \u00A3${(subtotalPence / 100).toFixed(2)}. Payment method: ${paymentMethod}.`,
+        body: `Manual ${orderChannel} order for ${customerName} (${customerEmail}) — \u00A3${(subtotalPence / 100).toFixed(2)}. Payment method: ${paymentMethod}.${markedAsPaid ? " Marked as paid." : ""}`,
         link: "/orders",
         metadata: { order_id: order.id },
       });
@@ -414,8 +418,8 @@ export async function POST(request: Request) {
     dueDate.setDate(dueDate.getDate() + dueDays);
     const paymentDueDate = dueDate.toISOString().split("T")[0];
 
-    // ─── Create invoice (only if auto_create_invoices is enabled) ───
-    const autoCreate = roaster.auto_create_invoices !== false;
+    // ─── Create invoice (skip entirely if order is marked as paid) ───
+    const autoCreate = !markedAsPaid && roaster.auto_create_invoices !== false;
     const autoSend = autoCreate && roaster.auto_send_invoices !== false;
     const now = new Date().toISOString();
 

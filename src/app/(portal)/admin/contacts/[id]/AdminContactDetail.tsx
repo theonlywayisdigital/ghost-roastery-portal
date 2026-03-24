@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { ActionMenu } from "@/components/admin";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -173,6 +174,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
 
   // Actions dropdown
   const [showActions, setShowActions] = useState(false);
+  const actionsAnchorRef = useRef<HTMLButtonElement | null>(null);
 
   // Detail tabs
   const [activeDetailTab, setActiveDetailTab] = useState<
@@ -489,53 +491,51 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
                 <Edit3 className="w-3.5 h-3.5" />
                 Edit
               </button>
-              <div className="relative">
+              <div>
                 <button
+                  ref={actionsAnchorRef}
                   onClick={() => setShowActions(!showActions)}
                   className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
-                {showActions && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowActions(false)}
-                    />
-                    <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1">
-                      {contact.email && (
-                        <a
-                          href={`mailto:${contact.email}`}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          <Mail className="w-4 h-4" />
-                          Send Email
-                        </a>
-                      )}
-                      <button
-                        onClick={() => {
-                          setShowActions(false);
-                          setShowEmailModal(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        Log Email
-                      </button>
-                      <hr className="my-1 border-slate-100" />
-                      <button
-                        onClick={() => {
-                          setShowActions(false);
-                          handleArchive();
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        <Archive className="w-4 h-4" />
-                        Archive Contact
-                      </button>
-                    </div>
-                  </>
-                )}
+                <ActionMenu
+                  anchorRef={actionsAnchorRef}
+                  open={showActions}
+                  onClose={() => setShowActions(false)}
+                  width="w-48"
+                >
+                  {contact.email && (
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Send Email
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowActions(false);
+                      setShowEmailModal(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Log Email
+                  </button>
+                  <hr className="my-1 border-slate-100" />
+                  <button
+                    onClick={() => {
+                      setShowActions(false);
+                      handleArchive();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <Archive className="w-4 h-4" />
+                    Archive Contact
+                  </button>
+                </ActionMenu>
               </div>
             </div>
           )}

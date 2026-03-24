@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMarketingContext } from "@/lib/marketing-context";
 import {
@@ -22,6 +22,7 @@ import {
   Star,
   X,
 } from "@/components/icons";
+import { ActionMenu } from "@/components/admin";
 
 interface Form {
   id: string;
@@ -152,6 +153,7 @@ export function FormsPage() {
   const [creating, setCreating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const menuAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const loadForms = useCallback(async () => {
     setLoading(true);
@@ -170,13 +172,6 @@ export function FormsPage() {
   useEffect(() => {
     loadForms();
   }, [loadForms]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = () => setMenuOpen(null);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, [menuOpen]);
 
   async function handleUseTemplate(template: (typeof FORM_TEMPLATES)[number]) {
     setCreating(template.id);
@@ -431,76 +426,74 @@ export function FormsPage() {
                         <span className="text-xs text-slate-500">{formatDate(form.created_at)}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="relative">
+                        <button
+                          ref={(el) => { menuAnchors.current[form.id] = el; }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpen(menuOpen === form.id ? null : form.id);
+                          }}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        <ActionMenu
+                          anchorRef={{ current: menuAnchors.current[form.id] }}
+                          open={menuOpen === form.id}
+                          onClose={() => setMenuOpen(null)}
+                        >
+                          <button
+                            onClick={() => {
+                              setMenuOpen(null);
+                              router.push(`${pageBase}/forms/${form.id}/edit`);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpen(null);
+                              router.push(`${pageBase}/forms/${form.id}/submissions`);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            Submissions
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setMenuOpen(menuOpen === form.id ? null : form.id);
+                              handleDuplicate(form);
                             }}
-                            className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                           >
-                            <MoreHorizontal className="w-4 h-4" />
+                            <Copy className="w-3.5 h-3.5" />
+                            Duplicate
                           </button>
-                          {menuOpen === form.id && (
-                            <div
-                              className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 w-44"
-                              onClick={(e) => e.stopPropagation()}
+                          {form.status !== "archived" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchive(form.id);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                             >
-                              <button
-                                onClick={() => {
-                                  setMenuOpen(null);
-                                  router.push(`${pageBase}/forms/${form.id}/edit`);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setMenuOpen(null);
-                                  router.push(`${pageBase}/forms/${form.id}/submissions`);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                Submissions
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDuplicate(form);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                                Duplicate
-                              </button>
-                              {form.status !== "archived" && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleArchive(form.id);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                >
-                                  <Archive className="w-3.5 h-3.5" />
-                                  Archive
-                                </button>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(form.id);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </div>
+                              <Archive className="w-3.5 h-3.5" />
+                              Archive
+                            </button>
                           )}
-                        </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(form.id);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </ActionMenu>
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMarketingContext } from "@/lib/marketing-context";
 import {
@@ -27,6 +27,7 @@ import {
   Sparkles,
 } from "@/components/icons";
 import type { Automation, AutomationWithSteps, TriggerType } from "@/types/marketing";
+import { ActionMenu } from "@/components/admin";
 
 // ─── Template icon + color map ───────────────────────────────────────
 const TRIGGER_META: Partial<Record<
@@ -73,6 +74,7 @@ export function AutomationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const menuAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -98,13 +100,6 @@ export function AutomationsPage() {
     loadData();
   }, [loadData]);
 
-  // Close menus on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = () => setMenuOpen(null);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, [menuOpen]);
 
   async function handleSetUp(template: AutomationWithSteps) {
     setSettingUp(template.id);
@@ -473,79 +468,77 @@ export function AutomationsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="relative">
-                            {isLoadingAction ? (
-                              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
-                            ) : (
+                          {isLoadingAction ? (
+                            <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+                          ) : (
+                            <button
+                              ref={(el) => { menuAnchors.current[automation.id] = el; }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpen(menuOpen === automation.id ? null : automation.id);
+                              }}
+                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </button>
+                          )}
+                          <ActionMenu
+                            anchorRef={{ current: menuAnchors.current[automation.id] }}
+                            open={menuOpen === automation.id}
+                            onClose={() => setMenuOpen(null)}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`${pageBase}/automations/${automation.id}/edit`);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Edit
+                            </button>
+                            {automation.status !== "draft" && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setMenuOpen(menuOpen === automation.id ? null : automation.id);
+                                  handleToggleStatus(automation);
                                 }}
-                                className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                               >
-                                <MoreHorizontal className="w-4 h-4" />
+                                {automation.status === "active" ? (
+                                  <>
+                                    <Pause className="w-3.5 h-3.5" />
+                                    Pause
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="w-3.5 h-3.5" />
+                                    Activate
+                                  </>
+                                )}
                               </button>
                             )}
-                            {menuOpen === automation.id && (
-                              <div
-                                className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 w-44"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    router.push(`${pageBase}/automations/${automation.id}/edit`);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                  Edit
-                                </button>
-                                {automation.status !== "draft" && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleToggleStatus(automation);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                  >
-                                    {automation.status === "active" ? (
-                                      <>
-                                        <Pause className="w-3.5 h-3.5" />
-                                        Pause
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Play className="w-3.5 h-3.5" />
-                                        Activate
-                                      </>
-                                    )}
-                                  </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDuplicate(automation);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                  Duplicate
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(automation);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDuplicate(automation);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Duplicate
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(automation);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          </ActionMenu>
                         </td>
                       </tr>
                     );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { ActionMenu } from "@/components/admin";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -226,6 +227,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   // Email templates
   const [emailTemplates, setEmailTemplates] = useState<ContactEmailTemplate[]>([]);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const templatePickerRef = useRef<HTMLButtonElement | null>(null);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
 
@@ -237,6 +239,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
 
   // Actions dropdown
   const [showActions, setShowActions] = useState(false);
+  const actionsAnchorRef = useRef<HTMLButtonElement | null>(null);
 
   // Expanded inbox messages
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
@@ -682,56 +685,54 @@ export function ContactDetail({ contactId }: { contactId: string }) {
               <Edit3 className="w-3.5 h-3.5" />
               Edit
             </button>
-            <div className="relative">
+            <div>
               <button
+                ref={actionsAnchorRef}
                 onClick={() => setShowActions(!showActions)}
                 className="p-2 border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors"
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
-              {showActions && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowActions(false)}
-                  />
-                  <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1">
-                    {contact.email && (
-                      <button
-                        onClick={() => {
-                          setShowActions(false);
-                          setShowComposeModal(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                      >
-                        <Mail className="w-4 h-4" />
-                        Send Email
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setShowActions(false);
-                        setShowEmailModal(true);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      Log Email
-                    </button>
-                    <hr className="my-1 border-slate-100" />
-                    <button
-                      onClick={() => {
-                        setShowActions(false);
-                        handleArchive();
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <Archive className="w-4 h-4" />
-                      Archive Contact
-                    </button>
-                  </div>
-                </>
-              )}
+              <ActionMenu
+                anchorRef={actionsAnchorRef}
+                open={showActions}
+                onClose={() => setShowActions(false)}
+                width="w-48"
+              >
+                {contact.email && (
+                  <button
+                    onClick={() => {
+                      setShowActions(false);
+                      setShowComposeModal(true);
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Send Email
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowActions(false);
+                    setShowEmailModal(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Log Email
+                </button>
+                <hr className="my-1 border-slate-100" />
+                <button
+                  onClick={() => {
+                    setShowActions(false);
+                    handleArchive();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <Archive className="w-4 h-4" />
+                  Archive Contact
+                </button>
+              </ActionMenu>
             </div>
           </div>
         </div>
@@ -1688,8 +1689,9 @@ export function ContactDetail({ contactId }: { contactId: string }) {
               {/* Template picker + AI compose toolbar */}
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Template picker */}
-                <div className="relative">
+                <div>
                   <button
+                    ref={templatePickerRef}
                     onClick={() => setShowTemplatePicker(!showTemplatePicker)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                   >
@@ -1697,40 +1699,40 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                     Templates
                     <ChevronDown className="w-3 h-3" />
                   </button>
-                  {showTemplatePicker && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setShowTemplatePicker(false)}
-                      />
-                      <div className="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg z-20 py-1 max-h-60 overflow-y-auto">
-                        {emailTemplates.length === 0 ? (
-                          <div className="px-3 py-3 text-center">
-                            <p className="text-xs text-slate-400 mb-2">No templates yet</p>
-                            <Link
-                              href="/settings/email-templates"
-                              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-                            >
-                              Create templates
-                            </Link>
-                          </div>
-                        ) : (
-                          emailTemplates.map((tpl) => (
-                            <button
-                              key={tpl.id}
-                              onClick={() => applyTemplate(tpl)}
-                              className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
-                            >
-                              <p className="text-sm font-medium text-slate-900 truncate">{tpl.name}</p>
-                              {tpl.subject && (
-                                <p className="text-xs text-slate-400 truncate">{tpl.subject}</p>
-                              )}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  )}
+                  <ActionMenu
+                    anchorRef={templatePickerRef}
+                    open={showTemplatePicker}
+                    onClose={() => setShowTemplatePicker(false)}
+                    width="w-64"
+                    align="left"
+                  >
+                    <div className="max-h-60 overflow-y-auto">
+                      {emailTemplates.length === 0 ? (
+                        <div className="px-3 py-3 text-center">
+                          <p className="text-xs text-slate-400 mb-2">No templates yet</p>
+                          <Link
+                            href="/settings/email-templates"
+                            className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                          >
+                            Create templates
+                          </Link>
+                        </div>
+                      ) : (
+                        emailTemplates.map((tpl) => (
+                          <button
+                            key={tpl.id}
+                            onClick={() => applyTemplate(tpl)}
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
+                          >
+                            <p className="text-sm font-medium text-slate-900 truncate">{tpl.name}</p>
+                            {tpl.subject && (
+                              <p className="text-xs text-slate-400 truncate">{tpl.subject}</p>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </ActionMenu>
                 </div>
 
                 {/* AI Compose */}

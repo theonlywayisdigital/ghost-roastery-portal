@@ -25,6 +25,7 @@ import {
   Code,
   Minus,
 } from "@/components/icons";
+import { ActionMenu } from "@/components/admin";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -129,6 +130,7 @@ export function SubmissionsPage({ formId }: { formId: string }) {
 
   // Action menus
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const menuAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Detail drawer
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
@@ -204,14 +206,6 @@ export function SubmissionsPage({ formId }: { formId: string }) {
   useEffect(() => {
     setPage(1);
   }, [statusFilter]);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = () => setMenuOpen(null);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
-  }, [menuOpen]);
 
   // ─── Actions ────────────────────────────────────────────────
 
@@ -398,7 +392,7 @@ export function SubmissionsPage({ formId }: { formId: string }) {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
@@ -467,38 +461,40 @@ export function SubmissionsPage({ formId }: { formId: string }) {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          ref={(el) => { menuAnchors.current[sub.id] = el; }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuOpen(menuOpen === sub.id ? null : sub.id);
+                          }}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                        <ActionMenu
+                          anchorRef={{ current: menuAnchors.current[sub.id] }}
+                          open={menuOpen === sub.id}
+                          onClose={() => setMenuOpen(null)}
+                          width="w-36"
+                        >
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMenuOpen(menuOpen === sub.id ? null : sub.id);
+                            onClick={() => {
+                              setMenuOpen(null);
+                              setSelectedSub(sub);
                             }}
-                            className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                           >
-                            <MoreHorizontal className="w-4 h-4" />
+                            <Eye className="w-3.5 h-3.5" />
+                            View
                           </button>
-                          {menuOpen === sub.id && (
-                            <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 w-36">
-                              <button
-                                onClick={() => {
-                                  setMenuOpen(null);
-                                  setSelectedSub(sub);
-                                }}
-                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                View
-                              </button>
-                              <button
-                                onClick={() => handleDelete(sub.id)}
-                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                          <button
+                            onClick={() => handleDelete(sub.id)}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </ActionMenu>
                       </td>
                     </tr>
                   ))}

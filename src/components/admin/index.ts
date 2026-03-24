@@ -1,3 +1,4 @@
+export { ActionMenu } from "./ActionMenu";
 export { StatusBadge } from "./StatusBadge";
 export { DataTable } from "./DataTable";
 export type { Column } from "./DataTable";

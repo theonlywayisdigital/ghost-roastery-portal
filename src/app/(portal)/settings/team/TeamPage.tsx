@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Users,
   UserPlus,
@@ -19,6 +19,7 @@ import {
 import { SettingsHeader } from "@/components/SettingsHeader";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
+import { ActionMenu } from "@/components/admin";
 
 interface TeamMember {
   id: string;
@@ -53,6 +54,7 @@ export function TeamPage({ currentUserId }: { currentUserId: string }) {
 
   // Action menu
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const menuAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const banner = useUpgradeBanner("teamMembers");
 
@@ -271,8 +273,9 @@ export function TeamPage({ currentUserId }: { currentUserId: string }) {
                     {formatDate(member.joined_at)}
                   </span>
                   {!member.is_current_user && member.role !== "owner" && (
-                    <div className="relative">
+                    <div>
                       <button
+                        ref={(el) => { menuAnchors.current[member.id] = el; }}
                         onClick={() =>
                           setActiveMenu(activeMenu === member.id ? null : member.id)
                         }
@@ -280,35 +283,37 @@ export function TeamPage({ currentUserId }: { currentUserId: string }) {
                       >
                         <MoreHorizontal className="w-4 h-4" />
                       </button>
-                      {activeMenu === member.id && (
-                        <div className="absolute right-0 top-8 bg-white rounded-lg border border-slate-200 shadow-lg py-1 w-44 z-10">
-                          <button
-                            onClick={() =>
-                              setConfirmAction({
-                                id: member.id,
-                                action: "role_change",
-                                label: `Change to ${member.role === "admin" ? "Staff" : "Admin"}`,
-                                newRole: member.role === "admin" ? "staff" : "admin",
-                              })
-                            }
-                            className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                          >
-                            {`Change to ${member.role === "admin" ? "Staff" : "Admin"}`}
-                          </button>
-                          <button
-                            onClick={() =>
-                              setConfirmAction({
-                                id: member.id,
-                                action: "remove",
-                                label: `Remove ${member.name || member.email}`,
-                              })
-                            }
-                            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Remove from team
-                          </button>
-                        </div>
-                      )}
+                      <ActionMenu
+                        anchorRef={{ current: menuAnchors.current[member.id] }}
+                        open={activeMenu === member.id}
+                        onClose={() => setActiveMenu(null)}
+                      >
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              id: member.id,
+                              action: "role_change",
+                              label: `Change to ${member.role === "admin" ? "Staff" : "Admin"}`,
+                              newRole: member.role === "admin" ? "staff" : "admin",
+                            })
+                          }
+                          className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          {`Change to ${member.role === "admin" ? "Staff" : "Admin"}`}
+                        </button>
+                        <button
+                          onClick={() =>
+                            setConfirmAction({
+                              id: member.id,
+                              action: "remove",
+                              label: `Remove ${member.name || member.email}`,
+                            })
+                          }
+                          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Remove from team
+                        </button>
+                      </ActionMenu>
                     </div>
                   )}
                 </div>

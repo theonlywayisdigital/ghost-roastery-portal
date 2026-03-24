@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -21,6 +21,7 @@ import {
   X,
 } from "@/components/icons";
 import type { Campaign, CampaignsListResponse } from "@/types/marketing";
+import { ActionMenu } from "@/components/admin";
 import { useMarketingContext } from "@/lib/marketing-context";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
@@ -66,6 +67,7 @@ export function CampaignsList() {
   const [sortField, setSortField] = useState("updated_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const menuAnchors = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
@@ -366,56 +368,58 @@ export function CampaignsList() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="relative">
+                          <button
+                            ref={(el) => { menuAnchors.current[campaign.id] = el; }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpen(menuOpen === campaign.id ? null : campaign.id);
+                            }}
+                            className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          <ActionMenu
+                            anchorRef={{ current: menuAnchors.current[campaign.id] }}
+                            open={menuOpen === campaign.id}
+                            onClose={() => setMenuOpen(null)}
+                            width="w-36"
+                          >
+                            {campaign.status === "sent" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMenuOpen(null);
+                                  router.push(`${pageBase}/campaigns/${campaign.id}/report`);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                View Report
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setMenuOpen(menuOpen === campaign.id ? null : campaign.id);
+                                handleDuplicate(campaign.id);
                               }}
-                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                             >
-                              <MoreHorizontal className="w-4 h-4" />
+                              <Copy className="w-3.5 h-3.5" />
+                              Duplicate
                             </button>
-                            {menuOpen === campaign.id && (
-                              <div className="absolute right-0 top-8 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 w-36">
-                                {campaign.status === "sent" && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setMenuOpen(null);
-                                      router.push(`${pageBase}/campaigns/${campaign.id}/report`);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                  >
-                                    <Eye className="w-3.5 h-3.5" />
-                                    View Report
-                                  </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDuplicate(campaign.id);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                  Duplicate
-                                </button>
-                                {campaign.status === "draft" && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(campaign.id);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    Delete
-                                  </button>
-                                )}
-                              </div>
+                            {campaign.status === "draft" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(campaign.id);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
                             )}
-                          </div>
+                          </ActionMenu>
                         </td>
                       </tr>
                     );

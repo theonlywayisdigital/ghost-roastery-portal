@@ -50,7 +50,7 @@ const EMPTY_ADDR = {
   city: "",
   county: "",
   postcode: "",
-  country: "United Kingdom",
+  country: "GB",
 };
 
 function formatBuyerAddress(addr: BuyerAddress) {

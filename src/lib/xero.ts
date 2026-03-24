@@ -345,7 +345,7 @@ export async function pushContactToXero(
         AddressLine2: business.address_line_2 || "",
         City: business.city || "",
         PostalCode: business.postcode || "",
-        Country: business.country || "UK",
+        Country: business.country || "GB",
       },
     ];
   }

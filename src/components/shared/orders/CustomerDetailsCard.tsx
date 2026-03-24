@@ -21,7 +21,7 @@ export function CustomerDetailsCard({ name, email, business, userId, showAdminLi
         <h3 className="text-sm font-semibold text-slate-900">{heading}</h3>
       </div>
       <div className="space-y-1">
-        <p className="text-sm text-slate-900">{name || "\u2014"}</p>
+        <p className="text-sm text-slate-900">{name || "Unknown"}</p>
         <p className="text-sm text-slate-500">{email}</p>
         {business && <p className="text-sm text-slate-500">{business}</p>}
         {showAdminLink && userId && (

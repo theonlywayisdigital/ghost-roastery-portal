@@ -157,7 +157,7 @@ export async function PATCH(
         const { data: newContact } = await supabase.from("contacts").insert({
           first_name: cNameParts[0] || "",
           last_name: cNameParts.slice(1).join(" ") || "",
-          email: contactEmail,
+          email: contactEmail.toLowerCase(),
           types: ["wholesale"],
           source: "wholesale_application",
           status: "active",

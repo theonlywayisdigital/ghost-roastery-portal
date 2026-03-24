@@ -270,7 +270,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
     city: "",
     county: "",
     postcode: "",
-    country: "UK",
+    country: "GB",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -350,7 +350,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
         city: d.business.city || "",
         county: d.business.county || "",
         postcode: d.business.postcode || "",
-        country: d.business.country || "UK",
+        country: d.business.country || "GB",
         notes: d.business.notes || "",
       });
     } catch {
@@ -743,14 +743,14 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
     .filter((inv) => inv.payment_status !== "paid" && inv.status !== "cancelled")
     .reduce((sum, inv) => sum + Number(inv.total || 0), 0);
 
-  const address = [
+  const addressLines = [
     business.address_line_1,
     business.address_line_2,
     business.city,
     business.county,
     business.postcode,
     business.country,
-  ].filter(Boolean).join(", ");
+  ].filter(Boolean);
 
   // Tab definitions with counts
   const showDealsTab = business.types.includes("lead") || business.types.includes("prospect") || business.types.includes("wholesale");
@@ -1168,7 +1168,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                               href={`/admin/contacts/${contact.id}`}
                               className="text-sm font-medium text-brand-600 hover:underline block truncate"
                             >
-                              {[contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                              {[contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown"}
                             </Link>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
                               {contact.role && (
@@ -1641,11 +1641,13 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   </a>
                 </div>
               )}
-              {address && (
+              {addressLines.length > 0 && (
                 <div className="flex items-start gap-2.5">
                   <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-slate-700">
-                    {address}
+                    {addressLines.map((line, i) => (
+                      <span key={i}>{line}{i < addressLines.length - 1 && <br />}</span>
+                    ))}
                   </span>
                 </div>
               )}

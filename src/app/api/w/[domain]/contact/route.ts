@@ -56,7 +56,7 @@ export async function POST(
   const { error } = await supabase.from("contact_submissions").insert({
     roaster_id: roaster.id,
     name: body.name?.trim() || null,
-    email: body.email.trim(),
+    email: body.email.trim().toLowerCase(),
     phone: body.phone?.trim() || null,
     subject: body.subject?.trim() || null,
     message: body.message?.trim() || null,

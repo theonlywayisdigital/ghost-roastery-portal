@@ -25,11 +25,17 @@ export async function POST(request: Request) {
       phone,
       businessName,
       businessType,
-      businessAddress,
+      addressLine1,
+      addressLine2,
+      addressCity,
+      addressCounty,
+      addressPostcode,
       businessWebsite,
       vatNumber,
       monthlyVolume,
       notes,
+      // Legacy single field fallback
+      businessAddress: legacyBusinessAddress,
     } = body as {
       roasterId: string;
       name: string;
@@ -37,12 +43,26 @@ export async function POST(request: Request) {
       phone?: string;
       businessName: string;
       businessType?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      addressCity?: string;
+      addressCounty?: string;
+      addressPostcode?: string;
       businessAddress?: string;
       businessWebsite?: string;
       vatNumber?: string;
       monthlyVolume?: string;
       notes?: string;
     };
+
+    // Resolve structured address fields (fallback to legacy single field for address_line_1)
+    const bizAddressLine1 = addressLine1 || legacyBusinessAddress || null;
+    const bizAddressLine2 = addressLine2 || null;
+    const bizCity = addressCity || null;
+    const bizCounty = addressCounty || null;
+    const bizPostcode = addressPostcode || null;
+    const hasAddress = !!(bizAddressLine1 || bizCity || bizPostcode);
+    const businessAddressText = [bizAddressLine1, bizAddressLine2, bizCity, bizCounty, bizPostcode].filter(Boolean).join(", ") || null;
 
     if (!roasterId || !name || !email || !businessName) {
       return NextResponse.json(
@@ -91,7 +111,7 @@ export async function POST(request: Request) {
       isNewUser = true;
       const { data: authData, error: authError } =
         await supabase.auth.admin.createUser({
-          email,
+          email: email.toLowerCase(),
           email_confirm: true,
           user_metadata: { full_name: name },
         });
@@ -139,7 +159,11 @@ export async function POST(request: Request) {
           name: businessName,
           types: ["wholesale"],
           industry: businessType || null,
-          address_line_1: businessAddress || null,
+          address_line_1: bizAddressLine1,
+          address_line_2: bizAddressLine2,
+          city: bizCity,
+          county: bizCounty,
+          postcode: bizPostcode,
           website: businessWebsite || null,
           source: "wholesale_application",
           roaster_id: roasterId,
@@ -227,7 +251,7 @@ export async function POST(request: Request) {
           status: "pending",
           business_name: businessName,
           business_type: businessType || null,
-          business_address: businessAddress || null,
+          business_address: businessAddressText,
           business_website: businessWebsite || null,
           vat_number: vatNumber || null,
           monthly_volume: monthlyVolume || null,
@@ -255,7 +279,7 @@ export async function POST(request: Request) {
           status: "pending",
           business_name: businessName,
           business_type: businessType || null,
-          business_address: businessAddress || null,
+          business_address: businessAddressText,
           business_website: businessWebsite || null,
           vat_number: vatNumber || null,
           monthly_volume: monthlyVolume || null,
@@ -273,7 +297,7 @@ export async function POST(request: Request) {
     }
 
     // Seed a buyer_addresses record from the application address
-    if (businessAddress) {
+    if (hasAddress) {
       // Get the wholesale_access record ID
       const { data: waRecord } = await supabase
         .from("wholesale_access")
@@ -298,9 +322,11 @@ export async function POST(request: Request) {
             user_id: userId,
             wholesale_access_id: waRecord.id,
             label: "Business",
-            address_line_1: businessAddress,
-            city: "",
-            postcode: "",
+            address_line_1: bizAddressLine1 || "",
+            address_line_2: bizAddressLine2,
+            city: bizCity || "",
+            county: bizCounty,
+            postcode: bizPostcode || "",
             is_default: true,
           });
         }
@@ -419,7 +445,7 @@ export async function POST(request: Request) {
           email,
           business_name: businessName,
           business_type: businessType || null,
-          business_address: businessAddress || null,
+          business_address: businessAddressText,
           business_website: businessWebsite || null,
           payment_terms: "prepay",
           price_tier: "standard",
@@ -442,7 +468,10 @@ export async function POST(request: Request) {
           },
           {
             name: businessName,
-            address_line_1: businessAddress || null,
+            address_line_1: bizAddressLine1,
+            address_line_2: bizAddressLine2,
+            city: bizCity,
+            postcode: bizPostcode,
           }
         );
       });
@@ -461,7 +490,10 @@ export async function POST(request: Request) {
           },
           {
             name: businessName,
-            address_line_1: businessAddress || null,
+            address_line_1: bizAddressLine1,
+            address_line_2: bizAddressLine2,
+            city: bizCity,
+            postcode: bizPostcode,
           }
         );
       });
@@ -479,7 +511,10 @@ export async function POST(request: Request) {
           },
           {
             name: businessName,
-            address_line_1: businessAddress || null,
+            address_line_1: bizAddressLine1,
+            address_line_2: bizAddressLine2,
+            city: bizCity,
+            postcode: bizPostcode,
           }
         );
       });

@@ -126,7 +126,7 @@ export async function POST(
       city,
       county: county || null,
       postcode,
-      country: country || "United Kingdom",
+      country: country || "GB",
       is_default: shouldBeDefault,
     })
     .select()

@@ -181,7 +181,7 @@ export async function POST(request: Request) {
         city: city || null,
         county: county || null,
         postcode: postcode || null,
-        country: country || "UK",
+        country: country || "GB",
         notes: notes || null,
         source: source || "manual",
         status: bizStatus || "active",

@@ -540,7 +540,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   const { contact, activity, notes, orders, invoices, wholesaleAccess, inboxMessages } = data;
   const fullName =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
-    "Unnamed Contact";
+    "Unknown";
 
   // Merge notes + inbox messages into activity timeline
   const timeline = [

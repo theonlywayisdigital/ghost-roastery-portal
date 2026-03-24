@@ -22,10 +22,12 @@ export async function POST(request: Request) {
 
     const supabase = createServerClient();
 
+    const normalizedEmail = email.toLowerCase();
+
     // Find or create person record
     const peopleId = await findOrCreatePerson(
       supabase,
-      email,
+      normalizedEmail,
       first_name,
       last_name
     );
@@ -40,7 +42,7 @@ export async function POST(request: Request) {
     // Create auth user (email_confirm: false triggers invite email)
     const { data: authData, error: authError } =
       await supabase.auth.admin.createUser({
-        email,
+        email: normalizedEmail,
         email_confirm: false,
         user_metadata: {
           full_name: `${first_name} ${last_name}`,

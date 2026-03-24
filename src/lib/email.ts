@@ -431,7 +431,7 @@ export async function sendOrderCancellationEmail(params: {
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Hi ${customerName || "there"},
+      Hi ${customerName || "Unknown"},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       We&rsquo;re sorry to let you know that your order <strong>#${orderNumber}</strong> has been cancelled.
@@ -526,7 +526,7 @@ export async function sendStorefrontOrderConfirmation(params: {
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Hi ${customerName || "there"},
+      Hi ${customerName || "Unknown"},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Thanks for your order with <strong>${roasterName}</strong>. We&rsquo;ve received your payment and your order is now being processed.
@@ -591,7 +591,7 @@ export async function sendWholesaleOrderConfirmation(params: {
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Hi ${customerName || "there"},
+      Hi ${customerName || "Unknown"},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Thanks for your wholesale order with <strong>${roasterName}</strong>. We&rsquo;ve received your payment and your order is now being processed.
@@ -651,7 +651,7 @@ export async function sendOrderDispatchedEmail(params: {
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Hi ${customerName || "there"},
+      Hi ${customerName || "Unknown"},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Great news &mdash; your order <strong>#${orderNumber}</strong> from <strong>${roasterName}</strong> has been dispatched and is on its way to you.
@@ -688,7 +688,7 @@ export async function sendOrderDeliveredEmail(params: {
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Order #${orderNumber}</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Hi ${customerName || "there"},
+      Hi ${customerName || "Unknown"},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Your order <strong>#${orderNumber}</strong> from <strong>${roasterName}</strong> has been marked as delivered. We hope you enjoy your coffee!

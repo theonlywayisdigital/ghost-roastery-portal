@@ -75,6 +75,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Normalise email to lowercase
+    const normalizedCustomerEmail = customerEmail?.toLowerCase() || null;
+
     const supabase = createServerClient();
 
     // Wholesale: verify access is approved and get buyer info + tier
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
 
       const usersRaw = access.users as unknown;
       const userInfo = Array.isArray(usersRaw) ? usersRaw[0] as { full_name: string | null; email: string } | undefined : usersRaw as { full_name: string | null; email: string } | null;
-      wholesaleBuyerEmail = userInfo?.email || customerEmail || "";
+      wholesaleBuyerEmail = userInfo?.email || normalizedCustomerEmail || "";
       wholesaleBuyerName = userInfo?.full_name || customerName || "Wholesale Buyer";
     }
 
@@ -371,7 +374,7 @@ export async function POST(request: Request) {
     const platformFeePence = calculateStripeProcessingFee(effectiveSubtotalPence);
 
     // Create Stripe checkout session
-    const effectiveEmail = isWholesale ? wholesaleBuyerEmail! : customerEmail!;
+    const effectiveEmail = isWholesale ? wholesaleBuyerEmail! : normalizedCustomerEmail!;
     const effectiveName = isWholesale ? wholesaleBuyerName! : customerName!;
     const baseUrl = process.env.NEXT_PUBLIC_STOREFRONT_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
     const defaultSuccessPath = isWholesale ? `/wholesale/${encodeURIComponent(body.slug || "")}/success` : `/s/${encodeURIComponent(body.slug || "")}/success`;

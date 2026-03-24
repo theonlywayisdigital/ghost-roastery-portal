@@ -343,7 +343,7 @@ export async function POST(request: Request) {
     } else {
       const { data: authData, error: authError } =
         await supabase.auth.admin.createUser({
-          email: wholesaleBuyerEmail,
+          email: wholesaleBuyerEmail.toLowerCase(),
           email_confirm: true,
           user_metadata: {
             full_name: wholesaleBuyerName,

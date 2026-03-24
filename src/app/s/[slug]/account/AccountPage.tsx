@@ -73,7 +73,7 @@ const EMPTY_ADDR_FORM = {
   city: "",
   county: "",
   postcode: "",
-  country: "United Kingdom",
+  country: "GB",
 };
 
 function splitName(fullName: string | null): { first: string; last: string } {

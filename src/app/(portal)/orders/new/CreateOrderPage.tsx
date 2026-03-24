@@ -379,7 +379,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     city: "",
     county: "",
     postcode: "",
-    country: "United Kingdom",
+    country: "GB",
     label: "",
   });
   const [paymentMethod, setPaymentMethod] = useState("invoice");

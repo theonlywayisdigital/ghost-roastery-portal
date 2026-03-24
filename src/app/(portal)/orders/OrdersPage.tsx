@@ -192,7 +192,7 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
       label: "Customer",
       render: (row) => (
         <div>
-          <p className="text-sm font-medium text-slate-900">{row.customerName || "\u2014"}</p>
+          <p className="text-sm font-medium text-slate-900">{row.customerName || "Unknown"}</p>
           {row.customerBusiness && (
             <p className="text-xs text-slate-500">{row.customerBusiness}</p>
           )}

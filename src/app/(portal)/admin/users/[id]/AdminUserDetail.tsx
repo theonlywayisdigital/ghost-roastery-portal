@@ -531,7 +531,7 @@ function CRMLinksTab({ contacts }: { contacts: ContactRow[] }) {
             >
               <td className="px-4 py-3">
                 <p className="text-sm font-medium text-slate-900">
-                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "\u2014"}
+                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown"}
                 </p>
               </td>
               <td className="px-4 py-3 hidden md:table-cell">

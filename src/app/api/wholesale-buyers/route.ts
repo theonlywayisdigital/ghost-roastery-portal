@@ -72,7 +72,8 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      name,
+      firstName,
+      lastName,
       email,
       phone,
       businessName,
@@ -84,7 +85,8 @@ export async function POST(request: Request) {
       notes,
       paymentTerms,
     } = body as {
-      name: string;
+      firstName: string;
+      lastName?: string;
       email: string;
       phone?: string;
       businessName: string;
@@ -97,9 +99,11 @@ export async function POST(request: Request) {
       paymentTerms?: string;
     };
 
-    if (!name || !email || !businessName) {
+    const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
+    if (!firstName || !email || !businessName) {
       return NextResponse.json(
-        { error: "Name, email, and business name are required." },
+        { error: "First name, email, and business name are required." },
         { status: 400 }
       );
     }
@@ -141,9 +145,9 @@ export async function POST(request: Request) {
       isNewUser = true;
       const { data: authData, error: authError } =
         await supabase.auth.admin.createUser({
-          email,
+          email: email.toLowerCase(),
           email_confirm: true,
-          user_metadata: { full_name: name },
+          user_metadata: { full_name: fullName },
         });
 
       if (authError) {
@@ -159,7 +163,7 @@ export async function POST(request: Request) {
         await supabase.from("users").insert({
           id: userId,
           email: email.toLowerCase(),
-          full_name: name,
+          full_name: fullName,
         });
       }
     }
@@ -232,9 +236,6 @@ export async function POST(request: Request) {
     }
 
     // Find or create contact record
-    const nameParts = name.split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
 
     let contactId: string | null = null;
     const { data: existingContact } = await supabase
@@ -392,9 +393,9 @@ export async function POST(request: Request) {
 
         const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
 
-        await sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, branding);
+        await sendWholesaleAccountSetup(email, fullName, roaster.business_name, setupUrl, wholesaleUrl, branding);
       } else {
-        await sendWholesaleWelcome(email, name, roaster.business_name, terms, wholesaleUrl, branding);
+        await sendWholesaleWelcome(email, fullName, roaster.business_name, terms, wholesaleUrl, branding);
       }
     } catch (emailErr) {
       console.error("Failed to send emails:", emailErr);
@@ -414,7 +415,7 @@ export async function POST(request: Request) {
       buyer: {
         id: wholesaleAccess?.id || null,
         user_id: userId,
-        name,
+        name: fullName,
         email,
         business_name: businessName,
         business_type: businessType || null,

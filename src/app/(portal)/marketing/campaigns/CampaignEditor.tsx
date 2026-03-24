@@ -800,7 +800,7 @@ function SpecificRecipientsEditor({
                 className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-0"
               >
                 <span className="font-medium text-slate-900">
-                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "No name"}
+                  {[c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown"}
                 </span>
                 <span className="text-slate-500 ml-2">{c.email}</span>
               </button>

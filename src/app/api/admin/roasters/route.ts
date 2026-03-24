@@ -165,7 +165,7 @@ export async function POST(request: Request) {
         email: email?.toLowerCase() || null,
         phone: phone || null,
         website: website || null,
-        country: country || "UK",
+        country: country || "GB",
         roaster_slug: slug,
         is_active: true,
       })

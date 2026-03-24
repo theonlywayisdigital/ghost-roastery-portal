@@ -380,8 +380,8 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
                   >
                     <User className="w-3 h-3" />
                     {message.contacts
-                      ? `${message.contacts.first_name} ${message.contacts.last_name}`.trim() || "Contact"
-                      : "Contact"}
+                      ? `${message.contacts.first_name} ${message.contacts.last_name}`.trim() || "Unknown"
+                      : "Unknown"}
                   </Link>
                 ) : (
                   <button

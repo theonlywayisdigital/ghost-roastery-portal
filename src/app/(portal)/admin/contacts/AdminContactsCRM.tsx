@@ -505,7 +505,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
                       )}
                       <td className="px-4 py-3">
                         <p className="text-sm font-medium text-slate-900">
-                          {[contact.first_name, contact.last_name].filter(Boolean).join(" ") || "\u2014"}
+                          {[contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown"}
                         </p>
                       </td>
                       {ownerTab === "roaster" && (

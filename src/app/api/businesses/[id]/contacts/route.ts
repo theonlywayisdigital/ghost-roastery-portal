@@ -76,7 +76,7 @@ export async function POST(
     }
 
     // Log activity on business
-    const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Contact";
+    const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown";
     await supabase.from("business_activity").insert({
       business_id: id,
       author_id: user.id,

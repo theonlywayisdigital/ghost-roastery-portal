@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const { error } = await supabase.from("roaster_enquiries").insert({
       roaster_id,
       name,
-      email,
+      email: email.toLowerCase(),
       phone: phone || null,
       business_name: business_name || null,
       message,

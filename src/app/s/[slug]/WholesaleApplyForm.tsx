@@ -38,7 +38,11 @@ export function WholesaleApplyForm({
   const [phone, setPhone] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [addressCity, setAddressCity] = useState("");
+  const [addressCounty, setAddressCounty] = useState("");
+  const [addressPostcode, setAddressPostcode] = useState("");
   const [businessWebsite, setBusinessWebsite] = useState("");
   const [vatNumber, setVatNumber] = useState("");
   const [monthlyVolume, setMonthlyVolume] = useState("");
@@ -65,7 +69,11 @@ export function WholesaleApplyForm({
           phone: phone || null,
           businessName,
           businessType: businessType || null,
-          businessAddress: businessAddress || null,
+          addressLine1: addressLine1 || null,
+          addressLine2: addressLine2 || null,
+          addressCity: addressCity || null,
+          addressCounty: addressCounty || null,
+          addressPostcode: addressPostcode || null,
           businessWebsite: businessWebsite || null,
           vatNumber: vatNumber || null,
           monthlyVolume: monthlyVolume || null,
@@ -221,12 +229,54 @@ export function WholesaleApplyForm({
         </label>
         <input
           type="text"
-          value={businessAddress}
-          onChange={(e) => setBusinessAddress(e.target.value)}
-          placeholder="Full address"
+          value={addressLine1}
+          onChange={(e) => setAddressLine1(e.target.value)}
+          placeholder="Address line 1"
           className={inputClassName}
           style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
         />
+      </div>
+      <div>
+        <input
+          type="text"
+          value={addressLine2}
+          onChange={(e) => setAddressLine2(e.target.value)}
+          placeholder="Address line 2 (optional)"
+          className={inputClassName}
+          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <input
+            type="text"
+            value={addressCity}
+            onChange={(e) => setAddressCity(e.target.value)}
+            placeholder="City"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
+        <div>
+          <input
+            type="text"
+            value={addressCounty}
+            onChange={(e) => setAddressCounty(e.target.value)}
+            placeholder="County"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
+        <div>
+          <input
+            type="text"
+            value={addressPostcode}
+            onChange={(e) => setAddressPostcode(e.target.value)}
+            placeholder="Postcode"
+            className={inputClassName}
+            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

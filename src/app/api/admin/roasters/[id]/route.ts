@@ -129,7 +129,7 @@ export async function PUT(
 
     const allowedFields = [
       "business_name", "contact_name", "email", "phone", "website", "country",
-      "address_line1", "address_line2", "city", "postcode",
+      "address_line_1", "address_line_2", "city", "postcode",
       "is_active", "is_ghost_roaster", "ghost_roaster_application_status",
       "platform_fee_percent", "wholesale_enabled", "notes",
       "storefront_enabled", "auto_approve_wholesale",

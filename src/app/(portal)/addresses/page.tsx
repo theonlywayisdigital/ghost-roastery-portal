@@ -17,12 +17,12 @@ export default async function AddressesPage() {
     .not("delivery_address", "is", null)
     .order("created_at", { ascending: false });
 
-  // Deduplicate addresses by line1 + postal_code
+  // Deduplicate addresses by address_line_1 + postcode
   const seen = new Set<string>();
   const addresses: Array<{
     name: string;
-    line1: string;
-    line2?: string;
+    address_line_1: string;
+    address_line_2?: string;
     city: string;
     postalCode: string;
     country?: string;
@@ -30,16 +30,16 @@ export default async function AddressesPage() {
 
   for (const order of orders || []) {
     const addr = order.delivery_address as Record<string, string> | null;
-    if (!addr || !addr.line1) continue;
-    const key = `${addr.line1}|${addr.postal_code || ""}`;
+    if (!addr || !addr.address_line_1) continue;
+    const key = `${addr.address_line_1}|${addr.postcode || ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     addresses.push({
       name: addr.name || "",
-      line1: addr.line1,
-      line2: addr.line2 || undefined,
+      address_line_1: addr.address_line_1,
+      address_line_2: addr.address_line_2 || undefined,
       city: addr.city || "",
-      postalCode: addr.postal_code || "",
+      postalCode: addr.postcode || "",
       country: addr.country || "GB",
     });
   }

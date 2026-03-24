@@ -374,8 +374,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [includeAddress, setIncludeAddress] = useState(false);
   const [address, setAddress] = useState({
-    line1: "",
-    line2: "",
+    address_line_1: "",
+    address_line_2: "",
     city: "",
     county: "",
     postcode: "",
@@ -834,7 +834,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
       setError("Add at least one product.");
       return;
     }
-    if (includeAddress && (!address.line1 || !address.city || !address.postcode)) {
+    if (includeAddress && (!address.address_line_1 || !address.city || !address.postcode)) {
       setError(
         "Delivery address requires at least Address Line 1, City, and Postcode."
       );
@@ -862,8 +862,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           deliveryAddress: includeAddress
             ? {
                 label: address.label || undefined,
-                line1: address.line1,
-                line2: address.line2 || undefined,
+                address_line_1: address.address_line_1,
+                address_line_2: address.address_line_2 || undefined,
                 city: address.city,
                 county: address.county || undefined,
                 postcode: address.postcode,
@@ -1499,9 +1499,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                 </label>
                 <input
                   type="text"
-                  value={address.line1}
+                  value={address.address_line_1}
                   onChange={(e) =>
-                    setAddress((prev) => ({ ...prev, line1: e.target.value }))
+                    setAddress((prev) => ({ ...prev, address_line_1: e.target.value }))
                   }
                   placeholder="Street address"
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
@@ -1513,9 +1513,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                 </label>
                 <input
                   type="text"
-                  value={address.line2}
+                  value={address.address_line_2}
                   onChange={(e) =>
-                    setAddress((prev) => ({ ...prev, line2: e.target.value }))
+                    setAddress((prev) => ({ ...prev, address_line_2: e.target.value }))
                   }
                   placeholder="Apartment, suite, etc."
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"

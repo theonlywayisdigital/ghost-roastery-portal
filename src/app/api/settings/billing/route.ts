@@ -10,8 +10,8 @@ export async function GET() {
 
   return NextResponse.json({
     business_name: roaster.business_name,
-    address_line1: roaster.address_line1 || "",
-    address_line2: roaster.address_line2 || "",
+    address_line_1: roaster.address_line_1 || "",
+    address_line_2: roaster.address_line_2 || "",
     city: roaster.city || "",
     postcode: roaster.postcode || "",
     country: roaster.country || "GB",

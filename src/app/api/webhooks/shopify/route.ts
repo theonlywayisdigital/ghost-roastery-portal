@@ -141,8 +141,8 @@ export async function POST(request: Request) {
   const shipping = payload.shipping_address;
   const shippingAddress = shipping
     ? {
-        line1: shipping.address1 || "",
-        line2: shipping.address2 || undefined,
+        address_line_1: shipping.address1 || "",
+        address_line_2: shipping.address2 || undefined,
         city: shipping.city || "",
         county: shipping.province || undefined,
         postcode: shipping.zip || "",

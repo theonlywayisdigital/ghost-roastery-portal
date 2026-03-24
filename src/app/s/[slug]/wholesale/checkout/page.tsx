@@ -151,8 +151,8 @@ export default function WholesaleCheckoutPage() {
 
       const deliveryAddress = {
         label: selectedAddress.label || undefined,
-        line1: selectedAddress.address_line_1,
-        line2: selectedAddress.address_line_2 || undefined,
+        address_line_1: selectedAddress.address_line_1,
+        address_line_2: selectedAddress.address_line_2 || undefined,
         city: selectedAddress.city,
         county: selectedAddress.county || undefined,
         postcode: selectedAddress.postcode,

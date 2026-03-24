@@ -16,10 +16,11 @@ export function DeliveryAddressCard({ address }: DeliveryAddressCardProps) {
     lines.push(address);
   } else {
     if (address.name) lines.push(address.name);
-    if (address.line1) lines.push(address.line1);
-    if (address.line2) lines.push(address.line2);
+    if (address.address_line_1 || address.line1) lines.push(address.address_line_1 || address.line1);
+    if (address.address_line_2 || address.line2) lines.push(address.address_line_2 || address.line2);
     if (address.city) lines.push(address.city);
-    if (address.postal_code || address.postcode) lines.push(address.postal_code || address.postcode);
+    if (address.county) lines.push(address.county);
+    if (address.postcode || address.postal_code) lines.push(address.postcode || address.postal_code);
     if (address.country) lines.push(address.country);
   }
 

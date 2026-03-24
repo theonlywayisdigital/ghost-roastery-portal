@@ -64,14 +64,14 @@ export default async function PublicInvoicePage({
     const { data: roaster } = await supabase
       .from("partner_roasters")
       .select(
-        "business_name, email, address_line1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions"
+        "business_name, email, address_line_1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions"
       )
       .eq("id", invoice.roaster_id)
       .single();
     if (roaster) {
       ownerName = roaster.business_name;
       ownerEmail = roaster.email;
-      ownerAddress = [roaster.address_line1, roaster.city, roaster.postcode]
+      ownerAddress = [roaster.address_line_1, roaster.city, roaster.postcode]
         .filter(Boolean)
         .join(", ");
       logoUrl = roaster.brand_logo_url || null;

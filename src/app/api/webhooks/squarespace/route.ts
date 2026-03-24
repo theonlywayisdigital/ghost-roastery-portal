@@ -155,8 +155,8 @@ export async function POST(request: Request) {
 
   const shippingAddress = shipping
     ? {
-        line1: shipping.address1 || shipping.line1 || "",
-        line2: shipping.address2 || shipping.line2 || undefined,
+        address_line_1: shipping.address1 || shipping.line1 || "",
+        address_line_2: shipping.address2 || shipping.line2 || undefined,
         city: shipping.city || "",
         county: shipping.state || shipping.region || undefined,
         postcode: shipping.postalCode || shipping.zip || "",

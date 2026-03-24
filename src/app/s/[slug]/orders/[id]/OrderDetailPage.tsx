@@ -19,8 +19,8 @@ interface OrderItem {
 
 interface DeliveryAddress {
   name?: string;
-  line1?: string;
-  line2?: string;
+  address_line_1?: string;
+  address_line_2?: string;
   city?: string;
   postcode?: string;
   country?: string;
@@ -233,8 +233,8 @@ export function OrderDetailPage({
                 </h2>
                 <div className="text-sm text-slate-600 space-y-0.5">
                   {address.name && <p>{address.name}</p>}
-                  {address.line1 && <p>{address.line1}</p>}
-                  {address.line2 && <p>{address.line2}</p>}
+                  {address.address_line_1 && <p>{address.address_line_1}</p>}
+                  {address.address_line_2 && <p>{address.address_line_2}</p>}
                   {address.city && <p>{address.city}</p>}
                   {address.postcode && <p>{address.postcode}</p>}
                   {address.country && <p>{address.country}</p>}

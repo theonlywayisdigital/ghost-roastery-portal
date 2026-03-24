@@ -59,8 +59,8 @@ interface Roaster {
   phone: string | null;
   website: string | null;
   country: string;
-  address_line1: string | null;
-  address_line2: string | null;
+  address_line_1: string | null;
+  address_line_2: string | null;
   city: string | null;
   postcode: string | null;
   roaster_slug: string | null;
@@ -230,8 +230,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
     email: "",
     phone: "",
     website: "",
-    address_line1: "",
-    address_line2: "",
+    address_line_1: "",
+    address_line_2: "",
     city: "",
     postcode: "",
     country: "",
@@ -320,8 +320,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
         email: data.roaster.email || "",
         phone: data.roaster.phone || "",
         website: data.roaster.website || "",
-        address_line1: data.roaster.address_line1 || "",
-        address_line2: data.roaster.address_line2 || "",
+        address_line_1: data.roaster.address_line_1 || "",
+        address_line_2: data.roaster.address_line_2 || "",
         city: data.roaster.city || "",
         postcode: data.roaster.postcode || "",
         country: data.roaster.country || "",
@@ -852,8 +852,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                       email: roaster.email || "",
                       phone: roaster.phone || "",
                       website: roaster.website || "",
-                      address_line1: roaster.address_line1 || "",
-                      address_line2: roaster.address_line2 || "",
+                      address_line_1: roaster.address_line_1 || "",
+                      address_line_2: roaster.address_line_2 || "",
                       city: roaster.city || "",
                       postcode: roaster.postcode || "",
                       country: roaster.country || "",
@@ -926,18 +926,18 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 label="Address Line 1"
-                value={editForm.address_line1}
+                value={editForm.address_line_1}
                 editing={editing}
                 onChange={(v) =>
-                  setEditForm((f) => ({ ...f, address_line1: v }))
+                  setEditForm((f) => ({ ...f, address_line_1: v }))
                 }
               />
               <FormField
                 label="Address Line 2"
-                value={editForm.address_line2}
+                value={editForm.address_line_2}
                 editing={editing}
                 onChange={(v) =>
-                  setEditForm((f) => ({ ...f, address_line2: v }))
+                  setEditForm((f) => ({ ...f, address_line_2: v }))
                 }
               />
               <FormField

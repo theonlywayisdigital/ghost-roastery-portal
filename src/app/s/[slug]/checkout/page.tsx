@@ -185,8 +185,8 @@ function CheckoutContent() {
           customerEmail: email,
           customerName: name,
           deliveryAddress: {
-            line1: addressLine1,
-            line2: addressLine2 || undefined,
+            address_line_1: addressLine1,
+            address_line_2: addressLine2 || undefined,
             city,
             postcode,
             country: "GB",

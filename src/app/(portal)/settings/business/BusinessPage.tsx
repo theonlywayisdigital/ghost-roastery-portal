@@ -36,8 +36,8 @@ interface BusinessData {
   vat_number: string;
   email: string;
   business_phone: string;
-  address_line1: string;
-  address_line2: string;
+  address_line_1: string;
+  address_line_2: string;
   city: string;
   county: string;
   postcode: string;
@@ -59,8 +59,8 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
     vat_number: "",
     email: "",
     business_phone: "",
-    address_line1: "",
-    address_line2: "",
+    address_line_1: "",
+    address_line_2: "",
     city: "",
     county: "",
     postcode: "",
@@ -340,8 +340,8 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
                 </label>
                 <input
                   type="text"
-                  value={data.address_line1}
-                  onChange={(e) => updateField("address_line1", e.target.value)}
+                  value={data.address_line_1}
+                  onChange={(e) => updateField("address_line_1", e.target.value)}
                   placeholder="Street address"
                   className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
@@ -352,8 +352,8 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
                 </label>
                 <input
                   type="text"
-                  value={data.address_line2}
-                  onChange={(e) => updateField("address_line2", e.target.value)}
+                  value={data.address_line_2}
+                  onChange={(e) => updateField("address_line_2", e.target.value)}
                   placeholder="Apartment, suite, unit (optional)"
                   className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />

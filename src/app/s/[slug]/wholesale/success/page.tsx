@@ -12,8 +12,8 @@ import { Footer } from "../../_components/Footer";
 interface OrderDetails {
   deliveryAddress: {
     label?: string;
-    line1: string;
-    line2?: string;
+    address_line_1: string;
+    address_line_2?: string;
     city: string;
     county?: string;
     postcode: string;
@@ -23,7 +23,7 @@ interface OrderDetails {
 }
 
 function formatDeliveryAddress(addr: NonNullable<OrderDetails["deliveryAddress"]>) {
-  return [addr.line1, addr.line2, addr.city, addr.county, addr.postcode, addr.country]
+  return [addr.address_line_1, addr.address_line_2, addr.city, addr.county, addr.postcode, addr.country]
     .filter(Boolean)
     .join(", ");
 }

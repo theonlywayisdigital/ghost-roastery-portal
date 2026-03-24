@@ -4,8 +4,8 @@ import { MapPin } from "@/components/icons";
 
 interface Address {
   name: string;
-  line1: string;
-  line2?: string;
+  address_line_1: string;
+  address_line_2?: string;
   city: string;
   postalCode: string;
   country?: string;
@@ -41,8 +41,8 @@ export function AddressList({ addresses }: { addresses: Address[] }) {
               {addr.name && (
                 <p className="font-medium text-slate-900">{addr.name}</p>
               )}
-              <p>{addr.line1}</p>
-              {addr.line2 && <p>{addr.line2}</p>}
+              <p>{addr.address_line_1}</p>
+              {addr.address_line_2 && <p>{addr.address_line_2}</p>}
               <p>{addr.city}</p>
               <p>{addr.postalCode}</p>
             </div>

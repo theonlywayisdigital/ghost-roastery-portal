@@ -42,8 +42,8 @@ interface RoasterData {
   id: string;
   business_name: string;
   email: string;
-  address_line1: string;
-  address_line2: string;
+  address_line_1: string;
+  address_line_2: string;
   city: string;
   postcode: string;
   country: string;
@@ -1451,7 +1451,7 @@ function MyBillingTab({
                 <input
                   type="text"
                   value={
-                    [roaster.address_line1, roaster.city, roaster.postcode]
+                    [roaster.address_line_1, roaster.city, roaster.postcode]
                       .filter(Boolean)
                       .join(", ") || "Not set"
                   }
@@ -1562,7 +1562,7 @@ function CustomerBillingTab({
   onSave: () => void;
   maskAccountNumber: (n: string) => string;
 }) {
-  const addressLine = [roaster.address_line1, roaster.city, roaster.postcode]
+  const addressLine = [roaster.address_line_1, roaster.city, roaster.postcode]
     .filter(Boolean)
     .join(", ");
 

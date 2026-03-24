@@ -74,8 +74,8 @@ export async function POST(request: Request) {
       items: ManualOrderItem[];
       deliveryAddress?: {
         label?: string;
-        line1: string;
-        line2?: string;
+        address_line_1: string;
+        address_line_2?: string;
         city: string;
         county?: string;
         postcode: string;

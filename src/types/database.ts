@@ -1390,42 +1390,42 @@ export type Database = {
       }
       delivery_addresses: {
         Row: {
+          address_line_1: string
+          address_line_2: string | null
           city: string
           country: string
           created_at: string
           id: string
           is_default: boolean | null
           label: string
-          line1: string
-          line2: string | null
           name: string
-          postal_code: string
+          postcode: string
           user_id: string
         }
         Insert: {
+          address_line_1: string
+          address_line_2?: string | null
           city: string
           country?: string
           created_at?: string
           id?: string
           is_default?: boolean | null
           label: string
-          line1: string
-          line2?: string | null
           name?: string
-          postal_code: string
+          postcode: string
           user_id: string
         }
         Update: {
+          address_line_1?: string
+          address_line_2?: string | null
           city?: string
           country?: string
           created_at?: string
           id?: string
           is_default?: boolean | null
           label?: string
-          line1?: string
-          line2?: string | null
           name?: string
-          postal_code?: string
+          postcode?: string
           user_id?: string
         }
         Relationships: [
@@ -3083,8 +3083,8 @@ export type Database = {
       }
       partner_roasters: {
         Row: {
-          address_line1: string | null
-          address_line2: string | null
+          address_line_1: string | null
+          address_line_2: string | null
           ai_credits_topup_balance: number
           ai_generation_reset_at: string | null
           ai_generations_today: number
@@ -3189,8 +3189,8 @@ export type Database = {
           wholesale_stripe_enabled: boolean
         }
         Insert: {
-          address_line1?: string | null
-          address_line2?: string | null
+          address_line_1?: string | null
+          address_line_2?: string | null
           ai_credits_topup_balance?: number
           ai_generation_reset_at?: string | null
           ai_generations_today?: number
@@ -3295,8 +3295,8 @@ export type Database = {
           wholesale_stripe_enabled?: boolean
         }
         Update: {
-          address_line1?: string | null
-          address_line2?: string | null
+          address_line_1?: string | null
+          address_line_2?: string | null
           ai_credits_topup_balance?: number
           ai_generation_reset_at?: string | null
           ai_generations_today?: number

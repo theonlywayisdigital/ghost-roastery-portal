@@ -49,8 +49,8 @@ export interface ExternalOrder {
   customer_email: string;
   line_items: ExternalLineItem[];
   shipping_address: {
-    line1: string;
-    line2?: string;
+    address_line_1: string;
+    address_line_2?: string;
     city: string;
     county?: string;
     postcode: string;

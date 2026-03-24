@@ -40,7 +40,7 @@ export function formatRelativeTime(dateStr: string) {
 export function formatAddress(addr: Record<string, string> | string | null): string | null {
   if (!addr) return null;
   if (typeof addr === "string") return addr;
-  return [addr.line1, addr.line2, addr.city, addr.postcode, addr.country]
+  return [addr.address_line_1 || addr.line1, addr.address_line_2 || addr.line2, addr.city, addr.county, addr.postcode || addr.postal_code, addr.country]
     .filter(Boolean)
     .join(", ");
 }

@@ -16,7 +16,8 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
 
   const [businessName, setBusinessName] = useState("");
-  const [contactName, setContactName] = useState("");
+  const [contactFirstName, setContactFirstName] = useState("");
+  const [contactLastName, setContactLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -52,7 +53,9 @@ export function SignupForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessName,
-          contactName,
+          contactName: [contactFirstName, contactLastName].filter(Boolean).join(" "),
+          contactFirstName,
+          contactLastName,
           email,
           password,
           phone: phone || undefined,
@@ -101,18 +104,33 @@ export function SignupForm() {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Contact Name
-        </label>
-        <input
-          type="text"
-          value={contactName}
-          onChange={(e) => setContactName(e.target.value)}
-          placeholder="John Smith"
-          required
-          className={inputClassName}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            First Name
+          </label>
+          <input
+            type="text"
+            value={contactFirstName}
+            onChange={(e) => setContactFirstName(e.target.value)}
+            placeholder="John"
+            required
+            className={inputClassName}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Last Name
+          </label>
+          <input
+            type="text"
+            value={contactLastName}
+            onChange={(e) => setContactLastName(e.target.value)}
+            placeholder="Smith"
+            required
+            className={inputClassName}
+          />
+        </div>
       </div>
 
       <div>

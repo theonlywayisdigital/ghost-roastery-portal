@@ -68,7 +68,8 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({
     business_name: "",
-    contact_name: "",
+    contact_first_name: "",
+    contact_last_name: "",
     email: "",
     phone: "",
     website: "",
@@ -152,7 +153,7 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
       });
       if (res.ok) {
         setShowAddModal(false);
-        setAddForm({ business_name: "", contact_name: "", email: "", phone: "", website: "", country: "GB" });
+        setAddForm({ business_name: "", contact_first_name: "", contact_last_name: "", email: "", phone: "", website: "", country: "GB" });
         loadRoasters();
       } else {
         const data = await res.json();
@@ -492,14 +493,25 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
                   className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contact Name *</label>
-                <input
-                  type="text"
-                  value={addForm.contact_name}
-                  onChange={(e) => setAddForm((f) => ({ ...f, contact_name: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    value={addForm.contact_first_name}
+                    onChange={(e) => setAddForm((f) => ({ ...f, contact_first_name: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={addForm.contact_last_name}
+                    onChange={(e) => setAddForm((f) => ({ ...f, contact_last_name: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
@@ -556,7 +568,7 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
               </button>
               <button
                 onClick={handleAddRoaster}
-                disabled={addSaving || !addForm.business_name || !addForm.contact_name || !addForm.email}
+                disabled={addSaving || !addForm.business_name || !addForm.contact_first_name || !addForm.email}
                 className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
               >
                 {addSaving ? "Creating..." : "Add Roaster"}

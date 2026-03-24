@@ -76,12 +76,14 @@ const EMPTY_ADDR_FORM = {
   country: "GB",
 };
 
-function splitName(fullName: string | null): { first: string; last: string } {
+function splitNameLocal(fullName: string | null): { first: string; last: string } {
   if (!fullName) return { first: "", last: "" };
-  const parts = fullName.trim().split(/\s+/);
+  const trimmed = fullName.trim();
+  const spaceIdx = trimmed.indexOf(" ");
+  if (spaceIdx === -1) return { first: trimmed, last: "" };
   return {
-    first: parts[0] || "",
-    last: parts.slice(1).join(" ") || "",
+    first: trimmed.slice(0, spaceIdx),
+    last: trimmed.slice(spaceIdx + 1),
   };
 }
 
@@ -118,7 +120,7 @@ export function AccountPage({
   const router = useRouter();
 
   // ─── Personal Details state ───
-  const { first, last } = splitName(profile.full_name);
+  const { first, last } = splitNameLocal(profile.full_name);
   const [firstName, setFirstName] = useState(first);
   const [lastName, setLastName] = useState(last);
   const [email, setEmail] = useState(profile.email);

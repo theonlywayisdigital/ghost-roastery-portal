@@ -8,7 +8,7 @@ import {
   type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, splitName } from "@/lib/people";
 import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
@@ -120,11 +120,13 @@ export async function POST(request: Request) {
         console.error("Failed to create user:", authError);
       } else if (authData.user) {
         userId = authData.user.id;
-        await supabase.from("users").insert({
+        // Trigger may auto-create public.users — upsert to be safe
+        await supabase.from("users").upsert({
           id: userId,
           email: email.toLowerCase(),
-          full_name: name,
-        });
+          first_name: splitName(name).firstName,
+          last_name: splitName(name).lastName,
+        }, { onConflict: "id" });
       }
     }
 
@@ -136,9 +138,7 @@ export async function POST(request: Request) {
     }
 
     // Ensure people record exists
-    const nameParts = name.split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const { firstName, lastName } = splitName(name);
     const peopleId = await findOrCreatePerson(supabase, email, firstName, lastName, phone);
 
     // Find or create business record
@@ -456,12 +456,11 @@ export async function POST(request: Request) {
 
       // Sync contact to Xero
       syncToXero(roasterId, async () => {
-        const nameParts = name.split(" ");
         await pushContactToXero(
           roasterId,
           {
-            first_name: nameParts[0] || "",
-            last_name: nameParts.slice(1).join(" ") || "",
+            first_name: firstName,
+            last_name: lastName,
             email,
             phone: phone || null,
             business_name: businessName,
@@ -478,12 +477,11 @@ export async function POST(request: Request) {
 
       // Sync contact to Sage
       syncToSage(roasterId, async () => {
-        const nameParts = name.split(" ");
         await pushContactToSage(
           roasterId,
           {
-            first_name: nameParts[0] || "",
-            last_name: nameParts.slice(1).join(" ") || "",
+            first_name: firstName,
+            last_name: lastName,
             email,
             phone: phone || null,
             business_name: businessName,
@@ -499,12 +497,11 @@ export async function POST(request: Request) {
       });
 
       syncToQuickBooks(roasterId, async () => {
-        const nameParts = name.split(" ");
         await pushContactToQuickBooks(
           roasterId,
           {
-            first_name: nameParts[0] || "",
-            last_name: nameParts.slice(1).join(" ") || "",
+            first_name: firstName,
+            last_name: lastName,
             email,
             phone: phone || null,
             business_name: businessName,

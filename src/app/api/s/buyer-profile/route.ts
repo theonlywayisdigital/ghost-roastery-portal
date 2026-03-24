@@ -33,17 +33,13 @@ export async function PATCH(request: Request) {
 
     const supabase = createServerClient();
 
-    // Update personal details on public.users
-    const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+    // Update personal details on public.users (first_name/last_name; full_name is generated)
     const userUpdates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
-    if (firstName !== undefined || lastName !== undefined) {
-      userUpdates.full_name = fullName;
-    }
-    if (phone !== undefined) {
-      userUpdates.phone = phone || null;
-    }
+    if (firstName !== undefined) userUpdates.first_name = firstName || "";
+    if (lastName !== undefined) userUpdates.last_name = lastName || "";
+    if (phone !== undefined) userUpdates.phone = phone || null;
 
     if (Object.keys(userUpdates).length > 1) {
       const { error: userError } = await supabase
@@ -57,6 +53,27 @@ export async function PATCH(request: Request) {
           { error: "Failed to update profile" },
           { status: 500 }
         );
+      }
+    }
+
+    // Also update people record (via profile.people_id) to keep in sync
+    if (firstName !== undefined || lastName !== undefined || phone !== undefined) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("people_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.people_id) {
+        const peopleUpdates: Record<string, unknown> = {};
+        if (firstName !== undefined) peopleUpdates.first_name = firstName || "";
+        if (lastName !== undefined) peopleUpdates.last_name = lastName || "";
+        if (phone !== undefined) peopleUpdates.phone = phone || null;
+
+        await supabase
+          .from("people")
+          .update(peopleUpdates)
+          .eq("id", profile.people_id);
       }
     }
 

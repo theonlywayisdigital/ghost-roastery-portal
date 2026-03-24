@@ -3,6 +3,7 @@ import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, checkEmailLimits, renderCampaignEmail } from "@/lib/marketing-email";
 import { getVerifiedDomain } from "@/lib/email";
+import { splitName } from "@/lib/people";
 
 export async function POST(
   request: NextRequest,
@@ -58,12 +59,15 @@ export async function POST(
       if (customEmails.length === 0) {
         return NextResponse.json({ error: "No recipients specified" }, { status: 400 });
       }
-      recipients = customEmails.map((r) => ({
-        id: r.contactId || null,
-        email: r.email,
-        first_name: r.name?.split(" ")[0] || null,
-        last_name: r.name?.split(" ").slice(1).join(" ") || null,
-      }));
+      recipients = customEmails.map((r) => {
+        const { firstName, lastName } = splitName(r.name);
+        return {
+          id: r.contactId || null,
+          email: r.email,
+          first_name: firstName || null,
+          last_name: lastName || null,
+        };
+      });
     } else {
       // Build recipient list from contacts
       let contactQuery = applyOwnerFilter(

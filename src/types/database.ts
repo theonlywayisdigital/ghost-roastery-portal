@@ -3127,6 +3127,8 @@ export type Database = {
           business_phone: string | null
           business_type: string | null
           city: string | null
+          contact_first_name: string | null
+          contact_last_name: string | null
           contact_name: string
           country: string
           county: string | null
@@ -3233,7 +3235,8 @@ export type Database = {
           business_phone?: string | null
           business_type?: string | null
           city?: string | null
-          contact_name: string
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           country?: string
           county?: string | null
           created_at?: string | null
@@ -3339,7 +3342,8 @@ export type Database = {
           business_phone?: string | null
           business_type?: string | null
           city?: string | null
-          contact_name?: string
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           country?: string
           county?: string | null
           created_at?: string | null
@@ -3513,33 +3517,51 @@ export type Database = {
       }
       people: {
         Row: {
+          address_line_1: string | null
+          address_line_2: string | null
           avatar_url: string | null
+          city: string | null
+          country: string
+          county: string | null
           created_at: string
           email: string | null
           first_name: string
           id: string
           last_name: string
           phone: string | null
+          postcode: string | null
           updated_at: string
         }
         Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string
+          county?: string | null
           created_at?: string
           email?: string | null
           first_name?: string
           id?: string
           last_name?: string
           phone?: string | null
+          postcode?: string | null
           updated_at?: string
         }
         Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string
+          county?: string | null
           created_at?: string
           email?: string | null
           first_name?: string
           id?: string
           last_name?: string
           phone?: string | null
+          postcode?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -5383,8 +5405,10 @@ export type Database = {
           business_name: string | null
           created_at: string
           email: string
+          first_name: string | null
           full_name: string | null
           id: string
+          last_name: string | null
           phone: string | null
           updated_at: string | null
         }
@@ -5393,8 +5417,9 @@ export type Database = {
           business_name?: string | null
           created_at?: string
           email: string
-          full_name?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           phone?: string | null
           updated_at?: string | null
         }
@@ -5403,8 +5428,9 @@ export type Database = {
           business_name?: string | null
           created_at?: string
           email?: string
-          full_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
           updated_at?: string | null
         }
@@ -5527,6 +5553,8 @@ export type Database = {
       }
       wholesale_access: {
         Row: {
+          address_line_1: string | null
+          address_line_2: string | null
           approved_at: string | null
           approved_by: string | null
           business_address: string | null
@@ -5534,12 +5562,15 @@ export type Database = {
           business_name: string
           business_type: string | null
           business_website: string | null
+          city: string | null
+          county: string | null
           created_at: string | null
           credit_limit: number | null
           id: string
           monthly_volume: string | null
           notes: string | null
           payment_terms: string
+          postcode: string | null
           price_tier: string
           rejected_reason: string | null
           roaster_id: string
@@ -5549,6 +5580,8 @@ export type Database = {
           vat_number: string | null
         }
         Insert: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           approved_at?: string | null
           approved_by?: string | null
           business_address?: string | null
@@ -5556,12 +5589,15 @@ export type Database = {
           business_name: string
           business_type?: string | null
           business_website?: string | null
+          city?: string | null
+          county?: string | null
           created_at?: string | null
           credit_limit?: number | null
           id?: string
           monthly_volume?: string | null
           notes?: string | null
           payment_terms?: string
+          postcode?: string | null
           price_tier?: string
           rejected_reason?: string | null
           roaster_id: string
@@ -5571,6 +5607,8 @@ export type Database = {
           vat_number?: string | null
         }
         Update: {
+          address_line_1?: string | null
+          address_line_2?: string | null
           approved_at?: string | null
           approved_by?: string | null
           business_address?: string | null
@@ -5578,12 +5616,15 @@ export type Database = {
           business_name?: string
           business_type?: string | null
           business_website?: string | null
+          city?: string | null
+          county?: string | null
           created_at?: string | null
           credit_limit?: number | null
           id?: string
           monthly_volume?: string | null
           notes?: string | null
           payment_terms?: string
+          postcode?: string | null
           price_tier?: string
           rejected_reason?: string | null
           roaster_id?: string

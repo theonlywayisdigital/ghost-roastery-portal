@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, splitName } from "@/lib/people";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -44,9 +44,7 @@ export async function GET() {
       }
     } else {
       // Create new contact
-      const nameParts = (userData.full_name || "").split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+      const { firstName, lastName } = splitName(userData.full_name);
 
       const peopleId = await findOrCreatePerson(supabase, email, firstName, lastName);
 
@@ -116,9 +114,7 @@ export async function GET() {
         synced++;
       }
     } else {
-      const nameParts = info.name.split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+      const { firstName, lastName } = splitName(info.name);
 
       const peopleId = await findOrCreatePerson(supabase, email, firstName, lastName);
 

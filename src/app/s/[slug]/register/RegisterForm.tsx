@@ -29,7 +29,9 @@ export function RegisterForm({
   roaster,
 }: Props) {
   const router = useRouter();
-  const [name, setName] = useState(prefillName);
+  const prefillParts = (prefillName || "").trim().split(" ");
+  const [firstName, setFirstName] = useState(prefillParts[0] || "");
+  const [lastName, setLastName] = useState(prefillParts.slice(1).join(" ") || "");
   const [email] = useState(prefillEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -68,7 +70,7 @@ export function RegisterForm({
       const res = await fetch("/api/s/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, password, roasterId }),
+        body: JSON.stringify({ email, name: [firstName, lastName].filter(Boolean).join(" "), password, roasterId }),
       });
 
       const data = await res.json();
@@ -140,21 +142,39 @@ export function RegisterForm({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Full Name
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
-                className={inputClassName}
-                style={
-                  { "--tw-ring-color": roaster.accentColour } as React.CSSProperties
-                }
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  className={inputClassName}
+                  style={
+                    { "--tw-ring-color": roaster.accentColour } as React.CSSProperties
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Last name"
+                  className={inputClassName}
+                  style={
+                    { "--tw-ring-color": roaster.accentColour } as React.CSSProperties
+                  }
+                />
+              </div>
             </div>
 
             <div>

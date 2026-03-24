@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, renderCampaignEmail, checkEmailLimits } from "@/lib/marketing-email";
 import { getVerifiedDomain } from "@/lib/email";
+import { splitName } from "@/lib/people";
 
 /**
  * CRON endpoint: send scheduled campaigns that are due.
@@ -67,12 +68,15 @@ export async function GET(request: Request) {
           errors.push(`Campaign ${campaign.id}: no recipients specified`);
           continue;
         }
-        recipients = customEmails.map((r) => ({
-          id: r.contactId || null,
-          email: r.email,
-          first_name: r.name?.split(" ")[0] || null,
-          last_name: r.name?.split(" ").slice(1).join(" ") || null,
-        }));
+        recipients = customEmails.map((r) => {
+          const { firstName, lastName } = splitName(r.name);
+          return {
+            id: r.contactId || null,
+            email: r.email,
+            first_name: firstName || null,
+            last_name: lastName || null,
+          };
+        });
       } else {
         let contactQuery = supabase
           .from("contacts")

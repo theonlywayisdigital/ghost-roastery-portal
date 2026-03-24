@@ -59,6 +59,14 @@ export async function POST(request: Request) {
 
     const userId = authData.user.id;
 
+    // Trigger auto-creates public.users — upsert to ensure first_name/last_name
+    await supabase.from("users").upsert({
+      id: userId,
+      email: normalizedEmail,
+      first_name: first_name,
+      last_name: last_name,
+    }, { onConflict: "id" });
+
     // Create profiles row
     const { error: profileError } = await supabase.from("profiles").insert({
       id: userId,

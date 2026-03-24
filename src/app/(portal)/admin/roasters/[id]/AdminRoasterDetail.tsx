@@ -56,6 +56,8 @@ interface Roaster {
   email: string;
   business_name: string;
   contact_name: string;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
   phone: string | null;
   website: string | null;
   country: string;
@@ -226,7 +228,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({
     business_name: "",
-    contact_name: "",
+    contact_first_name: "",
+    contact_last_name: "",
     email: "",
     phone: "",
     website: "",
@@ -316,7 +319,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
       setSubWebsiteDiscount(Number(data.roaster.website_discount_percent) || 0);
       setEditForm({
         business_name: data.roaster.business_name || "",
-        contact_name: data.roaster.contact_name || "",
+        contact_first_name: data.roaster.contact_first_name || "",
+        contact_last_name: data.roaster.contact_last_name || "",
         email: data.roaster.email || "",
         phone: data.roaster.phone || "",
         website: data.roaster.website || "",
@@ -848,7 +852,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                     setEditing(false);
                     setEditForm({
                       business_name: roaster.business_name || "",
-                      contact_name: roaster.contact_name || "",
+                      contact_first_name: roaster.contact_first_name || "",
+                      contact_last_name: roaster.contact_last_name || "",
                       email: roaster.email || "",
                       phone: roaster.phone || "",
                       website: roaster.website || "",
@@ -886,11 +891,19 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                 }
               />
               <FormField
-                label="Contact Name"
-                value={editForm.contact_name}
+                label="First Name"
+                value={editForm.contact_first_name}
                 editing={editing}
                 onChange={(v) =>
-                  setEditForm((f) => ({ ...f, contact_name: v }))
+                  setEditForm((f) => ({ ...f, contact_first_name: v }))
+                }
+              />
+              <FormField
+                label="Last Name"
+                value={editForm.contact_last_name}
+                editing={editing}
+                onChange={(v) =>
+                  setEditForm((f) => ({ ...f, contact_last_name: v }))
                 }
               />
               <FormField

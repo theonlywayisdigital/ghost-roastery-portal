@@ -11,6 +11,7 @@ import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
+import { splitName } from "@/lib/people";
 
 export async function PATCH(
   request: Request,
@@ -53,6 +54,7 @@ export async function PATCH(
   const userInfo = Array.isArray(usersRaw) ? usersRaw[0] as { full_name: string | null; email: string } | undefined : usersRaw as { full_name: string | null; email: string } | null;
   const contactName = userInfo?.full_name || record.business_name;
   const contactEmail = userInfo?.email || "";
+  const { firstName: contactFirstName, lastName: contactLastName } = splitName(contactName);
 
   switch (action) {
     case "approve": {
@@ -153,10 +155,9 @@ export async function PATCH(
         }
         await supabase.from("contacts").update(contactUpdates).eq("id", existingContact.id);
       } else if (contactEmail) {
-        const cNameParts = contactName.split(" ");
         const { data: newContact } = await supabase.from("contacts").insert({
-          first_name: cNameParts[0] || "",
-          last_name: cNameParts.slice(1).join(" ") || "",
+          first_name: contactFirstName,
+          last_name: contactLastName,
           email: contactEmail.toLowerCase(),
           types: ["wholesale"],
           source: "wholesale_application",
@@ -245,12 +246,11 @@ export async function PATCH(
 
       // Sync contact to Xero
       syncToXero(roasterId, async () => {
-        const cNameParts = contactName.split(" ");
         await pushContactToXero(
           roasterId,
           {
-            first_name: cNameParts[0] || "",
-            last_name: cNameParts.slice(1).join(" ") || "",
+            first_name: contactFirstName,
+            last_name: contactLastName,
             email: contactEmail || null,
             business_name: record.business_name,
           },
@@ -264,12 +264,11 @@ export async function PATCH(
 
       // Sync contact to Sage
       syncToSage(roasterId, async () => {
-        const cNameParts = contactName.split(" ");
         await pushContactToSage(
           roasterId,
           {
-            first_name: cNameParts[0] || "",
-            last_name: cNameParts.slice(1).join(" ") || "",
+            first_name: contactFirstName,
+            last_name: contactLastName,
             email: contactEmail || null,
             business_name: record.business_name,
           },
@@ -282,12 +281,11 @@ export async function PATCH(
       });
 
       syncToQuickBooks(roasterId, async () => {
-        const cNameParts = contactName.split(" ");
         await pushContactToQuickBooks(
           roasterId,
           {
-            first_name: cNameParts[0] || "",
-            last_name: cNameParts.slice(1).join(" ") || "",
+            first_name: contactFirstName,
+            last_name: contactLastName,
             email: contactEmail || null,
             business_name: record.business_name,
           },

@@ -6,7 +6,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact, splitName } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -230,9 +230,7 @@ export async function POST(request: Request) {
     const roasterPayoutPence = subtotalPence;
 
     // ─── Find or create person ───
-    const nameParts = (customerName || "").split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const { firstName, lastName } = splitName(customerName);
     const personId = await findOrCreatePerson(
       supabase,
       customerEmail,

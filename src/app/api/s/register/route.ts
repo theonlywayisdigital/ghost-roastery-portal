@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase";
 import { NextResponse } from "next/server";
+import { splitName } from "@/lib/people";
 
 export async function POST(request: Request) {
   try {
@@ -108,10 +109,11 @@ export async function POST(request: Request) {
 
       userId = existingUser.id;
 
-      // Ensure public.users row has their name
+      // Ensure public.users row has their name (first_name/last_name; full_name is generated)
+      const { firstName: regFirst, lastName: regLast } = splitName(name);
       await supabase
         .from("users")
-        .update({ full_name: name })
+        .update({ first_name: regFirst, last_name: regLast })
         .eq("id", userId);
     } else {
       // Unexpected error — return the actual message for debugging

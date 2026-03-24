@@ -9,7 +9,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact, splitName } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -306,9 +306,7 @@ export async function processEcommerceOrder(
   const orderStatus = "confirmed"; // External orders are already paid
 
   // ─── Find or create contact record ──────────────────────────────
-  const nameParts = (order.customer_name || "").split(" ");
-  const firstName = nameParts[0] || "";
-  const lastName = nameParts.slice(1).join(" ") || "";
+  const { firstName, lastName } = splitName(order.customer_name);
 
   const contactId = await findOrCreateContact(
     supabase,

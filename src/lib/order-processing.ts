@@ -1,7 +1,7 @@
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
-import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact, splitName } from "@/lib/people";
 import {
   sendStorefrontOrderConfirmation,
   sendWholesaleOrderConfirmation,
@@ -163,9 +163,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   }
 
   // 3. Find or create person/contact record
-  const nameParts = (customerName || "").split(" ");
-  const firstName = nameParts[0] || "";
-  const lastName = nameParts.slice(1).join(" ") || "";
+  const { firstName, lastName } = splitName(customerName);
 
   if (customerEmail) {
     await findOrCreatePerson(supabase, customerEmail, firstName, lastName);

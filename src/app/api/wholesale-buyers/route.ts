@@ -7,7 +7,7 @@ import {
   type EmailBranding,
 } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, splitName } from "@/lib/people";
 import crypto from "crypto";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
@@ -160,11 +160,13 @@ export async function POST(request: Request) {
 
       if (authData.user) {
         userId = authData.user.id;
-        await supabase.from("users").insert({
+        // Trigger may auto-create public.users — upsert to be safe
+        await supabase.from("users").upsert({
           id: userId,
           email: email.toLowerCase(),
-          full_name: fullName,
-        });
+          first_name: firstName,
+          last_name: lastName || "",
+        }, { onConflict: "id" });
       }
     }
 

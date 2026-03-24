@@ -164,6 +164,17 @@ export async function PUT(
       }
     }
 
+    // Also update users table (first_name/last_name; full_name is generated)
+    const userUpdates: Record<string, unknown> = {};
+    if (body.first_name !== undefined) userUpdates.first_name = body.first_name;
+    if (body.last_name !== undefined) userUpdates.last_name = body.last_name;
+    if (body.phone !== undefined) userUpdates.phone = body.phone;
+
+    if (Object.keys(userUpdates).length > 0) {
+      userUpdates.updated_at = new Date().toISOString();
+      await supabase.from("users").update(userUpdates).eq("id", id);
+    }
+
     if (changes.length === 0) {
       return NextResponse.json(
         { error: "No updates provided" },

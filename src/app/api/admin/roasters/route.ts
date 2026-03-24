@@ -125,7 +125,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { business_name, contact_name, email, phone, website, country } = body;
+    const { business_name, contact_name, contact_first_name, contact_last_name, email, phone, website, country } = body;
 
     if (!business_name || !business_name.trim()) {
       return NextResponse.json(
@@ -161,7 +161,8 @@ export async function POST(request: Request) {
       .from("partner_roasters")
       .insert({
         business_name: business_name.trim(),
-        contact_name: contact_name || null,
+        contact_first_name: contact_first_name || contact_name?.split(" ")[0] || "",
+        contact_last_name: contact_last_name || contact_name?.split(" ").slice(1).join(" ") || "",
         email: email?.toLowerCase() || null,
         phone: phone || null,
         website: website || null,

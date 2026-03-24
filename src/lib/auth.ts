@@ -18,6 +18,8 @@ export interface PortalUser {
     id: string;
     business_name: string;
     contact_name: string;
+    contact_first_name: string | null;
+    contact_last_name: string | null;
     email: string;
     phone: string | null;
     website: string | null;

@@ -3,6 +3,24 @@ import { createServerClient } from "@/lib/supabase";
 type SupabaseClient = ReturnType<typeof createServerClient>;
 
 /**
+ * Split a full name string into first_name and last_name.
+ * Splits on the first whitespace; everything after becomes last_name.
+ */
+export function splitName(fullName: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
+  if (!fullName) return { firstName: "", lastName: "" };
+  const trimmed = fullName.trim();
+  const spaceIdx = trimmed.indexOf(" ");
+  if (spaceIdx === -1) return { firstName: trimmed, lastName: "" };
+  return {
+    firstName: trimmed.slice(0, spaceIdx),
+    lastName: trimmed.slice(spaceIdx + 1),
+  };
+}
+
+/**
  * Find or create a person in the people table.
  * Calls the database function find_or_create_person which handles
  * email normalization, deduplication, and race conditions.

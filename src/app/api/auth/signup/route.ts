@@ -1,15 +1,20 @@
 import { createServerClient as createServiceClient } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 import { sendEmailConfirmation } from "@/lib/email";
-import { findOrCreatePerson } from "@/lib/people";
+import { findOrCreatePerson, splitName } from "@/lib/people";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { businessName, contactName, email, password, phone, website, country } = body;
+    const { businessName, contactName, contactFirstName, contactLastName, email, password, phone, website, country } = body;
 
-    if (!businessName || !contactName || !email || !password) {
+    // Support both split fields (preferred) and legacy single contactName
+    const resolvedFirstName = contactFirstName || splitName(contactName).firstName;
+    const resolvedLastName = contactLastName || splitName(contactName).lastName;
+    const resolvedContactName = contactName || [resolvedFirstName, resolvedLastName].filter(Boolean).join(" ");
+
+    if (!businessName || !resolvedContactName || !email || !password) {
       return NextResponse.json(
         { error: "Business name, contact name, email, and password are required" },
         { status: 400 }
@@ -57,7 +62,9 @@ export async function POST(request: Request) {
         password,
         email_confirm: false,
         user_metadata: {
-          full_name: contactName,
+          full_name: resolvedContactName,
+          first_name: resolvedFirstName,
+          last_name: resolvedLastName,
           business_name: businessName,
         },
       });
@@ -76,6 +83,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure public.users row exists with split name
+    await serviceClient.from("users").upsert({
+      id: authData.user.id,
+      email: normalizedEmail,
+      first_name: resolvedFirstName,
+      last_name: resolvedLastName,
+    }, { onConflict: "id" });
+
     // Create partner_roasters row linked to auth user
     const { data: roaster, error: dbError } = await serviceClient
       .from("partner_roasters")
@@ -83,7 +98,8 @@ export async function POST(request: Request) {
         email: normalizedEmail,
         password_hash: "supabase_auth", // No longer using bcrypt
         business_name: businessName,
-        contact_name: contactName,
+        contact_first_name: resolvedFirstName,
+        contact_last_name: resolvedLastName,
         phone: phone || null,
         website: website || null,
         country: country || "GB",
@@ -125,16 +141,12 @@ export async function POST(request: Request) {
     // Create people record + profile + auto-link GR contact/business (fire-and-forget)
     (async () => {
       try {
-        const nameParts = (contactName || "").split(" ");
-        const firstName = nameParts[0] || "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-
         // Create/find person
         const peopleId = await findOrCreatePerson(
           serviceClient,
           normalizedEmail,
-          firstName,
-          lastName,
+          resolvedFirstName,
+          resolvedLastName,
           phone || null
         );
 
@@ -152,8 +164,8 @@ export async function POST(request: Request) {
           await serviceClient.from("contacts").insert({
             owner_type: "ghost_roastery",
             roaster_id: null,
-            first_name: firstName,
-            last_name: lastName,
+            first_name: resolvedFirstName,
+            last_name: resolvedLastName,
             email: normalizedEmail,
             phone: phone || null,
             business_name: businessName,
@@ -193,7 +205,7 @@ export async function POST(request: Request) {
 
     // Send confirmation email (fire-and-forget)
     const confirmUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/verify-email?token=${token}`;
-    sendEmailConfirmation(normalizedEmail, contactName, confirmUrl).catch(
+    sendEmailConfirmation(normalizedEmail, resolvedContactName, confirmUrl).catch(
       (err) => console.error("Failed to send confirmation email:", err)
     );
 

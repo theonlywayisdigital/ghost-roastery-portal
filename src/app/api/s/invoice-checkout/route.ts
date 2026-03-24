@@ -5,7 +5,7 @@ import {
   fireAutomationTrigger,
   updateContactActivity,
 } from "@/lib/automation-triggers";
-import { findOrCreatePerson, findOrCreateContact } from "@/lib/people";
+import { findOrCreatePerson, findOrCreateContact, splitName } from "@/lib/people";
 import {
   generateInvoiceNumber,
   generateAccessToken,
@@ -355,18 +355,19 @@ export async function POST(request: Request) {
       } else if (authData.user) {
         userId = authData.user.id;
 
-        await supabase.from("users").insert({
+        // Trigger may auto-create public.users — upsert to be safe
+        const { firstName: wbFirst, lastName: wbLast } = splitName(wholesaleBuyerName);
+        await supabase.from("users").upsert({
           id: userId,
           email: wholesaleBuyerEmail.toLowerCase(),
-          full_name: wholesaleBuyerName,
-        });
+          first_name: wbFirst,
+          last_name: wbLast,
+        }, { onConflict: "id" });
       }
     }
 
     // ─── Ensure people record exists ───
-    const nameParts = (wholesaleBuyerName || "").split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const { firstName, lastName } = splitName(wholesaleBuyerName);
     const personId = await findOrCreatePerson(
       supabase,
       wholesaleBuyerEmail,

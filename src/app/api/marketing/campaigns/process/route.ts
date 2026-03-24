@@ -148,7 +148,7 @@ export async function GET(request: Request) {
       await supabase.from("campaign_recipients").insert(recipientRecords);
 
       // Render email
-      const displayName = roaster?.business_name || "Ghost Roastery";
+      const displayName = roaster?.business_name || "Roastery Platform";
       const renderRoasterId = campaign.roaster_id || "platform";
       const logoUrl = roaster?.brand_logo_url || null;
       const brandAccentColour = roaster?.brand_accent_colour || null;
@@ -167,9 +167,9 @@ export async function GET(request: Request) {
         ? await getVerifiedDomain(campaign.roaster_id)
         : null;
 
-      // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@ghostroastery.com
+      // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@roasteryplatform.com
       const replyTo = (campaign.reply_to as string)
-        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com");
+        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@roasteryplatform.com");
 
       await sendCampaignBatch({
         campaignId: campaign.id,

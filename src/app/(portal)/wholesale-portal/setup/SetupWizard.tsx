@@ -305,7 +305,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   }
 
   function copyUrl() {
-    navigator.clipboard.writeText(`${slug}.ghostroastery.com`);
+    navigator.clipboard.writeText(`${slug}.roasteryplatform.com`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -354,7 +354,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                 className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-l-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               />
               <span className="px-4 py-2.5 bg-slate-100 border border-l-0 border-slate-300 rounded-r-lg text-sm text-slate-500 whitespace-nowrap">
-                .ghostroastery.com
+                .roasteryplatform.com
               </span>
             </div>
 
@@ -818,7 +818,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Subdomain</span>
                 <span className="text-sm font-medium text-slate-900">
-                  {slug}.ghostroastery.com
+                  {slug}.roasteryplatform.com
                 </span>
               </div>
               {RETAIL_ENABLED && (
@@ -873,7 +873,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               <p className="text-xs text-slate-500 mb-1">{RETAIL_ENABLED ? "Your storefront URL" : "Your wholesale portal URL"}</p>
               <div className="flex items-center gap-2">
                 <p className="text-base font-semibold text-slate-900">
-                  {slug}.ghostroastery.com
+                  {slug}.roasteryplatform.com
                 </p>
                 <button
                   type="button"

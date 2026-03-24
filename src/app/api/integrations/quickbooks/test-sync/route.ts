@@ -114,7 +114,7 @@ export async function POST() {
       name: "Test Customer (Ghost Roastery Debug)",
       first_name: "Test",
       last_name: "Customer",
-      email: "test-sync-debug@ghostroastery.com",
+      email: "test-sync-debug@roasteryplatform.com",
       business_name: "Test Business Ltd",
     };
 
@@ -160,7 +160,7 @@ export async function POST() {
 
     const testCustomer = {
       name: "Test Customer (Ghost Roastery Debug)",
-      email: "test-sync-debug@ghostroastery.com",
+      email: "test-sync-debug@roasteryplatform.com",
       business_name: "Test Business Ltd",
     };
 

@@ -8,12 +8,12 @@ import { createServerClient } from "@/lib/supabase";
  * Parses the "to" address to extract the roaster slug, fetches the full
  * email content from Resend's API, and stores it in inbox_messages.
  *
- * DNS configuration required for inbox.ghostroastery.com:
- *   MX record: inbox.ghostroastery.com → inbound-smtp.us-east-1.amazonaws.com (priority 10)
- *   Configure "inbox.ghostroastery.com" as a receiving domain in Resend dashboard.
+ * DNS configuration required for inbox.roasteryplatform.com:
+ *   MX record: inbox.roasteryplatform.com → inbound-smtp.us-east-1.amazonaws.com (priority 10)
+ *   Configure "inbox.roasteryplatform.com" as a receiving domain in Resend dashboard.
  *   Add a webhook subscribed to "email.received" pointing to this endpoint.
  *
- * Inbound address format: {roaster_slug}@inbox.ghostroastery.com
+ * Inbound address format: {roaster_slug}@inbox.roasteryplatform.com
  */
 
 function parseFromField(from: string): { email: string; name: string | null } {
@@ -26,11 +26,11 @@ function parseFromField(from: string): { email: string; name: string | null } {
 }
 
 function extractSlugFromAddress(address: string): string | null {
-  // Extract from "slug@inbox.ghostroastery.com" or "Name <slug@inbox.ghostroastery.com>"
+  // Extract from "slug@inbox.roasteryplatform.com" or "Name <slug@inbox.roasteryplatform.com>"
   const emailMatch = address.match(/<(.+?)>/) || [null, address];
   const email = (emailMatch[1] || address).trim().toLowerCase();
   // Allow dots in slug (e.g. "off.your.bean") since roaster slugs can contain them
-  const match = email.match(/^([a-z0-9._-]+)@inbox\.ghostroastery\.com$/);
+  const match = email.match(/^([a-z0-9._-]+)@inbox\.roasteryplatform\.com$/);
   return match ? match[1] : null;
 }
 

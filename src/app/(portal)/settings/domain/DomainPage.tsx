@@ -242,7 +242,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
     setTimeout(() => setEmailCopied(null), 2000);
   }
 
-  const inboxAddress = currentSlug ? `${currentSlug}@inbox.ghostroastery.com` : null;
+  const inboxAddress = currentSlug ? `${currentSlug}@inbox.roasteryplatform.com` : null;
 
   return (
     <>
@@ -264,7 +264,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
               <h2 className="text-lg font-semibold text-slate-900">Wholesale Portal URL</h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Your subdomain on ghostroastery.com. This is used for your wholesale portal and storefront.
+              Your subdomain on roasteryplatform.com. This is used for your wholesale portal and storefront.
             </p>
           </div>
 
@@ -276,13 +276,13 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                   <Globe className="w-5 h-5 text-slate-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 font-mono truncate">
-                      {currentSlug}.ghostroastery.com
+                      {currentSlug}.roasteryplatform.com
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(`${currentSlug}.ghostroastery.com`);
+                        navigator.clipboard.writeText(`${currentSlug}.roasteryplatform.com`);
                         setSlugCopied(true);
                         setTimeout(() => setSlugCopied(false), 2000);
                       }}
@@ -330,7 +330,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                         className="flex-1 px-3 py-2 border border-slate-300 rounded-l-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                       />
                       <span className="px-3 py-2 bg-slate-100 border border-l-0 border-slate-300 rounded-r-lg text-sm text-slate-500 whitespace-nowrap">
-                        .ghostroastery.com
+                        .roasteryplatform.com
                       </span>
                     </div>
 
@@ -441,7 +441,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
               <Mail className="w-5 h-5 text-slate-400" />
               <div>
                 <p className="text-sm font-medium text-slate-700">Default sending domain</p>
-                <p className="text-sm text-slate-500 font-mono">noreply@ghostroastery.com</p>
+                <p className="text-sm text-slate-500 font-mono">noreply@roasteryplatform.com</p>
               </div>
               <div className="ml-auto">
                 <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700">
@@ -756,7 +756,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                 Custom domain support for your wholesale portal and storefront is coming soon.
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                You&apos;ll be able to point your own domain to your Ghost Roastery portal.
+                You&apos;ll be able to point your own domain to your Roastery Platform portal.
               </p>
             </div>
           </div>

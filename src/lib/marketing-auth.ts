@@ -53,8 +53,8 @@ async function getAdminMarketingOwner(): Promise<MarketingOwner | null> {
   return {
     owner_type: "ghost_roastery",
     owner_id: null,
-    display_name: "Ghost Roastery",
-    email: "hello@ghostroastery.co.uk",
+    display_name: "Roastery Platform",
+    email: "hello@roasteryplatform.com",
   };
 }
 

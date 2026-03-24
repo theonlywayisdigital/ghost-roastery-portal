@@ -124,7 +124,7 @@ export function AdminWholesaleAccounts() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Wholesale Accounts</h1>
           <p className="text-slate-500 mt-1">
-            Manage wholesale access applications and approved accounts for Ghost Roastery.
+            Manage wholesale access applications and approved accounts for Roastery Platform.
           </p>
         </div>
         <Link

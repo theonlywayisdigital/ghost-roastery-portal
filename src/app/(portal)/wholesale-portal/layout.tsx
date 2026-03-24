@@ -31,7 +31,7 @@ export default async function StorefrontLayout({
         <h1 className="text-2xl font-bold text-slate-900">Wholesale Portal</h1>
         {isSetupComplete && slug && (
           <p className="text-sm text-slate-500 mt-1">
-            {slug}.ghostroastery.com
+            {slug}.roasteryplatform.com
           </p>
         )}
       </div>

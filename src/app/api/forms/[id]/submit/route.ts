@@ -9,7 +9,7 @@ import { wrapEmailWithBranding, emailButton, EmailBranding } from "@/lib/email-t
 import crypto from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_DOMAIN = "ghostroastery.com";
+const FROM_DOMAIN = "roasteryplatform.com";
 
 export async function POST(
   request: NextRequest,
@@ -151,7 +151,7 @@ export async function POST(
       const emailPrefix = customDomain?.senderPrefix || "noreply";
 
       try {
-        const businessName = roaster?.business_name || "Ghost Roastery";
+        const businessName = roaster?.business_name || "Roastery Platform";
         const bodyHtml = `
           <h1 style="color:#0f172a;font-size:20px;margin:0 0 16px;">${subject}</h1>
           <p style="color:#334155;font-size:15px;line-height:24px;margin:4px 0;">

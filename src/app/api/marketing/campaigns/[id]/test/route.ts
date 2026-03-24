@@ -61,7 +61,7 @@ export async function POST(
 
     // Look up custom domain if this is a roaster campaign
     const customDomain = owner.owner_id ? await getVerifiedDomain(owner.owner_id) : null;
-    const emailDomain = customDomain?.domain || "ghostroastery.com";
+    const emailDomain = customDomain?.domain || "roasteryplatform.com";
     const emailPrefix = customDomain?.senderPrefix || "noreply";
 
     await resend.emails.send({
@@ -70,7 +70,7 @@ export async function POST(
       subject: `[TEST] ${campaign.subject}`,
       html,
       replyTo: (campaign.reply_to as string)
-        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com"),
+        || (customDomain ? `noreply@${customDomain.domain}` : "noreply@roasteryplatform.com"),
     });
 
     return NextResponse.json({ success: true, sentTo: user.email });

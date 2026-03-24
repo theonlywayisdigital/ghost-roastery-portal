@@ -1,7 +1,7 @@
-# Ghost Roastery Platform
+# Roastery Platform
 
 ## Overview
-Partner platform for Ghost Roastery. Separate Next.js 14 app sharing the same Supabase database as the main ghostroasting.co.uk site. Serves both roasters (B2B) and customers (B2C).
+Roastery Platform. Separate Next.js 14 app sharing the same Supabase database as the main site. Serves both roasters (B2B) and customers (B2C).
 
 ## Tech Stack
 - Next.js 14 (App Router)
@@ -13,8 +13,8 @@ Partner platform for Ghost Roastery. Separate Next.js 14 app sharing the same Su
 - Lucide React (icons)
 
 ## Supabase
-- Same database as ghostroasting.co.uk
-- Migrations live in the main ghostroastery repo: `/Users/alexmccormick/ghostroastery/supabase/migrations/`
+- Same database as main site (roasteryplatform.com)
+- Migrations live in the main repo: `/Users/alexmccormick/ghostroastery/supabase/migrations/`
 - Service role key for server-side operations (bypasses RLS)
 - Project ref: zaryzynzbpxmscggufdc
 

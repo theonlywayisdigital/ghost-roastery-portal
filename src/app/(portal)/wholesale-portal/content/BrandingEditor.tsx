@@ -170,7 +170,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                 Wholesale portal status
               </h3>
               <p className="text-sm text-slate-500 mt-0.5">
-                {branding.storefront_slug}.ghostroastery.co.uk
+                {branding.storefront_slug}.roasteryplatform.com
               </p>
             </div>
             <div className="flex items-center gap-3">

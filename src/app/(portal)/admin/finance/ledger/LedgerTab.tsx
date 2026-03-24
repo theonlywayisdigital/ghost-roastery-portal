@@ -19,7 +19,7 @@ function formatDate(dateStr: string) {
 }
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
-  ghost_roastery: "Ghost Roastery",
+  ghost_roastery: "Roastery Platform",
   storefront: "Storefront",
   wholesale: "Wholesale",
   retail_stripe: "Retail (Stripe)",
@@ -107,7 +107,7 @@ export function LedgerTab() {
           className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
         >
           <option value="">All types</option>
-          <option value="ghost_roastery">Ghost Roastery</option>
+          <option value="ghost_roastery">Roastery Platform</option>
           <option value="storefront">Storefront</option>
           <option value="wholesale_stripe">Wholesale (Stripe)</option>
           <option value="wholesale_invoice_online">

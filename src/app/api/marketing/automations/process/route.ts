@@ -6,7 +6,7 @@ import { getVerifiedDomain } from "@/lib/email";
 import type { TriggerFilters } from "@/types/marketing";
 import { Resend } from "resend";
 
-const FROM_DOMAIN = "ghostroastery.com";
+const FROM_DOMAIN = "roasteryplatform.com";
 
 export async function POST(request: NextRequest) {
   // Verify this is called by an authorized source (cron secret or internal)

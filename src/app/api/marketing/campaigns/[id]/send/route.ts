@@ -160,9 +160,9 @@ export async function POST(
     // Look up custom domain if this is a roaster campaign
     const customDomain = owner.owner_id ? await getVerifiedDomain(owner.owner_id) : null;
 
-    // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@ghostroastery.com
+    // Reply-To: explicit campaign setting > noreply@custom-domain > noreply@roasteryplatform.com
     const replyTo = (campaign.reply_to as string)
-      || (customDomain ? `noreply@${customDomain.domain}` : "noreply@ghostroastery.com");
+      || (customDomain ? `noreply@${customDomain.domain}` : "noreply@roasteryplatform.com");
 
     await sendCampaignBatch({
       campaignId: id,

@@ -73,7 +73,7 @@ export async function GET(
     }
 
     // Resolve owner info, branding, and bank details
-    let ownerName = "Ghost Roastery";
+    let ownerName = "Roastery Platform";
     let ownerAddress = "";
     let ownerEmail = "";
     let vatNumber: string | null = null;

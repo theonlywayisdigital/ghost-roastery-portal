@@ -22,7 +22,7 @@ export async function GET() {
     brand_heading_font: settings?.brand_heading_font || "inter",
     brand_body_font: settings?.brand_body_font || "inter",
     brand_tagline: settings?.brand_tagline || "",
-    business_name: "Ghost Roastery",
+    business_name: "Roastery Platform",
   });
 }
 

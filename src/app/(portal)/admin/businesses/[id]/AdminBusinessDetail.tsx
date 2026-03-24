@@ -1664,7 +1664,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-400">Owner</span>
                   <span className="text-xs text-slate-600">
-                    {business.owner_type === "ghost_roastery" ? "Ghost Roastery" : business.roasterName || "Roaster"}
+                    {business.owner_type === "ghost_roastery" ? "Roastery Platform" : business.roasterName || "Roaster"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

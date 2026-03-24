@@ -1,7 +1,7 @@
 import { createServerClient } from "@/lib/supabase";
 
 /**
- * Resolve Ghost Roastery's own roaster ID.
+ * Resolve Roastery Platform's own roaster ID.
  *
  * Prefers the GHOST_ROASTERY_ROASTER_ID env var for speed.
  * Falls back to querying partner_roasters where

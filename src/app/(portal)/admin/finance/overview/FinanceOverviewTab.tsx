@@ -77,7 +77,7 @@ export function FinanceOverviewTab() {
       value: formatCurrency(data.outstandingPayouts),
       icon: Wallet,
       color: "text-orange-600 bg-orange-50",
-      tooltip: "Payouts owed to partner roasters fulfilling Ghost Roastery orders. Storefront and wholesale payments are handled via Stripe Connect or direct invoicing.",
+      tooltip: "Payouts owed to partner roasters fulfilling Roastery Platform orders. Storefront and wholesale payments are handled via Stripe Connect or direct invoicing.",
     },
     {
       label: "Outstanding Invoices",

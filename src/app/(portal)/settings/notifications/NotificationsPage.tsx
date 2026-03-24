@@ -34,8 +34,8 @@ const ORDER_PREFERENCES: PreferenceConfig[] = [
   },
   {
     key: "new_ghost_roastery_order",
-    label: "New Ghost Roastery order",
-    description: "Get notified when Ghost Roastery assigns a new order to you.",
+    label: "New Roastery Platform order",
+    description: "Get notified when Roastery Platform assigns a new order to you.",
   },
   {
     key: "order_status_updated",
@@ -60,7 +60,7 @@ const CUSTOMER_PREFERENCES: PreferenceConfig[] = [
 const MARKETING_PREFERENCES: PreferenceConfig[] = [
   {
     key: "ghost_roastery_newsletter",
-    label: "Ghost Roastery newsletter",
+    label: "Roastery Platform newsletter",
     description: "Monthly updates about the platform, new features, and partner news.",
   },
   {

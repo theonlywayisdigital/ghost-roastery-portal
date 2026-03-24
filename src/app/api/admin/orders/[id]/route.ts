@@ -189,7 +189,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       if (emailTo) {
         let branding: EmailBranding | undefined;
-        let roasterName = "Ghost Roastery";
+        let roasterName = "Roastery Platform";
 
         if (isGhost) {
           // Ghost orders use platform branding

@@ -58,8 +58,8 @@ export function WebsiteFooter({ siteName, theme, pages, footerText, basePath = "
           </p>
           <p className="text-xs text-slate-300">
             Powered by{" "}
-            <a href="https://ghostroasting.co.uk" className="text-slate-300 hover:text-slate-400 no-underline">
-              Ghost Roastery
+            <a href="https://roasteryplatform.com" className="text-slate-300 hover:text-slate-400 no-underline">
+              Roastery Platform
             </a>
           </p>
         </div>

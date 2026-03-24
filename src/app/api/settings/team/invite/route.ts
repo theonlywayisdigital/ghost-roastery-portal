@@ -8,7 +8,7 @@ import { wrapEmailWithBranding, emailButton, EmailBranding } from "@/lib/email-t
 import { checkLimit } from "@/lib/feature-gates";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
+const FROM_EMAIL = "Roastery Platform <noreply@roasteryplatform.com>";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
     // Send invite email
     try {
       const customDomain = await getVerifiedDomain(roaster.id as string);
-      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com";
+      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com";
       const bodyHtml = `
         <h1 style="color:#0f172a;font-size:20px;margin:0 0 16px;">Team Invitation</h1>
         <p style="color:#334155;font-size:15px;line-height:24px;margin:4px 0;">

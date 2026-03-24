@@ -135,7 +135,7 @@ export function RefundsTab() {
           className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
         >
           <option value="">All order types</option>
-          <option value="ghost_roastery">Ghost Roastery</option>
+          <option value="ghost_roastery">Roastery Platform</option>
           <option value="storefront">Storefront</option>
           <option value="wholesale">Wholesale</option>
         </select>

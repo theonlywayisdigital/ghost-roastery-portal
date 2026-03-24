@@ -149,7 +149,7 @@ export async function PATCH(
           await sendWholesaleApproved(
             contactEmail,
             contactName,
-            "Ghost Roastery",
+            "Roastery Platform",
             tier,
             terms,
             catalogueUrl
@@ -258,7 +258,7 @@ export async function PATCH(
           await sendWholesaleRejected(
             contactEmail,
             contactName,
-            "Ghost Roastery",
+            "Roastery Platform",
             reason || ""
           );
         } catch (e) {

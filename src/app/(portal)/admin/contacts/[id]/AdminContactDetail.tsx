@@ -420,7 +420,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
           <p className="text-sm text-blue-800">
             {crossReference.owner_type === "roaster"
               ? `This email also exists as a roaster contact${crossReference.roasterName ? ` (${crossReference.roasterName})` : ""}.`
-              : "This email also exists as a Ghost Roastery contact."}
+              : "This email also exists as a Roastery Platform contact."}
           </p>
           <Link
             href={`/admin/contacts/${crossReference.id}`}
@@ -838,7 +838,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-slate-400">Owner</span>
                   <span className="text-xs text-slate-600">
-                    {contact.owner_type === "ghost_roastery" ? "Ghost Roastery" : contact.roasterName || "Roaster"}
+                    {contact.owner_type === "ghost_roastery" ? "Roastery Platform" : contact.roasterName || "Roaster"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

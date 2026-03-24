@@ -110,7 +110,7 @@ export function AdminWholesaleOrders() {
         </Link>
         <h1 className="text-2xl font-bold text-slate-900">GR Wholesale Orders</h1>
         <p className="text-slate-500 mt-1">
-          Wholesale orders placed against Ghost Roastery.
+          Wholesale orders placed against Roastery Platform.
         </p>
       </div>
 

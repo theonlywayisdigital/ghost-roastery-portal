@@ -12,5 +12,5 @@ export default async function AdminPricingPage() {
 }
 
 export const metadata = {
-  title: "Pricing Management | Ghost Roastery Admin",
+  title: "Pricing Management | Roastery Platform Admin",
 };

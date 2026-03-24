@@ -183,7 +183,7 @@ const labelMap: Record<string, Record<string, string>> = {
     sent_to_print: "Sent to Print",
   },
   orderType: {
-    ghost: "Ghost Roastery",
+    ghost: "Roastery Platform",
     storefront: "Retail",
     wholesale: "Wholesale",
   },

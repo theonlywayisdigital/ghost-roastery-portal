@@ -40,7 +40,7 @@ export function renderEmailHtml(
     </div>
     <div style="text-align:center;padding:16px 0;">
       <p style="font-size:12px;color:#94a3b8;margin:0;">
-        Sent via <a href="https://ghostroasting.co.uk" style="color:#94a3b8;">Ghost Roastery</a>
+        Sent via <a href="https://roasteryplatform.com" style="color:#94a3b8;">Roastery Platform</a>
       </p>
       ${
         unsubscribeUrl

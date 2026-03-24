@@ -50,7 +50,7 @@ export function EmbedCodeGenerator({
   slug: string;
   storefrontType: string;
 }) {
-  const portalUrl = typeof window !== "undefined" ? window.location.origin : "https://portal.ghostroastery.com";
+  const portalUrl = typeof window !== "undefined" ? window.location.origin : "https://app.roasteryplatform.com";
   const showShop = RETAIL_ENABLED; // Only show retail shop embed when retail is enabled
   const showWholesale = storefrontType === "wholesale" || storefrontType === "both";
 

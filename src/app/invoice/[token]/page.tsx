@@ -47,7 +47,7 @@ export default async function PublicInvoicePage({
     .order("sort_order", { ascending: true });
 
   // Fetch owner branding
-  let ownerName = "Ghost Roastery";
+  let ownerName = "Roastery Platform";
   let ownerAddress = "";
   let ownerEmail = "";
   let logoUrl: string | null = null;

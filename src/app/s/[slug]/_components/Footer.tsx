@@ -125,13 +125,13 @@ export function Footer() {
           <p className="text-xs" style={{ color: veryMutedText }}>
             Powered by{" "}
             <a
-              href="https://ghostroastery.com"
+              href="https://roasteryplatform.com"
               target="_blank"
               rel="noopener noreferrer"
               className="underline transition-opacity hover:opacity-100"
               style={{ color: mutedText }}
             >
-              Ghost Roastery
+              Roastery Platform
             </a>
           </p>
         </div>

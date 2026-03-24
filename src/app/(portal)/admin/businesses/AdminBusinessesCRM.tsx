@@ -302,7 +302,7 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
       <div className="flex gap-2 mb-4">
         {(
           [
-            { id: "ghost_roastery" as const, label: "Ghost Roastery" },
+            { id: "ghost_roastery" as const, label: "Roastery Platform" },
             { id: "gr_wholesale" as const, label: "GR Wholesale" },
             { id: "roaster" as const, label: "Roaster Businesses" },
           ] as const

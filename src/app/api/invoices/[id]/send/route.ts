@@ -98,7 +98,7 @@ export async function POST(
     }
 
     // Resolve owner details
-    let ownerName = "Ghost Roastery";
+    let ownerName = "Roastery Platform";
     let ownerEmail = "";
     let vatNumber: string | null = null;
     let bankName: string | null = null;

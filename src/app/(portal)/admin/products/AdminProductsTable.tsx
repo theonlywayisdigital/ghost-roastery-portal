@@ -79,7 +79,7 @@ export function AdminProductsTable({ products: initial }: { products: Product[] 
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Products</h1>
           <p className="text-slate-500 mt-1">
-            Manage Ghost Roastery wholesale products.
+            Manage Roastery Platform wholesale products.
           </p>
         </div>
         <Link

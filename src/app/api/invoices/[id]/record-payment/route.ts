@@ -222,7 +222,7 @@ export async function POST(
 
       if (buyerEmail) {
         // Fetch roaster details for branding + bank details
-        let ownerName = "Ghost Roastery";
+        let ownerName = "Roastery Platform";
         let ownerEmail = "";
         let vatNumber: string | null = null;
         let bankName: string | null = null;

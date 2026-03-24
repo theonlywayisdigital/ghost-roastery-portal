@@ -3,8 +3,8 @@ import { wrapEmailWithBranding, emailButton, type EmailBranding } from "@/lib/em
 import { createServerClient } from "@/lib/supabase";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const DEFAULT_DOMAIN = "ghostroastery.com";
-const FROM_EMAIL = `Ghost Roastery <noreply@${DEFAULT_DOMAIN}>`;
+const DEFAULT_DOMAIN = "roasteryplatform.com";
+const FROM_EMAIL = `Roastery Platform <noreply@${DEFAULT_DOMAIN}>`;
 
 export { type EmailBranding } from "@/lib/email-template";
 
@@ -38,7 +38,7 @@ function getFromEmail(
   if (branding?.businessName) {
     return `${branding.businessName} <${prefix}@${domain}>`;
   }
-  return `Ghost Roastery <${prefix}@${domain}>`;
+  return `Roastery Platform <${prefix}@${domain}>`;
 }
 
 export async function sendEmailConfirmation(
@@ -54,7 +54,7 @@ export async function sendEmailConfirmation(
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Thanks for signing up to Ghost Roastery. Please confirm your email address by clicking the button below:
+      Thanks for signing up to Roastery Platform. Please confirm your email address by clicking the button below:
     </p>
 
     ${emailButton({ href: confirmUrl, label: "Confirm Email Address" })}
@@ -71,8 +71,8 @@ export async function sendEmailConfirmation(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: "Confirm your Ghost Roastery email",
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+    subject: "Confirm your Roastery Platform email",
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
   });
 }
 
@@ -83,7 +83,7 @@ export async function sendWelcomeEmail(
   branding?: EmailBranding | null
 ) {
   const body = `
-    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Welcome to Ghost Roastery</h1>
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Welcome to Roastery Platform</h1>
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Sell, market &amp; manage &mdash; built for roasters</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
@@ -107,8 +107,8 @@ export async function sendWelcomeEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: `Welcome to Ghost Roastery, ${businessName}!`,
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+    subject: `Welcome to Roastery Platform, ${businessName}!`,
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform", branding }),
   });
 }
 
@@ -280,7 +280,7 @@ export async function sendWholesaleAccountSetup(
 ) {
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">You&rsquo;ve been invited to ${roasterName} Wholesale</h1>
-    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ghost Roastery Platform</p>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Roastery Platform</p>
 
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       Hi ${contactName},
@@ -289,7 +289,7 @@ export async function sendWholesaleAccountSetup(
       <strong>${roasterName}</strong> has added you as a wholesale customer.
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      To place orders, you&rsquo;ll need to set up your Ghost Roastery account &mdash; the platform that powers ${roasterName}&rsquo;s wholesale store.
+      To place orders, you&rsquo;ll need to set up your Roastery Platform account &mdash; the platform that powers ${roasterName}&rsquo;s wholesale store.
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
       This takes less than a minute and gives you access to your orders, invoices and wholesale catalogue.
@@ -312,13 +312,13 @@ export async function sendWholesaleAccountSetup(
     </p>
 
     <p style="color:#94a3b8;font-size:12px;margin-top:16px;text-align:center;">
-      Ghost Roastery Platform is the all-in-one platform for independent coffee roasters.
+      Roastery Platform is the all-in-one platform for independent coffee roasters.
     </p>`;
 
   await resend.emails.send({
     from: getFromEmail(branding, customDomain),
     to: email,
-    subject: `Set up your Ghost Roastery account — ${roasterName} Wholesale`,
+    subject: `Set up your Roastery Platform account — ${roasterName} Wholesale`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }
@@ -350,7 +350,7 @@ export async function sendWholesaleWelcome(
       You&rsquo;ve been added as a wholesale customer of <strong>${roasterName}</strong>.
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Sign in to your Ghost Roastery account to browse their catalogue and place orders.
+      Sign in to your Roastery Platform account to browse their catalogue and place orders.
     </p>
 
     ${emailButton({ href: wholesaleUrl, label: "Sign In to Wholesale", branding })}
@@ -376,7 +376,7 @@ export async function sendPasswordResetEmail(
   resetUrl: string,
   contactName: string
 ) {
-  // Password reset always uses Ghost Roastery branding (platform-level)
+  // Password reset always uses Roastery Platform branding (platform-level)
   const body = `
     <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Reset Your Password</h1>
     <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Sell, market &amp; manage &mdash; built for roasters</p>
@@ -402,8 +402,8 @@ export async function sendPasswordResetEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: "Reset your Ghost Roastery password",
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+    subject: "Reset your Roastery Platform password",
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
   });
 }
 
@@ -443,7 +443,7 @@ export async function sendOrderCancellationEmail(params: {
 
     ${refundNote}
 
-    ${emailButton({ href: `${process.env.NEXT_PUBLIC_SITE_URL || "https://ghostroasting.co.uk"}/build`, label: "Place a New Order", branding })}
+    ${emailButton({ href: `${process.env.NEXT_PUBLIC_SITE_URL || "https://roasteryplatform.com"}/build`, label: "Place a New Order", branding })}
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
       If you have any questions, reply to this email &mdash; we&rsquo;re here to help.
@@ -453,7 +453,7 @@ export async function sendOrderCancellationEmail(params: {
     from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Your order #${orderNumber} has been cancelled`,
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform", branding }),
   });
 }
 
@@ -491,7 +491,7 @@ export async function sendOrderCancelledPartnerNotification(params: {
     from: getFromEmail(branding, params.customDomain),
     to,
     subject: `Order #${orderNumber} has been cancelled`,
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform", branding }),
   });
 }
 
@@ -730,7 +730,7 @@ export async function sendPartnerAllocationEmail(params: {
       Hi ${partnerName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      A new Ghost Roastery order <strong>#${orderNumber}</strong> has been allocated to you for fulfilment. Please log in to your portal to review the order details and accept it.
+      A new Roastery Platform order <strong>#${orderNumber}</strong> has been allocated to you for fulfilment. Please log in to your portal to review the order details and accept it.
     </p>
 
     ${emailButton({ href: `${process.env.NEXT_PUBLIC_PORTAL_URL}/orders`, label: "View Order", branding })}
@@ -743,7 +743,7 @@ export async function sendPartnerAllocationEmail(params: {
     from: FROM_EMAIL,
     to,
     subject: `New order allocated — #${orderNumber}`,
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery", branding }),
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform", branding }),
   });
 }
 
@@ -783,7 +783,7 @@ export async function sendAdminNewOrderNotification(params: {
     from: FROM_EMAIL,
     to,
     subject: `New ${channelLabel.toLowerCase()} order #${orderNumber} — £${total.toFixed(2)}`,
-    html: wrapEmailWithBranding({ body, businessName: "Ghost Roastery" }),
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
   });
 }
 

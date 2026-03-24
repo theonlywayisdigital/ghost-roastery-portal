@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  var EMBED_BASE = "https://portal.ghostroastery.com";
+  var EMBED_BASE = "https://app.roasteryplatform.com";
 
   // Allow override for development
   var scripts = document.querySelectorAll("script[data-roaster]");

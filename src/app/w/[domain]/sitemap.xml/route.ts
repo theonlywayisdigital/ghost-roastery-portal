@@ -26,7 +26,7 @@ export async function GET(
   const customDomain = roaster.website_custom_domain;
   const baseUrl = customDomain
     ? `https://${customDomain}`
-    : `${process.env.NEXT_PUBLIC_BASE_URL || "https://portal.ghostroasting.co.uk"}/w/${roaster.storefront_slug}`;
+    : `${process.env.NEXT_PUBLIC_BASE_URL || "https://app.roasteryplatform.com"}/w/${roaster.storefront_slug}`;
 
   // Get website
   const { data: website } = await supabase

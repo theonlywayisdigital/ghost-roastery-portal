@@ -5,7 +5,7 @@ import { Resend } from "resend";
 import { wrapEmailWithBranding } from "@/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = "Ghost Roastery <noreply@ghostroastery.com>";
+const FROM_EMAIL = "Roastery Platform <noreply@roasteryplatform.com>";
 
 export async function POST(
   req: NextRequest,
@@ -60,7 +60,7 @@ export async function POST(
     from: FROM_EMAIL,
     to: recipientEmail,
     subject,
-    html: wrapEmailWithBranding({ body: bodyHtml, businessName: "Ghost Roastery", branding }),
+    html: wrapEmailWithBranding({ body: bodyHtml, businessName: "Roastery Platform", branding }),
   });
 
   // Save to communications log

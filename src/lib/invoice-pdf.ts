@@ -690,7 +690,7 @@ function InvoiceDocument(props: InvoicePdfParams) {
       React.createElement(
         Text,
         { style: styles.footer },
-        `${ownerName} \u00b7 Powered by Ghost Roastery`
+        `${ownerName} \u00b7 Powered by Roastery Platform`
       )
     )
   );

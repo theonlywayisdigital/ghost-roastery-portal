@@ -506,7 +506,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo-v2.png"
-            alt="Ghost Roastery Platform"
+            alt="Roastery Platform"
             className="w-full h-auto max-w-[210px]"
           />
         </Link>

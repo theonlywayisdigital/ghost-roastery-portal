@@ -155,7 +155,7 @@ export function InvoicesTab() {
             hiddenOnMobile: true,
             render: (row: InvoiceFull) => (
               <span className="text-sm text-slate-600">
-                {row.roaster_name || "Ghost Roastery"}
+                {row.roaster_name || "Roastery Platform"}
               </span>
             ),
           },
@@ -203,7 +203,7 @@ export function InvoicesTab() {
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >
-            Ghost Roastery
+            Roastery Platform
           </button>
           <button
             onClick={() => updateParams({ subTab: "platform" })}

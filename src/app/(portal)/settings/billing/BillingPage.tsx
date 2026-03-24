@@ -645,7 +645,7 @@ function SubscriptionTab({
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
           <Crown className="w-5 h-5 text-blue-600 flex-shrink-0" />
           <p className="text-sm text-blue-800">
-            Your plan was set by the Ghost Roastery admin team.
+            Your plan was set by the Roastery Platform admin team.
           </p>
         </div>
       )}
@@ -1271,7 +1271,7 @@ function MyBillingTab({
                 </span>
               </div>
               <p className="text-xs text-slate-400 pt-2">
-                Platform fees are set by Ghost Roastery and cannot be changed
+                Platform fees are set by Roastery Platform and cannot be changed
                 here. Contact us if you have questions.
               </p>
             </div>
@@ -1415,7 +1415,7 @@ function MyBillingTab({
             </h3>
             <p className="text-xs text-slate-500 mb-4">
               These details appear on invoices you send to wholesale
-              customers and invoices you receive from Ghost Roastery.
+              customers and invoices you receive from Roastery Platform.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
               <div>

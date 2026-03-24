@@ -112,7 +112,7 @@ export async function GET(request: Request) {
         if (!customerEmail) continue;
 
         try {
-          const ownerName = roaster.business_name || "Ghost Roastery";
+          const ownerName = roaster.business_name || "Roastery Platform";
           const branding = {
             logoUrl: roaster.brand_logo_url,
             primaryColour: roaster.brand_primary_colour || undefined,

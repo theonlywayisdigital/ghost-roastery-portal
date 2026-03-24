@@ -690,12 +690,12 @@ function FormPageInner() {
             >
               Powered by{" "}
               <a
-                href="https://ghostroasting.co.uk"
+                href="https://roasteryplatform.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "#94a3b8", textDecoration: "underline" }}
               >
-                Ghost Roastery
+                Roastery Platform
               </a>
             </p>
           )}
@@ -894,12 +894,12 @@ function FormPageInner() {
           >
             Powered by{" "}
             <a
-              href="https://ghostroasting.co.uk"
+              href="https://roasteryplatform.com"
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "#94a3b8", textDecoration: "underline" }}
             >
-              Ghost Roastery
+              Roastery Platform
             </a>
           </p>
         )}

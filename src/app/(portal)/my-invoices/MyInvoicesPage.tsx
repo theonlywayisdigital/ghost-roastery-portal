@@ -109,7 +109,7 @@ export function MyInvoicesPage() {
                         </p>
                       </td>
                       <td className="px-6 py-3 text-sm text-slate-700 hidden sm:table-cell">
-                        {inv.roaster_name || "Ghost Roastery"}
+                        {inv.roaster_name || "Roastery Platform"}
                       </td>
                       <td className="px-6 py-3">
                         <StatusBadge

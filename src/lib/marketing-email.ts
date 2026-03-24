@@ -5,7 +5,7 @@ import type { EmailBlock } from "@/types/marketing";
 import { renderEmailHtml } from "@/lib/render-email-html";
 import { type TierLevel, getEffectiveLimits } from "@/lib/tier-config";
 
-const FROM_DOMAIN = "ghostroastery.com";
+const FROM_DOMAIN = "roasteryplatform.com";
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || process.env.RESEND_API_KEY || "fallback-secret";
 const BATCH_SIZE = 50;
 
@@ -20,7 +20,7 @@ export function renderCampaignEmail(
   brandAccentColour?: string | null
 ): string {
   const blocks = content as EmailBlock[];
-  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
+  const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
   return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined, logoUrl, brandAccentColour);
 }
 
@@ -154,7 +154,7 @@ export async function sendCampaignBatch(params: SendBatchParams): Promise<void> 
           replyTo,
           ...(previewText ? { previewText } : {}),
           headers: {
-            "List-Unsubscribe": `<${process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.ghostroastery.com"}/api/marketing/unsubscribe?token=${token}>`,
+            "List-Unsubscribe": `<${process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com"}/api/marketing/unsubscribe?token=${token}>`,
           },
         });
 

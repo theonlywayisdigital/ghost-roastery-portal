@@ -50,7 +50,7 @@ export function MyOrdersClient() {
           Your orders will appear here once you place them.
         </p>
         <a
-          href={process.env.NEXT_PUBLIC_SITE_URL || "https://ghostroasting.co.uk"}
+          href={process.env.NEXT_PUBLIC_SITE_URL || "https://roasteryplatform.com"}
           className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
         >
           Build Your Coffee
@@ -83,7 +83,7 @@ export function MyOrdersClient() {
                     : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                {f === "all" ? "All" : f === "ghost" ? "Ghost Roastery" : f === "storefront" ? "Storefront" : "Wholesale"}
+                {f === "all" ? "All" : f === "ghost" ? "Roastery Platform" : f === "storefront" ? "Storefront" : "Wholesale"}
                 <span className="ml-1.5 text-xs opacity-70">{count}</span>
               </button>
             );

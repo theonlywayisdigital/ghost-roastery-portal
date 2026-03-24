@@ -16,7 +16,7 @@ import type { UnifiedOrder, OrderType } from "@/types/admin";
 
 const tabs: { label: string; value: OrderType | "" }[] = [
   { label: "All", value: "" },
-  { label: "Ghost Roastery", value: "ghost" },
+  { label: "Roastery Platform", value: "ghost" },
   { label: "Retail", value: "storefront" as OrderType },
   { label: "Wholesale", value: "wholesale" },
 ];

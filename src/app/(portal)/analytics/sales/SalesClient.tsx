@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   PoundSterling,
   ShoppingCart,
@@ -25,8 +24,7 @@ import {
   Legend,
 } from "recharts";
 import {
-  DateRangeSelector,
-  AnalyticsNav,
+  AnalyticsHeader,
   KPICard,
   ChartCard,
   EmptyChart,
@@ -35,6 +33,7 @@ import {
   formatCurrency,
   formatShortDate,
   formatPercent,
+  useAnalyticsParams,
 } from "../AnalyticsShared";
 
 interface SalesData {
@@ -55,30 +54,23 @@ interface SalesData {
 }
 
 export function SalesClient() {
-  const searchParams = useSearchParams();
-  const range = searchParams.get("range") || "30d";
+  const { queryString } = useAnalyticsParams();
   const [data, setData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [revenueMode, setRevenueMode] = useState<"stacked" | "total">("stacked");
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/analytics?section=sales&range=${range}`)
+    fetch(`/api/analytics?section=sales&${queryString}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [queryString]);
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-        <DateRangeSelector />
-      </div>
-      <p className="text-slate-500 mb-4">Sales & revenue performance.</p>
-      <AnalyticsNav />
+      <AnalyticsHeader subtitle="Sales &amp; revenue performance." />
 
       {loading ? (
         <>

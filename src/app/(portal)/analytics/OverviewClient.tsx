@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   PoundSterling,
   ShoppingCart,
@@ -16,8 +15,7 @@ import {
   AreaChart, Area, ResponsiveContainer, Tooltip, XAxis,
 } from "recharts";
 import {
-  DateRangeSelector,
-  AnalyticsNav,
+  AnalyticsHeader,
   KPICard,
   DomainCard,
   EmptyChart,
@@ -26,6 +24,7 @@ import {
   formatKg,
   formatPercent,
   formatShortDate,
+  useAnalyticsParams,
 } from "./AnalyticsShared";
 
 interface OverviewData {
@@ -44,28 +43,22 @@ interface OverviewData {
 }
 
 export function OverviewClient() {
-  const searchParams = useSearchParams();
-  const range = searchParams.get("range") || "30d";
+  const { queryString, range } = useAnalyticsParams();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/analytics?section=overview&range=${range}`)
+    fetch(`/api/analytics?section=overview&${queryString}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [queryString]);
 
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-        <DateRangeSelector />
-      </div>
-      <p className="text-slate-500 mb-4">Performance overview across your business.</p>
-      <AnalyticsNav />
+      <AnalyticsHeader subtitle="Performance overview across your business." />
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -118,7 +111,7 @@ export function OverviewClient() {
               icon={ShoppingCart}
               iconBg="bg-blue-50"
               iconColor="text-blue-600"
-              href={`/analytics/sales?range=${range}`}
+              href={`/analytics/sales?${queryString}`}
             >
               {data.revenueSpark.length > 0 ? (
                 <div className="h-16 -mx-2">
@@ -162,7 +155,7 @@ export function OverviewClient() {
               icon={Package}
               iconBg="bg-amber-50"
               iconColor="text-amber-600"
-              href={`/analytics/inventory?range=${range}`}
+              href={`/analytics/inventory?${queryString}`}
             >
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -191,7 +184,7 @@ export function OverviewClient() {
               icon={Users}
               iconBg="bg-purple-50"
               iconColor="text-purple-600"
-              href={`/analytics/customers?range=${range}`}
+              href={`/analytics/customers?${queryString}`}
             >
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -218,7 +211,7 @@ export function OverviewClient() {
               icon={Flame}
               iconBg="bg-orange-50"
               iconColor="text-orange-600"
-              href={`/analytics/production?range=${range}`}
+              href={`/analytics/production?${queryString}`}
             >
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">

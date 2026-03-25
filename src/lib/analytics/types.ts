@@ -18,7 +18,7 @@ export interface NamedValue {
   value: number;
 }
 
-export type DatePreset = "7d" | "30d" | "90d" | "year" | "custom";
+export type DatePreset = "7d" | "30d" | "90d" | "year" | "all" | "custom";
 
 export function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): DateRange {
   const to = new Date();
@@ -38,6 +38,9 @@ export function getDateRange(preset: DatePreset, customFrom?: string, customTo?:
     case "year":
       from.setMonth(0, 1);
       break;
+    case "all":
+      // Use a very early date so queries effectively return all records
+      return { from: "2000-01-01T00:00:00.000Z", to: to.toISOString() };
     case "custom":
       return {
         from: customFrom || from.toISOString(),

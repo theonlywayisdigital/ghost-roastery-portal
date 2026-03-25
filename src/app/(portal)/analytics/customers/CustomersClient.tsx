@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Users, UserCheck, AlertTriangle, UserPlus } from "@/components/icons";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  DateRangeSelector, AnalyticsNav, KPICard, ChartCard, EmptyChart,
+  AnalyticsHeader, KPICard, ChartCard, EmptyChart,
   CHART_COLORS, DONUT_COLORS, formatCurrency, formatShortDate,
+  useAnalyticsParams,
 } from "../AnalyticsShared";
 
 // ── Data shape ──
@@ -55,29 +55,22 @@ const PIPELINE_OPACITY = [1, 0.85, 0.7, 0.55, 0.4];
 // ── Component ──
 
 export function CustomersClient() {
-  const searchParams = useSearchParams();
-  const range = searchParams.get("range") || "30d";
+  const { queryString } = useAnalyticsParams();
   const [data, setData] = useState<CustomersData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/analytics?section=customers&range=${range}`)
+    fetch(`/api/analytics?section=customers&${queryString}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [queryString]);
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-        <DateRangeSelector />
-      </div>
-      <p className="text-slate-500 mb-4">Customer &amp; buyer insights.</p>
-      <AnalyticsNav />
+      <AnalyticsHeader subtitle="Customer &amp; buyer insights." />
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

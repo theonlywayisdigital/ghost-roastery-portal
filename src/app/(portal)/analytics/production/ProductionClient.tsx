@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Flame, Package, ClipboardList, AlertTriangle } from "@/components/icons";
 import {
   BarChart,
@@ -19,8 +18,7 @@ import {
   Legend,
 } from "recharts";
 import {
-  DateRangeSelector,
-  AnalyticsNav,
+  AnalyticsHeader,
   KPICard,
   ChartCard,
   EmptyChart,
@@ -29,6 +27,7 @@ import {
   formatKg,
   formatPercent,
   formatShortDate,
+  useAnalyticsParams,
 } from "../AnalyticsShared";
 
 // ── Types ──
@@ -60,29 +59,22 @@ const tooltipStyle = {
 // ── Main Component ──
 
 export function ProductionClient() {
-  const searchParams = useSearchParams();
-  const range = searchParams.get("range") || "30d";
+  const { queryString } = useAnalyticsParams();
   const [data, setData] = useState<ProductionData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/analytics?section=production&range=${range}`)
+    fetch(`/api/analytics?section=production&${queryString}`)
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [queryString]);
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-        <DateRangeSelector />
-      </div>
-      <p className="text-slate-500 mb-4">Production &amp; roasting insights.</p>
-      <AnalyticsNav />
+      <AnalyticsHeader subtitle="Production &amp; roasting insights." />
 
       {loading ? (
         <>

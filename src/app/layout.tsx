@@ -9,9 +9,9 @@ const geistSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Ghost Roastery Platform",
+  title: "Roastery Platform",
   description:
-    "Manage your wholesale coffee business and Ghost Roaster orders.",
+    "Manage your wholesale coffee business and roaster orders.",
   icons: {
     icon: [
       { url: "/favicon.ico", media: "(prefers-color-scheme: light)" },

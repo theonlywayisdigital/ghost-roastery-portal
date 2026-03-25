@@ -17,7 +17,7 @@ export interface EmailBranding {
 }
 
 const PLATFORM_LOGO_URL =
-  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/platform-logo-v2.png";
+  "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/logo-main.png";
 
 const DEFAULT_BRANDING: Required<Omit<EmailBranding, "tagline" | "businessName">> = {
   logoUrl: PLATFORM_LOGO_URL,

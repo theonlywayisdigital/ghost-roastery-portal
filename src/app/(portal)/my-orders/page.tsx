@@ -10,7 +10,7 @@ export default async function MyOrdersPage() {
     <>
       <h1 className="text-2xl font-bold text-slate-900 mb-2">My Orders</h1>
       <p className="text-slate-500 mb-8">
-        Track all your orders across Ghost Roastery and partner storefronts.
+        Track all your orders across Roastery Platform and partner storefronts.
       </p>
       <MyOrdersClient />
     </>

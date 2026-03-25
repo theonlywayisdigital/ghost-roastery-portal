@@ -89,7 +89,7 @@ export default function WebsiteDomainPage() {
 
   // Remove domain
   async function handleRemove() {
-    if (!confirm("Remove this custom domain? Your site will only be accessible via your Ghost Roastery URL.")) return;
+    if (!confirm("Remove this custom domain? Your site will only be accessible via your Roastery Platform URL.")) return;
     setError("");
     setSuccess("");
     setRemoving(true);

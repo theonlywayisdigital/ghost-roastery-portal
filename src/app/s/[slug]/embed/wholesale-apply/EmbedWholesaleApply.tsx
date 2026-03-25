@@ -41,7 +41,7 @@ export function EmbedWholesaleApply({
           rel="noopener noreferrer"
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
-          Powered by Ghost Roastery
+          Powered by Roastery Platform
         </a>
       </div>
     </div>

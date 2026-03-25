@@ -149,7 +149,7 @@ export function WholesaleLoginPage({
 
         {/* Powered by */}
         <p className="text-center text-xs text-slate-400">
-          Powered by Ghost Roastery Platform
+          Powered by Roastery Platform
         </p>
       </div>
     </div>

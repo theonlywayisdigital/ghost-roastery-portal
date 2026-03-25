@@ -12,7 +12,7 @@ export default function SignupPage() {
             <Logo variant="stacked" height={150} className="h-[150px] w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Join Ghost Roastery
+            Join Roastery Platform
           </h1>
           <p className="text-slate-500 mt-1">
             Get your free wholesale portal in minutes

@@ -271,7 +271,7 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Businesses</h1>
           <p className="text-slate-500 mt-1">
-            Manage Ghost Roastery businesses and view roaster businesses across the platform.
+            Manage Roastery Platform businesses and view roaster businesses across the platform.
           </p>
         </div>
         {isGhostRoastery && (

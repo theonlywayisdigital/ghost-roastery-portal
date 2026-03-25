@@ -67,7 +67,7 @@ export function WholesaleApplyPage({
           <hr className="my-6 border-slate-200" />
 
           <p className="text-center text-xs text-slate-400">
-            Powered by Ghost Roastery Platform
+            Powered by Roastery Platform
           </p>
         </div>
       </div>

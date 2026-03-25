@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { isMetaConfigured, getMetaAuthUrl } from "@/lib/social/meta";
+import { checkFeature } from "@/lib/feature-gates";
 import { randomBytes } from "crypto";
 
 export async function GET(request: NextRequest) {
   const roaster = await getCurrentRoaster();
   if (!roaster) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const gate = await checkFeature(roaster.id, "integrationsSocial");
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.message, requiredTier: gate.requiredTier }, { status: 403 });
   }
 
   if (!isMetaConfigured()) {

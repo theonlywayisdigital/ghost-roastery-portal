@@ -744,7 +744,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
             </h2>
             <p className="text-sm text-slate-500 mb-6">
               Connect your Stripe account to accept card payments. Funds go
-              directly to you — Ghost Roastery takes a small platform fee.
+              directly to you — no platform fees, only standard Stripe fees apply.
             </p>
 
             {stripeStatus?.onboarding_complete ? (

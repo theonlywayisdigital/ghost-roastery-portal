@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       const bodyHtml = `
         <h1 style="color:#0f172a;font-size:20px;margin:0 0 16px;">Team Invitation</h1>
         <p style="color:#334155;font-size:15px;line-height:24px;margin:4px 0;">
-          You've been invited to join <strong>${roaster.business_name}</strong> as ${role === "admin" ? "an Admin" : "a Staff member"} on Ghost Roastery.
+          You've been invited to join <strong>${roaster.business_name}</strong> as ${role === "admin" ? "an Admin" : "a Staff member"} on Roastery Platform.
         </p>
         ${emailButton({ href: `${portalUrl}/login`, label: "Accept Invitation", branding })}
         <p style="color:#94a3b8;font-size:13px;margin-top:24px;">
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       await resend.emails.send({
         from: fromAddress,
         to: email.toLowerCase(),
-        subject: `You've been invited to join ${roaster.business_name} on Ghost Roastery`,
+        subject: `You've been invited to join ${roaster.business_name} on Roastery Platform`,
         html: wrapEmailWithBranding({ body: bodyHtml, businessName: roaster.business_name, branding }),
       });
     } catch (emailError) {

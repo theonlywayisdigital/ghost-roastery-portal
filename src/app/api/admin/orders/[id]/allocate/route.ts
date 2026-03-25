@@ -125,7 +125,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       userId: roaster.user_id,
       type: "new_order",
       title: "New order allocated",
-      body: `Ghost Roastery order #${orderNumber} has been allocated to you for fulfilment.`,
+      body: `Roastery Platform order #${orderNumber} has been allocated to you for fulfilment.`,
       link: "/orders",
       metadata: { order_id: id },
     }).catch(() => {});

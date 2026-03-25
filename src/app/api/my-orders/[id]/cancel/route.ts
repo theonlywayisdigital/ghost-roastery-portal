@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const now = new Date().toISOString();
 
   if (isGhost) {
-    // Ghost Roastery order — can only cancel if Pending
+    // Roastery Platform order — can only cancel if Pending
     const { data: order, error: fetchError } = await supabase
       .from("ghost_orders")
       .select("*")

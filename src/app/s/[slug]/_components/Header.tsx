@@ -287,7 +287,7 @@ export function Header() {
                           rel="noopener noreferrer"
                           className="block px-4 py-2 text-[11px] text-slate-400 hover:text-slate-500 transition-colors"
                         >
-                          Powered by Ghost Roastery
+                          Powered by Roastery Platform
                         </a>
                       )}
                     </div>

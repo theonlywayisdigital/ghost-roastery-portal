@@ -12,5 +12,5 @@ export default async function AdminBuilderConfigPage() {
 }
 
 export const metadata = {
-  title: "Builder Config | Ghost Roastery Admin",
+  title: "Builder Config | Roastery Platform Admin",
 };

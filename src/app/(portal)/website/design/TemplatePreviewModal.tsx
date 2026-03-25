@@ -132,7 +132,7 @@ export function TemplatePreviewModal({
                 {`© ${new Date().getFullYear()} Your Roastery. All rights reserved.`}
               </p>
               <p className="text-[10px] mt-1" style={{ color: theme.textColor, opacity: 0.25 }}>
-                Powered by Ghost Roastery
+                Powered by Roastery Platform
               </p>
             </footer>
           </div>

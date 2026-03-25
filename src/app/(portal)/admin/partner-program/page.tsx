@@ -10,5 +10,5 @@ export default async function AdminPartnerProgramPage() {
 }
 
 export const metadata = {
-  title: "Partner Program | Ghost Roastery Admin",
+  title: "Partner Program | Roastery Platform Admin",
 };

@@ -30,7 +30,7 @@ export async function POST(
     event: "test",
     timestamp: new Date().toISOString(),
     data: {
-      message: "This is a test webhook from Ghost Roastery Platform",
+      message: "This is a test webhook from Roastery Platform",
       webhook_id: webhook.id,
       roaster_id: user.roaster.id,
     },

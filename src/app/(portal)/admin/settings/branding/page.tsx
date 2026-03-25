@@ -23,11 +23,11 @@ export default async function AdminBrandingSettingsPage() {
         <div className="flex items-center gap-2 mb-1">
           <Palette className="w-5 h-5 text-slate-600" />
           <h1 className="text-2xl font-bold text-slate-900">
-            Ghost Roastery Branding
+            Roastery Platform Branding
           </h1>
         </div>
         <p className="text-sm text-slate-500">
-          Brand identity for Ghost Roastery invoices, emails, and communications.
+          Brand identity for Roastery Platform invoices, emails, and communications.
         </p>
       </div>
       <BrandingEditor

@@ -37,6 +37,7 @@ import {
   getMarketingPricing,
   WEBSITE_PRICING,
 } from "@/lib/tier-config";
+import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface RoasterData {
   id: string;
@@ -651,7 +652,7 @@ function SubscriptionTab({
       )}
 
       {/* Current Plan Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 ${RETAIL_ENABLED ? "md:grid-cols-3" : "md:grid-cols-2"} gap-4`}>
         {/* Sales Suite */}
         <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
@@ -712,6 +713,7 @@ function SubscriptionTab({
         </section>
 
         {/* Website */}
+        {RETAIL_ENABLED && (
         <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
             <div className="flex items-center justify-between">
@@ -752,6 +754,7 @@ function SubscriptionTab({
             )}
           </div>
         </section>
+        )}
       </div>
 
       {/* Manage Payment Method */}
@@ -903,6 +906,7 @@ function SubscriptionTab({
       </section>
 
       {/* Website Add-on */}
+      {RETAIL_ENABLED && (
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">Website</h2>
@@ -956,6 +960,7 @@ function SubscriptionTab({
           </div>
         </div>
       </section>
+      )}
 
       {/* Cancel Subscription Modal */}
       {showCancelModal && (
@@ -1250,32 +1255,17 @@ function MyBillingTab({
           </div>
         </div>
         <div className="p-6">
-          {!isConnected ? (
-            <PromptConnect message="Connect Stripe to view your fee structure." />
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Card payment fees
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Includes Stripe processing, deducted per storefront sale
-                  </p>
-                </div>
-                <span className="text-lg font-semibold text-slate-900">
-                  {((roaster.sales_tier as TierLevel) || "free") === "free" ? "5% + 20p" : "2% + 20p"}
-                  <span className="text-xs font-normal text-slate-400 ml-1">
-                    {`(${TIER_NAMES[(roaster.sales_tier as TierLevel) || "free"]} plan)`}
-                  </span>
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 pt-2">
-                Platform fees are set by Roastery Platform and cannot be changed
-                here. Contact us if you have questions.
+          <div className="flex items-center gap-3 py-3">
+            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-slate-900">
+                No platform fees
+              </p>
+              <p className="text-xs text-slate-500">
+                Only standard Stripe processing fees apply, paid directly to Stripe.
               </p>
             </div>
-          )}
+          </div>
         </div>
       </section>
 

@@ -1,5 +1,5 @@
 /**
- * One-time script to create Stripe Products and Prices for Ghost Roastery subscriptions.
+ * One-time script to create Stripe Products and Prices for Roastery Platform subscriptions.
  *
  * Run: npx tsx scripts/setup-stripe-products.ts
  *
@@ -38,14 +38,14 @@ async function main() {
 
   // Create Products
   const salesProduct = await stripe.products.create({
-    name: "Ghost Roastery — Sales Suite",
+    name: "Roastery Platform — Sales Suite",
     description: "CRM, wholesale management, invoicing, and sales analytics for coffee roasters.",
     metadata: { product_type: "sales" },
   });
   console.log(`Sales Product: ${salesProduct.id}`);
 
   const marketingProduct = await stripe.products.create({
-    name: "Ghost Roastery — Marketing Suite",
+    name: "Roastery Platform — Marketing Suite",
     description: "Email campaigns, social scheduling, automations, and marketing analytics.",
     metadata: { product_type: "marketing" },
   });

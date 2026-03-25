@@ -5,7 +5,7 @@ import { createServerClient } from "@/lib/supabase";
  *
  * Prefers the GHOST_ROASTERY_ROASTER_ID env var for speed.
  * Falls back to querying partner_roasters where
- * business_name = 'Ghost Roastery' AND is_active = true.
+ * business_name = 'Roastery Platform' AND is_active = true.
  */
 export async function getGRRoasterId(): Promise<string> {
   const envId = process.env.GHOST_ROASTERY_ROASTER_ID;
@@ -22,7 +22,7 @@ export async function getGRRoasterId(): Promise<string> {
 
   if (error || !data) {
     throw new Error(
-      "Ghost Roastery roaster account not found. Set GHOST_ROASTERY_ROASTER_ID env var or ensure a partner_roasters row exists."
+      "Roastery Platform roaster account not found. Set GHOST_ROASTERY_ROASTER_ID env var or ensure a partner_roasters row exists."
     );
   }
 

@@ -136,7 +136,7 @@ export async function GET(
         };
       }
     } else {
-      // Ghost Roastery platform — get details from platform_settings
+      // Roastery Platform platform — get details from platform_settings
       const { data: settings } = await supabase
         .from("platform_settings")
         .select("*")

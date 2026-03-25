@@ -31,8 +31,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  // Website doesn't require a tier — default to "starter" as placeholder
-  if (productType !== "website" && !tier) {
+  // Website subscriptions are not currently available
+  if (productType === "website") {
+    return NextResponse.json({ error: "Website subscriptions are not currently available" }, { status: 400 });
+  }
+
+  if (!tier) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -65,9 +69,7 @@ export async function POST(request: Request) {
     // Check for existing subscription for this product
     const subscriptionIdField = productType === "sales"
       ? "stripe_sales_subscription_id"
-      : productType === "website"
-        ? "stripe_website_subscription_id"
-        : "stripe_marketing_subscription_id";
+      : "stripe_marketing_subscription_id";
     const existingSubscriptionId = roaster[subscriptionIdField] as string | null;
 
     if (existingSubscriptionId) {

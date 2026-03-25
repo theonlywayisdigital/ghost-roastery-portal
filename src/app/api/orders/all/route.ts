@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const unified: UnifiedRoasterOrder[] = [];
 
-  // Fetch Ghost Roastery orders (if roaster is a partner)
+  // Fetch Roastery Platform orders (if roaster is a partner)
   if (tab === "all" || tab === "ghost") {
     const { data: ghostOrders } = await supabase
       .from("ghost_orders")

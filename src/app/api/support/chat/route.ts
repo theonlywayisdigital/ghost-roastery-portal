@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const systemPrompt = `You are a helpful support assistant for Ghost Roastery, a coffee roasting platform that connects coffee roasters with customers.
+  const systemPrompt = `You are a helpful support assistant for Roastery Platform, a coffee roasting platform that connects coffee roasters with customers.
 
 Your job is to help users with their questions about orders, billing, accounts, and the platform.
 

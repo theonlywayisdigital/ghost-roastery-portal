@@ -7,7 +7,7 @@ export interface MarketingContextValue {
   apiBase: string;
   /** Base path for page navigation: "/marketing" or "/admin/marketing" */
   pageBase: string;
-  /** Whether this is the admin (Ghost Roastery platform) context */
+  /** Whether this is the admin (Roastery Platform platform) context */
   isAdmin: boolean;
 }
 

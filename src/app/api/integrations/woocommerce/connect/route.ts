@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkFeature } from "@/lib/feature-gates";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const gate = await checkFeature(user.roaster.id, "integrationsEcommerce");
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.message, requiredTier: gate.requiredTier }, { status: 403 });
   }
 
   const body = await request.json();
@@ -88,7 +94,7 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: `Ghost Roastery — ${topic}`,
+            name: `Roastery Platform — ${topic}`,
             topic,
             delivery_url: webhookUrl,
             status: "active",

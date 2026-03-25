@@ -165,7 +165,7 @@ export async function PATCH(
           userId: record.user_id,
           type: "wholesale_application",
           title: "Wholesale application approved",
-          body: "Your wholesale application with Ghost Roastery has been approved.",
+          body: "Your wholesale application with Roastery Platform has been approved.",
           link: "/wholesale",
         });
       }
@@ -271,7 +271,7 @@ export async function PATCH(
           userId: record.user_id,
           type: "wholesale_application",
           title: "Wholesale application update",
-          body: `Your wholesale application with Ghost Roastery was not approved.${reason ? ` Reason: ${reason}` : ""}`,
+          body: `Your wholesale application with Roastery Platform was not approved.${reason ? ` Reason: ${reason}` : ""}`,
           link: "/wholesale",
         });
       }

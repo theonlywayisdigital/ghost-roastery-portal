@@ -236,7 +236,7 @@ export function WholesaleAuthGate({
 
           {/* Powered-by footer */}
           <p className="text-center text-[11px] text-slate-400 mt-6">
-            Powered by Ghost Roastery Platform
+            Powered by Roastery Platform
           </p>
         </div>
       </div>

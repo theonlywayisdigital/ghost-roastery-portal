@@ -403,7 +403,7 @@ export function FormBuilder({ formId }: { formId: string }) {
             {/* Powered by */}
             {form.branding.show_powered_by !== false && (
               <p className="text-center text-[10px] text-slate-400 mt-4">
-                Powered by Ghost Roastery Platform
+                Powered by Roastery Platform
               </p>
             )}
           </div>

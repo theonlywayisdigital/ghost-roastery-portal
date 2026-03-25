@@ -68,8 +68,8 @@ export function PlanSelector({
           : (["emailSendsPerMonth", "embeddedForms", "aiCreditsPerMonth"] as MarketingLimitKey[]);
 
         const featureKeys = productType === "sales"
-          ? (["invoices", "salesAnalyticsBasic", "salesAnalyticsFull", "crmEmailIntegration"] as SalesFeatureKey[])
-          : (["contentCalendar", "socialScheduling", "automations", "marketingAnalyticsBasic", "marketingAnalyticsFull", "formBrandingRemoved"] as MarketingFeatureKey[]);
+          ? (["invoices", "salesAnalyticsBasic", "salesAnalyticsFull", "crmEmailIntegration", "integrationsEcommerce", "integrationsAccounting"] as SalesFeatureKey[])
+          : (["contentCalendar", "socialScheduling", "automations", "marketingAnalyticsBasic", "marketingAnalyticsFull", "formBrandingRemoved", "integrationsSocial"] as MarketingFeatureKey[]);
 
         // Determine CTA text
         const isUpgrade = tierIndex(tier) > tierIndex(currentTier);

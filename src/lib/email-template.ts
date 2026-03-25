@@ -39,7 +39,7 @@ export function wrapEmailWithBranding(options: {
   body: string;
   /** Who the email is from (for footer) */
   businessName: string;
-  /** Branding settings — pass null/undefined for Ghost Roastery defaults */
+  /** Branding settings — pass null/undefined for Roastery Platform defaults */
   branding?: EmailBranding | null;
 }): string {
   const { body, businessName, branding } = options;

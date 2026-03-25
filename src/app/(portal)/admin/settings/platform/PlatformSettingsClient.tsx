@@ -122,7 +122,7 @@ export function PlatformSettingsClient() {
           </h1>
         </div>
         <p className="text-sm text-slate-500">
-          Configure Ghost Roastery invoice settings and billing defaults.
+          Configure Roastery Platform invoice settings and billing defaults.
         </p>
       </div>
 
@@ -137,7 +137,7 @@ export function PlatformSettingsClient() {
               </h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Configure defaults for Ghost Roastery invoices.
+              Configure defaults for Roastery Platform invoices.
             </p>
           </div>
           <div className="p-6">
@@ -203,7 +203,7 @@ export function PlatformSettingsClient() {
               </h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Bank details printed on Ghost Roastery invoices.
+              Bank details printed on Roastery Platform invoices.
             </p>
           </div>
           <div className="p-6">

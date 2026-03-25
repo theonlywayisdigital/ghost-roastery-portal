@@ -17,7 +17,7 @@ export function AdminMarketingShell({ children }: { children: React.ReactNode })
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Marketing Suite</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Platform-wide marketing tools for Ghost Roastery.
+            Platform-wide marketing tools for Roastery Platform.
           </p>
         </div>
 
@@ -29,7 +29,7 @@ export function AdminMarketingShell({ children }: { children: React.ReactNode })
             <div>
               <p className="text-xs font-medium text-slate-900">Admin Context</p>
               <p className="text-xs text-slate-500">
-                Marketing data here belongs to the Ghost Roastery platform, not any individual roaster.
+                Marketing data here belongs to the Roastery Platform platform, not any individual roaster.
               </p>
             </div>
           </div>

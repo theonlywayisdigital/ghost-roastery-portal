@@ -16,5 +16,5 @@ export default async function AdminPartnerDetailPage({ params }: Props) {
 }
 
 export const metadata = {
-  title: "Partner Detail | Ghost Roastery Admin",
+  title: "Partner Detail | Roastery Platform Admin",
 };

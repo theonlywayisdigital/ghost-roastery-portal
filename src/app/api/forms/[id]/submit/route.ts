@@ -231,7 +231,7 @@ export async function POST(
 
             const notifDomain = roaster ? await getVerifiedDomain(roaster.id) : null;
             await resend.emails.send({
-              from: `Ghost Roastery Platform <${notifDomain?.senderPrefix || "noreply"}@${notifDomain?.domain || FROM_DOMAIN}>`,
+              from: `Roastery Platform <${notifDomain?.senderPrefix || "noreply"}@${notifDomain?.domain || FROM_DOMAIN}>`,
               to: roasterEmail,
               subject: `New submission: ${form.name}`,
               html: wrapEmailWithBranding({ body: bodyHtml, businessName: roaster.business_name, branding }),

@@ -246,7 +246,7 @@ export function LivePreview({
               {`© ${new Date().getFullYear()} ${siteName}. All rights reserved.`}
             </p>
             <p className="text-[10px] text-slate-300 mt-1">
-              Powered by Ghost Roastery
+              Powered by Roastery Platform
             </p>
           </footer>
         </div>

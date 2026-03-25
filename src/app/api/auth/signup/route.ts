@@ -160,7 +160,7 @@ export async function POST(request: Request) {
             auth_status: "active",
           }, { onConflict: "id" });
 
-          // Create Ghost Roastery contact (for admin CRM)
+          // Create Roastery Platform contact (for admin CRM)
           await serviceClient.from("contacts").insert({
             owner_type: "ghost_roastery",
             roaster_id: null,
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
             contact_type: "roaster",
           });
 
-          // Create Ghost Roastery business
+          // Create Roastery Platform business
           await serviceClient.from("businesses").insert({
             owner_type: "ghost_roastery",
             roaster_id: null,

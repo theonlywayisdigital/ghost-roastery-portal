@@ -60,7 +60,7 @@ export function HelpCentre() {
         <h1 className="text-2xl font-bold text-slate-900">Help Centre</h1>
         <p className="text-sm text-slate-500 mt-1">
           Find answers, tutorials, and guides to help you get the most out of
-          Ghost Roastery.
+          Roastery Platform.
         </p>
       </div>
 

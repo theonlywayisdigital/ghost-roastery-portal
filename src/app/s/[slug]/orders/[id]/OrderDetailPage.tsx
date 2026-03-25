@@ -382,7 +382,7 @@ export function OrderDetailPage({
               className="text-xs transition-opacity hover:opacity-80"
               style={{ color: "color-mix(in srgb, var(--sf-text) 40%, transparent)" }}
             >
-              {"Manage all your orders at Ghost Roastery \u2192"}
+              {"Manage all your orders at Roastery Platform \u2192"}
             </a>
           </div>
         )}

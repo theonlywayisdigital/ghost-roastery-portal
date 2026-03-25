@@ -432,7 +432,7 @@ export async function POST(request: Request) {
         quantity: item.quantity,
       })),
       payment_intent_data: {
-        application_fee_amount: platformFeePence,
+        ...(platformFeePence > 0 ? { application_fee_amount: platformFeePence } : {}),
         transfer_data: {
           destination: roaster.stripe_account_id as string,
         },

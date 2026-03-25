@@ -11,7 +11,7 @@ export async function GET() {
   const supabase = createServerClient();
 
   try {
-    // Total revenue from Ghost Roastery orders
+    // Total revenue from Roastery Platform orders
     const { data: ghostOrders } = await supabase
       .from("ghost_orders")
       .select("total_price")
@@ -44,7 +44,7 @@ export async function GET() {
       0
     );
 
-    // Ghost Roastery margin (orders without partner routing — full margin)
+    // Roastery Platform margin (orders without partner routing — full margin)
     const ghostMargin = (ledgerEntries || [])
       .filter((e) => e.order_type === "ghost_roastery")
       .reduce((sum, e) => sum + (e.fee_amount || 0), 0);

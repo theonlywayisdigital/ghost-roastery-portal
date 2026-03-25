@@ -96,7 +96,7 @@ export async function POST() {
 
     // 3. Test pushContactToXero with a test contact
     const testContact = {
-      name: "Test Customer (Ghost Roastery Debug)",
+      name: "Test Customer (Roastery Platform Debug)",
       first_name: "Test",
       last_name: "Customer",
       email: "test-sync-debug@roasteryplatform.com",
@@ -127,7 +127,7 @@ export async function POST() {
         .toISOString()
         .split("T")[0],
       issued_date: new Date().toISOString().split("T")[0],
-      notes: "Test invoice from Ghost Roastery debug endpoint",
+      notes: "Test invoice from Roastery Platform debug endpoint",
       status: "sent",
     };
 
@@ -140,7 +140,7 @@ export async function POST() {
     ];
 
     const testCustomer = {
-      name: "Test Customer (Ghost Roastery Debug)",
+      name: "Test Customer (Roastery Platform Debug)",
       email: "test-sync-debug@roasteryplatform.com",
       business_name: "Test Business Ltd",
     };

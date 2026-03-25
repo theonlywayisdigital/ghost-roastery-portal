@@ -11,7 +11,7 @@
     var type = script.getAttribute("data-type") || "shop";
 
     if (!roaster) {
-      console.error("[Ghost Roastery Embed] Missing data-roaster attribute.");
+      console.error("[Roastery Platform Embed] Missing data-roaster attribute.");
       return;
     }
 
@@ -25,7 +25,7 @@
         path = "/s/" + encodeURIComponent(roaster) + "/embed/wholesale-apply";
         break;
       default:
-        console.error("[Ghost Roastery Embed] Unknown data-type: " + type);
+        console.error("[Roastery Platform Embed] Unknown data-type: " + type);
         return;
     }
 

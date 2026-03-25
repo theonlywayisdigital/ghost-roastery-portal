@@ -10,7 +10,7 @@ export async function GET() {
 
   const supabase = createServerClient();
 
-  // Fetch Ghost Roastery orders
+  // Fetch Roastery Platform orders
   const { data: ghostOrders } = await supabase
     .from("ghost_orders")
     .select("id, order_number, bag_size, bag_colour, roast_profile, grind, quantity, total_price, order_status, mockup_image_url, brand_name, created_at")

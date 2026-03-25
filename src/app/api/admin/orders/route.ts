@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
   let ghostTotal = 0;
   let wholesaleTotal = 0;
 
-  // Fetch Ghost Roastery orders
+  // Fetch Roastery Platform orders
   if (fetchGhost) {
     let query = supabase
       .from("ghost_orders")

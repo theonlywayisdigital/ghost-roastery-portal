@@ -161,7 +161,7 @@ export function EmbedShop({
           href={`${storefrontBase}/shop?embedded=true`}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
         >
-          {`Powered by Ghost Roastery`}
+          {`Powered by Roastery Platform`}
         </a>
       </div>
     </div>

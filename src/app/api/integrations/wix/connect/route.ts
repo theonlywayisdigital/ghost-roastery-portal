@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { checkFeature } from "@/lib/feature-gates";
 import crypto from "crypto";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const gate = await checkFeature(user.roaster.id, "integrationsEcommerce");
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.message, requiredTier: gate.requiredTier }, { status: 403 });
   }
 
   const clientId = process.env.WIX_CLIENT_ID;

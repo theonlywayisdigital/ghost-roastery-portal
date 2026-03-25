@@ -1189,7 +1189,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
             </div>
           </div>
 
-          {/* Platform Fee Editor */}
+          {/* Platform Fee — disabled */}
           <div className="bg-white rounded-xl border border-slate-200">
             <div className="px-4 py-3 border-b border-slate-100">
               <h3 className="text-sm font-semibold text-slate-900">
@@ -1197,37 +1197,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
               </h3>
             </div>
             <div className="p-4">
-              <div className="flex items-end gap-3">
-                <div className="flex-1 max-w-xs">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Fee Percentage
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      value={feeValue}
-                      onChange={(e) => setFeeValue(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 pr-8"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-                      %
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={handleSaveFee}
-                  disabled={savingFee}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {savingFee ? "Saving..." : "Save"}
-                </button>
-              </div>
-              <p className="text-xs text-slate-400 mt-2">
-                {`Current fee: ${roaster.platform_fee_percent}%`}
+              <p className="text-sm text-slate-600">
+                No platform fees — roasters only pay standard Stripe processing fees.
               </p>
             </div>
           </div>
@@ -1985,7 +1956,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                     Platform Fee
                   </p>
                   <p className="text-sm font-medium text-slate-900">
-                    {`${roaster.platform_fee_percent}%`}
+                    None
                   </p>
                 </div>
               </div>

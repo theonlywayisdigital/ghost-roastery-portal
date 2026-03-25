@@ -48,7 +48,7 @@ export default async function AdminOrdersPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">All Orders</h1>
         <p className="text-slate-500 mt-1">
-          Manage all orders across Ghost Roastery, Storefront, and Wholesale.
+          Manage all orders across Roastery Platform, Storefront, and Wholesale.
         </p>
       </div>
 

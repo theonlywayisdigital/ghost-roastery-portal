@@ -92,7 +92,7 @@ export function SupportChatbot({ onEscalate }: Props) {
             AI Support Assistant
           </h3>
           <p className="text-xs text-slate-400">
-            Ask me anything about Ghost Roastery
+            Ask me anything about Roastery Platform
           </p>
         </div>
       </div>

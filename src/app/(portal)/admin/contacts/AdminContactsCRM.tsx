@@ -273,7 +273,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
           <p className="text-slate-500 mt-1">
-            Manage Ghost Roastery contacts and view roaster contacts across the platform.
+            Manage Roastery Platform contacts and view roaster contacts across the platform.
           </p>
         </div>
         {isGhostRoastery && (

@@ -5,12 +5,12 @@ import { getCurrentUser, getCurrentRoaster } from "@/lib/auth";
  * Marketing owner context — identifies who "owns" the marketing data.
  *
  * - Roasters: owner_type='roaster', owner_id=roaster.id
- * - Admin (Ghost Roastery platform): owner_type='ghost_roastery', owner_id=null
+ * - Admin (Roastery Platform): owner_type='ghost_roastery', owner_id=null
  */
 export interface MarketingOwner {
   owner_type: "roaster" | "ghost_roastery";
   owner_id: string | null;
-  /** Display name for "from" defaults (e.g. roaster business name or "Ghost Roastery") */
+  /** Display name for "from" defaults (e.g. roaster business name or "Roastery Platform") */
   display_name: string;
   /** Default reply-to email */
   email: string;
@@ -43,7 +43,7 @@ export async function getMarketingOwner(
 }
 
 /**
- * Returns marketing owner for admin (Ghost Roastery platform) context.
+ * Returns marketing owner for admin (Roastery Platform) context.
  * Verifies the user has the "admin" role.
  */
 async function getAdminMarketingOwner(): Promise<MarketingOwner | null> {

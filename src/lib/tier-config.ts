@@ -38,7 +38,9 @@ export type SalesFeatureKey =
   | "salesAnalyticsBasic"
   | "salesAnalyticsFull"
   | "crmEmailIntegration"
-  | "customEmailDomain";
+  | "customEmailDomain"
+  | "integrationsAccounting"
+  | "integrationsEcommerce";
 
 export type MarketingFeatureKey =
   | "contentCalendar"
@@ -46,7 +48,8 @@ export type MarketingFeatureKey =
   | "automations"
   | "marketingAnalyticsBasic"
   | "marketingAnalyticsFull"
-  | "formBrandingRemoved";
+  | "formBrandingRemoved"
+  | "integrationsSocial";
 
 export type ToolsFeatureKey =
   | "toolsProductionPlanner"
@@ -70,8 +73,8 @@ export function isHigherTier(a: TierLevel, b: TierLevel): boolean {
 // ─── Sales Suite Limits ───
 
 const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
-  products:                { free: 5,   starter: 10,  growth: 20,   pro: 50,    scale: Infinity },
-  wholesaleOrdersPerMonth: { free: 30,  starter: 150, growth: 400,  pro: 800,   scale: Infinity },
+  products:                { free: 3,   starter: 10,  growth: 20,   pro: 50,    scale: Infinity },
+  wholesaleOrdersPerMonth: { free: 20,  starter: 150, growth: 400,  pro: 800,   scale: Infinity },
   wholesaleAccounts:       { free: 5,   starter: 20,  growth: 50,   pro: 200,   scale: Infinity },
   crmContacts:             { free: 100, starter: 500, growth: 1500, pro: 5000,  scale: Infinity },
   teamMembers:             { free: 1,   starter: 2,   growth: 3,    pro: 5,     scale: 10 },
@@ -80,13 +83,15 @@ const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
 // ─── Sales Suite Features ───
 
 const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
-  invoices:             { free: true,  starter: true,  growth: true,  pro: true,  scale: true },
-  pipeline:             { free: false, starter: true,  growth: true,  pro: true,  scale: true },
-  customPipelineStages: { free: false, starter: true,  growth: true,  pro: true,  scale: true },
-  salesAnalyticsBasic:  { free: false, starter: true,  growth: true,  pro: true,  scale: true },
-  salesAnalyticsFull:   { free: false, starter: false, growth: true,  pro: true,  scale: true },
-  crmEmailIntegration:  { free: false, starter: false, growth: true,  pro: true,  scale: true },
-  customEmailDomain:    { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  invoices:                { free: true,  starter: true,  growth: true,  pro: true,  scale: true },
+  pipeline:                { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  customPipelineStages:    { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  salesAnalyticsBasic:     { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  salesAnalyticsFull:      { free: false, starter: false, growth: true,  pro: true,  scale: true },
+  crmEmailIntegration:     { free: false, starter: false, growth: true,  pro: true,  scale: true },
+  customEmailDomain:       { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  integrationsAccounting:  { free: false, starter: false, growth: false, pro: true,  scale: true },
+  integrationsEcommerce:   { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
 // ─── Marketing Suite Limits ───
@@ -100,8 +105,8 @@ const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
 // ─── Tools Suite Limits (gated via Sales Suite tier) ───
 
 const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
-  greenBeans:              { free: 5,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
-  roastedStock:            { free: 5,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
+  greenBeans:              { free: 3,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
+  roastedStock:            { free: 3,  starter: 20,       growth: 50,       pro: Infinity, scale: Infinity },
   roastLogsPerMonth:       { free: 10, starter: Infinity, growth: Infinity, pro: Infinity, scale: Infinity },
   cuppingSessionsPerMonth: { free: 2,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
   certifications:          { free: 3,  starter: 10,       growth: Infinity, pro: Infinity, scale: Infinity },
@@ -124,15 +129,15 @@ const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>
   marketingAnalyticsBasic: { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   marketingAnalyticsFull:  { free: false, starter: false, growth: true,  pro: true,  scale: true },
   formBrandingRemoved:     { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  integrationsSocial:      { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
-// ─── Stripe Processing Fee (passed through as application_fee on card payments) ───
-// Only applies to Stripe card payments. Invoice/manual/ecommerce orders have 0% fee.
-// Stripe UK standard: 1.5% + 20p (UK cards), 2.5% + 20p (non-UK cards).
-// We use 1.5% + 20p as the default.
+// ─── Platform Fee ───
+// No platform fee — roasters only pay standard Stripe processing fees directly to Stripe.
+// These constants are kept at 0 so all fee-calculation code paths return 0.
 
-const STRIPE_PROCESSING_FEE_PERCENT = 1.5;
-const STRIPE_PROCESSING_FEE_FIXED_PENCE = 20;
+const STRIPE_PROCESSING_FEE_PERCENT = 0;
+const STRIPE_PROCESSING_FEE_FIXED_PENCE = 0;
 
 // ─── Pricing (pence) ───
 
@@ -213,6 +218,8 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     salesAnalyticsFull: SALES_FEATURES.salesAnalyticsFull[salesTier],
     crmEmailIntegration: SALES_FEATURES.crmEmailIntegration[salesTier],
     customEmailDomain: SALES_FEATURES.customEmailDomain[salesTier],
+    integrationsAccounting: SALES_FEATURES.integrationsAccounting[salesTier],
+    integrationsEcommerce: SALES_FEATURES.integrationsEcommerce[salesTier],
     // Marketing features
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
@@ -220,6 +227,7 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     marketingAnalyticsBasic: MARKETING_FEATURES.marketingAnalyticsBasic[marketingTier],
     marketingAnalyticsFull: MARKETING_FEATURES.marketingAnalyticsFull[marketingTier],
     formBrandingRemoved: MARKETING_FEATURES.formBrandingRemoved[marketingTier],
+    integrationsSocial: MARKETING_FEATURES.integrationsSocial[marketingTier],
     // Tools features (gated via sales tier)
     toolsProductionPlanner: TOOLS_FEATURES.toolsProductionPlanner[salesTier],
     toolsBreakeven: TOOLS_FEATURES.toolsBreakeven[salesTier],
@@ -229,22 +237,19 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
 
 // ─── Stripe Processing Fee ───
 
-/** Returns the Stripe processing fee percentage (1.5%) for card payments. */
+/** Returns the platform fee percentage. Always 0 — no platform fee. */
 export function getEffectivePlatformFee(_salesTier: TierLevel): number {
-  return STRIPE_PROCESSING_FEE_PERCENT;
+  return 0;
 }
 
-/** Returns the fixed per-transaction Stripe fee in pence (20p). */
+/** Returns the fixed per-transaction platform fee in pence. Always 0. */
 export function getStripeFixedFeePence(): number {
-  return STRIPE_PROCESSING_FEE_FIXED_PENCE;
+  return 0;
 }
 
-/**
- * Calculate the total Stripe processing fee in pence for a given amount.
- * Formula: round(amountPence * 1.5% ) + 20p
- */
-export function calculateStripeProcessingFee(amountPence: number): number {
-  return Math.round(amountPence * (STRIPE_PROCESSING_FEE_PERCENT / 100)) + STRIPE_PROCESSING_FEE_FIXED_PENCE;
+/** Calculate the platform fee in pence for a given amount. Always returns 0. */
+export function calculateStripeProcessingFee(_amountPence: number): number {
+  return 0;
 }
 
 // ─── Formatting ───
@@ -360,12 +365,15 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   salesAnalyticsFull: "Advanced Sales Analytics",
   crmEmailIntegration: "CRM Email Integration",
   customEmailDomain: "Custom Email Domain",
+  integrationsAccounting: "Accounting Integrations",
+  integrationsEcommerce: "E-commerce Integrations",
   contentCalendar: "Content Calendar",
   socialScheduling: "Social Scheduling",
   automations: "Automations",
   marketingAnalyticsBasic: "Basic Marketing Analytics",
   marketingAnalyticsFull: "Advanced Marketing Analytics",
   formBrandingRemoved: "Remove Form Branding",
+  integrationsSocial: "Social Integrations",
   toolsProductionPlanner: "Production Planner",
   toolsBreakeven: "Break-even Calculator",
   toolsLowStockAlerts: "Low Stock Alerts",

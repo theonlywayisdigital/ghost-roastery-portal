@@ -85,7 +85,7 @@ export default async function PublicInvoicePage({
       paymentInstructions = roaster.payment_instructions || null;
     }
   } else {
-    // Ghost Roastery platform
+    // Roastery Platform
     const { data: settings } = await supabase
       .from("platform_settings")
       .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions")
@@ -463,7 +463,7 @@ export default async function PublicInvoicePage({
             className="text-center text-xs text-slate-400 mt-4"
             style={{ fontFamily: `"${bodyFamily}", sans-serif` }}
           >
-            {`${ownerName} · Powered by Ghost Roastery`}
+            {`${ownerName} · Powered by Roastery Platform`}
           </p>
         </div>
       </div>

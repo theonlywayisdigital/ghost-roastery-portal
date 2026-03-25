@@ -27,9 +27,12 @@ import {
   X,
   Copy,
   Zap,
+  Lock,
 } from "lucide-react";
 import { WEBHOOK_EVENTS } from "@/lib/webhooks";
 import { SocialConnectionsTab } from "./SocialConnectionsTab";
+import { FeatureGate } from "@/components/shared/FeatureGate";
+import { type FeatureKey, getMinimumTierForFeature } from "@/lib/tier-config";
 
 interface AccountOption {
   code?: string;
@@ -251,6 +254,13 @@ export function IntegrationsPage() {
   // Webhook registration state
   const [registeringWebhooks, setRegisteringWebhooks] = useState<string | null>(null);
 
+  // Feature gate state
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(null);
+
+  // Derived locks
+  const accountingLocked = features ? !features.integrationsAccounting : false;
+  const ecommerceLocked = features ? !features.integrationsEcommerce : false;
+  const socialLocked = features ? !features.integrationsSocial : false;
 
   const loadStatus = useCallback(async () => {
     try {
@@ -295,6 +305,17 @@ export function IntegrationsPage() {
         } catch {
           // Non-critical
         }
+      }
+
+      // Fetch feature gates
+      try {
+        const usageRes = await fetch("/api/usage");
+        if (usageRes.ok) {
+          const usageData = await usageRes.json();
+          setFeatures(usageData.features || null);
+        }
+      } catch {
+        // Non-critical — fail open (features remain null = unlocked)
       }
     } finally {
       setLoading(false);
@@ -1797,23 +1818,25 @@ export function IntegrationsPage() {
           </button>
           <button
             onClick={() => switchTab("accounting")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === "accounting"
                 ? "border-brand-600 text-brand-600"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >
             Accounting
+            {accountingLocked && <Lock className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => switchTab("ecommerce")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === "ecommerce"
                 ? "border-brand-600 text-brand-600"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >
             Ecommerce
+            {ecommerceLocked && <Lock className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => switchTab("webhooks")}
@@ -1827,13 +1850,14 @@ export function IntegrationsPage() {
           </button>
           <button
             onClick={() => switchTab("social")}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === "social"
                 ? "border-brand-600 text-brand-600"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
             }`}
           >
             Social
+            {socialLocked && <Lock className="w-3.5 h-3.5" />}
           </button>
         </nav>
       </div>
@@ -1992,7 +2016,13 @@ export function IntegrationsPage() {
       {/* Tab: Accounting                                */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === "accounting" && (
-        <>
+        accountingLocked ? (
+          <FeatureGate
+            featureName="Accounting Integrations"
+            requiredTier={getMinimumTierForFeature("integrationsAccounting" as FeatureKey).tier}
+            productType="sales"
+          />
+        ) : <>
           {xeroStatus?.error && !xeroStatus.connected && (
             <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -2085,7 +2115,13 @@ export function IntegrationsPage() {
       {/* Tab: Ecommerce                                 */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === "ecommerce" && (
-        <>
+        ecommerceLocked ? (
+          <FeatureGate
+            featureName="E-commerce Integrations"
+            requiredTier={getMinimumTierForFeature("integrationsEcommerce" as FeatureKey).tier}
+            productType="sales"
+          />
+        ) : <>
           <div className="mb-6">
             <p className="text-sm text-slate-500">
               Connect your online store to sync products, orders, and stock levels.
@@ -2421,7 +2457,15 @@ export function IntegrationsPage() {
       {/* Tab: Social                                    */}
       {/* ═══════════════════════════════════════════════ */}
       {activeTab === "social" && (
-        <SocialConnectionsTab />
+        socialLocked ? (
+          <FeatureGate
+            featureName="Social Integrations"
+            requiredTier={getMinimumTierForFeature("integrationsSocial" as FeatureKey).tier}
+            productType="marketing"
+          />
+        ) : (
+          <SocialConnectionsTab />
+        )
       )}
 
       {/* Import Products Modal */}

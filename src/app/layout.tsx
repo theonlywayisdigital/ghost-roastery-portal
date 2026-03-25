@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "Manage your wholesale coffee business and roaster orders.",
   icons: {
     icon: [
-      { url: "/favicon.ico", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-light.png", media: "(prefers-color-scheme: light)" },
       { url: "/favicon-dark.png", media: "(prefers-color-scheme: dark)" },
     ],
     apple: "/apple-icon.png",

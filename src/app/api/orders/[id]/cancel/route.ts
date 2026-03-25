@@ -75,30 +75,60 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // 2. Replenish roasted stock for cancelled items
   const orderItems = Array.isArray(order.items) ? order.items as Record<string, unknown>[] : [];
   for (const item of orderItems) {
-    const roastedStockId = item.roastedStockId as string | undefined;
     const weightGrams = item.weightGrams as number | undefined;
     const quantity = item.quantity as number | undefined;
-    if (roastedStockId && weightGrams && weightGrams > 0 && quantity) {
-      const replenishKg = (weightGrams / 1000) * quantity;
-      await supabase.rpc("replenish_roasted_stock", {
-        stock_id: roastedStockId,
-        qty_kg: replenishKg,
-      });
-      const { data: updatedStock } = await supabase
-        .from("roasted_stock")
-        .select("current_stock_kg")
-        .eq("id", roastedStockId)
-        .single();
-      await supabase.from("roasted_stock_movements").insert({
-        roaster_id: order.roaster_id,
-        roasted_stock_id: roastedStockId,
-        movement_type: "cancellation_return",
-        quantity_kg: replenishKg,
-        balance_after_kg: updatedStock?.current_stock_kg ?? replenishKg,
-        reference_id: id,
-        reference_type: "order",
-        notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
-      });
+    const itemBlendComponents = item.blendComponents as { roasted_stock_id: string; percentage: number }[] | undefined;
+
+    if (itemBlendComponents && itemBlendComponents.length > 0 && weightGrams && weightGrams > 0 && quantity) {
+      // Blend product: replenish proportionally to each component
+      const totalKg = (weightGrams / 1000) * quantity;
+      for (const comp of itemBlendComponents) {
+        const compKg = totalKg * (comp.percentage / 100);
+        await supabase.rpc("replenish_roasted_stock", {
+          stock_id: comp.roasted_stock_id,
+          qty_kg: compKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", comp.roasted_stock_id)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: order.roaster_id,
+          roasted_stock_id: comp.roasted_stock_id,
+          movement_type: "cancellation_return",
+          quantity_kg: compKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? compKg,
+          reference_id: id,
+          reference_type: "order",
+          notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity} (blend ${comp.percentage}%)`,
+        });
+      }
+    } else {
+      // Single-origin product: replenish from single roasted stock
+      const roastedStockId = item.roastedStockId as string | undefined;
+      if (roastedStockId && weightGrams && weightGrams > 0 && quantity) {
+        const replenishKg = (weightGrams / 1000) * quantity;
+        await supabase.rpc("replenish_roasted_stock", {
+          stock_id: roastedStockId,
+          qty_kg: replenishKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", roastedStockId)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: order.roaster_id,
+          roasted_stock_id: roastedStockId,
+          movement_type: "cancellation_return",
+          quantity_kg: replenishKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? replenishKg,
+          reference_id: id,
+          reference_type: "order",
+          notes: `Cancelled order ${orderNumber} — ${item.name || "Item"} × ${quantity}`,
+        });
+      }
     }
   }
 
@@ -158,6 +188,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   for (const item of orderItems) {
     const rsId = item.roastedStockId as string | undefined;
     if (rsId) affectedStockIds.add(rsId);
+    const itemBlendComps = item.blendComponents as { roasted_stock_id: string }[] | undefined;
+    if (itemBlendComps) {
+      for (const comp of itemBlendComps) affectedStockIds.add(comp.roasted_stock_id);
+    }
   }
   for (const stockId of Array.from(affectedStockIds)) {
     pushStockToChannels(order.roaster_id, stockId).catch((err) =>

@@ -49,6 +49,13 @@ interface Product {
   product_images?: ProductImageRef[] | null;
   roasted_stock: StockRecord | null;
   green_beans: StockRecord | null;
+  blend_components?: {
+    id: string;
+    roasted_stock_id: string;
+    percentage: number;
+    roasted_stock: StockRecord | null;
+  }[] | null;
+  is_blend?: boolean;
   category?: string;
 }
 
@@ -119,6 +126,19 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
   }
 
   function getStockBadge(product: Product): { label: string; className: string } | null {
+    // Blend products: check all component stocks
+    if (product.is_blend && product.blend_components && product.blend_components.length > 0) {
+      const levels = product.blend_components
+        .map((bc) => getStockLevel(bc.roasted_stock))
+        .filter((l) => l !== "none");
+      if (levels.length === 0) return null;
+      const worst = levels.includes("out") ? "out" : levels.includes("low") ? "low" : "in";
+      if (worst === "out") return { label: "Out of stock", className: "bg-red-50 text-red-700" };
+      if (worst === "low") return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
+      return { label: "In stock", className: "bg-green-50 text-green-700" };
+    }
+
+    // Non-blend: original logic
     const roastedLevel = getStockLevel(product.roasted_stock);
     const greenBeanLevel = getStockLevel(product.green_beans);
 

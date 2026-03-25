@@ -8,6 +8,7 @@ interface OrderItem {
   weightGrams?: number;
   roastedStockId?: string;
   greenBeanId?: string;
+  blendComponents?: { roasted_stock_id: string; percentage: number }[];
 }
 
 export async function GET() {
@@ -62,7 +63,13 @@ export async function GET() {
       if (qty <= 0 || wg <= 0) continue;
       const kg = (wg / 1000) * qty;
 
-      if (item.roastedStockId) {
+      if (item.blendComponents && item.blendComponents.length > 0) {
+        // Blend product: distribute committed KG proportionally to each component
+        for (const comp of item.blendComponents) {
+          const compKg = kg * (comp.percentage / 100);
+          committedByRoasted[comp.roasted_stock_id] = (committedByRoasted[comp.roasted_stock_id] || 0) + compKg;
+        }
+      } else if (item.roastedStockId) {
         committedByRoasted[item.roastedStockId] = (committedByRoasted[item.roastedStockId] || 0) + kg;
       }
       if (item.greenBeanId) {

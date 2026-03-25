@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, status, roasted_stock_id, green_bean_id, weight_grams"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, status, roasted_stock_id, green_bean_id, weight_grams, is_blend"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -146,6 +146,22 @@ export async function POST(request: Request) {
         { error: "One or more products are unavailable." },
         { status: 400 }
       );
+    }
+
+    // Fetch blend components for blend products
+    const blendComponentMap: Record<string, { roasted_stock_id: string; percentage: number }[]> = {};
+    const blendProductIds = products.filter((p) => p.is_blend).map((p) => p.id);
+    if (blendProductIds.length > 0) {
+      const { data: components } = await supabase
+        .from("blend_components")
+        .select("product_id, roasted_stock_id, percentage")
+        .in("product_id", blendProductIds);
+      if (components) {
+        for (const c of components) {
+          if (!blendComponentMap[c.product_id]) blendComponentMap[c.product_id] = [];
+          blendComponentMap[c.product_id].push({ roasted_stock_id: c.roasted_stock_id, percentage: Number(c.percentage) });
+        }
+      }
     }
 
     // Fetch variant details if any items reference a variant
@@ -270,7 +286,23 @@ export async function POST(request: Request) {
         const variantLabel = item.variantLabel ? ` ${item.variantLabel}` : "";
         const itemDesc = `${product.name}${variantLabel}`;
 
-        if (product.roasted_stock_id) {
+        if (product.is_blend && blendComponentMap[product.id]) {
+          // Blend product: check each component has enough stock for its proportional share
+          for (const comp of blendComponentMap[product.id]) {
+            const compRequiredKg = requiredKg * (comp.percentage / 100);
+            const { data: roastedPool } = await supabase
+              .from("roasted_stock")
+              .select("current_stock_kg, name")
+              .eq("id", comp.roasted_stock_id)
+              .single();
+            if (roastedPool && roastedPool.current_stock_kg < compRequiredKg) {
+              return NextResponse.json(
+                { error: `Insufficient stock for "${itemDesc}" — blend component "${roastedPool.name}" has insufficient stock.` },
+                { status: 400 }
+              );
+            }
+          }
+        } else if (product.roasted_stock_id) {
           const { data: roastedPool } = await supabase
             .from("roasted_stock")
             .select("current_stock_kg")

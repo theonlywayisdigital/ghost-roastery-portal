@@ -78,7 +78,17 @@ export async function GET(_request: Request, { params }: RouteParams) {
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true });
 
-  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types, images: images || [] });
+  // Fetch blend components
+  let blend_components: Record<string, unknown>[] = [];
+  if (product.is_blend) {
+    const { data: components } = await supabase
+      .from("blend_components")
+      .select("id, roasted_stock_id, percentage, roasted_stock:roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active)")
+      .eq("product_id", id);
+    blend_components = (components || []) as Record<string, unknown>[];
+  }
+
+  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types, images: images || [], blend_components });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
@@ -99,6 +109,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,
       variants, option_types,
+      is_blend, blend_components,
     } = body;
 
     if (!name) {
@@ -141,6 +152,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         subscription_frequency: subscription_frequency || null,
         roasted_stock_id: roasted_stock_id || null,
         green_bean_id: green_bean_id || null,
+        is_blend: is_blend ?? false,
       })
       .eq("id", id)
       .eq("roaster_id", roaster.id)
@@ -347,6 +359,30 @@ export async function PUT(request: Request, { params }: RouteParams) {
               console.error("Junction insert error:", junctionError.message, junctionRows);
             }
           }
+        }
+      }
+    }
+
+    // Handle blend_components diff
+    if (Array.isArray(blend_components)) {
+      // Delete existing blend components
+      await supabase
+        .from("blend_components")
+        .delete()
+        .eq("product_id", id);
+
+      // Insert new blend components
+      if (blend_components.length > 0) {
+        const componentRows = blend_components.map((bc: { roasted_stock_id: string; percentage: number }) => ({
+          product_id: id,
+          roasted_stock_id: bc.roasted_stock_id,
+          percentage: bc.percentage,
+        }));
+        const { error: blendError } = await supabase
+          .from("blend_components")
+          .insert(componentRows);
+        if (blendError) {
+          console.error("Blend components update error:", blendError);
         }
       }
     }

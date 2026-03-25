@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = createServerClient();
   const { data: products, error } = await supabase
     .from("products")
-    .select("*, product_variants(id, weight_grams, unit, retail_price, wholesale_price, wholesale_price_preferred, wholesale_price_vip, channel, is_active, grind_type_id, grind_type:roaster_grind_types(id, name)), roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active), green_beans(id, name, current_stock_kg, low_stock_threshold_kg, is_active), product_images(id, url, sort_order, is_primary)")
+    .select("*, product_variants(id, weight_grams, unit, retail_price, wholesale_price, wholesale_price_preferred, wholesale_price_vip, channel, is_active, grind_type_id, grind_type:roaster_grind_types(id, name)), roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active), green_beans(id, name, current_stock_kg, low_stock_threshold_kg, is_active), product_images(id, url, sort_order, is_primary), blend_components(id, roasted_stock_id, percentage, roasted_stock:roasted_stock(id, name, current_stock_kg, low_stock_threshold_kg, is_active))")
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       meta_description, brand, gtin, google_product_category,
       vat_rate, rrp, order_multiples, subscription_frequency,
       variants, category, option_types,
+      is_blend, blend_components,
     } = body;
 
     if (!name) {
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
         subscription_frequency: subscription_frequency || null,
         roasted_stock_id: roasted_stock_id || null,
         green_bean_id: green_bean_id || null,
+        is_blend: is_blend ?? false,
       })
       .select()
       .single();
@@ -108,6 +110,21 @@ export async function POST(request: Request) {
         { error: "Failed to create product" },
         { status: 500 }
       );
+    }
+
+    // Insert blend components if this is a blend product
+    if (is_blend && Array.isArray(blend_components) && blend_components.length > 0) {
+      const componentRows = blend_components.map((bc: { roasted_stock_id: string; percentage: number }) => ({
+        product_id: product.id,
+        roasted_stock_id: bc.roasted_stock_id,
+        percentage: bc.percentage,
+      }));
+      const { error: blendError } = await supabase
+        .from("blend_components")
+        .insert(componentRows);
+      if (blendError) {
+        console.error("Blend components insert error:", blendError);
+      }
     }
 
     // For "other" products: insert option types + values FIRST so we get real UUIDs

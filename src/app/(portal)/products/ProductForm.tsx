@@ -77,6 +77,7 @@ interface Product {
   subscription_frequency: string | null;
   roasted_stock_id: string | null;
   green_bean_id: string | null;
+  is_blend?: boolean;
 }
 
 interface RoastedStockOption {
@@ -94,6 +95,12 @@ interface GreenBeanOption {
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
   is_active: boolean;
+}
+
+interface BlendComponent {
+  id?: string;
+  roasted_stock_id: string;
+  percentage: string; // stored as string for form input
 }
 
 interface OptionValue {
@@ -340,6 +347,8 @@ export function ProductForm({ product }: { product?: Product }) {
   const [roastedStocks, setRoastedStocks] = useState<RoastedStockOption[]>([]);
   const [greenBeanId, setGreenBeanId] = useState(product?.green_bean_id || "");
   const [greenBeans, setGreenBeans] = useState<GreenBeanOption[]>([]);
+  const [isBlend, setIsBlend] = useState(product?.is_blend ?? false);
+  const [blendComponents, setBlendComponents] = useState<BlendComponent[]>([]);
 
   // Ecommerce channel status
   const [channelStatus, setChannelStatus] = useState<{
@@ -570,6 +579,18 @@ export function ProductForm({ product }: { product?: Product }) {
           // Load product images
           if (data.images) {
             setImages(data.images);
+          }
+
+          // Load blend components
+          if (data.blend_components) {
+            setIsBlend(data.product?.is_blend ?? false);
+            setBlendComponents(
+              data.blend_components.map((bc: { id: string; roasted_stock_id: string; percentage: number }) => ({
+                id: bc.id,
+                roasted_stock_id: bc.roasted_stock_id,
+                percentage: bc.percentage.toString(),
+              }))
+            );
           }
         })
         .catch(() => {
@@ -1062,6 +1083,21 @@ export function ProductForm({ product }: { product?: Product }) {
     setIsLoading(true);
     setError(null);
 
+    if (category === "coffee" && isBlend) {
+      const validComponents = blendComponents.filter((c) => c.roasted_stock_id);
+      if (validComponents.length < 2) {
+        setError("A blend must have at least 2 components.");
+        setIsLoading(false);
+        return;
+      }
+      const total = validComponents.reduce((sum, c) => sum + (parseFloat(c.percentage) || 0), 0);
+      if (Math.abs(total - 100) >= 0.01) {
+        setError("Blend component percentages must add up to 100%.");
+        setIsLoading(false);
+        return;
+      }
+    }
+
     const body: Record<string, unknown> = {
       name,
       ...(!isEditing && { category }),
@@ -1080,8 +1116,14 @@ export function ProductForm({ product }: { product?: Product }) {
       minimum_wholesale_quantity: isWholesale ? parseInt(minWholesaleQty) || 1 : 1,
       sku: sku || null,
       weight_grams: weightKg ? Math.round(parseFloat(weightKg) * 1000) : null,
-      roasted_stock_id: category === "coffee" && roastedStockId ? roastedStockId : null,
+      roasted_stock_id: category === "coffee" && !isBlend && roastedStockId ? roastedStockId : null,
       green_bean_id: category === "coffee" && greenBeanId ? greenBeanId : null,
+      is_blend: category === "coffee" ? isBlend : false,
+      blend_components: category === "coffee" && isBlend ? blendComponents.filter((c) => c.roasted_stock_id).map((c) => ({
+        id: c.id || undefined,
+        roasted_stock_id: c.roasted_stock_id,
+        percentage: parseFloat(c.percentage) || 0,
+      })) : undefined,
       is_purchasable: isPurchasable,
       track_stock: trackStock,
       retail_stock_count: trackStock ? parseInt(stockCount) || 0 : null,
@@ -1776,8 +1818,8 @@ export function ProductForm({ product }: { product?: Product }) {
                     </div>
                   )}
 
-                  {/* Roasted Stock Link — coffee only */}
-                  {category === "coffee" && (
+                  {/* Roasted Stock Link — coffee only (hidden for blends) */}
+                  {category === "coffee" && !isBlend && (
                     <div>
                       <label className={labelClassName}>
                         Roasted Stock{" "}
@@ -1808,6 +1850,117 @@ export function ProductForm({ product }: { product?: Product }) {
                             <Archive className="w-4 h-4" />
                             <span className="font-medium">{stockKg.toFixed(1)} kg available</span>
                             <span className="text-xs opacity-75">({statusLabel})</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Blend Toggle — coffee only */}
+                  {category === "coffee" && (
+                    <div>
+                      <Toggle
+                        enabled={isBlend}
+                        onToggle={() => {
+                          const next = !isBlend;
+                          setIsBlend(next);
+                          if (next) {
+                            setRoastedStockId("");
+                            if (blendComponents.length === 0) {
+                              setBlendComponents([{ roasted_stock_id: "", percentage: "" }]);
+                            }
+                          } else {
+                            setBlendComponents([]);
+                          }
+                        }}
+                        label="This is a blend"
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Blends deduct stock proportionally from multiple roasted stock entries.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Blend Components Builder — coffee blends only */}
+                  {category === "coffee" && isBlend && (
+                    <div className={sectionClassName}>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-800">Blend Components</h4>
+                        <button
+                          type="button"
+                          onClick={() => setBlendComponents((prev) => [...prev, { roasted_stock_id: "", percentage: "" }])}
+                          className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+                        >
+                          + Add component
+                        </button>
+                      </div>
+                      {blendComponents.length === 0 && (
+                        <p className="text-sm text-slate-500">
+                          Add roasted stock components that make up this blend.
+                        </p>
+                      )}
+                      <div className="space-y-3">
+                        {blendComponents.map((comp, idx) => (
+                          <div key={idx} className="flex items-start gap-3">
+                            <div className="flex-1">
+                              <select
+                                value={comp.roasted_stock_id}
+                                onChange={(e) => {
+                                  setBlendComponents((prev) =>
+                                    prev.map((c, i) => i === idx ? { ...c, roasted_stock_id: e.target.value } : c)
+                                  );
+                                }}
+                                className={inputClassName}
+                              >
+                                <option value="">Select roasted stock...</option>
+                                {roastedStocks
+                                  .filter((s) => s.id === comp.roasted_stock_id || !blendComponents.some((c, ci) => ci !== idx && c.roasted_stock_id === s.id))
+                                  .map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name} ({Number(s.current_stock_kg).toFixed(1)} kg)
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                            <div className="w-24">
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={comp.percentage}
+                                  onChange={(e) => {
+                                    setBlendComponents((prev) =>
+                                      prev.map((c, i) => i === idx ? { ...c, percentage: e.target.value } : c)
+                                    );
+                                  }}
+                                  placeholder="0"
+                                  className={`${inputClassName} pr-7`}
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setBlendComponents((prev) => prev.filter((_, i) => i !== idx))}
+                              className="mt-2.5 p-1 text-slate-400 hover:text-red-500"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Total percentage indicator */}
+                      {blendComponents.length > 0 && (() => {
+                        const total = blendComponents.reduce((sum, c) => sum + (parseFloat(c.percentage) || 0), 0);
+                        const isValid = Math.abs(total - 100) < 0.01;
+                        return (
+                          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${
+                            isValid ? "text-green-600 bg-green-50 border-green-200" : "text-amber-600 bg-amber-50 border-amber-200"
+                          }`}>
+                            <span className="font-medium">Total: {total.toFixed(1)}%</span>
+                            {!isValid && <span className="text-xs opacity-75">(must equal 100%)</span>}
                           </div>
                         );
                       })()}

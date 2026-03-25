@@ -103,13 +103,28 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   const productIds = Array.from(new Set(normalizedItems.map((item) => item.productId)));
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, unit, roasted_stock_id, green_bean_id, weight_grams")
+    .select("id, name, unit, roasted_stock_id, green_bean_id, weight_grams, is_blend")
     .in("id", productIds);
 
-  const productMap: Record<string, { name: string; unit: string; roasted_stock_id: string | null; green_bean_id: string | null; weight_grams: number | null }> = {};
+  const productMap: Record<string, { name: string; unit: string; roasted_stock_id: string | null; green_bean_id: string | null; weight_grams: number | null; is_blend: boolean }> = {};
+  // Fetch blend components for any blend products
+  const blendComponentMap: Record<string, { roasted_stock_id: string; percentage: number }[]> = {};
   if (products) {
     for (const p of products) {
-      productMap[p.id] = { name: p.name, unit: p.unit, roasted_stock_id: p.roasted_stock_id, green_bean_id: p.green_bean_id, weight_grams: p.weight_grams };
+      productMap[p.id] = { name: p.name, unit: p.unit, roasted_stock_id: p.roasted_stock_id, green_bean_id: p.green_bean_id, weight_grams: p.weight_grams, is_blend: p.is_blend ?? false };
+    }
+    const blendProductIds = products.filter((p) => p.is_blend).map((p) => p.id);
+    if (blendProductIds.length > 0) {
+      const { data: components } = await supabase
+        .from("blend_components")
+        .select("product_id, roasted_stock_id, percentage")
+        .in("product_id", blendProductIds);
+      if (components) {
+        for (const c of components) {
+          if (!blendComponentMap[c.product_id]) blendComponentMap[c.product_id] = [];
+          blendComponentMap[c.product_id].push({ roasted_stock_id: c.roasted_stock_id, percentage: Number(c.percentage) });
+        }
+      }
     }
     for (const item of normalizedItems) {
       if (!item.name && productMap[item.productId]) {
@@ -186,8 +201,10 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     const weightGrams = item.variantId && variantWeightMap[item.variantId] != null
       ? variantWeightMap[item.variantId]
       : productInfo?.weight_grams ?? null;
-    const roastedStockId = productInfo?.roasted_stock_id ?? null;
+    const isBlend = productInfo?.is_blend ?? false;
+    const roastedStockId = !isBlend ? (productInfo?.roasted_stock_id ?? null) : null;
     const greenBeanId = productInfo?.green_bean_id ?? null;
+    const blendComponents = isBlend ? (blendComponentMap[item.productId] || []) : undefined;
 
     return {
       productId: item.productId,
@@ -200,6 +217,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       ...(weightGrams != null ? { weightGrams } : {}),
       ...(roastedStockId ? { roastedStockId } : {}),
       ...(greenBeanId ? { greenBeanId } : {}),
+      ...(blendComponents && blendComponents.length > 0 ? { blendComponents } : {}),
     };
   });
 
@@ -300,30 +318,60 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
 
   // 7b. Roasted stock deduction — deduct KG based on item weight × quantity
   for (const item of orderItems) {
-    const roastedStockId = (item as Record<string, unknown>).roastedStockId as string | undefined;
-    const weightGrams = (item as Record<string, unknown>).weightGrams as number | undefined;
-    if (roastedStockId && weightGrams && weightGrams > 0) {
-      const deductKg = (weightGrams / 1000) * item.quantity;
-      await supabase.rpc("deduct_roasted_stock", {
-        stock_id: roastedStockId,
-        qty_kg: deductKg,
-      });
-      // Get balance after deduction for movement record
-      const { data: updatedStock } = await supabase
-        .from("roasted_stock")
-        .select("current_stock_kg")
-        .eq("id", roastedStockId)
-        .single();
-      await supabase.from("roasted_stock_movements").insert({
-        roaster_id: roasterId,
-        roasted_stock_id: roastedStockId,
-        movement_type: "order_deduction",
-        quantity_kg: -deductKg,
-        balance_after_kg: updatedStock?.current_stock_kg ?? 0,
-        reference_id: order.id,
-        reference_type: "order",
-        notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity}`,
-      });
+    const itemData = item as Record<string, unknown>;
+    const weightGrams = itemData.weightGrams as number | undefined;
+    const itemBlendComponents = itemData.blendComponents as { roasted_stock_id: string; percentage: number }[] | undefined;
+
+    if (itemBlendComponents && itemBlendComponents.length > 0 && weightGrams && weightGrams > 0) {
+      // Blend product: deduct proportionally from each component
+      const totalKg = (weightGrams / 1000) * item.quantity;
+      for (const comp of itemBlendComponents) {
+        const compKg = totalKg * (comp.percentage / 100);
+        await supabase.rpc("deduct_roasted_stock", {
+          stock_id: comp.roasted_stock_id,
+          qty_kg: compKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", comp.roasted_stock_id)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roasterId,
+          roasted_stock_id: comp.roasted_stock_id,
+          movement_type: "order_deduction",
+          quantity_kg: -compKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? 0,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity} (blend ${comp.percentage}%)`,
+        });
+      }
+    } else {
+      // Single-origin product: deduct from single roasted stock
+      const roastedStockId = itemData.roastedStockId as string | undefined;
+      if (roastedStockId && weightGrams && weightGrams > 0) {
+        const deductKg = (weightGrams / 1000) * item.quantity;
+        await supabase.rpc("deduct_roasted_stock", {
+          stock_id: roastedStockId,
+          qty_kg: deductKg,
+        });
+        const { data: updatedStock } = await supabase
+          .from("roasted_stock")
+          .select("current_stock_kg")
+          .eq("id", roastedStockId)
+          .single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roasterId,
+          roasted_stock_id: roastedStockId,
+          movement_type: "order_deduction",
+          quantity_kg: -deductKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? 0,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity}`,
+        });
+      }
     }
   }
 
@@ -361,8 +409,13 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   // 7d. Push stock to ecommerce channels (fire-and-forget)
   const affectedStockIds = new Set<string>();
   for (const item of orderItems) {
-    const rsId = (item as Record<string, unknown>).roastedStockId as string | undefined;
+    const itemData = item as Record<string, unknown>;
+    const rsId = itemData.roastedStockId as string | undefined;
     if (rsId) affectedStockIds.add(rsId);
+    const itemBlendComps = itemData.blendComponents as { roasted_stock_id: string }[] | undefined;
+    if (itemBlendComps) {
+      for (const comp of itemBlendComps) affectedStockIds.add(comp.roasted_stock_id);
+    }
   }
   for (const stockId of Array.from(affectedStockIds)) {
     pushStockToChannels(roasterId, stockId).catch((err) =>

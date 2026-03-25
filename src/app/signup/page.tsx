@@ -9,7 +9,7 @@ export default function SignupPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <Logo height={150} className="h-[150px] w-auto" />
+            <Logo variant="stacked" height={150} className="h-[150px] w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
             Join Ghost Roastery

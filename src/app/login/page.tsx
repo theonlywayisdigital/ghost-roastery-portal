@@ -9,7 +9,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <Logo variant="main" height={80} className="h-[80px] w-auto" />
+            <Logo variant="main" height={160} className="h-[160px] w-auto" />
           </div>
           <p className="text-slate-500 mt-1">Sell, market &amp; manage &mdash; built for roasters</p>
         </div>

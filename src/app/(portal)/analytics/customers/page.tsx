@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { OverviewClient } from "./OverviewClient";
+import { CustomersClient } from "./CustomersClient";
 
-export default async function AnalyticsPage() {
+export default async function CustomersPage() {
   const user = await getCurrentUser();
   if (!user?.roaster) redirect("/login");
-
-  return <OverviewClient />;
+  return <CustomersClient />;
 }

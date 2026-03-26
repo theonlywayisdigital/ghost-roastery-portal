@@ -233,13 +233,13 @@ export async function GET(request: NextRequest) {
               conditionMet = expectedValue ? wasActioned : !wasActioned;
             }
           } else if (field === "contact_type_is") {
-            // Check if contact's type matches expected value
+            // Check if contact's types array contains expected value
             const { data: contact } = await supabase
               .from("contacts")
-              .select("contact_type")
+              .select("types")
               .eq("id", enrollment.contact_id)
               .single();
-            conditionMet = contact?.contact_type === (config.value as string);
+            conditionMet = ((contact?.types as string[]) || []).includes(config.value as string);
           } else if (field === "has_placed_order") {
             // Check if contact has placed an order since enrolment
             const { data: orders } = await supabase
@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
             if (noAction === "change_contact_type" && config.no_action_value) {
               await supabase
                 .from("contacts")
-                .update({ contact_type: config.no_action_value as string })
+                .update({ types: [config.no_action_value as string] })
                 .eq("id", enrollment.contact_id);
             } else if (noAction === "change_pipeline_stage" && config.no_action_value) {
               await supabase

@@ -212,13 +212,11 @@ export async function GET(request: NextRequest) {
           const field = config.field as string;
 
           if (field === "opened_previous" || field === "clicked_previous") {
-            // Check if previous email step was opened/clicked
             const prevEmailSteps = steps.filter(
               (s: { step_order: number; step_type: string }) =>
                 s.step_order < currentStepOrder && s.step_type === "email"
             );
             const lastEmailStep = prevEmailSteps[prevEmailSteps.length - 1];
-
             if (lastEmailStep) {
               const { data: log } = await supabase
                 .from("automation_step_logs")
@@ -226,14 +224,10 @@ export async function GET(request: NextRequest) {
                 .eq("enrollment_id", enrollment.id)
                 .eq("step_id", lastEmailStep.id)
                 .single();
-
               const checkStatus = field === "opened_previous" ? "opened" : "clicked";
-              const wasActioned = log?.status === checkStatus || log?.status === "clicked";
-              const expectedValue = config.value as boolean;
-              conditionMet = expectedValue ? wasActioned : !wasActioned;
+              conditionMet = log?.status === checkStatus || log?.status === "clicked";
             }
           } else if (field === "contact_type_is") {
-            // Check if contact's types array contains expected value
             const { data: contact } = await supabase
               .from("contacts")
               .select("types")
@@ -241,18 +235,14 @@ export async function GET(request: NextRequest) {
               .single();
             conditionMet = ((contact?.types as string[]) || []).includes(config.value as string);
           } else if (field === "has_placed_order") {
-            // Check if contact has placed an order since enrolment
             const { data: orders } = await supabase
               .from("orders")
               .select("id")
               .eq("contact_id", enrollment.contact_id)
               .gte("created_at", enrollment.enrolled_at as string)
               .limit(1);
-            const hasOrdered = !!(orders && orders.length > 0);
-            const expectedValue = config.value as boolean;
-            conditionMet = expectedValue ? hasOrdered : !hasOrdered;
+            conditionMet = !!(orders && orders.length > 0);
           } else if (field === "pipeline_stage_is") {
-            // Check if contact's pipeline stage matches expected value
             const { data: contact } = await supabase
               .from("contacts")
               .select("pipeline_stage")
@@ -261,8 +251,36 @@ export async function GET(request: NextRequest) {
             conditionMet = contact?.pipeline_stage === (config.value as string);
           }
 
-          if (conditionMet) {
-            // Advance to next step
+          // Determine which branch action to execute
+          const branchAction = conditionMet
+            ? (config.yes_action as string) || "continue"
+            : (config.no_action as string) || "end_automation";
+          const branchValue = conditionMet
+            ? (config.yes_action_value as string) || ""
+            : (config.no_action_value as string) || "";
+
+          // Execute side-effect actions
+          if (branchAction === "change_contact_type" && branchValue) {
+            await supabase
+              .from("contacts")
+              .update({ types: [branchValue] })
+              .eq("id", enrollment.contact_id);
+          } else if (branchAction === "change_pipeline_stage" && branchValue) {
+            await supabase
+              .from("contacts")
+              .update({ pipeline_stage: branchValue })
+              .eq("id", enrollment.contact_id);
+          }
+
+          // Continue or end based on branch action
+          if (branchAction === "end_automation") {
+            await supabase
+              .from("automation_enrollments")
+              .update({ status: "completed", completed_at: new Date().toISOString() })
+              .eq("id", enrollment.id);
+            await incrementCompletedCount(supabase, enrollment.automation_id);
+          } else {
+            // "continue", "change_contact_type", "change_pipeline_stage" all advance
             const nextStep = steps.find((s: { step_order: number }) => s.step_order === currentStepOrder + 1);
             if (nextStep) {
               await supabase
@@ -276,27 +294,6 @@ export async function GET(request: NextRequest) {
                 .eq("id", enrollment.id);
               await incrementCompletedCount(supabase, enrollment.automation_id);
             }
-          } else {
-            // Execute no-path action if configured
-            const noAction = config.no_action as string | undefined;
-            if (noAction === "change_contact_type" && config.no_action_value) {
-              await supabase
-                .from("contacts")
-                .update({ types: [config.no_action_value as string] })
-                .eq("id", enrollment.contact_id);
-            } else if (noAction === "change_pipeline_stage" && config.no_action_value) {
-              await supabase
-                .from("contacts")
-                .update({ pipeline_stage: config.no_action_value as string })
-                .eq("id", enrollment.contact_id);
-            }
-
-            // End automation for this contact
-            await supabase
-              .from("automation_enrollments")
-              .update({ status: "completed", completed_at: new Date().toISOString() })
-              .eq("id", enrollment.id);
-            await incrementCompletedCount(supabase, enrollment.automation_id);
           }
 
           await supabase.from("automation_step_logs").insert({

@@ -1093,18 +1093,81 @@ function DelayStepConfig({
 }
 
 const CONDITION_FIELDS = [
-  { value: "opened_previous", label: "Opened previous email", valueType: "boolean" },
-  { value: "clicked_previous", label: "Clicked previous email", valueType: "boolean" },
-  { value: "contact_type_is", label: "Contact type is", valueType: "contact_types" },
-  { value: "has_placed_order", label: "Has placed order since enrolment", valueType: "boolean" },
-  { value: "pipeline_stage_is", label: "Pipeline stage is", valueType: "pipeline_stages" },
+  { value: "has_placed_order", label: "Has placed an order since enrolment", picker: null },
+  { value: "opened_previous", label: "Previous email was opened", picker: null },
+  { value: "clicked_previous", label: "Previous email was clicked", picker: null },
+  { value: "contact_type_is", label: "Contact type is...", picker: "contact_types" },
+  { value: "pipeline_stage_is", label: "Pipeline stage is...", picker: "pipeline_stages" },
 ] as const;
 
-const NO_ACTION_OPTIONS = [
+const BRANCH_ACTION_OPTIONS = [
+  { value: "continue", label: "Continue to next step" },
   { value: "end_automation", label: "End automation" },
   { value: "change_contact_type", label: "Change contact type" },
   { value: "change_pipeline_stage", label: "Change pipeline stage" },
 ];
+
+function BranchActionPicker({
+  label,
+  action,
+  actionValue,
+  onActionChange,
+  onValueChange,
+  dynamicOptions,
+  color,
+}: {
+  label: string;
+  action: string;
+  actionValue: string;
+  onActionChange: (action: string) => void;
+  onValueChange: (value: string) => void;
+  dynamicOptions: Record<string, { value: string; label: string }[]>;
+  color: "green" | "red";
+}) {
+  const borderColor = color === "green" ? "border-green-200" : "border-red-200";
+  const bgColor = color === "green" ? "bg-green-50" : "bg-red-50";
+  const textColor = color === "green" ? "text-green-700" : "text-red-700";
+  const selectClass = "w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white";
+
+  return (
+    <div className={`p-3 rounded-lg border ${borderColor} ${bgColor}`}>
+      <label className={`block text-xs font-semibold ${textColor} mb-1.5`}>{label}</label>
+      <select
+        value={action}
+        onChange={(e) => onActionChange(e.target.value)}
+        className={selectClass}
+      >
+        {BRANCH_ACTION_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+
+      {action === "change_contact_type" && (
+        <div className="mt-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Change to type</label>
+          <select value={actionValue} onChange={(e) => onValueChange(e.target.value)} className={selectClass}>
+            <option value="">Select...</option>
+            {(dynamicOptions.contact_types || []).map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {action === "change_pipeline_stage" && (
+        <div className="mt-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Change to stage</label>
+          <select value={actionValue} onChange={(e) => onValueChange(e.target.value)} className={selectClass}>
+            <option value="">Select...</option>
+            {(dynamicOptions.pipeline_stages || []).map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ConditionStepConfig({
   config,
@@ -1115,8 +1178,10 @@ function ConditionStepConfig({
   onChange: (config: Record<string, unknown>) => void;
   apiBase: string;
 }) {
-  const field = (config.field as string) || "opened_previous";
-  const value = config.value !== undefined ? config.value : true;
+  const field = (config.field as string) || "has_placed_order";
+  const value = (config.value as string) || "";
+  const yesAction = (config.yes_action as string) || "continue";
+  const yesActionValue = (config.yes_action_value as string) || "";
   const noAction = (config.no_action as string) || "end_automation";
   const noActionValue = (config.no_action_value as string) || "";
 
@@ -1140,105 +1205,69 @@ function ConditionStepConfig({
   }, [apiBase]);
 
   const fieldDef = CONDITION_FIELDS.find((f) => f.value === field);
-  const valueType = fieldDef?.valueType || "boolean";
+  const picker = fieldDef?.picker || null;
 
-  // When field changes, reset value to a sensible default
   function handleFieldChange(newField: string) {
-    const def = CONDITION_FIELDS.find((f) => f.value === newField);
-    const defaultValue = def?.valueType === "boolean" ? true : "";
-    onChange({ ...config, field: newField, value: defaultValue });
+    onChange({ ...config, field: newField, value: "" });
   }
+
+  const selectClass = "w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white";
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-500">
-        Check a condition. If true, the automation continues.
+        Check a condition, then take different actions depending on the result.
       </p>
-      <div className="grid grid-cols-2 gap-3">
+
+      {/* Condition picker */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1">Condition</label>
+        <select value={field} onChange={(e) => handleFieldChange(e.target.value)} className={selectClass}>
+          {CONDITION_FIELDS.map((f) => (
+            <option key={f.value} value={f.value}>{f.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Value picker for conditions that need one */}
+      {picker && (
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Condition</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            {picker === "contact_types" ? "Type" : "Stage"}
+          </label>
           <select
-            value={field}
-            onChange={(e) => handleFieldChange(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+            value={value}
+            onChange={(e) => onChange({ ...config, value: e.target.value })}
+            className={selectClass}
           >
-            {CONDITION_FIELDS.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
+            <option value="">Select...</option>
+            {(dynamicOptions[picker] || []).map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            {valueType === "boolean" ? "Expected" : "Value"}
-          </label>
-          {valueType === "boolean" ? (
-            <select
-              value={String(value)}
-              onChange={(e) => onChange({ ...config, value: e.target.value === "true" })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-            >
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          ) : (
-            <select
-              value={(value as string) || ""}
-              onChange={(e) => onChange({ ...config, value: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-            >
-              <option value="">Select...</option>
-              {(dynamicOptions[valueType] || []).map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
+      )}
 
-      {/* No-path action */}
-      <div className="pt-3 border-t border-slate-100">
-        <label className="block text-xs font-medium text-slate-600 mb-1">If condition is not met</label>
-        <select
-          value={noAction}
-          onChange={(e) => onChange({ ...config, no_action: e.target.value, no_action_value: "" })}
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-        >
-          {NO_ACTION_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-
-        {noAction === "change_contact_type" && (
-          <div className="mt-2">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Change to type</label>
-            <select
-              value={noActionValue}
-              onChange={(e) => onChange({ ...config, no_action_value: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-            >
-              <option value="">Select...</option>
-              {(dynamicOptions.contact_types || []).map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {noAction === "change_pipeline_stage" && (
-          <div className="mt-2">
-            <label className="block text-xs font-medium text-slate-600 mb-1">Change to stage</label>
-            <select
-              value={noActionValue}
-              onChange={(e) => onChange({ ...config, no_action_value: e.target.value })}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-            >
-              <option value="">Select...</option>
-              {(dynamicOptions.pipeline_stages || []).map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        )}
+      {/* Branch actions */}
+      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+        <BranchActionPicker
+          label="If YES"
+          action={yesAction}
+          actionValue={yesActionValue}
+          onActionChange={(a) => onChange({ ...config, yes_action: a, yes_action_value: "" })}
+          onValueChange={(v) => onChange({ ...config, yes_action_value: v })}
+          dynamicOptions={dynamicOptions}
+          color="green"
+        />
+        <BranchActionPicker
+          label="If NO"
+          action={noAction}
+          actionValue={noActionValue}
+          onActionChange={(a) => onChange({ ...config, no_action: a, no_action_value: "" })}
+          onValueChange={(v) => onChange({ ...config, no_action_value: v })}
+          dynamicOptions={dynamicOptions}
+          color="red"
+        />
       </div>
     </div>
   );
@@ -1267,28 +1296,27 @@ function getStepSummary(step: AutomationStep): string {
     }
     case "condition": {
       const field = config.field as string;
-      const value = config.value;
-      const fieldLabels: Record<string, string> = {
-        opened_previous: "opened previous email",
-        clicked_previous: "clicked previous email",
+      const value = config.value as string | undefined;
+      const conditionLabels: Record<string, string> = {
+        has_placed_order: "has placed an order",
+        opened_previous: "previous email was opened",
+        clicked_previous: "previous email was clicked",
         contact_type_is: "contact type is",
-        has_placed_order: "has placed order since enrolment",
         pipeline_stage_is: "pipeline stage is",
       };
-      const label = fieldLabels[field] || field;
-      const noAction = config.no_action as string | undefined;
-      const noActionLabels: Record<string, string> = {
-        end_automation: "end automation",
-        change_contact_type: "change contact type",
-        change_pipeline_stage: "change pipeline stage",
+      const actionLabels: Record<string, string> = {
+        continue: "continue",
+        end_automation: "end",
+        change_contact_type: "change type",
+        change_pipeline_stage: "change stage",
       };
-      const noActionSuffix = noAction && noAction !== "end_automation"
-        ? ` · No → ${noActionLabels[noAction] || noAction}`
-        : "";
-      if (typeof value === "boolean") {
-        return value ? `If ${label}` : `If not ${label}`;
-      }
-      return `If ${label} "${value}"${noActionSuffix}`;
+      const conditionText = conditionLabels[field] || field;
+      const valueSuffix = value ? ` "${value}"` : "";
+      const yesAction = (config.yes_action as string) || "continue";
+      const noAction = (config.no_action as string) || "end_automation";
+      const yesPart = actionLabels[yesAction] || yesAction;
+      const noPart = actionLabels[noAction] || noAction;
+      return `${conditionText}${valueSuffix} · Yes → ${yesPart} · No → ${noPart}`;
     }
     default:
       return "Unknown step";

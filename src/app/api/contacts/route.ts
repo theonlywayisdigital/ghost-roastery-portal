@@ -111,6 +111,7 @@ export async function POST(request: Request) {
       source,
       business_id,
       role,
+      pipeline_stage,
     } = body;
 
     if (!first_name && !last_name && !email) {
@@ -171,6 +172,7 @@ export async function POST(request: Request) {
         source: source || "manual",
         business_id: business_id || null,
         role: role || null,
+        pipeline_stage: pipeline_stage || null,
         people_id: peopleId,
         owner_id: roaster.id,
       })

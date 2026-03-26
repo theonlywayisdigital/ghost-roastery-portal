@@ -33,7 +33,7 @@ export async function GET() {
   // Fetch ghost_roastery contacts with lead/wholesale types
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
-    .select("id, first_name, last_name, email, business_name, source, total_spend, types, created_at")
+    .select("id, first_name, last_name, email, business_name, source, total_spend, types, pipeline_stage, created_at")
     .eq("owner_type", "ghost_roastery")
     .neq("status", "archived")
     .or("types.cs.{lead},types.cs.{wholesale}");
@@ -46,7 +46,7 @@ export async function GET() {
   // Fetch ghost_roastery businesses with lead/wholesale types
   const { data: businesses, error: bizErr } = await supabase
     .from("businesses")
-    .select("id, name, email, source, total_spend, types, created_at")
+    .select("id, name, email, source, total_spend, types, pipeline_stage, created_at")
     .eq("owner_type", "ghost_roastery")
     .neq("status", "archived")
     .or("types.cs.{lead},types.cs.{wholesale}");
@@ -64,7 +64,7 @@ export async function GET() {
     email: c.email,
     businessName: c.business_name,
     source: c.source || "manual",
-    leadStatus: defaultSlug,
+    leadStatus: c.pipeline_stage || defaultSlug,
     totalSpend: c.total_spend || 0,
     types: (c.types as string[]) || [],
     createdAt: c.created_at,
@@ -78,7 +78,7 @@ export async function GET() {
     email: b.email,
     businessName: null,
     source: b.source || "manual",
-    leadStatus: defaultSlug,
+    leadStatus: b.pipeline_stage || defaultSlug,
     totalSpend: b.total_spend || 0,
     types: (b.types as string[]) || [],
     createdAt: b.created_at,

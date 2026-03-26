@@ -70,6 +70,19 @@ export const TRIGGER_DEFINITIONS: TriggerDefinition[] = [
     filterFields: CONTACT_FILTERS,
   },
   {
+    type: "pipeline_stage_changed",
+    label: "Pipeline Stage Changed",
+    description: "When a contact or business is moved to a new pipeline stage",
+    icon: "GitBranch",
+    color: "text-cyan-600",
+    bg: "bg-cyan-50",
+    category: "event",
+    configFields: [
+      { key: "stage", label: "Stage", type: "select", placeholder: "Any stage", dynamicOptionsKey: "pipeline_stages" },
+    ],
+    filterFields: CONTACT_FILTERS,
+  },
+  {
     type: "business_created",
     label: "Business Created",
     description: "When a new business is added",
@@ -302,7 +315,7 @@ export function getTriggersByCategory() {
 export function getPrimaryTriggers(): TriggerDefinition[] {
   const newTriggerTypes = new Set([
     "form_submitted", "contact_created",
-    "business_type_changed", "contact_type_changed", "business_created",
+    "business_type_changed", "contact_type_changed", "pipeline_stage_changed", "business_created",
     "order_placed", "order_status_changed", "discount_code_redeemed",
     "email_engagement", "no_activity", "date_based", "custom_webhook",
   ]);

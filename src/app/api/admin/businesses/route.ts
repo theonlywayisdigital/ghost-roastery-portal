@@ -156,6 +156,7 @@ export async function POST(request: Request) {
       address_line_1, address_line_2, city, county, postcode, country,
       notes, source, status: bizStatus,
       primary_contact,
+      pipeline_stage,
     } = body;
 
     if (!name || !name.trim()) {
@@ -203,6 +204,7 @@ export async function POST(request: Request) {
         notes: notes || null,
         source: source || "manual",
         status: bizStatus || "active",
+        pipeline_stage: pipeline_stage || null,
       })
       .select()
       .single();

@@ -132,7 +132,7 @@ export async function PUT(
 
     const allowedFields = [
       "first_name", "last_name", "email", "phone", "business_name",
-      "types", "status", "business_id", "role",
+      "types", "status", "business_id", "role", "pipeline_stage",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
 

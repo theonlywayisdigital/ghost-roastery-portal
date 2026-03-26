@@ -144,7 +144,7 @@ export async function PUT(
     // Verify ownership
     const { data: existing } = await supabase
       .from("businesses")
-      .select("id, types, status")
+      .select("id, types, status, pipeline_stage")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
       .single();
@@ -154,7 +154,7 @@ export async function PUT(
     }
 
     const allowedFields = [
-      "name", "types", "industry", "status",
+      "name", "types", "industry", "status", "pipeline_stage",
       "email", "phone", "website", "notes",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
@@ -229,6 +229,26 @@ export async function PUT(
             }).catch(() => {});
           }
         }
+      }
+    }
+
+    // Fire automation trigger for pipeline stage change
+    if ("pipeline_stage" in body && body.pipeline_stage !== (existing as Record<string, unknown>).pipeline_stage) {
+      const { data: primaryContact } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("business_id", id)
+        .eq("roaster_id", roaster.id)
+        .limit(1)
+        .single();
+
+      if (primaryContact) {
+        fireAutomationTrigger({
+          trigger_type: "pipeline_stage_changed",
+          roaster_id: roaster.id as string,
+          contact_id: primaryContact.id,
+          event_data: { stage: body.pipeline_stage },
+        }).catch(() => {});
       }
     }
 

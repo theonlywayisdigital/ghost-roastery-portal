@@ -105,7 +105,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
     loadPipeline();
   }, [loadPipeline]);
 
-  // Derive first non-loss stage slug for default lead_status
+  // Derive first non-loss stage slug for default pipeline_stage
   const defaultStageSlug = stages.find((s) => !s.is_loss)?.slug || "lead";
 
   function getItemsByStage(stage: string): PipelineItem[] {
@@ -163,7 +163,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
         : `${apiBase}/${id}`;
 
       // Build the update body
-      const body: Record<string, unknown> = { lead_status: targetStage };
+      const body: Record<string, unknown> = { pipeline_stage: targetStage };
 
       // If moving to a win stage, add "wholesale" to types if not already present
       if (isWinStage && !item.types.includes("wholesale")) {
@@ -194,7 +194,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
   }
 
   async function handleDeleteItem(item: PipelineItem) {
-    // Optimistic removal — clears lead_status (removes from pipeline without archiving)
+    // Optimistic removal — clears pipeline_stage (removes from pipeline without archiving)
     const prevItems = [...items];
     setItems((prev) => prev.filter((i) => !(i.id === item.id && i.itemType === item.itemType)));
 
@@ -206,7 +206,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
       const res = await fetch(endpoint, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_status: null }),
+        body: JSON.stringify({ pipeline_stage: null }),
       });
       if (!res.ok) {
         setItems(prevItems); // Revert on failure
@@ -340,7 +340,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
         // Build a single update body to avoid double PUT
         const contactTypes = [...(selectedContact.types || [])];
         if (!contactTypes.includes("lead")) contactTypes.push("lead");
-        const contactBody: Record<string, unknown> = { lead_status: defaultStageSlug, types: contactTypes };
+        const contactBody: Record<string, unknown> = { pipeline_stage: defaultStageSlug, types: contactTypes };
         if (selectedBusiness && !selectedContact.business_id) {
           contactBody.business_id = selectedBusiness.id;
         }
@@ -351,7 +351,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
           body: JSON.stringify(contactBody),
         });
 
-        // Update business lead_status too if one is selected (preserve existing types)
+        // Update business pipeline_stage too if one is selected (preserve existing types)
         if (selectedBusiness) {
           const existingBizItem = items.find(
             (i) => i.id === selectedBusiness.id && i.itemType === "business"
@@ -362,7 +362,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
           await fetch(`${businessApi}/${selectedBusiness.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lead_status: defaultStageSlug, types: bizTypes }),
+            body: JSON.stringify({ pipeline_stage: defaultStageSlug, types: bizTypes }),
           });
         }
 
@@ -383,7 +383,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
               industry: newBusiness.industry || null,
               website: newBusiness.website.trim() || null,
               types: ["lead"],
-              lead_status: defaultStageSlug,
+              pipeline_stage: defaultStageSlug,
               source: "pipeline",
             }),
           });
@@ -393,7 +393,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
           }
         } else if (selectedBusiness) {
           businessId = selectedBusiness.id;
-          // Also update existing business lead_status (preserve existing types)
+          // Also update existing business pipeline_stage (preserve existing types)
           const existingBizItem = items.find(
             (i) => i.id === selectedBusiness.id && i.itemType === "business"
           );
@@ -403,7 +403,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
           await fetch(`${businessApi}/${selectedBusiness.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lead_status: defaultStageSlug, types: bizTypes }),
+            body: JSON.stringify({ pipeline_stage: defaultStageSlug, types: bizTypes }),
           });
         }
 
@@ -417,7 +417,7 @@ export function PipelineBoard({ apiBase, detailBase, businessDetailBase, stagesS
             phone: newContact.phone.trim() || null,
             business_id: businessId,
             types: ["lead"],
-            lead_status: defaultStageSlug,
+            pipeline_stage: defaultStageSlug,
             source: "pipeline",
           }),
         });

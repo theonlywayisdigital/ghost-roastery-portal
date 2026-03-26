@@ -276,7 +276,8 @@ export type TriggerType =
   | "date_based"
   | "discount_code_redeemed"
   | "email_engagement"
-  | "custom_webhook";
+  | "custom_webhook"
+  | "pipeline_stage_changed";
 
 // ═══════════════════════════════════════════════════════════
 // Automation Trigger Filters

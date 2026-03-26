@@ -169,7 +169,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/wholesale-portal", icon: Store },
       { label: "Contacts", href: "/contacts", icon: Contact },
-      { label: "Businesses", href: "/businesses", icon: Building2 },
       { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],

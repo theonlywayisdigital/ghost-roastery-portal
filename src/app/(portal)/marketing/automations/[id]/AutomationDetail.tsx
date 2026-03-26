@@ -56,7 +56,7 @@ const ENROLLMENT_STATUS_COLORS: Record<string, string> = {
 };
 
 interface EnrollmentWithContact extends AutomationEnrollment {
-  contacts?: { id: string; name: string | null; email: string } | null;
+  contacts?: { id: string; first_name: string | null; last_name: string | null; email: string } | null;
 }
 
 export function AutomationDetail({ automationId }: { automationId: string }) {
@@ -305,7 +305,9 @@ export function AutomationDetail({ automationId }: { automationId: string }) {
                     <tr key={e.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2.5">
                         <p className="text-sm font-medium text-slate-900">
-                          {e.contacts?.name || "Unknown"}
+                          {e.contacts?.first_name || e.contacts?.last_name
+                            ? [e.contacts.first_name, e.contacts.last_name].filter(Boolean).join(" ")
+                            : "Unknown"}
                         </p>
                         <p className="text-xs text-slate-500">{e.contacts?.email || ""}</p>
                       </td>

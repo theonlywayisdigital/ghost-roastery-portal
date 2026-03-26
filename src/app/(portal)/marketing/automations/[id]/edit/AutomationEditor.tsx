@@ -18,8 +18,9 @@ import {
   ChevronRight,
   Check,
   X,
+  Users,
 } from "@/components/icons";
-import type { Automation, AutomationStep, StepType, EmailBlock } from "@/types/marketing";
+import type { Automation, AutomationStep, AutomationEnrollment, StepType, EmailBlock } from "@/types/marketing";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { EmailEditorSlideOver } from "./EmailEditorSlideOver";
 import { EmailMiniPreview } from "./EmailMiniPreview";
@@ -39,6 +40,17 @@ const ADD_STEP_OPTIONS: { type: StepType; label: string; description: string }[]
   { type: "condition", label: "Condition", description: "Check if a condition is met" },
 ];
 
+const ENROLLMENT_STATUS_COLORS: Record<string, string> = {
+  active: "bg-blue-50 text-blue-700",
+  completed: "bg-green-50 text-green-700",
+  cancelled: "bg-slate-100 text-slate-600",
+  failed: "bg-red-50 text-red-600",
+};
+
+interface EnrollmentWithContact extends AutomationEnrollment {
+  contacts?: { id: string; first_name: string | null; last_name: string | null; email: string } | null;
+}
+
 export function AutomationEditor({ automationId }: { automationId: string }) {
   const router = useRouter();
   const { apiBase, pageBase } = useMarketingContext();
@@ -52,20 +64,31 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
   const [addMenuAt, setAddMenuAt] = useState<number | null>(null);
   const [addingStep, setAddingStep] = useState(false);
+  const [enrollments, setEnrollments] = useState<EnrollmentWithContact[]>([]);
+  const [enrollmentFilter, setEnrollmentFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadAutomation = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${apiBase}/automations/${automationId}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [autoRes, enrollRes] = await Promise.all([
+        fetch(`${apiBase}/automations/${automationId}`),
+        fetch(`${apiBase}/automations/${automationId}/enrollments`),
+      ]);
+
+      if (autoRes.ok) {
+        const data = await autoRes.json();
         setAutomation(data.automation);
         setSteps(data.steps || []);
         setNameValue(data.automation.name);
       } else {
         setError("Automation not found.");
+      }
+
+      if (enrollRes.ok) {
+        const data = await enrollRes.json();
+        setEnrollments(data.enrollments || []);
       }
     } catch {
       setError("Failed to load automation.");
@@ -83,6 +106,23 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
       nameInputRef.current.select();
     }
   }, [editingName]);
+
+  // Reload enrollments when filter changes
+  useEffect(() => {
+    async function loadEnrollments() {
+      const params = enrollmentFilter !== "all" ? `?status=${enrollmentFilter}` : "";
+      try {
+        const res = await fetch(`${apiBase}/automations/${automationId}/enrollments${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          setEnrollments(data.enrollments || []);
+        }
+      } catch {
+        // silent
+      }
+    }
+    if (!loading) loadEnrollments();
+  }, [automationId, enrollmentFilter, loading, apiBase]);
 
   // Auto-save automation fields
   const saveAutomation = useCallback(
@@ -424,6 +464,93 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
             <Check className="w-4 h-4" />
             <span className="text-sm font-medium">End of Automation</span>
           </div>
+        </div>
+      </div>
+
+      {/* Enrollments section */}
+      <div className="max-w-3xl mx-auto pb-16">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Enrollments</h2>
+          <div className="flex gap-1">
+            {(["all", "active", "completed", "cancelled"] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setEnrollmentFilter(status)}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  enrollmentFilter === status
+                    ? "bg-brand-100 text-brand-700"
+                    : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {enrollments.length === 0 ? (
+            <div className="text-center py-12">
+              <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-500">No enrollments yet</p>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2.5">
+                    Contact
+                  </th>
+                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2.5">
+                    Status
+                  </th>
+                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2.5 hidden md:table-cell">
+                    Current Step
+                  </th>
+                  <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-2.5 hidden md:table-cell">
+                    Enrolled
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {enrollments.map((e) => (
+                  <tr key={e.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-2.5">
+                      <p className="text-sm font-medium text-slate-900">
+                        {e.contacts?.first_name || e.contacts?.last_name
+                          ? [e.contacts.first_name, e.contacts.last_name].filter(Boolean).join(" ")
+                          : "Unknown"}
+                      </p>
+                      <p className="text-xs text-slate-500">{e.contacts?.email || ""}</p>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ENROLLMENT_STATUS_COLORS[e.status] || ENROLLMENT_STATUS_COLORS.active}`}>
+                        {e.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell">
+                      <span className="text-sm text-slate-600">
+                        {e.status === "completed"
+                          ? "Done"
+                          : e.status === "cancelled"
+                          ? "—"
+                          : `Step ${e.current_step}`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell">
+                      <span className="text-xs text-slate-500">
+                        {new Date(e.enrolled_at).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

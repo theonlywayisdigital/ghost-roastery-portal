@@ -28,7 +28,7 @@ export async function GET(
 
   let query = supabase
     .from("automation_enrollments")
-    .select("*, contacts(id, name, email)")
+    .select("*, contacts(id, first_name, last_name, email)")
     .eq("automation_id", id)
     .order("enrolled_at", { ascending: false })
     .limit(100);

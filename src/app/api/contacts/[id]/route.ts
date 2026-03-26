@@ -56,7 +56,7 @@ export async function GET(
   if (contact.email) {
     const { data: orderData } = await supabase
       .from("orders")
-      .select("id, customer_name, items, subtotal, total, status, created_at")
+      .select("id, customer_name, items, subtotal, status, created_at")
       .eq("roaster_id", roaster.id)
       .eq("customer_email", contact.email)
       .order("created_at", { ascending: false })

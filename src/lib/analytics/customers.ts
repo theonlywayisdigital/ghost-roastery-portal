@@ -1,11 +1,12 @@
 import { createServerClient } from "@/lib/supabase";
+import { fetchPipelineStages } from "@/lib/pipeline";
 import type { DateRange, NamedValue } from "./types";
 import { formatDateKey } from "./types";
 
 export async function fetchCustomersData(roasterId: string, range: DateRange) {
   const supabase = createServerClient();
 
-  const [ordersRes, contactsRes, wholesaleRes, topCustomersRes, leadPipelineRes, atRiskRes] = await Promise.all([
+  const [ordersRes, contactsRes, wholesaleRes, topCustomersRes, pipelineStages, atRiskRes] = await Promise.all([
     // Orders in period for new vs returning
     supabase
       .from("orders")
@@ -37,8 +38,8 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
       .gt("order_count", 0)
       .order("total_spend", { ascending: false })
       .limit(10),
-    // Lead pipeline (placeholder — column dropped)
-    Promise.resolve({ data: [] }),
+    // Lead pipeline — dynamic stages + contacts in pipeline
+    fetchPipelineStages(supabase, roasterId),
     // At-risk customers (no order in 60 days)
     supabase
       .from("contacts")
@@ -60,7 +61,7 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
     order_count: number;
     last_activity_at: string;
   }[];
-  const leads = (leadPipelineRes.data || []) as { lead_status?: string }[];
+  // pipelineStages is PipelineStage[] from fetchPipelineStages
 
   // New vs returning customers by day
   // Find all customer emails with orders BEFORE the period
@@ -127,17 +128,35 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
     value,
   }));
 
-  // Lead pipeline
-  const pipelineMap: Record<string, number> = {};
-  for (const l of leads) {
-    if (l.lead_status) {
-      pipelineMap[l.lead_status] = (pipelineMap[l.lead_status] || 0) + 1;
-    }
+  // Lead pipeline — count contacts/businesses per dynamic stage
+  let leadPipeline: NamedValue[] = [];
+  if (pipelineStages.length > 0) {
+    const defaultSlug = pipelineStages.find((s) => !s.is_loss)?.slug || pipelineStages[0].slug;
+
+    // Fetch contacts + businesses in pipeline (lead/wholesale types, non-archived)
+    const [pipelineContactsRes, pipelineBizRes] = await Promise.all([
+      supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("roaster_id", roasterId)
+        .neq("status", "archived")
+        .or("types.cs.{lead},types.cs.{wholesale}"),
+      supabase
+        .from("businesses")
+        .select("id", { count: "exact", head: true })
+        .eq("roaster_id", roasterId)
+        .neq("status", "archived")
+        .or("types.cs.{lead},types.cs.{wholesale}"),
+    ]);
+
+    const totalPipelineItems = (pipelineContactsRes.count || 0) + (pipelineBizRes.count || 0);
+
+    // All items land on the default stage (no per-item stage column yet)
+    leadPipeline = pipelineStages.map((stage) => ({
+      name: stage.name,
+      value: stage.slug === defaultSlug ? totalPipelineItems : 0,
+    }));
   }
-  const leadPipeline = ["new", "contacted", "qualified", "won", "lost"].map((status) => ({
-    name: status.charAt(0).toUpperCase() + status.slice(1),
-    value: pipelineMap[status] || 0,
-  }));
 
   // Retention KPIs
   const repeatCustomers = topCustomers.filter((c) => c.order_count > 1).length;

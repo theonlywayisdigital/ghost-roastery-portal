@@ -267,6 +267,7 @@ export type TriggerType =
   | "custom"
   | "form_submitted"
   | "business_type_changed"
+  | "contact_type_changed"
   | "order_placed"
   | "order_status_changed"
   | "contact_created"

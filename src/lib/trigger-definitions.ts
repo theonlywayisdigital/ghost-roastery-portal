@@ -57,6 +57,19 @@ export const TRIGGER_DEFINITIONS: TriggerDefinition[] = [
     filterFields: CONTACT_FILTERS,
   },
   {
+    type: "contact_type_changed",
+    label: "Contact Type Changed",
+    description: "When a contact's types are updated",
+    icon: "UserCog",
+    color: "text-teal-600",
+    bg: "bg-teal-50",
+    category: "event",
+    configFields: [
+      { key: "new_type", label: "New Type", type: "select", placeholder: "Any type", dynamicOptionsKey: "contact_types" },
+    ],
+    filterFields: CONTACT_FILTERS,
+  },
+  {
     type: "business_created",
     label: "Business Created",
     description: "When a new business is added",
@@ -289,7 +302,7 @@ export function getTriggersByCategory() {
 export function getPrimaryTriggers(): TriggerDefinition[] {
   const newTriggerTypes = new Set([
     "form_submitted", "contact_created",
-    "business_type_changed", "business_created",
+    "business_type_changed", "contact_type_changed", "business_created",
     "order_placed", "order_status_changed", "discount_code_redeemed",
     "email_engagement", "no_activity", "date_based", "custom_webhook",
   ]);

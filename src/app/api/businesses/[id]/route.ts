@@ -221,6 +221,12 @@ export async function PUT(
               contact_id: primaryContact.id,
               event_data: { new_type: newType },
             }).catch(() => {});
+            fireAutomationTrigger({
+              trigger_type: "contact_type_changed",
+              roaster_id: roaster.id as string,
+              contact_id: primaryContact.id,
+              event_data: { new_type: newType },
+            }).catch(() => {});
           }
         }
       }

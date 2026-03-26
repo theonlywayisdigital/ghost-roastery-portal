@@ -232,6 +232,16 @@ export async function PUT(
           metadata: { old_types: oldTypes, new_types: newTypes },
         });
 
+        // Fire automation trigger for each newly added type
+        const addedTypes = newTypes.filter((t) => !oldTypes.includes(t));
+        for (const newType of addedTypes) {
+          fireAutomationTrigger({
+            trigger_type: "contact_type_changed",
+            roaster_id: roaster.id as string,
+            contact_id: id,
+            event_data: { new_type: newType },
+          }).catch(() => {});
+        }
       }
     }
 

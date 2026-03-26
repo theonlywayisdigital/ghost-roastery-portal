@@ -175,7 +175,9 @@ export function AutomationsPage() {
       // Fetch full automation with steps
       const detailRes = await fetch(`${apiBase}/automations/${automation.id}`);
       if (!detailRes.ok) return;
-      const { automation: full } = await detailRes.json();
+      const detail = await detailRes.json();
+      const full = detail.automation;
+      const steps = detail.steps || [];
 
       const res = await fetch(`${apiBase}/automations`, {
         method: "POST",
@@ -185,13 +187,14 @@ export function AutomationsPage() {
           description: full.description,
           trigger_type: full.trigger_type,
           trigger_config: full.trigger_config,
+          trigger_filters: full.trigger_filters,
         }),
       });
       if (res.ok) {
         const { automation: newAuto } = await res.json();
         // Copy steps
-        if (full.steps && full.steps.length > 0) {
-          for (const step of full.steps) {
+        if (steps.length > 0) {
+          for (const step of steps) {
             await fetch(`${apiBase}/automations/${newAuto.id}/steps`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -396,6 +399,9 @@ export function AutomationsPage() {
                       Status
                     </th>
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
+                      Steps
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
                       Enrolled
                     </th>
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
@@ -448,6 +454,11 @@ export function AutomationsPage() {
                             {automation.status === "paused" && <Pause className="w-3 h-3" />}
                             {automation.status === "draft" && <Pencil className="w-3 h-3" />}
                             {automation.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <span className="text-sm text-slate-600">
+                            {(automation as Automation & { step_count?: number }).step_count || 0}
                           </span>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">

@@ -19,17 +19,24 @@ export async function GET(request: NextRequest) {
     .eq("is_template", true)
     .order("created_at", { ascending: true });
 
-  // Get owner's own automations
+  // Get owner's own automations (with step count)
   const { data: automations } = await applyOwnerFilter(
-    supabase.from("automations").select("*"),
+    supabase.from("automations").select("*, automation_steps(count)"),
     owner
   )
     .eq("is_template", false)
     .order("created_at", { ascending: false });
 
+  // Flatten step count from Supabase's nested aggregation format
+  const automationsWithCount = (automations || []).map((a) => {
+    const stepCount = (a.automation_steps as { count: number }[])?.[0]?.count ?? 0;
+    const { automation_steps: _, ...rest } = a;
+    return { ...rest, step_count: stepCount };
+  });
+
   return NextResponse.json({
     templates: templates || [],
-    automations: automations || [],
+    automations: automationsWithCount,
   });
 }
 
@@ -112,6 +119,7 @@ export async function POST(request: NextRequest) {
         description: body.description || null,
         trigger_type: body.trigger_type || "custom",
         trigger_config: body.trigger_config || {},
+        trigger_filters: body.trigger_filters || null,
         status: "draft",
         is_template: false,
       })

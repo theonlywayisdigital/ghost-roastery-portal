@@ -163,7 +163,6 @@ const BUSINESSES = [
     types: ["lead"],
     industry: "cafe",
     status: "active",
-    lead_status: "contacted",
     email: "info@beanthere.cafe",
     phone: "01onal 234567",
     address_line_1: "7 Market Square",
@@ -181,7 +180,6 @@ const BUSINESSES = [
     types: ["lead"],
     industry: "hotel",
     status: "active",
-    lead_status: "new",
     email: "gm@peakdistrictlodge.co.uk",
     phone: "01onal 987654",
     address_line_1: "Buxton Road",
@@ -198,7 +196,6 @@ const BUSINESSES = [
     types: ["lead"],
     industry: "cafe",
     status: "active",
-    lead_status: "qualified",
     email: "hello@sunrisesmoothies.co.uk",
     phone: "020 8765 4321",
     address_line_1: "101 Camden High Street",
@@ -312,10 +309,10 @@ const CONTACTS = [
   { first_name: "Raj", last_name: "Patel", email: "raj@dailydose.shop", phone: "07700 900109", types: ["retail", "supplier"], source: "manual", role: "Owner", businessIndex: 7, total_spend: 3400, order_count: 9 },
 
   // Bean There Café (lead)
-  { first_name: "Katie", last_name: "Evans", email: "katie@beanthere.cafe", phone: "07700 900110", types: ["lead"], source: "enquiry_form", lead_status: "contacted", role: "Owner", businessIndex: 8, total_spend: 0, order_count: 0 },
+  { first_name: "Katie", last_name: "Evans", email: "katie@beanthere.cafe", phone: "07700 900110", types: ["lead"], source: "enquiry_form", role: "Owner", businessIndex: 8, total_spend: 0, order_count: 0 },
 
   // Sunrise Smoothies (lead)
-  { first_name: "Zara", last_name: "Hassan", email: "zara@sunrisesmoothies.co.uk", phone: "07700 900111", types: ["lead"], source: "enquiry_form", lead_status: "qualified", role: "Founder", businessIndex: 10, total_spend: 0, order_count: 0 },
+  { first_name: "Zara", last_name: "Hassan", email: "zara@sunrisesmoothies.co.uk", phone: "07700 900111", types: ["lead"], source: "enquiry_form", role: "Founder", businessIndex: 10, total_spend: 0, order_count: 0 },
 
   // Old Mill Suppliers
   { first_name: "George", last_name: "Barnes", email: "george@oldmillsuppliers.co.uk", phone: "07700 900112", types: ["supplier"], source: "manual", role: "Sales Manager", businessIndex: 11, total_spend: 0, order_count: 0 },
@@ -329,9 +326,9 @@ const CONTACTS = [
   // Standalone contacts (no business)
   { first_name: "Alex", last_name: "Turner", email: "alex.turner@gmail.com", phone: "07700 900115", types: ["retail"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 89.50, order_count: 2 },
   { first_name: "Sophie", last_name: "Williams", email: "sophie.w@outlook.com", phone: "07700 900116", types: ["retail"], source: "storefront_order", businessIndex: null, business_name: null, total_spend: 156.00, order_count: 4 },
-  { first_name: "Chris", last_name: "Baker", email: "chris.baker@hotmail.co.uk", phone: null, types: ["lead"], source: "enquiry_form", lead_status: "new", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
+  { first_name: "Chris", last_name: "Baker", email: "chris.baker@hotmail.co.uk", phone: null, types: ["lead"], source: "enquiry_form", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
   { first_name: "Mel", last_name: "Okonkwo", email: "mel@okonkwo.design", phone: "07700 900118", types: ["retail"], source: "manual", businessIndex: null, business_name: "Okonkwo Design Studio", total_spend: 245.00, order_count: 3 },
-  { first_name: "Harry", last_name: "Jacobs", email: "harry.j@yahoo.co.uk", phone: null, types: ["lead"], source: "enquiry_form", lead_status: "lost", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
+  { first_name: "Harry", last_name: "Jacobs", email: "harry.j@yahoo.co.uk", phone: null, types: ["lead"], source: "enquiry_form", businessIndex: null, business_name: null, total_spend: 0, order_count: 0 },
 ];
 
 // ─── Activity / Notes templates ───
@@ -426,7 +423,6 @@ async function seed() {
         types: contact.types,
         source: contact.source,
         status: "active",
-        lead_status: contact.lead_status || null,
         business_id: businessId || null,
         business_name: businessName,
         role: contact.role || null,

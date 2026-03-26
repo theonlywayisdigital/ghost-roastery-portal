@@ -583,7 +583,6 @@ export type Database = {
           id: string
           industry: string | null
           last_activity_at: string | null
-          lead_status: string | null
           name: string
           notes: string | null
           order_count: number
@@ -609,7 +608,6 @@ export type Database = {
           id?: string
           industry?: string | null
           last_activity_at?: string | null
-          lead_status?: string | null
           name: string
           notes?: string | null
           order_count?: number
@@ -635,7 +633,6 @@ export type Database = {
           id?: string
           industry?: string | null
           last_activity_at?: string | null
-          lead_status?: string | null
           name?: string
           notes?: string | null
           order_count?: number
@@ -1033,7 +1030,6 @@ export type Database = {
           business_id: string | null
           business_name: string | null
           city: string | null
-          contact_type: string | null
           country: string
           county: string | null
           created_at: string | null
@@ -1042,7 +1038,6 @@ export type Database = {
           id: string
           last_activity_at: string | null
           last_name: string
-          lead_status: string | null
           marketing_consent: boolean
           order_count: number
           owner_id: string | null
@@ -1069,7 +1064,6 @@ export type Database = {
           business_id?: string | null
           business_name?: string | null
           city?: string | null
-          contact_type?: string | null
           country?: string
           county?: string | null
           created_at?: string | null
@@ -1078,7 +1072,6 @@ export type Database = {
           id?: string
           last_activity_at?: string | null
           last_name?: string
-          lead_status?: string | null
           marketing_consent?: boolean
           order_count?: number
           owner_id?: string | null
@@ -1105,7 +1098,6 @@ export type Database = {
           business_id?: string | null
           business_name?: string | null
           city?: string | null
-          contact_type?: string | null
           country?: string
           county?: string | null
           created_at?: string | null
@@ -1114,7 +1106,6 @@ export type Database = {
           id?: string
           last_activity_at?: string | null
           last_name?: string
-          lead_status?: string | null
           marketing_consent?: boolean
           order_count?: number
           owner_id?: string | null
@@ -5973,14 +5964,12 @@ export type Database = {
           birthday: string | null
           business_id: string | null
           business_name: string | null
-          contact_type: string | null
           created_at: string | null
           email: string | null
           first_name: string | null
           id: string | null
           last_activity_at: string | null
           last_name: string | null
-          lead_status: string | null
           marketing_consent: boolean | null
           order_count: number | null
           owner_id: string | null

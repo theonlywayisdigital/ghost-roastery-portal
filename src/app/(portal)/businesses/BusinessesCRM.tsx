@@ -23,7 +23,6 @@ interface Business {
   types: string[];
   industry: string | null;
   status: string;
-  lead_status: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -69,14 +68,6 @@ const STATUS_COLORS: Record<string, string> = {
   archived: "bg-red-50 text-red-600",
 };
 
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-700",
-  contacted: "bg-yellow-50 text-yellow-700",
-  qualified: "bg-purple-50 text-purple-700",
-  won: "bg-green-50 text-green-700",
-  lost: "bg-red-50 text-red-600",
-};
-
 const INDUSTRY_COLORS: Record<string, string> = {
   cafe: "bg-orange-50 text-orange-700",
   restaurant: "bg-rose-50 text-rose-700",
@@ -104,7 +95,6 @@ export function BusinessesCRM() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [industryFilter, setIndustryFilter] = useState("");
-  const [leadStatusFilter, setLeadStatusFilter] = useState("");
   const [sortField, setSortField] = useState("last_activity_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -117,7 +107,6 @@ export function BusinessesCRM() {
     website: "",
     industry: "",
     types: [] as string[],
-    lead_status: "new",
     address_line_1: "",
     address_line_2: "",
     city: "",
@@ -145,7 +134,7 @@ export function BusinessesCRM() {
     if (tabConfig.typeFilter) params.set("type", tabConfig.typeFilter);
     if (search) params.set("search", search);
     if (industryFilter) params.set("industry", industryFilter);
-    if (leadStatusFilter && activeTab === "leads") params.set("lead_status", leadStatusFilter);
+
 
     try {
       const res = await fetch(`/api/businesses?${params}`);
@@ -159,7 +148,7 @@ export function BusinessesCRM() {
       console.error("Failed to load businesses:", err);
     }
     setLoading(false);
-  }, [page, sortField, sortOrder, statusFilter, tabConfig.typeFilter, search, industryFilter, leadStatusFilter, activeTab]);
+  }, [page, sortField, sortOrder, statusFilter, tabConfig.typeFilter, search, industryFilter, activeTab]);
 
   // Sync on first load
   useEffect(() => {
@@ -183,7 +172,7 @@ export function BusinessesCRM() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [activeTab, search, statusFilter, industryFilter, leadStatusFilter]);
+  }, [activeTab, search, statusFilter, industryFilter]);
 
   function handleSort(field: string) {
     if (sortField === field) {
@@ -215,7 +204,6 @@ export function BusinessesCRM() {
           ...bizFields,
           types,
           source: "manual",
-          lead_status: types.includes("lead") ? addForm.lead_status : undefined,
           primary_contact: contact_first_name.trim() ? {
             first_name: contact_first_name.trim(),
             last_name: contact_last_name.trim(),
@@ -229,7 +217,7 @@ export function BusinessesCRM() {
         setShowAddModal(false);
         setAddForm({
           name: "", email: "", phone: "", website: "", industry: "",
-          types: [], lead_status: "new",
+          types: [],
           address_line_1: "", address_line_2: "", city: "", county: "", postcode: "",
           contact_first_name: "", contact_last_name: "", contact_email: "", contact_phone: "", contact_role: "",
         });
@@ -277,7 +265,7 @@ export function BusinessesCRM() {
             else if (activeTab === "leads") defaultTypes.push("lead");
             setAddForm({
               name: "", email: "", phone: "", website: "", industry: "",
-              types: defaultTypes, lead_status: "new",
+              types: defaultTypes,
               address_line_1: "", address_line_2: "", city: "", county: "", postcode: "",
               contact_first_name: "", contact_last_name: "", contact_email: "", contact_phone: "", contact_role: "",
             });
@@ -351,20 +339,6 @@ export function BusinessesCRM() {
           <option value="retail">Retail</option>
           <option value="other">Other</option>
         </select>
-        {activeTab === "leads" && (
-          <select
-            value={leadStatusFilter}
-            onChange={(e) => setLeadStatusFilter(e.target.value)}
-            className="px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">All leads</option>
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="qualified">Qualified</option>
-            <option value="won">Won</option>
-            <option value="lost">Lost</option>
-          </select>
-        )}
       </div>
 
       {/* Businesses table */}
@@ -400,11 +374,6 @@ export function BusinessesCRM() {
                       Primary Contact
                     </th>
                     <SortableHeader label="Email" field="email" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
-                    {activeTab === "leads" && (
-                      <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3">
-                        Lead Status
-                      </th>
-                    )}
                     <SortableHeader label="Spend" field="total_spend" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
                     <SortableHeader label="Orders" field="order_count" current={sortField} order={sortOrder} onSort={handleSort} className="hidden lg:table-cell" />
                     <SortableHeader label="Last Activity" field="last_activity_at" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
@@ -465,15 +434,6 @@ export function BusinessesCRM() {
                           {biz.email || "\u2014"}
                         </span>
                       </td>
-                      {activeTab === "leads" && (
-                        <td className="px-4 py-3">
-                          {biz.lead_status ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEAD_STATUS_COLORS[biz.lead_status] || "bg-slate-100 text-slate-600"}`}>
-                              {biz.lead_status}
-                            </span>
-                          ) : "\u2014"}
-                        </td>
-                      )}
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-sm text-slate-900">
                           {formatCurrency(biz.total_spend)}
@@ -681,23 +641,6 @@ export function BusinessesCRM() {
                   ))}
                 </div>
               </div>
-
-              {addForm.types.includes("lead") && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Lead Status</label>
-                  <select
-                    value={addForm.lead_status}
-                    onChange={(e) => setAddForm((f) => ({ ...f, lead_status: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                  </select>
-                </div>
-              )}
 
               {/* Address */}
               <div>

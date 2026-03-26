@@ -82,10 +82,8 @@ export async function GET(request: NextRequest) {
             phone,
             types: [defaultType],
             source: "form",
-            lead_status: defaultType === "lead" ? "new" : null,
             people_id: peopleId,
             owner_id: roaster.id,
-            contact_type: defaultType,
           })
           .select("id")
           .single();

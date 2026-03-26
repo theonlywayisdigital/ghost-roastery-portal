@@ -29,7 +29,6 @@ interface Contact {
   types: string[];
   source: string;
   status: string;
-  lead_status: string | null;
   total_spend: number;
   order_count: number;
   last_activity_at: string | null;
@@ -86,14 +85,6 @@ const STATUS_COLORS: Record<string, string> = {
   archived: "bg-red-50 text-red-600",
 };
 
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-700",
-  contacted: "bg-yellow-50 text-yellow-700",
-  qualified: "bg-purple-50 text-purple-700",
-  won: "bg-green-50 text-green-700",
-  lost: "bg-red-50 text-red-600",
-};
-
 export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
   const router = useRouter();
   const [ownerTab, setOwnerTab] = useState<OwnerTab>("ghost_roastery");
@@ -107,7 +98,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
-  const [leadStatusFilter, setLeadStatusFilter] = useState("");
   const [roasterFilter, setRoasterFilter] = useState("");
   const [sortField, setSortField] = useState("last_activity_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -121,7 +111,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
     phone: "",
     business_name: "",
     types: [] as string[],
-    lead_status: "new",
   });
   const [addError, setAddError] = useState<string | null>(null);
   const [addSaving, setAddSaving] = useState(false);
@@ -148,7 +137,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
       params.set("type", tabConfig.typeFilter);
     }
     if (search) params.set("search", search);
-    if (leadStatusFilter && activeTab === "leads") params.set("lead_status", leadStatusFilter);
     if (roasterFilter && ownerTab === "roaster") params.set("roasterId", roasterFilter);
 
     try {
@@ -163,7 +151,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
       console.error("Failed to load contacts:", err);
     }
     setLoading(false);
-  }, [page, sortField, sortOrder, statusFilter, tabConfig.typeFilter, search, leadStatusFilter, activeTab, ownerTab, roasterFilter]);
+  }, [page, sortField, sortOrder, statusFilter, tabConfig.typeFilter, search, activeTab, ownerTab, roasterFilter]);
 
   useEffect(() => {
     loadContacts();
@@ -173,7 +161,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
   useEffect(() => {
     setPage(1);
     setSelected(new Set());
-  }, [activeTab, search, statusFilter, leadStatusFilter, ownerTab, roasterFilter]);
+  }, [activeTab, search, statusFilter, ownerTab, roasterFilter]);
 
   function handleSort(field: string) {
     if (sortField === field) {
@@ -222,12 +210,11 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
           ...addForm,
           types,
           source: "manual",
-          lead_status: types.includes("lead") ? addForm.lead_status : undefined,
         }),
       });
       if (res.ok) {
         setShowAddModal(false);
-        setAddForm({ first_name: "", last_name: "", email: "", phone: "", business_name: "", types: [], lead_status: "new" });
+        setAddForm({ first_name: "", last_name: "", email: "", phone: "", business_name: "", types: [] });
         loadContacts();
       } else {
         const data = await res.json();
@@ -285,7 +272,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
               else if (activeTab === "suppliers") defaultTypes.push("supplier");
               else if (activeTab === "roasters") defaultTypes.push("roaster");
               else if (activeTab === "partners") defaultTypes.push("partner");
-              setAddForm({ first_name: "", last_name: "", email: "", phone: "", business_name: "", types: defaultTypes, lead_status: "new" });
+              setAddForm({ first_name: "", last_name: "", email: "", phone: "", business_name: "", types: defaultTypes });
               setShowAddModal(true);
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
@@ -369,20 +356,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
           <option value="archived">Archived</option>
           <option value="all">All statuses</option>
         </select>
-        {activeTab === "leads" && (
-          <select
-            value={leadStatusFilter}
-            onChange={(e) => setLeadStatusFilter(e.target.value)}
-            className="px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">All leads</option>
-            <option value="new">New</option>
-            <option value="contacted">Contacted</option>
-            <option value="qualified">Qualified</option>
-            <option value="won">Won</option>
-            <option value="lost">Lost</option>
-          </select>
-        )}
         {ownerTab === "roaster" && (
           <select
             value={roasterFilter}
@@ -474,11 +447,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
                       Types
                     </th>
-                    {activeTab === "leads" && (
-                      <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3">
-                        Lead Status
-                      </th>
-                    )}
                     <SortableHeader label="Spend" field="total_spend" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
                     <SortableHeader label="Last Activity" field="last_activity_at" current={sortField} order={sortOrder} onSort={handleSort} className="hidden md:table-cell" />
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3">
@@ -543,15 +511,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
                           ))}
                         </div>
                       </td>
-                      {activeTab === "leads" && (
-                        <td className="px-4 py-3">
-                          {contact.lead_status ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEAD_STATUS_COLORS[contact.lead_status] || "bg-slate-100 text-slate-600"}`}>
-                              {contact.lead_status}
-                            </span>
-                          ) : "\u2014"}
-                        </td>
-                      )}
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-sm text-slate-900">
                           {formatCurrency(contact.total_spend)}
@@ -687,23 +646,6 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
                   ))}
                 </div>
               </div>
-
-              {addForm.types.includes("lead") && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Lead Status</label>
-                  <select
-                    value={addForm.lead_status}
-                    onChange={(e) => setAddForm((f) => ({ ...f, lead_status: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                  </select>
-                </div>
-              )}
 
               {addError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">

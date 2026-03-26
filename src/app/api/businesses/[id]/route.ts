@@ -144,7 +144,7 @@ export async function PUT(
     // Verify ownership
     const { data: existing } = await supabase
       .from("businesses")
-      .select("id, types, status, lead_status")
+      .select("id, types, status")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
       .single();
@@ -154,7 +154,7 @@ export async function PUT(
     }
 
     const allowedFields = [
-      "name", "types", "industry", "status", "lead_status",
+      "name", "types", "industry", "status",
       "email", "phone", "website", "notes",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
@@ -180,45 +180,7 @@ export async function PUT(
       );
     }
 
-    // Log activity for lead_status/status/type changes
-    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
-      // Fetch stage name for readable description
-      let stageName = body.lead_status;
-      const { data: stageRow } = await supabase
-        .from("pipeline_stages")
-        .select("name")
-        .eq("roaster_id", roaster.id)
-        .eq("slug", body.lead_status)
-        .maybeSingle();
-      if (stageRow) stageName = stageRow.name;
-
-      await supabase.from("business_activity").insert({
-        business_id: id,
-        author_id: user.id,
-        activity_type: "lead_status_changed",
-        description: `Stage changed to ${stageName}`,
-        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
-      });
-
-      // Fire automation trigger — find primary contact for this business
-      const { data: primaryContact } = await supabase
-        .from("contacts")
-        .select("id")
-        .eq("business_id", id)
-        .eq("roaster_id", roaster.id)
-        .limit(1)
-        .single();
-
-      if (primaryContact) {
-        fireAutomationTrigger({
-          trigger_type: "lead_status_changed",
-          roaster_id: roaster.id as string,
-          contact_id: primaryContact.id,
-          event_data: { new_status: body.lead_status, old_status: existing.lead_status },
-        }).catch(() => {});
-      }
-    }
-
+    // Log activity for status/type changes
     if ("status" in body && body.status !== existing.status) {
       await supabase.from("business_activity").insert({
         business_id: id,

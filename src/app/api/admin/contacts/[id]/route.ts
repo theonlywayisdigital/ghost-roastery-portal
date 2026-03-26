@@ -114,7 +114,7 @@ export async function PUT(
     // Get existing contact
     const { data: existing } = await supabase
       .from("contacts")
-      .select("id, types, status, lead_status, owner_type")
+      .select("id, types, status, owner_type")
       .eq("id", id)
       .single();
 
@@ -132,7 +132,7 @@ export async function PUT(
 
     const allowedFields = [
       "first_name", "last_name", "email", "phone", "business_name",
-      "types", "status", "lead_status", "business_id", "role",
+      "types", "status", "business_id", "role",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
 
@@ -163,15 +163,6 @@ export async function PUT(
         activity_type: "status_changed",
         description: `Status changed from ${existing.status} to ${body.status}`,
         metadata: { old_status: existing.status, new_status: body.status },
-      });
-    }
-
-    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
-      await supabase.from("contact_activity").insert({
-        contact_id: id,
-        activity_type: "lead_status_changed",
-        description: `Lead status changed from ${existing.lead_status || "none"} to ${body.lead_status}`,
-        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
       });
     }
 

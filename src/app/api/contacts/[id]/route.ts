@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser, getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
-import { findOrCreatePerson, resolvePrimaryContactType, updatePersonIfNeeded } from "@/lib/people";
+import { findOrCreatePerson, updatePersonIfNeeded } from "@/lib/people";
 
 export async function GET(
   _request: Request,
@@ -134,7 +134,7 @@ export async function PUT(
     // Verify ownership
     const { data: existing } = await supabase
       .from("contacts")
-      .select("id, types, status, lead_status, email, first_name, last_name, phone, people_id")
+      .select("id, types, status, email, first_name, last_name, phone, people_id")
       .eq("id", id)
       .eq("roaster_id", roaster.id)
       .single();
@@ -145,7 +145,7 @@ export async function PUT(
 
     const allowedFields = [
       "first_name", "last_name", "email", "phone", "business_name",
-      "types", "status", "lead_status", "business_id", "role",
+      "types", "status", "business_id", "role",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
     ];
 
@@ -211,12 +211,6 @@ export async function PUT(
       }
     }
 
-    // Update contact_type if types changed
-    if ("types" in body) {
-      const newTypes = (body.types as string[]) || [];
-      updates.contact_type = resolvePrimaryContactType(newTypes);
-    }
-
     // Log activity for status/type changes
     if ("status" in body && body.status !== existing.status) {
       await supabase.from("contact_activity").insert({
@@ -225,32 +219,6 @@ export async function PUT(
         description: `Status changed from ${existing.status} to ${body.status}`,
         metadata: { old_status: existing.status, new_status: body.status },
       });
-    }
-
-    if ("lead_status" in body && body.lead_status !== existing.lead_status) {
-      // Fetch stage name for readable description
-      let stageName = body.lead_status;
-      const { data: stageRow } = await supabase
-        .from("pipeline_stages")
-        .select("name")
-        .eq("roaster_id", roaster.id)
-        .eq("slug", body.lead_status)
-        .maybeSingle();
-      if (stageRow) stageName = stageRow.name;
-
-      await supabase.from("contact_activity").insert({
-        contact_id: id,
-        activity_type: "lead_status_changed",
-        description: `Stage changed to ${stageName}`,
-        metadata: { old_lead_status: existing.lead_status, new_lead_status: body.lead_status },
-      });
-
-      fireAutomationTrigger({
-        trigger_type: "lead_status_changed",
-        roaster_id: roaster.id as string,
-        contact_id: id,
-        event_data: { new_status: body.lead_status, old_status: existing.lead_status },
-      }).catch(() => {});
     }
 
     if ("types" in body) {
@@ -264,16 +232,6 @@ export async function PUT(
           metadata: { old_types: oldTypes, new_types: newTypes },
         });
 
-        // Fire trigger for each new type that was added
-        const addedTypes = newTypes.filter((t) => !oldTypes.includes(t));
-        for (const newType of addedTypes) {
-          fireAutomationTrigger({
-            trigger_type: "contact_type_changed",
-            roaster_id: roaster.id as string,
-            contact_id: id,
-            event_data: { new_type: newType },
-          }).catch(() => {});
-        }
       }
     }
 

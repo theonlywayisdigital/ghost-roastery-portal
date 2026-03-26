@@ -8,7 +8,6 @@ const selectOps: FilterOperator[] = ["equals", "not_equals", "in", "not_in", "is
 const CONTACT_FILTERS = [
   { key: "contact.types", label: "Contact Type", type: "multiselect" as const, operators: selectOps, dynamicOptionsKey: "contact_types" },
   { key: "contact.status", label: "Contact Status", type: "select" as const, operators: selectOps, options: [{ value: "active", label: "Active" }, { value: "archived", label: "Archived" }] },
-  { key: "contact.lead_status", label: "Lead Status", type: "select" as const, operators: selectOps, dynamicOptionsKey: "pipeline_stages" },
   { key: "contact.source", label: "Source", type: "select" as const, operators: selectOps, dynamicOptionsKey: "contact_sources" },
   { key: "contact.total_spend", label: "Total Spend", type: "number" as const, operators: numOps },
   { key: "contact.order_count", label: "Order Count", type: "number" as const, operators: numOps },
@@ -41,32 +40,6 @@ export const TRIGGER_DEFINITIONS: TriggerDefinition[] = [
     category: "event",
     configFields: [
       { key: "source", label: "Source", type: "select", placeholder: "Any source", dynamicOptionsKey: "contact_sources" },
-    ],
-    filterFields: CONTACT_FILTERS,
-  },
-  {
-    type: "contact_type_changed",
-    label: "Contact Type Changed",
-    description: "When a contact's type is updated",
-    icon: "UserCog",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    category: "event",
-    configFields: [
-      { key: "new_type", label: "New Type Contains", type: "select", placeholder: "Any type", dynamicOptionsKey: "contact_types" },
-    ],
-    filterFields: CONTACT_FILTERS,
-  },
-  {
-    type: "lead_status_changed",
-    label: "Lead Status Changed",
-    description: "When a contact or business pipeline stage changes",
-    icon: "Funnel",
-    color: "text-teal-600",
-    bg: "bg-teal-50",
-    category: "event",
-    configFields: [
-      { key: "new_status", label: "New Status", type: "select", placeholder: "Any status", dynamicOptionsKey: "pipeline_stages" },
     ],
     filterFields: CONTACT_FILTERS,
   },
@@ -315,8 +288,8 @@ export function getTriggersByCategory() {
 /** Deduplicated list — prefer new triggers over legacy ones */
 export function getPrimaryTriggers(): TriggerDefinition[] {
   const newTriggerTypes = new Set([
-    "form_submitted", "contact_created", "contact_type_changed",
-    "lead_status_changed", "business_type_changed", "business_created",
+    "form_submitted", "contact_created",
+    "business_type_changed", "business_created",
     "order_placed", "order_status_changed", "discount_code_redeemed",
     "email_engagement", "no_activity", "date_based", "custom_webhook",
   ]);

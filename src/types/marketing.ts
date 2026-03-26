@@ -266,7 +266,6 @@ export type TriggerType =
   | "re_engagement"
   | "custom"
   | "form_submitted"
-  | "contact_type_changed"
   | "business_type_changed"
   | "order_placed"
   | "order_status_changed"
@@ -276,8 +275,7 @@ export type TriggerType =
   | "date_based"
   | "discount_code_redeemed"
   | "email_engagement"
-  | "custom_webhook"
-  | "lead_status_changed";
+  | "custom_webhook";
 
 // ═══════════════════════════════════════════════════════════
 // Automation Trigger Filters

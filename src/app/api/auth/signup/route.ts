@@ -172,7 +172,6 @@ export async function POST(request: Request) {
             types: ["roaster"],
             source: "manual",
             people_id: peopleId,
-            contact_type: "roaster",
           });
 
           // Create Roastery Platform business

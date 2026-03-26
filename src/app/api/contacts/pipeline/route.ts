@@ -18,7 +18,7 @@ export async function GET() {
   // Fetch contacts with lead/wholesale types
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
-    .select("id, first_name, last_name, email, business_name, source, lead_status, total_spend, types, created_at")
+    .select("id, first_name, last_name, email, business_name, source, total_spend, types, created_at")
     .eq("roaster_id", roaster.id)
     .neq("status", "archived")
     .or("types.cs.{lead},types.cs.{wholesale}");
@@ -31,7 +31,7 @@ export async function GET() {
   // Fetch businesses with lead/wholesale types
   const { data: businesses, error: bizErr } = await supabase
     .from("businesses")
-    .select("id, name, email, source, lead_status, total_spend, types, created_at")
+    .select("id, name, email, source, total_spend, types, created_at")
     .eq("roaster_id", roaster.id)
     .neq("status", "archived")
     .or("types.cs.{lead},types.cs.{wholesale}");
@@ -49,7 +49,7 @@ export async function GET() {
     email: c.email,
     businessName: c.business_name,
     source: c.source || "manual",
-    leadStatus: c.lead_status || defaultSlug,
+    leadStatus: defaultSlug,
     totalSpend: c.total_spend || 0,
     types: (c.types as string[]) || [],
     createdAt: c.created_at,
@@ -63,7 +63,7 @@ export async function GET() {
     email: b.email,
     businessName: null,
     source: b.source || "manual",
-    leadStatus: b.lead_status || defaultSlug,
+    leadStatus: defaultSlug,
     totalSpend: b.total_spend || 0,
     types: (b.types as string[]) || [],
     createdAt: b.created_at,

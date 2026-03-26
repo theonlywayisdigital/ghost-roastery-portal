@@ -37,7 +37,6 @@ export async function POST(
     {
       roaster_id: roaster.id,
       email,
-      contact_type: "retail",
       tags: ["newsletter"],
       status: "active",
     },

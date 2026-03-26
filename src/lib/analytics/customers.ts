@@ -37,12 +37,8 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
       .gt("order_count", 0)
       .order("total_spend", { ascending: false })
       .limit(10),
-    // Lead pipeline
-    supabase
-      .from("contacts")
-      .select("lead_status")
-      .eq("roaster_id", roasterId)
-      .not("lead_status", "is", null),
+    // Lead pipeline (placeholder — column dropped)
+    Promise.resolve({ data: [] }),
     // At-risk customers (no order in 60 days)
     supabase
       .from("contacts")
@@ -64,7 +60,7 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
     order_count: number;
     last_activity_at: string;
   }[];
-  const leads = (leadPipelineRes.data || []) as { lead_status: string }[];
+  const leads = (leadPipelineRes.data || []) as { lead_status?: string }[];
 
   // New vs returning customers by day
   // Find all customer emails with orders BEFORE the period
@@ -134,7 +130,9 @@ export async function fetchCustomersData(roasterId: string, range: DateRange) {
   // Lead pipeline
   const pipelineMap: Record<string, number> = {};
   for (const l of leads) {
-    pipelineMap[l.lead_status] = (pipelineMap[l.lead_status] || 0) + 1;
+    if (l.lead_status) {
+      pipelineMap[l.lead_status] = (pipelineMap[l.lead_status] || 0) + 1;
+    }
   }
   const leadPipeline = ["new", "contacted", "qualified", "won", "lost"].map((status) => ({
     name: status.charAt(0).toUpperCase() + status.slice(1),

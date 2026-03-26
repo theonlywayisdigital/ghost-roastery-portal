@@ -61,7 +61,6 @@ export async function GET() {
           source: "wholesale_application",
           people_id: peopleId,
           owner_id: roaster.id,
-          contact_type: "wholesale",
         })
         .select("id")
         .single();
@@ -130,7 +129,6 @@ export async function GET() {
           source: "storefront_order",
           people_id: peopleId,
           owner_id: roaster.id,
-          contact_type: "retail",
         })
         .select("id")
         .single();

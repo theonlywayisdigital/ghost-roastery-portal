@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") || "";
   const status = searchParams.get("status") || "active";
   const industry = searchParams.get("industry") || "";
-  const leadStatus = searchParams.get("lead_status") || "";
   const roasterId = searchParams.get("roasterId") || "";
   const sort = searchParams.get("sort") || "last_activity_at";
   const order = searchParams.get("order") || "desc";
@@ -39,10 +38,6 @@ export async function GET(request: NextRequest) {
 
   if (industry) {
     query = query.eq("industry", industry);
-  }
-
-  if (leadStatus) {
-    query = query.eq("lead_status", leadStatus);
   }
 
   if (roasterId && ownerType === "roaster") {
@@ -159,7 +154,7 @@ export async function POST(request: Request) {
     const {
       name, types, industry, email, phone, website,
       address_line_1, address_line_2, city, county, postcode, country,
-      notes, source, lead_status, status: bizStatus,
+      notes, source, status: bizStatus,
       primary_contact,
     } = body;
 
@@ -208,9 +203,6 @@ export async function POST(request: Request) {
         notes: notes || null,
         source: source || "manual",
         status: bizStatus || "active",
-        lead_status: bizTypes.includes("lead")
-          ? (lead_status || "new")
-          : null,
       })
       .select()
       .single();

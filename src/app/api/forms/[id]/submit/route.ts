@@ -318,10 +318,8 @@ async function createOrUpdateContact(
         business_name: businessName || null,
         types: [defaultType],
         source: "form",
-        lead_status: defaultType === "lead" ? "new" : null,
         people_id: peopleId,
         owner_id: roasterId,
-        contact_type: defaultType,
       })
       .select("id")
       .single();

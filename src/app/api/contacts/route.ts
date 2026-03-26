@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { fireAutomationTrigger } from "@/lib/automation-triggers";
-import { findOrCreatePerson, resolvePrimaryContactType } from "@/lib/people";
+import { findOrCreatePerson } from "@/lib/people";
 import { checkLimit } from "@/lib/feature-gates";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") || "";
   const type = searchParams.get("type") || "";
   const status = searchParams.get("status") || "active";
-  const leadStatus = searchParams.get("lead_status") || "";
   const sort = searchParams.get("sort") || "last_activity_at";
   const order = searchParams.get("order") || "desc";
   const page = parseInt(searchParams.get("page") || "1");
@@ -39,10 +38,6 @@ export async function GET(request: NextRequest) {
 
   if (type) {
     query = query.contains("types", [type]);
-  }
-
-  if (leadStatus) {
-    query = query.eq("lead_status", leadStatus);
   }
 
   if (search) {
@@ -114,7 +109,6 @@ export async function POST(request: Request) {
       business_name,
       types,
       source,
-      lead_status,
       business_id,
       role,
     } = body;
@@ -175,12 +169,10 @@ export async function POST(request: Request) {
         business_name: business_name || null,
         types: contactTypes,
         source: source || "manual",
-        lead_status: contactTypes.includes("lead") ? (lead_status || "new") : null,
         business_id: business_id || null,
         role: role || null,
         people_id: peopleId,
         owner_id: roaster.id,
-        contact_type: resolvePrimaryContactType(contactTypes),
       })
       .select()
       .single();

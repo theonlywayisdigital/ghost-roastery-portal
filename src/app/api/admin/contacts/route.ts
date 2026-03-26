@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { findOrCreatePerson, resolvePrimaryContactType } from "@/lib/people";
+import { findOrCreatePerson } from "@/lib/people";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") || "";
   const type = searchParams.get("type") || "";
   const status = searchParams.get("status") || "active";
-  const leadStatus = searchParams.get("lead_status") || "";
   const roasterId = searchParams.get("roasterId") || "";
   const sort = searchParams.get("sort") || "last_activity_at";
   const order = searchParams.get("order") || "desc";
@@ -35,10 +34,6 @@ export async function GET(request: NextRequest) {
 
   if (type) {
     query = query.contains("types", [type]);
-  }
-
-  if (leadStatus) {
-    query = query.eq("lead_status", leadStatus);
   }
 
   if (roasterId && ownerType === "roaster") {
@@ -135,7 +130,6 @@ export async function POST(request: Request) {
       business_name,
       types,
       source,
-      lead_status,
       business_id,
       role,
     } = body;
@@ -188,11 +182,9 @@ export async function POST(request: Request) {
         business_name: business_name || null,
         types: contactTypes,
         source: source || "manual",
-        lead_status: contactTypes.includes("lead") ? (lead_status || "new") : null,
         business_id: business_id || null,
         role: role || null,
         people_id: peopleId,
-        contact_type: resolvePrimaryContactType(contactTypes),
       })
       .select()
       .single();

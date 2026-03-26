@@ -45,7 +45,6 @@ interface ContactRow {
   first_name: string;
   last_name: string;
   email: string | null;
-  contact_type: string | null;
   owner_type: string;
   status: string;
   business_name: string | null;
@@ -538,13 +537,7 @@ function CRMLinksTab({ contacts }: { contacts: ContactRow[] }) {
                 <span className="text-sm text-slate-600">{c.email || "\u2014"}</span>
               </td>
               <td className="px-4 py-3">
-                {c.contact_type ? (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    TYPE_COLORS[c.contact_type] || "bg-slate-100 text-slate-600"
-                  }`}>
-                    {c.contact_type}
-                  </span>
-                ) : "\u2014"}
+                {"\u2014"}
               </td>
               <td className="px-4 py-3 hidden md:table-cell">
                 <span className="text-xs text-slate-500">{c.owner_type}</span>

@@ -102,7 +102,6 @@ export async function findOrCreateContact(
         last_name: lastName || "",
         source: "order",
         status: "active",
-        contact_type: "customer",
         types: ["retail"],
         ...(addr.address_line_1 ? { address_line_1: addr.address_line_1 } : {}),
         ...(addr.address_line_2 ? { address_line_2: addr.address_line_2 } : {}),
@@ -134,25 +133,6 @@ export async function findOrCreateContact(
     console.error("findOrCreateContact exception:", err);
     return null;
   }
-}
-
-/**
- * Resolve the primary contact type from a types array.
- * Priority: wholesale > retail > supplier > lead > partner > roaster
- */
-export function resolvePrimaryContactType(types: string[]): string {
-  const priority = [
-    "wholesale",
-    "retail",
-    "supplier",
-    "lead",
-    "partner",
-    "roaster",
-  ];
-  for (const type of priority) {
-    if (types.includes(type)) return type;
-  }
-  return "retail";
 }
 
 /**

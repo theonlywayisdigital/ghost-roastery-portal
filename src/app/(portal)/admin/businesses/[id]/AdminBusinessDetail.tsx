@@ -51,7 +51,6 @@ interface Business {
   types: string[];
   industry: string | null;
   status: string;
-  lead_status: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -163,14 +162,6 @@ const STATUS_COLORS: Record<string, string> = {
   archived: "bg-red-50 text-red-600",
 };
 
-const LEAD_STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-700",
-  contacted: "bg-yellow-50 text-yellow-700",
-  qualified: "bg-purple-50 text-purple-700",
-  won: "bg-green-50 text-green-700",
-  lost: "bg-red-50 text-red-600",
-};
-
 const INDUSTRY_COLORS: Record<string, string> = {
   cafe: "bg-orange-50 text-orange-700",
   restaurant: "bg-rose-50 text-rose-700",
@@ -263,7 +254,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
     industry: "",
     types: [] as string[],
     status: "",
-    lead_status: "",
     address_line_1: "",
     address_line_2: "",
     city: "",
@@ -343,7 +333,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
         industry: d.business.industry || "",
         types: d.business.types || [],
         status: d.business.status,
-        lead_status: d.business.lead_status || "",
         address_line_1: d.business.address_line_1 || "",
         address_line_2: d.business.address_line_2 || "",
         city: d.business.city || "",
@@ -371,12 +360,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
       const res = await fetch(`/api/admin/businesses/${businessId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editForm,
-          lead_status: editForm.types.includes("lead")
-            ? editForm.lead_status || "new"
-            : null,
-        }),
+        body: JSON.stringify(editForm),
       });
       if (res.ok) {
         setEditing(false);
@@ -482,20 +466,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
       if (res.ok) {
         router.push("/admin/businesses");
       }
-    } catch {
-      // ignore
-    }
-  }
-
-  async function handleLeadStatusChange(newStatus: string) {
-    if (isReadOnly) return;
-    try {
-      await fetch(`/api/admin/businesses/${businessId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lead_status: newStatus }),
-      });
-      loadBusiness();
     } catch {
       // ignore
     }
@@ -827,24 +797,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                     {type}
                   </span>
                 ))}
-                {!isReadOnly && business.types.includes("lead") && business.lead_status && (
-                  <select
-                    value={business.lead_status}
-                    onChange={(e) => handleLeadStatusChange(e.target.value)}
-                    className={`text-xs font-medium px-2 py-0.5 rounded-full border-0 cursor-pointer ${LEAD_STATUS_COLORS[business.lead_status] || "bg-slate-100 text-slate-600"}`}
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                  </select>
-                )}
-                {isReadOnly && business.types.includes("lead") && business.lead_status && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEAD_STATUS_COLORS[business.lead_status] || "bg-slate-100 text-slate-600"}`}>
-                    {business.lead_status}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -967,29 +919,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   <p className="text-lg font-bold text-slate-900">{invoices.length}</p>
                 </div>
               </div>
-
-              {/* Lead Status Pipeline */}
-              {business.types.includes("lead") && business.lead_status && (
-                <div className="bg-white rounded-xl border border-slate-200 p-4">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Lead Pipeline</h3>
-                  <div className="flex gap-1">
-                    {["new", "contacted", "qualified", "won", "lost"].map((stage) => (
-                      <button
-                        key={stage}
-                        onClick={() => !isReadOnly && handleLeadStatusChange(stage)}
-                        disabled={isReadOnly}
-                        className={`flex-1 py-2 text-xs font-medium rounded-lg text-center capitalize transition-colors ${
-                          business.lead_status === stage
-                            ? LEAD_STATUS_COLORS[stage] || "bg-slate-100 text-slate-600"
-                            : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                        } ${isReadOnly ? "cursor-default" : ""}`}
-                      >
-                        {stage}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Quick Note — ghost_roastery only */}
               {!isReadOnly && (
@@ -1581,11 +1510,8 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
           {/* Deals Tab */}
           {activeTab === "deals" && (
             <DealsTabContent
-              leadStatus={business.lead_status}
-              onLeadStatusChange={handleLeadStatusChange}
               timeline={deduped}
               isReadOnly={isReadOnly}
-              readOnlyMessage={isReadOnly ? `This business belongs to ${business.roasterName || "a roaster"}. Lead status is read-only.` : undefined}
             />
           )}
         </div>
@@ -1923,29 +1849,6 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   <option value="archived">Archived</option>
                 </select>
               </div>
-              {editForm.types.includes("lead") && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Lead Status
-                  </label>
-                  <select
-                    value={editForm.lead_status}
-                    onChange={(e) =>
-                      setEditForm((f) => ({
-                        ...f,
-                        lead_status: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="new">New</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="won">Won</option>
-                    <option value="lost">Lost</option>
-                  </select>
-                </div>
-              )}
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
@@ -2399,143 +2302,19 @@ function TimelineItem({
 
 // ─── Deals Tab Content ───
 
-const LEAD_STAGES = ["new", "contacted", "qualified", "won", "lost"] as const;
-
 function DealsTabContent({
-  leadStatus,
-  onLeadStatusChange,
   timeline,
   isReadOnly,
-  readOnlyMessage,
 }: {
-  leadStatus: string | null;
-  onLeadStatusChange: (status: string) => void;
   timeline: { id: string; type: string; subtype: string; content: string; created_at: string }[];
   isReadOnly: boolean;
-  readOnlyMessage?: string;
 }) {
-  const [pendingStage, setPendingStage] = useState<string | null>(null);
-  const leadHistory = timeline.filter((item) => item.subtype === "lead_status_changed");
-
-  function fmtDateTime(dateStr: string) {
-    return new Date(dateStr).toLocaleString("en-GB", {
-      day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-    });
-  }
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Pipeline Position</h3>
-        <div className="flex gap-0.5 mb-4">
-          {LEAD_STAGES.map((stage) => (
-            <div
-              key={stage}
-              className={`flex-1 py-1.5 text-[10px] font-medium text-center capitalize rounded ${
-                leadStatus === stage
-                  ? LEAD_STATUS_COLORS[stage] || "bg-slate-100 text-slate-600"
-                  : "bg-slate-50 text-slate-300"
-              }`}
-            >
-              {stage}
-            </div>
-          ))}
-        </div>
-        {!isReadOnly && (
-          <div className="flex items-center gap-3">
-            <label className="text-sm text-slate-500 shrink-0">Move to:</label>
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value && e.target.value !== leadStatus) {
-                  setPendingStage(e.target.value);
-                }
-              }}
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">Select stage...</option>
-              {LEAD_STAGES.filter((s) => s !== leadStatus).map((stage) => (
-                <option key={stage} value={stage}>
-                  {stage.charAt(0).toUpperCase() + stage.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        {isReadOnly && readOnlyMessage && (
-          <p className="text-xs text-slate-400 mt-2">{readOnlyMessage}</p>
-        )}
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">Pipeline</h3>
+        <p className="text-sm text-slate-400">No pipeline data available.</p>
       </div>
-
-      <div className="bg-white rounded-xl border border-slate-200">
-        <div className="px-4 py-3 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-slate-400" />
-            Lead Status History
-          </h2>
-        </div>
-        {leadHistory.length === 0 ? (
-          <div className="text-center py-10">
-            <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">No lead status changes yet</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-50">
-            {leadHistory.map((item) => (
-              <div key={`${item.type}-${item.id}`} className="px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-slate-100 text-slate-500">
-                    <Tag className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-600">{item.content}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {fmtDateTime(item.created_at)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {pendingStage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Change pipeline stage?
-            </h3>
-            <p className="text-sm text-slate-500 mb-1">
-              {`Move from `}
-              <span className="font-medium text-slate-700 capitalize">{leadStatus || "none"}</span>
-              {` to `}
-              <span className="font-medium text-slate-700 capitalize">{pendingStage}</span>
-              {`.`}
-            </p>
-            <p className="text-xs text-slate-400 mb-6">
-              This may trigger automations connected to pipeline stage changes.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPendingStage(null)}
-                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  onLeadStatusChange(pendingStage);
-                  setPendingStage(null);
-                }}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

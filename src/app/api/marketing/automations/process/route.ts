@@ -8,11 +8,29 @@ import { Resend } from "resend";
 
 const FROM_DOMAIN = "roasteryplatform.com";
 
-export async function POST(request: NextRequest) {
-  // Verify this is called by an authorized source (cron secret or internal)
+/** Increment completed_count on the automation row (mirrors enrolled_count pattern) */
+async function incrementCompletedCount(
+  supabase: ReturnType<typeof createServerClient>,
+  automationId: string
+) {
+  const { data: current } = await supabase
+    .from("automations")
+    .select("completed_count")
+    .eq("id", automationId)
+    .single();
+
+  if (current) {
+    await supabase
+      .from("automations")
+      .update({ completed_count: (current.completed_count || 0) + 1 })
+      .eq("id", automationId);
+  }
+}
+
+export async function GET(request: NextRequest) {
+  // Verify this is called by Vercel Cron (GET with Bearer CRON_SECRET)
   const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -65,6 +83,7 @@ export async function POST(request: NextRequest) {
           .from("automation_enrollments")
           .update({ status: "completed", completed_at: new Date().toISOString() })
           .eq("id", enrollment.id);
+        await incrementCompletedCount(supabase, enrollment.automation_id);
         processed++;
         continue;
       }
@@ -155,6 +174,7 @@ export async function POST(request: NextRequest) {
               .from("automation_enrollments")
               .update({ status: "completed", completed_at: new Date().toISOString() })
               .eq("id", enrollment.id);
+            await incrementCompletedCount(supabase, enrollment.automation_id);
           }
           break;
         }
@@ -180,6 +200,7 @@ export async function POST(request: NextRequest) {
               .from("automation_enrollments")
               .update({ status: "completed", completed_at: new Date().toISOString() })
               .eq("id", enrollment.id);
+            await incrementCompletedCount(supabase, enrollment.automation_id);
           }
           break;
         }
@@ -224,6 +245,7 @@ export async function POST(request: NextRequest) {
                 .from("automation_enrollments")
                 .update({ status: "completed", completed_at: new Date().toISOString() })
                 .eq("id", enrollment.id);
+              await incrementCompletedCount(supabase, enrollment.automation_id);
             }
           } else {
             // End automation for this contact
@@ -231,6 +253,7 @@ export async function POST(request: NextRequest) {
               .from("automation_enrollments")
               .update({ status: "completed", completed_at: new Date().toISOString() })
               .eq("id", enrollment.id);
+            await incrementCompletedCount(supabase, enrollment.automation_id);
           }
 
           await supabase.from("automation_step_logs").insert({

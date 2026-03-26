@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
+import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
 
 export async function GET(request: NextRequest) {
   const token = new URL(request.url).searchParams.get("token");
@@ -45,6 +46,8 @@ export async function GET(request: NextRequest) {
     const data = submission.data as Record<string, unknown>;
     const email = (data.email as string)?.toLowerCase();
 
+    let contactId: string | null = null;
+
     if (settings.auto_create_contact !== false && email && roaster) {
       // Check if contact exists
       const { data: existing } = await supabase
@@ -55,6 +58,7 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (existing) {
+        contactId = existing.id;
         const types = (existing.types as string[]) || [];
         if (!types.includes("lead")) {
           await supabase.from("contacts").update({ types: [...types, "lead"] }).eq("id", existing.id);
@@ -87,8 +91,21 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (contact) {
+          contactId = contact.id;
           await supabase.from("form_submissions").update({ contact_id: contact.id }).eq("id", submission.id);
         }
+      }
+
+      // Fire automation trigger for form submission (matches non-double-opt-in path)
+      if (contactId) {
+        fireAutomationTrigger({
+          trigger_type: "form_submitted",
+          roaster_id: roaster.id,
+          contact_id: contactId,
+          event_data: { form_id: form.id as string },
+          context: { form_data: data },
+        }).catch(() => {});
+        updateContactActivity(contactId).catch(() => {});
       }
     }
 

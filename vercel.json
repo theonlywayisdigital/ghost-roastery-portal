@@ -11,6 +11,10 @@
     {
       "path": "/api/marketing/campaigns/process",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/marketing/automations/process",
+      "schedule": "* * * * *"
     }
   ]
 }

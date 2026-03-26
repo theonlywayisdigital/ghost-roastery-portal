@@ -128,7 +128,6 @@ export async function GET(request: NextRequest) {
     supplier: 0,
     lead: 0,
     wholesale: 0,
-    prospect: 0,
   };
 
   for (const b of allBusinesses || []) {
@@ -136,7 +135,7 @@ export async function GET(request: NextRequest) {
     const types = (b.types as string[]) || [];
     if (types.includes("retail")) counts.retail++;
     if (types.includes("supplier")) counts.supplier++;
-    if (types.includes("lead") || types.includes("prospect")) counts.lead++;
+    if (types.includes("lead")) counts.lead++;
     if (types.includes("wholesale")) counts.wholesale++;
   }
 
@@ -209,7 +208,7 @@ export async function POST(request: Request) {
         notes: notes || null,
         source: source || "manual",
         status: bizStatus || "active",
-        lead_status: (bizTypes.includes("lead") || bizTypes.includes("prospect"))
+        lead_status: bizTypes.includes("lead")
           ? (lead_status || "new")
           : null,
       })

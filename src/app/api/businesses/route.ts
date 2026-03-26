@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     if (types.includes("wholesale")) counts.wholesale++;
     if (types.includes("retail")) counts.retail++;
     if (types.includes("supplier")) counts.supplier++;
-    if (types.includes("lead") || types.includes("prospect")) counts.lead++;
+    if (types.includes("lead")) counts.lead++;
   }
 
   return NextResponse.json({
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
         notes: notes || null,
         source: source || "manual",
         status: bizStatus || "active",
-        lead_status: (bizTypes.includes("lead") || bizTypes.includes("prospect"))
+        lead_status: bizTypes.includes("lead")
           ? (lead_status || "new")
           : null,
       })

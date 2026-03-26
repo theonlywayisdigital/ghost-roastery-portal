@@ -15,26 +15,26 @@ export async function GET() {
   const stages = await fetchPipelineStages(supabase, roaster.id);
   const defaultSlug = stages.find((s) => !s.is_loss)?.slug || "lead";
 
-  // Fetch contacts with lead/wholesale/prospect types
+  // Fetch contacts with lead/wholesale types
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
     .select("id, first_name, last_name, email, business_name, source, lead_status, total_spend, types, created_at")
     .eq("roaster_id", roaster.id)
     .neq("status", "archived")
-    .or("types.cs.{lead},types.cs.{wholesale},types.cs.{prospect}");
+    .or("types.cs.{lead},types.cs.{wholesale}");
 
   if (contactsErr) {
     console.error("Pipeline contacts fetch error:", contactsErr);
     return NextResponse.json({ error: "Failed to fetch pipeline data" }, { status: 500 });
   }
 
-  // Fetch businesses with lead/wholesale/prospect types
+  // Fetch businesses with lead/wholesale types
   const { data: businesses, error: bizErr } = await supabase
     .from("businesses")
     .select("id, name, email, source, lead_status, total_spend, types, created_at")
     .eq("roaster_id", roaster.id)
     .neq("status", "archived")
-    .or("types.cs.{lead},types.cs.{wholesale},types.cs.{prospect}");
+    .or("types.cs.{lead},types.cs.{wholesale}");
 
   if (bizErr) {
     console.error("Pipeline businesses fetch error:", bizErr);

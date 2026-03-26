@@ -138,7 +138,7 @@ export async function findOrCreateContact(
 
 /**
  * Resolve the primary contact type from a types array.
- * Priority: wholesale > retail > supplier > lead > partner > roaster > prospect
+ * Priority: wholesale > retail > supplier > lead > partner > roaster
  */
 export function resolvePrimaryContactType(types: string[]): string {
   const priority = [
@@ -148,7 +148,6 @@ export function resolvePrimaryContactType(types: string[]): string {
     "lead",
     "partner",
     "roaster",
-    "prospect",
   ];
   for (const type of priority) {
     if (types.includes(type)) return type;

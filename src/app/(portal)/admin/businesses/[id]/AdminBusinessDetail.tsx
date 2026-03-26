@@ -155,7 +155,6 @@ const TYPE_COLORS: Record<string, string> = {
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
-  prospect: "bg-teal-50 text-teal-700",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -374,7 +373,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...editForm,
-          lead_status: (editForm.types.includes("lead") || editForm.types.includes("prospect"))
+          lead_status: editForm.types.includes("lead")
             ? editForm.lead_status || "new"
             : null,
         }),
@@ -753,7 +752,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
   ].filter(Boolean);
 
   // Tab definitions with counts
-  const showDealsTab = business.types.includes("lead") || business.types.includes("prospect") || business.types.includes("wholesale");
+  const showDealsTab = business.types.includes("lead") || business.types.includes("wholesale");
 
   const tabs: { id: TabId; label: string; icon: typeof Activity; count?: number }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -828,7 +827,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                     {type}
                   </span>
                 ))}
-                {!isReadOnly && (business.types.includes("lead") || business.types.includes("prospect")) && business.lead_status && (
+                {!isReadOnly && business.types.includes("lead") && business.lead_status && (
                   <select
                     value={business.lead_status}
                     onChange={(e) => handleLeadStatusChange(e.target.value)}
@@ -841,7 +840,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                     <option value="lost">Lost</option>
                   </select>
                 )}
-                {isReadOnly && (business.types.includes("lead") || business.types.includes("prospect")) && business.lead_status && (
+                {isReadOnly && business.types.includes("lead") && business.lead_status && (
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${LEAD_STATUS_COLORS[business.lead_status] || "bg-slate-100 text-slate-600"}`}>
                     {business.lead_status}
                   </span>
@@ -969,8 +968,8 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                 </div>
               </div>
 
-              {/* Lead Status Pipeline (if lead/prospect) */}
-              {(business.types.includes("lead") || business.types.includes("prospect")) && business.lead_status && (
+              {/* Lead Status Pipeline */}
+              {business.types.includes("lead") && business.lead_status && (
                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                   <h3 className="text-sm font-semibold text-slate-900 mb-3">Lead Pipeline</h3>
                   <div className="flex gap-1">
@@ -1884,7 +1883,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   Types
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {["retail", "wholesale", "supplier", "lead", "prospect"].map(
+                  {["retail", "wholesale", "supplier", "lead"].map(
                     (type) => (
                       <button
                         key={type}
@@ -1924,7 +1923,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
                   <option value="archived">Archived</option>
                 </select>
               </div>
-              {(editForm.types.includes("lead") || editForm.types.includes("prospect")) && (
+              {editForm.types.includes("lead") && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Lead Status

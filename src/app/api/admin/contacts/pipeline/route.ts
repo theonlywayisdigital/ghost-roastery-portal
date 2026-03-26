@@ -30,26 +30,26 @@ export async function GET() {
 
   const defaultSlug = stageSlugs[0] || "lead";
 
-  // Fetch ghost_roastery contacts with lead/wholesale/prospect types
+  // Fetch ghost_roastery contacts with lead/wholesale types
   const { data: contacts, error: contactsErr } = await supabase
     .from("contacts")
     .select("id, first_name, last_name, email, business_name, source, lead_status, total_spend, types, created_at")
     .eq("owner_type", "ghost_roastery")
     .neq("status", "archived")
-    .or("types.cs.{lead},types.cs.{wholesale},types.cs.{prospect}");
+    .or("types.cs.{lead},types.cs.{wholesale}");
 
   if (contactsErr) {
     console.error("Admin pipeline contacts fetch error:", contactsErr);
     return NextResponse.json({ error: "Failed to fetch pipeline data" }, { status: 500 });
   }
 
-  // Fetch ghost_roastery businesses with lead/wholesale/prospect types
+  // Fetch ghost_roastery businesses with lead/wholesale types
   const { data: businesses, error: bizErr } = await supabase
     .from("businesses")
     .select("id, name, email, source, lead_status, total_spend, types, created_at")
     .eq("owner_type", "ghost_roastery")
     .neq("status", "archived")
-    .or("types.cs.{lead},types.cs.{wholesale},types.cs.{prospect}");
+    .or("types.cs.{lead},types.cs.{wholesale}");
 
   if (bizErr) {
     console.error("Admin pipeline businesses fetch error:", bizErr);

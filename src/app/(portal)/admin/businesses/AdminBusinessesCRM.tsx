@@ -73,7 +73,6 @@ const TYPE_COLORS: Record<string, string> = {
   wholesale: "bg-purple-50 text-purple-700",
   supplier: "bg-amber-50 text-amber-700",
   lead: "bg-green-50 text-green-700",
-  prospect: "bg-teal-50 text-teal-700",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -220,7 +219,7 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
           ...bizFields,
           types,
           source: "manual",
-          lead_status: (types.includes("lead") || types.includes("prospect")) ? addForm.lead_status : undefined,
+          lead_status: types.includes("lead") ? addForm.lead_status : undefined,
           primary_contact: contact_first_name.trim() ? {
             first_name: contact_first_name.trim(),
             last_name: contact_last_name.trim(),
@@ -710,7 +709,7 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Type</label>
                 <div className="flex flex-wrap gap-2">
-                  {["retail", "wholesale", "supplier", "lead", "prospect"].map((type) => (
+                  {["retail", "wholesale", "supplier", "lead"].map((type) => (
                     <button
                       key={type}
                       onClick={() =>
@@ -733,7 +732,7 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
                 </div>
               </div>
 
-              {(addForm.types.includes("lead") || addForm.types.includes("prospect")) && (
+              {addForm.types.includes("lead") && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Lead Status</label>
                   <select

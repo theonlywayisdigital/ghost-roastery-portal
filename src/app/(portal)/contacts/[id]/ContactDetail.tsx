@@ -769,7 +769,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 { id: "notes", label: "Notes", icon: StickyNote },
                 { id: "communication", label: "Communication", icon: Mail },
                 { id: "orders", label: "Orders", icon: ShoppingBag },
-                ...((contact.types.includes("lead") || contact.types.includes("prospect") || contact.types.includes("wholesale"))
+                ...((contact.types.includes("lead") || contact.types.includes("wholesale"))
                   ? [{ id: "deals" as const, label: "Deals", icon: Funnel }]
                   : []),
               ] as const

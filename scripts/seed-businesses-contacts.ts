@@ -178,7 +178,7 @@ const BUSINESSES = [
   },
   {
     name: "Peak District Lodge",
-    types: ["lead", "prospect"],
+    types: ["lead"],
     industry: "hotel",
     status: "active",
     lead_status: "new",

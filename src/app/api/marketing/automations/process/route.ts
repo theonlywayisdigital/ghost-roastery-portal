@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
         }
 
         case "condition": {
-          let conditionMet = true;
+          let conditionMet = false;
           const field = config.field as string;
 
           if (field === "opened_previous" || field === "clicked_previous") {
@@ -232,6 +232,40 @@ export async function GET(request: NextRequest) {
               const expectedValue = config.value as boolean;
               conditionMet = expectedValue ? wasActioned : !wasActioned;
             }
+          } else if (field === "contact_type_is") {
+            // Check if contact's type matches expected value
+            const { data: contact } = await supabase
+              .from("contacts")
+              .select("contact_type")
+              .eq("id", enrollment.contact_id)
+              .single();
+            conditionMet = contact?.contact_type === (config.value as string);
+          } else if (field === "has_placed_order") {
+            // Check if contact has placed an order since enrolment
+            const { data: orders } = await supabase
+              .from("orders")
+              .select("id")
+              .eq("customer_email", (
+                await supabase
+                  .from("contacts")
+                  .select("email")
+                  .eq("id", enrollment.contact_id)
+                  .single()
+              ).data?.email || "")
+              .eq("roaster_id", (automation.roaster_id as string))
+              .gte("created_at", enrollment.enrolled_at as string)
+              .limit(1);
+            const hasOrdered = !!(orders && orders.length > 0);
+            const expectedValue = config.value as boolean;
+            conditionMet = expectedValue ? hasOrdered : !hasOrdered;
+          } else if (field === "pipeline_stage_is") {
+            // Check if contact's pipeline stage matches expected value
+            const { data: contact } = await supabase
+              .from("contacts")
+              .select("pipeline_stage")
+              .eq("id", enrollment.contact_id)
+              .single();
+            conditionMet = contact?.pipeline_stage === (config.value as string);
           }
 
           if (conditionMet) {
@@ -250,6 +284,20 @@ export async function GET(request: NextRequest) {
               await incrementCompletedCount(supabase, enrollment.automation_id);
             }
           } else {
+            // Execute no-path action if configured
+            const noAction = config.no_action as string | undefined;
+            if (noAction === "change_contact_type" && config.no_action_value) {
+              await supabase
+                .from("contacts")
+                .update({ contact_type: config.no_action_value as string })
+                .eq("id", enrollment.contact_id);
+            } else if (noAction === "change_pipeline_stage" && config.no_action_value) {
+              await supabase
+                .from("contacts")
+                .update({ pipeline_stage: config.no_action_value as string })
+                .eq("id", enrollment.contact_id);
+            }
+
             // End automation for this contact
             await supabase
               .from("automation_enrollments")

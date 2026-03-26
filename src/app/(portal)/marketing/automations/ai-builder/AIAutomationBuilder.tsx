@@ -820,13 +820,31 @@ function StepPreview({ step }: { step: GeneratedStep }) {
     case "condition": {
       const field = (step.config.field as string) || "";
       const value = step.config.value;
-      const fieldLabel = field === "opened_previous" ? "opened previous email"
-        : field === "clicked_previous" ? "clicked previous email" : field;
+      const fieldLabels: Record<string, string> = {
+        opened_previous: "opened previous email",
+        clicked_previous: "clicked previous email",
+        contact_type_is: "contact type is",
+        has_placed_order: "has placed order since enrolment",
+        pipeline_stage_is: "pipeline stage is",
+      };
+      const fieldLabel = fieldLabels[field] || field;
+      const noAction = step.config.no_action as string | undefined;
+      const noActionLabels: Record<string, string> = {
+        end_automation: "End automation",
+        change_contact_type: "Change contact type",
+        change_pipeline_stage: "Change pipeline stage",
+      };
+      const noActionLabel = noAction ? (noActionLabels[noAction] || "End automation") : "End automation";
       return (
         <div>
           <p className="text-sm text-slate-600">
-            Check if contact <span className="font-medium">{value ? "" : "has not "}{fieldLabel}</span>.
-            {value ? " If yes, continue. If no, exit." : " If true, continue. If false, exit."}
+            Check if contact{" "}
+            <span className="font-medium">
+              {typeof value === "boolean" ? (value ? "" : "has not ") : ""}
+              {fieldLabel}
+              {typeof value === "string" ? ` "${value}"` : ""}
+            </span>.
+            {` If yes, continue. If no, ${noActionLabel.toLowerCase()}.`}
           </p>
         </div>
       );
@@ -856,9 +874,18 @@ function getStepSummary(step: GeneratedStep): string {
     case "condition": {
       const field = step.config.field as string;
       const value = step.config.value;
-      const fieldLabel = field === "opened_previous" ? "opened previous email"
-        : field === "clicked_previous" ? "clicked previous email" : field;
-      return value ? `If ${fieldLabel}` : `If not ${fieldLabel}`;
+      const fieldLabels: Record<string, string> = {
+        opened_previous: "opened previous email",
+        clicked_previous: "clicked previous email",
+        contact_type_is: "contact type is",
+        has_placed_order: "has placed order since enrolment",
+        pipeline_stage_is: "pipeline stage is",
+      };
+      const label = fieldLabels[field] || field;
+      if (typeof value === "boolean") {
+        return value ? `If ${label}` : `If not ${label}`;
+      }
+      return `If ${label} "${value}"`;
     }
     default:
       return "Unknown step";

@@ -19,8 +19,12 @@ import {
   Check,
   X,
   Users,
+  TestTube,
+  Search,
+  Zap,
 } from "@/components/icons";
 import type { Automation, AutomationStep, AutomationEnrollment, StepType, EmailBlock } from "@/types/marketing";
+import { getTriggerDefinition } from "@/lib/trigger-definitions";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
 import { EmailEditorSlideOver } from "./EmailEditorSlideOver";
 import { EmailMiniPreview } from "./EmailMiniPreview";
@@ -66,6 +70,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   const [addingStep, setAddingStep] = useState(false);
   const [enrollments, setEnrollments] = useState<EnrollmentWithContact[]>([]);
   const [enrollmentFilter, setEnrollmentFilter] = useState<"all" | "active" | "completed" | "cancelled">("all");
+  const [showTestModal, setShowTestModal] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -294,6 +299,15 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Test trigger */}
+          <button
+            onClick={() => setShowTestModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+          >
+            <TestTube className="w-3.5 h-3.5" />
+            Test Trigger
+          </button>
+
           {/* Status badge */}
           <span
             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium ${
@@ -551,6 +565,254 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
               </tbody>
             </table>
           )}
+        </div>
+      </div>
+
+      {/* Test trigger modal */}
+      {showTestModal && (
+        <TestTriggerModal
+          automation={automation}
+          apiBase={apiBase}
+          onClose={() => setShowTestModal(false)}
+          onSuccess={() => {
+            setShowTestModal(false);
+            loadAutomation();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Test Trigger Modal ─────────────────────────────────────────
+interface ContactResult {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  business_name: string | null;
+}
+
+function TestTriggerModal({
+  automation,
+  apiBase,
+  onClose,
+  onSuccess,
+}: {
+  automation: Automation;
+  apiBase: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<ContactResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<ContactResult | null>(null);
+  const [firing, setFiring] = useState(false);
+  const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const triggerDef = getTriggerDefinition(automation.trigger_type);
+  const triggerLabel = triggerDef?.label || automation.trigger_type.replace(/_/g, " ");
+
+  function handleSearch(value: string) {
+    setQuery(value);
+    setResult(null);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (value.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const contactsApi = apiBase.replace("/marketing", "/contacts");
+        const res = await fetch(`${contactsApi}?search=${encodeURIComponent(value.trim())}&status=all&page=1`);
+        if (res.ok) {
+          const data = await res.json();
+          setResults((data.contacts || []).slice(0, 5));
+        }
+      } catch {
+        // silent
+      }
+      setSearching(false);
+    }, 300);
+  }
+
+  function selectContact(contact: ContactResult) {
+    setSelectedContact(contact);
+    setQuery("");
+    setResults([]);
+    setResult(null);
+  }
+
+  async function handleFire() {
+    if (!selectedContact) return;
+    setFiring(true);
+    setResult(null);
+
+    try {
+      // Build event_data from the automation's trigger_config so config matching passes
+      const eventData: Record<string, unknown> = { ...(automation.trigger_config || {}) };
+
+      const res = await fetch(`${apiBase}/automations/trigger`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          trigger_type: automation.trigger_type,
+          contact_id: selectedContact.id,
+          roaster_id: automation.roaster_id,
+          event_data: eventData,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.enrolled > 0) {
+          setResult({ type: "success", message: `Enrolled in ${data.enrolled} automation(s)` });
+          setTimeout(onSuccess, 1500);
+        } else {
+          setResult({ type: "error", message: "Contact was not enrolled. The automation may be inactive, the contact may already be enrolled, or trigger filters excluded them." });
+        }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setResult({ type: "error", message: data.error || "Failed to fire trigger" });
+      }
+    } catch {
+      setResult({ type: "error", message: "Network error" });
+    }
+    setFiring(false);
+  }
+
+  const contactName = selectedContact
+    ? [selectedContact.first_name, selectedContact.last_name].filter(Boolean).join(" ") || selectedContact.email || "Unknown"
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <h3 className="text-base font-semibold text-slate-900">Test Trigger</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Trigger type (read only) */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Trigger Type</label>
+            <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+              {triggerLabel}
+            </div>
+          </div>
+
+          {/* Contact picker */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Contact</label>
+            {selectedContact ? (
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{contactName}</p>
+                  {selectedContact.email && selectedContact.email !== contactName && (
+                    <p className="text-xs text-slate-500">{selectedContact.email}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setSelectedContact(null); setResult(null); }}
+                  className="p-1 rounded hover:bg-slate-200 text-slate-400"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative" ref={dropdownRef}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search contacts by name or email..."
+                    value={query}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    autoFocus
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                  )}
+                </div>
+
+                {/* Results dropdown */}
+                {results.length > 0 && (
+                  <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-1 max-h-48 overflow-y-auto">
+                    {results.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => selectContact(c)}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-slate-900">
+                          {[c.first_name, c.last_name].filter(Boolean).join(" ") || "No name"}
+                        </p>
+                        <p className="text-xs text-slate-500">{c.email || "No email"}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {query.trim().length >= 2 && !searching && results.length === 0 && (
+                  <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg z-10 py-3 text-center">
+                    <p className="text-xs text-slate-500">No contacts found</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Result message */}
+          {result && (
+            <div
+              className={`px-3 py-2 rounded-lg text-sm ${
+                result.type === "success"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-red-50 text-red-700 border border-red-200"
+              }`}
+            >
+              {result.message}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleFire}
+            disabled={!selectedContact || firing}
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {firing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Firing...
+              </>
+            ) : (
+              <>
+                <Zap className="w-3.5 h-3.5" />
+                Fire Trigger
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

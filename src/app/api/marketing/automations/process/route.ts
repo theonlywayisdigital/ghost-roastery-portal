@@ -182,9 +182,11 @@ export async function GET(request: NextRequest) {
         case "delay": {
           const delayDays = (config.delay_days as number) || 0;
           const delayHours = (config.delay_hours as number) || 0;
+          const delayMinutes = (config.delay_minutes as number) || 0;
           const nextStepAt = new Date();
           nextStepAt.setDate(nextStepAt.getDate() + delayDays);
           nextStepAt.setHours(nextStepAt.getHours() + delayHours);
+          nextStepAt.setMinutes(nextStepAt.getMinutes() + delayMinutes);
 
           const nextStep = steps.find((s: { step_order: number }) => s.step_order === currentStepOrder + 1);
           if (nextStep) {

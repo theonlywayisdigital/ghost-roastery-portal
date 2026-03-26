@@ -383,9 +383,11 @@ function getStepSummary(step: AutomationStep): string {
     case "delay": {
       const days = (config.delay_days as number) || 0;
       const hours = (config.delay_hours as number) || 0;
+      const minutes = (config.delay_minutes as number) || 0;
       const parts: string[] = [];
       if (days > 0) parts.push(`${days} day${days !== 1 ? "s" : ""}`);
       if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? "s" : ""}`);
+      if (minutes > 0) parts.push(`${minutes} min${minutes !== 1 ? "s" : ""}`);
       return parts.length > 0 ? `Wait ${parts.join(" ")}` : "No delay";
     }
     case "condition": {

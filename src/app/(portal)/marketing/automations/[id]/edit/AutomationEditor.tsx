@@ -167,7 +167,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
 
     const defaultConfig: Record<StepType, Record<string, unknown>> = {
       email: { subject: "", from_name: "", content: [] },
-      delay: { delay_days: 1, delay_hours: 0 },
+      delay: { delay_days: 1, delay_hours: 0, delay_minutes: 0 },
       condition: { field: "opened_previous", value: true },
     };
 
@@ -778,6 +778,7 @@ function DelayStepConfig({
 }) {
   const days = (config.delay_days as number) || 0;
   const hours = (config.delay_hours as number) || 0;
+  const minutes = (config.delay_minutes as number) || 0;
 
   return (
     <div className="space-y-3">
@@ -807,8 +808,19 @@ function DelayStepConfig({
           />
           <span className="text-sm text-slate-600">hours</span>
         </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            max={59}
+            value={minutes}
+            onChange={(e) => onChange({ ...config, delay_minutes: parseInt(e.target.value) || 0 })}
+            className="w-20 px-3 py-2 border border-slate-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <span className="text-sm text-slate-600">mins</span>
+        </div>
       </div>
-      {days === 0 && hours === 0 && (
+      {days === 0 && hours === 0 && minutes === 0 && (
         <p className="text-xs text-amber-600">Zero wait means the next step runs immediately.</p>
       )}
     </div>
@@ -872,9 +884,11 @@ function getStepSummary(step: AutomationStep): string {
     case "delay": {
       const days = (config.delay_days as number) || 0;
       const hours = (config.delay_hours as number) || 0;
+      const minutes = (config.delay_minutes as number) || 0;
       const parts: string[] = [];
       if (days > 0) parts.push(`${days} day${days !== 1 ? "s" : ""}`);
       if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? "s" : ""}`);
+      if (minutes > 0) parts.push(`${minutes} min${minutes !== 1 ? "s" : ""}`);
       return parts.length > 0 ? `Wait ${parts.join(" ")}` : "No delay";
     }
     case "condition": {

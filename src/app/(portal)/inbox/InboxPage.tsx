@@ -10,6 +10,9 @@ import {
   Loader2,
   UserPlus,
   User,
+  Trash2,
+  X,
+  ShoppingCart,
 } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column } from "@/components/admin/DataTable";
@@ -79,6 +82,8 @@ export function InboxPage() {
   const [orderUnreadCount, setOrderUnreadCount] = useState(0);
   const [orderLoading, setOrderLoading] = useState(true);
   const [linkingEmail, setLinkingEmail] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // ── URL params ──
   const page = parseInt(searchParams.get("page") || "1");
@@ -102,32 +107,90 @@ export function InboxPage() {
     [router, searchParams]
   );
 
-  // ── Fetch Orders ──
-  useEffect(() => {
-    const fetchMessages = async () => {
-      setOrderLoading(true);
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("pageSize", String(pageSize));
-      params.set("filter", activeOrderFilter);
-      if (filterValues.search) params.set("search", filterValues.search);
+  // ── Fetch Messages ──
+  const fetchMessages = useCallback(async () => {
+    setOrderLoading(true);
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    params.set("filter", activeOrderFilter);
+    if (filterValues.search) params.set("search", filterValues.search);
 
-      try {
-        const res = await fetch(`/api/inbox?${params.toString()}`);
-        const data = await res.json();
-        setMessages(data.data || []);
-        setOrderTotal(data.total || 0);
-        setOrderUnreadCount(data.unreadCount || 0);
-      } catch {
-        console.error("Failed to fetch inbox");
-      } finally {
-        setOrderLoading(false);
-      }
-    };
-
-    fetchMessages();
+    try {
+      const res = await fetch(`/api/inbox?${params.toString()}`);
+      const data = await res.json();
+      setMessages(data.data || []);
+      setOrderTotal(data.total || 0);
+      setOrderUnreadCount(data.unreadCount || 0);
+    } catch {
+      console.error("Failed to fetch inbox");
+    } finally {
+      setOrderLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, [fetchMessages]);
+
+  // ── Clear selection on filter/tab/page change ──
+  useEffect(() => {
+    setSelected(new Set());
+  }, [activeOrderFilter, page, filterValues.search]);
+
+  // ── Selection handlers ──
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === messages.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(messages.map((m) => m.id)));
+    }
+  }
+
+  // ── Bulk action handler ──
+  async function handleBulkAction(action: "mark_read" | "mark_unread" | "archive" | "delete") {
+    if (selected.size === 0) return;
+    setBulkLoading(true);
+    try {
+      await fetch("/api/inbox/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), action }),
+      });
+      setSelected(new Set());
+      fetchMessages();
+    } catch {
+      console.error("Bulk action failed");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
+  // ── Convert to order handler ──
+  function handleConvertToOrder(e: React.MouseEvent, row: InboxMessage) {
+    e.stopPropagation();
+    sessionStorage.setItem(
+      "inbox_order_extraction",
+      JSON.stringify({
+        inboxMessageId: row.id,
+        fromEmail: row.from_email,
+        fromName: row.from_name,
+        subject: row.subject,
+        manual: true,
+      })
+    );
+    router.push(`/orders/new?from=inbox&messageId=${row.id}`);
+  }
 
   // ── Order tab configs ──
   const orderTabs: { label: string; value: OrderFilter; count?: number }[] = [
@@ -219,11 +282,21 @@ export function InboxPage() {
       label: "",
       hiddenOnMobile: true,
       render: (row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {row.is_converted && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
               Converted
             </span>
+          )}
+          {!row.is_converted && (
+            <button
+              onClick={(e) => handleConvertToOrder(e, row)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors"
+              title="Convert to order"
+            >
+              <ShoppingCart className="w-3 h-3" />
+              Convert to Order
+            </button>
           )}
           {!row.contact_id && (
             <button
@@ -309,6 +382,53 @@ export function InboxPage() {
         />
       </div>
 
+      {/* Bulk actions bar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-3 mb-4 bg-brand-50 border border-brand-200 rounded-lg">
+          <span className="text-sm font-medium text-brand-700">
+            {`${selected.size} selected`}
+          </span>
+          <button
+            onClick={() => handleBulkAction("mark_read")}
+            disabled={bulkLoading}
+            className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <MailOpen className="w-3 h-3" />
+            Mark as Read
+          </button>
+          <button
+            onClick={() => handleBulkAction("mark_unread")}
+            disabled={bulkLoading}
+            className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Mail className="w-3 h-3" />
+            Mark as Unread
+          </button>
+          <button
+            onClick={() => handleBulkAction("archive")}
+            disabled={bulkLoading}
+            className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Archive className="w-3 h-3" />
+            Archive
+          </button>
+          <button
+            onClick={() => handleBulkAction("delete")}
+            disabled={bulkLoading}
+            className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 bg-white border border-red-200 rounded-md text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="ml-auto text-slate-400 hover:text-slate-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {!orderLoading && messages.length === 0 && !filterValues.search ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
@@ -344,6 +464,10 @@ export function InboxPage() {
           isLoading={orderLoading}
           onRowClick={(row) => router.push(`/inbox/${row.id}`)}
           emptyMessage="No messages match your search"
+          selectedRows={selected}
+          onSelectRow={toggleSelect}
+          onSelectAll={toggleSelectAll}
+          getRowId={(row) => row.id}
         />
       )}
 

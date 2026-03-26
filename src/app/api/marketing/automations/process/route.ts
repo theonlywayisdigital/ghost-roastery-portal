@@ -245,14 +245,7 @@ export async function GET(request: NextRequest) {
             const { data: orders } = await supabase
               .from("orders")
               .select("id")
-              .eq("customer_email", (
-                await supabase
-                  .from("contacts")
-                  .select("email")
-                  .eq("id", enrollment.contact_id)
-                  .single()
-              ).data?.email || "")
-              .eq("roaster_id", (automation.roaster_id as string))
+              .eq("contact_id", enrollment.contact_id)
               .gte("created_at", enrollment.enrolled_at as string)
               .limit(1);
             const hasOrdered = !!(orders && orders.length > 0);

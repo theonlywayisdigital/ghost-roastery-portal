@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getCurrentRoaster } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase";
-
-const MAX_DAILY_GENERATIONS = 20;
+import { checkAiCredits, consumeAiCredits } from "@/lib/ai-credits";
+import { type AiActionType } from "@/lib/tier-config";
 
 type PlanType = "campaign" | "social" | "automation" | "ideas";
 
@@ -34,26 +33,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing plan_type or inputs" }, { status: 400 });
   }
 
-  // Rate limiting
-  const supabase = createServerClient();
-  const now = new Date();
-  let generationsToday = (roaster as Record<string, unknown>).ai_generations_today as number || 0;
-  const resetAt = (roaster as Record<string, unknown>).ai_generation_reset_at as string | null;
-
-  if (!resetAt || new Date(resetAt) < now) {
-    generationsToday = 0;
-    const tomorrow = new Date(now);
-    tomorrow.setUTCHours(0, 0, 0, 0);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    await supabase
-      .from("partner_roasters")
-      .update({ ai_generations_today: 0, ai_generation_reset_at: tomorrow.toISOString() })
-      .eq("id", roaster.id);
-  }
-
-  if (generationsToday >= MAX_DAILY_GENERATIONS) {
+  // Credit check
+  const actionType = `plan_${body.plan_type}` as AiActionType;
+  const creditCheck = await checkAiCredits(roaster.id as string, actionType);
+  if (!creditCheck.allowed) {
     return NextResponse.json(
-      { error: `Daily limit reached (${MAX_DAILY_GENERATIONS} generations). Resets at midnight UTC.`, rate_limited: true },
+      { error: creditCheck.message, rate_limited: true, upgrade_required: true },
       { status: 429 }
     );
   }
@@ -89,14 +74,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await supabase
-      .from("partner_roasters")
-      .update({ ai_generations_today: generationsToday + 1 })
-      .eq("id", roaster.id);
+    await consumeAiCredits(roaster.id as string, actionType);
 
     return NextResponse.json({
       plan: parsed,
-      usage: { used: generationsToday + 1, limit: MAX_DAILY_GENERATIONS },
     });
   } catch (err) {
     console.error("AI plan generation error:", err);

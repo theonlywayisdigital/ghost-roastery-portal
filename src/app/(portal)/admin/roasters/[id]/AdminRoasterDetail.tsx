@@ -47,6 +47,8 @@ import {
   getEffectivePlatformFee,
   getSalesPricing,
   getMarketingPricing,
+  type AiActionType,
+  AI_ACTION_LABELS,
 } from "@/lib/tier-config";
 
 // ─── Types ───
@@ -1570,7 +1572,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                             {aiCreditsData.ledger.map((entry) => (
                               <tr key={entry.id}>
                                 <td className="px-3 py-1.5 text-slate-700">
-                                  {entry.source === "topup_admin" ? "Admin Grant" : entry.source === "topup_purchase" ? "Purchase" : entry.action_type}
+                                  {entry.source === "topup_admin" ? "Admin Grant" : entry.source === "topup_purchase" ? "Purchase" : AI_ACTION_LABELS[entry.action_type as AiActionType] || entry.action_type}
                                 </td>
                                 <td className={`px-3 py-1.5 text-right font-medium ${entry.credits_used < 0 ? "text-green-600" : "text-slate-700"}`}>
                                   {entry.credits_used < 0 ? `+${Math.abs(entry.credits_used)}` : `-${entry.credits_used}`}

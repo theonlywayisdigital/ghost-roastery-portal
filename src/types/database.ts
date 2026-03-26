@@ -3104,8 +3104,6 @@ export type Database = {
           address_line_1: string | null
           address_line_2: string | null
           ai_credits_topup_balance: number
-          ai_generation_reset_at: string | null
-          ai_generations_today: number
           auto_approve_wholesale: boolean | null
           auto_send_invoices: boolean | null
           bank_account_number: string | null
@@ -3212,8 +3210,6 @@ export type Database = {
           address_line_1?: string | null
           address_line_2?: string | null
           ai_credits_topup_balance?: number
-          ai_generation_reset_at?: string | null
-          ai_generations_today?: number
           auto_approve_wholesale?: boolean | null
           auto_send_invoices?: boolean | null
           bank_account_number?: string | null
@@ -3319,8 +3315,6 @@ export type Database = {
           address_line_1?: string | null
           address_line_2?: string | null
           ai_credits_topup_balance?: number
-          ai_generation_reset_at?: string | null
-          ai_generations_today?: number
           auto_approve_wholesale?: boolean | null
           auto_send_invoices?: boolean | null
           bank_account_number?: string | null

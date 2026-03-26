@@ -40,7 +40,8 @@ export type SalesFeatureKey =
   | "crmEmailIntegration"
   | "customEmailDomain"
   | "integrationsAccounting"
-  | "integrationsEcommerce";
+  | "integrationsEcommerce"
+  | "orderExtraction";
 
 export type MarketingFeatureKey =
   | "contentCalendar"
@@ -92,6 +93,7 @@ const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
   customEmailDomain:       { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   integrationsAccounting:  { free: false, starter: false, growth: false, pro: true,  scale: true },
   integrationsEcommerce:   { free: false, starter: true,  growth: true,  pro: true,  scale: true },
+  orderExtraction:         { free: false, starter: true,  growth: true,  pro: true,  scale: true },
 };
 
 // ─── Marketing Suite Limits ───
@@ -220,6 +222,7 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     customEmailDomain: SALES_FEATURES.customEmailDomain[salesTier],
     integrationsAccounting: SALES_FEATURES.integrationsAccounting[salesTier],
     integrationsEcommerce: SALES_FEATURES.integrationsEcommerce[salesTier],
+    orderExtraction: SALES_FEATURES.orderExtraction[salesTier],
     // Marketing features
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
@@ -367,6 +370,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   customEmailDomain: "Custom Email Domain",
   integrationsAccounting: "Accounting Integrations",
   integrationsEcommerce: "E-commerce Integrations",
+  orderExtraction: "AI Order Extraction",
   contentCalendar: "Content Calendar",
   socialScheduling: "Social Scheduling",
   automations: "Automations",
@@ -516,3 +520,101 @@ export function getCreditPackByPriceId(priceId: string): CreditPack | null {
 export function getCreditPackById(packId: string): CreditPack | null {
   return CREDIT_PACKS.find((p) => p.id === packId) || null;
 }
+
+// ─── AI Action Types & Credit Costs ───
+
+/**
+ * Every AI action that consumes credits, grouped by cost tier.
+ * Light (1), Special (2), Medium (3), Heavy (5).
+ */
+export type AiActionType =
+  // Light (1 credit) — quick suggestions via AiGenerateButton
+  | "email_subject"
+  | "email_preview"
+  | "email_body"
+  | "social_caption"
+  | "product_name"
+  | "product_description"
+  | "product_meta_description"
+  | "discount_description"
+  | "form_description"
+  | "form_success_message"
+  | "website_heading"
+  | "website_body"
+  | "website_meta_title"
+  | "website_meta_description"
+  // Special (2 credits)
+  | "extract_order"
+  // Medium (3 credits)
+  | "generate_email"
+  | "generate_blog_post"
+  | "compose_contact_email"
+  // Heavy (5 credits)
+  | "generate_automation"
+  | "refine_automation"
+  | "plan_campaign"
+  | "plan_social"
+  | "plan_automation"
+  | "plan_ideas";
+
+export const AI_CREDIT_COSTS: Record<AiActionType, number> = {
+  // Light — 1 credit
+  email_subject: 1,
+  email_preview: 1,
+  email_body: 1,
+  social_caption: 1,
+  product_name: 1,
+  product_description: 1,
+  product_meta_description: 1,
+  discount_description: 1,
+  form_description: 1,
+  form_success_message: 1,
+  website_heading: 1,
+  website_body: 1,
+  website_meta_title: 1,
+  website_meta_description: 1,
+  // Special — 2 credits
+  extract_order: 2,
+  // Medium — 3 credits
+  generate_email: 3,
+  generate_blog_post: 3,
+  compose_contact_email: 3,
+  // Heavy — 5 credits
+  generate_automation: 5,
+  refine_automation: 5,
+  plan_campaign: 5,
+  plan_social: 5,
+  plan_automation: 5,
+  plan_ideas: 5,
+};
+
+export function getAiCreditCost(actionType: AiActionType): number {
+  return AI_CREDIT_COSTS[actionType];
+}
+
+export const AI_ACTION_LABELS: Record<AiActionType, string> = {
+  email_subject: "Email Subject",
+  email_preview: "Email Preview",
+  email_body: "Email Body",
+  social_caption: "Social Caption",
+  product_name: "Product Name",
+  product_description: "Product Description",
+  product_meta_description: "Product Meta Description",
+  discount_description: "Discount Description",
+  form_description: "Form Description",
+  form_success_message: "Form Success Message",
+  website_heading: "Website Heading",
+  website_body: "Website Body",
+  website_meta_title: "Website Meta Title",
+  website_meta_description: "Website Meta Description",
+  extract_order: "Order Extraction",
+  generate_email: "Email Generation",
+  generate_blog_post: "Blog Post",
+  compose_contact_email: "Contact Email",
+  generate_automation: "Automation Generation",
+  refine_automation: "Automation Refinement",
+  plan_campaign: "Campaign Plan",
+  plan_social: "Social Plan",
+  plan_automation: "Automation Plan",
+  plan_ideas: "Ideas Plan",
+};

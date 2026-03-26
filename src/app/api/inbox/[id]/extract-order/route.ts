@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkFeature } from "@/lib/feature-gates";
+import { checkAiCredits, consumeAiCredits } from "@/lib/ai-credits";
 
 /**
  * POST /api/inbox/[id]/extract-order
@@ -46,6 +48,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const roasterId = user.roaster.id;
+
+  // Feature gate: order extraction requires Starter+
+  const featureCheck = await checkFeature(roasterId, "orderExtraction");
+  if (!featureCheck.allowed) {
+    return NextResponse.json(
+      { error: featureCheck.message },
+      { status: 403 }
+    );
+  }
+
+  // Credit check: 2 credits per extraction
+  const creditCheck = await checkAiCredits(roasterId, "extract_order");
+  if (!creditCheck.allowed) {
+    return NextResponse.json(
+      { error: creditCheck.message, rate_limited: true, upgrade_required: true },
+      { status: 429 }
+    );
+  }
+
   const { id: messageId } = await context.params;
   const supabase = createServerClient();
 
@@ -214,6 +235,9 @@ Extract the order details from this email.`;
     }
     if (!extraction.items) extraction.items = [];
     if (!extraction.confidence) extraction.confidence = "low";
+
+    // Consume credits after successful extraction
+    await consumeAiCredits(roasterId, "extract_order", { messageId });
 
     return NextResponse.json({ extraction, messageId });
   } catch (err) {

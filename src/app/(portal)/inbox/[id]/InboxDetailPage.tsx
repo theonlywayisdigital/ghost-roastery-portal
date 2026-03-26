@@ -490,7 +490,7 @@ export function InboxDetailPage({ messageId }: InboxDetailPageProps) {
                         <div>
                           <p className="text-sm font-medium text-slate-900">Convert with AI</p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            Automatically extract order details from the email
+                            Automatically extract order details from the email (2 credits)
                           </p>
                         </div>
                       </button>

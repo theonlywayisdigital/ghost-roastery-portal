@@ -36,6 +36,8 @@ import {
   getSalesPricing,
   getMarketingPricing,
   WEBSITE_PRICING,
+  type AiActionType,
+  AI_ACTION_LABELS,
 } from "@/lib/tier-config";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
@@ -1148,7 +1150,7 @@ function AiCreditsSection({ roasterId }: { roasterId: string }) {
                               ? "Purchase"
                               : entry.source === "topup_admin"
                               ? "Admin Grant"
-                              : entry.action_type}
+                              : AI_ACTION_LABELS[entry.action_type as AiActionType] || entry.action_type}
                           </td>
                           <td className={`px-4 py-2 text-right font-medium ${entry.credits_used < 0 ? "text-green-600" : "text-slate-700"}`}>
                             {entry.credits_used < 0 ? `+${Math.abs(entry.credits_used)}` : `-${entry.credits_used}`}

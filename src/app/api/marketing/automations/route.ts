@@ -10,22 +10,39 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerClient();
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+  const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get("page_size") || "10", 10)));
+  const includeTemplates = url.searchParams.get("templates") === "1";
 
-  // Get templates (roaster_id IS NULL and is_template = true)
-  const { data: templates } = await supabase
-    .from("automations")
-    .select("*, automation_steps(*)")
-    .is("roaster_id", null)
-    .eq("is_template", true)
-    .order("created_at", { ascending: true });
+  // Optionally include templates (for the /new creation page)
+  let templates: unknown[] = [];
+  if (includeTemplates) {
+    const { data } = await supabase
+      .from("automations")
+      .select("*, automation_steps(*)")
+      .is("roaster_id", null)
+      .eq("is_template", true)
+      .order("created_at", { ascending: true });
+    templates = data || [];
+  }
 
-  // Get owner's own automations (with step count)
+  // Count total owner automations
+  const { count: total } = await applyOwnerFilter(
+    supabase.from("automations").select("id", { count: "exact", head: true }),
+    owner
+  ).eq("is_template", false);
+
+  // Get owner's own automations (with step count) — paginated
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
   const { data: automations } = await applyOwnerFilter(
     supabase.from("automations").select("*, automation_steps(count)"),
     owner
   )
     .eq("is_template", false)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   // Flatten step count from Supabase's nested aggregation format
   const automationsWithCount = (automations || []).map((a) => {
@@ -35,8 +52,11 @@ export async function GET(request: NextRequest) {
   });
 
   return NextResponse.json({
-    templates: templates || [],
+    templates,
     automations: automationsWithCount,
+    total: total || 0,
+    page,
+    page_size: pageSize,
   });
 }
 

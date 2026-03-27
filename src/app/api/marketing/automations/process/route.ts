@@ -194,6 +194,13 @@ export async function GET(request: NextRequest) {
           nextStepAt.setHours(nextStepAt.getHours() + delayHours);
           nextStepAt.setMinutes(nextStepAt.getMinutes() + delayMinutes);
 
+          await supabase.from("automation_step_logs").insert({
+            enrollment_id: enrollment.id,
+            step_id: step.id,
+            status: "sent",
+            sent_at: new Date().toISOString(),
+          });
+
           const nextStep = steps.find((s: { step_order: number }) => s.step_order > currentStepOrder);
           if (nextStep) {
             await supabase

@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
           const emailDomain = customDomain?.domain || FROM_DOMAIN;
           const emailPrefix = customDomain?.senderPrefix || "noreply";
 
+          let sendSucceeded = false;
           try {
             const sendResult = await resend.emails.send({
               from: `${fromName} <${emailPrefix}@${emailDomain}>`,
@@ -143,6 +144,7 @@ export async function GET(request: NextRequest) {
             });
 
             sent++;
+            sendSucceeded = true;
           } catch (e) {
             console.error("Automation send error:", e);
             await supabase.from("automation_step_logs").insert({
@@ -150,6 +152,17 @@ export async function GET(request: NextRequest) {
               step_id: step.id,
               status: "bounced",
             });
+          }
+
+          if (!sendSucceeded) {
+            // Retry in 5 minutes — don't advance
+            const retryAt = new Date();
+            retryAt.setMinutes(retryAt.getMinutes() + 5);
+            await supabase
+              .from("automation_enrollments")
+              .update({ next_step_at: retryAt.toISOString() })
+              .eq("id", enrollment.id);
+            break;
           }
 
           // Advance to next step (find first step with step_order > current, handles gaps)
@@ -376,13 +389,13 @@ async function processNoActivityTrigger(
     // Evaluate filters
     if (!evaluateFilters({ contact }, filters)) continue;
 
-    // Check not already enrolled
+    // Check not already actively enrolled
     const { data: existing } = await supabase
       .from("automation_enrollments")
       .select("id")
       .eq("automation_id", automationId)
       .eq("contact_id", contact.id)
-      .in("status", ["active", "completed"])
+      .eq("status", "active")
       .limit(1);
 
     if (existing && existing.length > 0) continue;

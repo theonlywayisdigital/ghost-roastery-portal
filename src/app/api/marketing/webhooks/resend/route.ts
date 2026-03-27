@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
+import { Resend } from "resend";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+
+    // Verify webhook signature if secret is configured
+    if (webhookSecret) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      try {
+        resend.webhooks.verify({
+          payload: rawBody,
+          headers: {
+            id: request.headers.get("svix-id") || "",
+            timestamp: request.headers.get("svix-timestamp") || "",
+            signature: request.headers.get("svix-signature") || "",
+          },
+          webhookSecret,
+        });
+      } catch {
+        console.error("Resend webhook signature verification failed");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     const { type, data } = body;
 
     if (!type || !data) {

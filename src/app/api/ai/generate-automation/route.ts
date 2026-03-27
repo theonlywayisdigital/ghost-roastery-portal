@@ -142,7 +142,7 @@ Return a JSON object with this EXACT structure:
     },
     {
       "step_type": "condition",
-      "config": { "field": "opened_previous", "value": true, "no_action": "end_automation" }
+      "config": { "field": "opened_previous", "yes_action": "continue", "no_action": "end_automation" }
     }
   ],
   "notes": ["Any notes for the user, e.g. 'I set this to trigger from your Contact Form — change if you meant a different form'"]
@@ -160,17 +160,19 @@ ${JSON.stringify(triggerDefs, null, 2)}
 - custom_webhook: {} — no config needed
 - email_engagement: { "engagement_type": "opened", "campaign_id": "" }
 
-## Condition step fields:
-- opened_previous: { "field": "opened_previous", "value": true } — boolean, checks if previous email was opened
-- clicked_previous: { "field": "clicked_previous", "value": true } — boolean, checks if previous email was clicked
-- contact_type_is: { "field": "contact_type_is", "value": "retail" } — string, checks contact type matches value
-- has_placed_order: { "field": "has_placed_order", "value": true } — boolean, checks if contact ordered since enrolment
-- pipeline_stage_is: { "field": "pipeline_stage_is", "value": "Qualified" } — string, checks contact pipeline stage matches value
+## Condition step config:
+Each condition has a "field" and two branch actions: "yes_action" (when condition is true) and "no_action" (when false).
+Branch action options: "continue" (advance to next step), "end_automation", "change_contact_type", "change_pipeline_stage"
+If using change_contact_type or change_pipeline_stage, also add "yes_action_value" or "no_action_value" with the target value.
 
-## Condition no-path actions (what happens when condition is NOT met):
-Add "no_action" to condition config. Options: "end_automation" (default), "change_contact_type", "change_pipeline_stage"
-If using change_contact_type or change_pipeline_stage, also add "no_action_value" with the target value.
-Example: { "field": "has_placed_order", "value": true, "no_action": "change_pipeline_stage", "no_action_value": "Lost" }
+### Condition fields:
+- has_placed_order: { "field": "has_placed_order", "yes_action": "continue", "no_action": "end_automation" } — checks if contact has ordered since enrolment
+- opened_previous: { "field": "opened_previous", "yes_action": "continue", "no_action": "end_automation" } — checks if previous email was opened
+- clicked_previous: { "field": "clicked_previous", "yes_action": "continue", "no_action": "end_automation" } — checks if previous email was clicked
+- contact_type_is: { "field": "contact_type_is", "value": "retail", "yes_action": "continue", "no_action": "end_automation" } — checks contact type matches value
+- pipeline_stage_is: { "field": "pipeline_stage_is", "value": "Qualified", "yes_action": "continue", "no_action": "change_pipeline_stage", "no_action_value": "Lost" } — checks pipeline stage matches value
+
+Only contact_type_is and pipeline_stage_is use "value". The other three are boolean checks with no value field.
 
 ## Available filter fields for trigger_filters groups:
 Each group has conditions that are OR'd. Groups are AND'd together.

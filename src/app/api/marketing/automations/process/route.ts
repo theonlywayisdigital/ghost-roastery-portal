@@ -8,23 +8,16 @@ import { Resend } from "resend";
 
 const FROM_DOMAIN = "roasteryplatform.com";
 
-/** Increment completed_count on the automation row (mirrors enrolled_count pattern) */
+/** Atomically increment completed_count on the automation row */
 async function incrementCompletedCount(
   supabase: ReturnType<typeof createServerClient>,
   automationId: string
 ) {
-  const { data: current } = await supabase
-    .from("automations")
-    .select("completed_count")
-    .eq("id", automationId)
-    .single();
-
-  if (current) {
-    await supabase
-      .from("automations")
-      .update({ completed_count: (current.completed_count || 0) + 1 })
-      .eq("id", automationId);
-  }
+  await supabase.rpc("increment_field", {
+    table_name: "automations",
+    field_name: "completed_count",
+    row_id: automationId,
+  });
 }
 
 export async function GET(request: NextRequest) {

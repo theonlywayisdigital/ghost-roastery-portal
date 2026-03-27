@@ -819,32 +819,34 @@ function StepPreview({ step }: { step: GeneratedStep }) {
     }
     case "condition": {
       const field = (step.config.field as string) || "";
-      const value = step.config.value;
+      const value = step.config.value as string | undefined;
       const fieldLabels: Record<string, string> = {
-        opened_previous: "opened previous email",
-        clicked_previous: "clicked previous email",
+        has_placed_order: "has placed an order since enrolment",
+        opened_previous: "previous email was opened",
+        clicked_previous: "previous email was clicked",
         contact_type_is: "contact type is",
-        has_placed_order: "has placed order since enrolment",
         pipeline_stage_is: "pipeline stage is",
       };
-      const fieldLabel = fieldLabels[field] || field;
-      const noAction = step.config.no_action as string | undefined;
-      const noActionLabels: Record<string, string> = {
+      const actionLabels: Record<string, string> = {
+        continue: "Continue to next step",
         end_automation: "End automation",
         change_contact_type: "Change contact type",
         change_pipeline_stage: "Change pipeline stage",
       };
-      const noActionLabel = noAction ? (noActionLabels[noAction] || "End automation") : "End automation";
+      const fieldLabel = fieldLabels[field] || field;
+      const yesAction = (step.config.yes_action as string) || "continue";
+      const noAction = (step.config.no_action as string) || "end_automation";
+      const yesLabel = actionLabels[yesAction] || "Continue to next step";
+      const noLabel = actionLabels[noAction] || "End automation";
       return (
         <div>
           <p className="text-sm text-slate-600">
             Check if contact{" "}
             <span className="font-medium">
-              {typeof value === "boolean" ? (value ? "" : "has not ") : ""}
               {fieldLabel}
-              {typeof value === "string" ? ` "${value}"` : ""}
+              {value ? ` "${value}"` : ""}
             </span>.
-            {` If yes, continue. If no, ${noActionLabel.toLowerCase()}.`}
+            {` If yes, ${yesLabel.toLowerCase()}. If no, ${noLabel.toLowerCase()}.`}
           </p>
         </div>
       );

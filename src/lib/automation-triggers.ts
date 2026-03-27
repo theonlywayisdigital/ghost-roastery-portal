@@ -212,19 +212,12 @@ export async function fireAutomationTrigger(event: TriggerEvent): Promise<{ enro
       if (!error) {
         enrolled++;
 
-        // Increment enrolled count
-        const { data: current } = await supabase
-          .from("automations")
-          .select("enrolled_count")
-          .eq("id", automation.id)
-          .single();
-
-        if (current) {
-          await supabase
-            .from("automations")
-            .update({ enrolled_count: (current.enrolled_count || 0) + 1 })
-            .eq("id", automation.id);
-        }
+        // Atomically increment enrolled count
+        await supabase.rpc("increment_field", {
+          table_name: "automations",
+          field_name: "enrolled_count",
+          row_id: automation.id,
+        });
       }
     }
   } catch (error) {

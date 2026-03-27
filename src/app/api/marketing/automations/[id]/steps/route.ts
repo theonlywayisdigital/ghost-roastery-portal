@@ -71,12 +71,6 @@ export async function POST(
 
     // If inserting in the middle, shift existing steps up
     if (body.after_order != null) {
-      await supabase.rpc("increment_step_orders_after", {
-        p_automation_id: id,
-        p_after_order: insertAfter,
-      }).then(() => {});
-
-      // Fallback: manual shift if RPC doesn't exist
       const { data: stepsToShift } = await supabase
         .from("automation_steps")
         .select("id, step_order")

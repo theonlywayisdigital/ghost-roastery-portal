@@ -131,8 +131,8 @@ export function NewAutomationPage() {
         </div>
       )}
 
-      {/* Three creation options */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+      {/* Creation options */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
         {/* Start from scratch */}
         <button
           onClick={handleCreateBlank}
@@ -151,20 +151,6 @@ export function NewAutomationPage() {
             Create a blank automation and build your own trigger, emails, delays, and conditions.
           </p>
         </button>
-
-        {/* Choose a template */}
-        <a
-          href="#templates"
-          className="bg-white rounded-xl border border-slate-200 p-6 hover:border-slate-300 hover:shadow-sm transition-all text-left group"
-        >
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
-            <Zap className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-semibold text-slate-900 mb-1">Choose a Template</h3>
-          <p className="text-xs text-slate-500">
-            Start with a pre-built automation and customise it to fit your needs.
-          </p>
-        </a>
 
         {/* Create with AI */}
         <button
@@ -242,7 +228,7 @@ export function NewAutomationPage() {
                       ) : (
                         <Zap className="w-4 h-4" />
                       )}
-                      {isLoading ? "Setting up..." : "Set Up"}
+                      {isLoading ? "Setting up..." : "Use Template"}
                     </button>
                     <button
                       onClick={() => router.push(`${pageBase}/automations/ai-builder?brief=${encodeURIComponent(template.description || template.name)}`)}

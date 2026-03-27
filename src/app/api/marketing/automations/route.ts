@@ -24,7 +24,11 @@ export async function GET(request: NextRequest) {
       .is("roaster_id", null)
       .eq("is_template", true)
       .order("created_at", { ascending: true });
-    templates = data || [];
+    // Remap automation_steps → steps to match AutomationWithSteps type
+    templates = (data || []).map((t) => {
+      const { automation_steps, ...rest } = t as Record<string, unknown>;
+      return { ...rest, steps: automation_steps || [] };
+    });
   }
 
   // Count total owner automations

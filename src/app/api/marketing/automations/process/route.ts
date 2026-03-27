@@ -159,13 +159,13 @@ export async function GET(request: NextRequest) {
             });
           }
 
-          // Advance to next step
-          const nextStep = steps.find((s: { step_order: number }) => s.step_order === currentStepOrder + 1);
+          // Advance to next step (find first step with step_order > current, handles gaps)
+          const nextStep = steps.find((s: { step_order: number }) => s.step_order > currentStepOrder);
           if (nextStep) {
             await supabase
               .from("automation_enrollments")
               .update({
-                current_step: currentStepOrder + 1,
+                current_step: nextStep.step_order as number,
                 next_step_at: new Date().toISOString(),
               })
               .eq("id", enrollment.id);
@@ -188,12 +188,12 @@ export async function GET(request: NextRequest) {
           nextStepAt.setHours(nextStepAt.getHours() + delayHours);
           nextStepAt.setMinutes(nextStepAt.getMinutes() + delayMinutes);
 
-          const nextStep = steps.find((s: { step_order: number }) => s.step_order === currentStepOrder + 1);
+          const nextStep = steps.find((s: { step_order: number }) => s.step_order > currentStepOrder);
           if (nextStep) {
             await supabase
               .from("automation_enrollments")
               .update({
-                current_step: currentStepOrder + 1,
+                current_step: nextStep.step_order as number,
                 next_step_at: nextStepAt.toISOString(),
               })
               .eq("id", enrollment.id);
@@ -281,11 +281,11 @@ export async function GET(request: NextRequest) {
             await incrementCompletedCount(supabase, enrollment.automation_id);
           } else {
             // "continue", "change_contact_type", "change_pipeline_stage" all advance
-            const nextStep = steps.find((s: { step_order: number }) => s.step_order === currentStepOrder + 1);
+            const nextStep = steps.find((s: { step_order: number }) => s.step_order > currentStepOrder);
             if (nextStep) {
               await supabase
                 .from("automation_enrollments")
-                .update({ current_step: currentStepOrder + 1, next_step_at: new Date().toISOString() })
+                .update({ current_step: nextStep.step_order as number, next_step_at: new Date().toISOString() })
                 .eq("id", enrollment.id);
             } else {
               await supabase

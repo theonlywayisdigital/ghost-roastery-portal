@@ -1,7 +1,7 @@
 "use client";
 
 import type { EmailBlock } from "@/types/marketing";
-import { renderEmailHtmlForPreview } from "@/lib/render-email-html";
+import { renderEmailHtml } from "@/lib/render-email-html";
 
 export function EmailMiniPreview({
   blocks,
@@ -10,16 +10,16 @@ export function EmailMiniPreview({
   blocks: EmailBlock[];
   emailBgColor?: string;
 }) {
-  const html = renderEmailHtmlForPreview(blocks, emailBgColor);
+  const html = renderEmailHtml(blocks, "", "", emailBgColor);
 
   return (
-    <div className="relative w-full h-[120px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+    <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">
       <iframe
         srcDoc={html}
         title="Email Preview"
-        className="w-[600px] h-[545px] border-0 origin-top-left pointer-events-none"
-        style={{ transform: "scale(0.22)", transformOrigin: "top left" }}
-        sandbox=""
+        className="w-full border-0"
+        style={{ height: "400px" }}
+        sandbox="allow-same-origin"
         tabIndex={-1}
       />
     </div>

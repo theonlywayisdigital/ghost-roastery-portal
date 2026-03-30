@@ -327,7 +327,7 @@ export async function DELETE(
 
     const { data: existing } = await supabase
       .from("partner_roasters")
-      .select("id, is_active, business_name")
+      .select("id, business_name, stripe_sales_subscription_id, stripe_marketing_subscription_id, stripe_website_subscription_id, stripe_account_id, stripe_customer_id, website_custom_domain")
       .eq("id", id)
       .single();
 
@@ -335,31 +335,146 @@ export async function DELETE(
       return NextResponse.json({ error: "Roaster not found" }, { status: 404 });
     }
 
-    // Soft deactivate
+    const cleanup: string[] = [];
+
+    // ── 1. Stripe cleanup ──
+    for (const subField of ["stripe_sales_subscription_id", "stripe_marketing_subscription_id", "stripe_website_subscription_id"] as const) {
+      const subId = existing[subField] as string | null;
+      if (subId) {
+        try {
+          await stripe.subscriptions.cancel(subId);
+          cleanup.push(`Cancelled subscription ${subField}`);
+        } catch (e) {
+          console.error(`Failed to cancel ${subField} during delete:`, e);
+        }
+      }
+    }
+
+    if (existing.stripe_account_id) {
+      try {
+        await stripe.accounts.del(existing.stripe_account_id);
+        cleanup.push("Deleted Stripe Connect account");
+      } catch (e) {
+        console.error("Failed to delete Stripe Connect account during delete:", e);
+      }
+    }
+
+    if (existing.stripe_customer_id) {
+      try {
+        await stripe.customers.del(existing.stripe_customer_id);
+        cleanup.push("Deleted Stripe customer");
+      } catch (e) {
+        console.error("Failed to delete Stripe customer during delete:", e);
+      }
+    }
+
+    // ── 2. Resend domain cleanup ──
+    const { data: emailDomains } = await supabase
+      .from("roaster_email_domains")
+      .select("resend_domain_id, domain")
+      .eq("roaster_id", id);
+
+    if (emailDomains && emailDomains.length > 0) {
+      const { Resend } = await import("resend");
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      for (const d of emailDomains) {
+        if (d.resend_domain_id) {
+          try {
+            await resend.domains.remove(d.resend_domain_id);
+            cleanup.push(`Removed Resend domain ${d.domain}`);
+          } catch (e) {
+            console.error(`Failed to remove Resend domain ${d.domain}:`, e);
+          }
+        }
+      }
+    }
+
+    // ── 3. Vercel custom domain cleanup ──
+    if (existing.website_custom_domain) {
+      const vercelToken = process.env.VERCEL_API_TOKEN;
+      const vercelProjectId = process.env.VERCEL_PROJECT_ID;
+      const vercelTeamId = process.env.VERCEL_TEAM_ID;
+      if (vercelToken && vercelProjectId) {
+        const qs = vercelTeamId ? `?teamId=${vercelTeamId}` : "";
+        try {
+          await fetch(
+            `https://api.vercel.com/v9/projects/${vercelProjectId}/domains/${existing.website_custom_domain}${qs}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${vercelToken}`, "Content-Type": "application/json" },
+            }
+          );
+          cleanup.push(`Removed Vercel domain ${existing.website_custom_domain}`);
+        } catch (e) {
+          console.error(`Failed to remove Vercel domain ${existing.website_custom_domain}:`, e);
+        }
+      }
+    }
+
+    // ── 4. E-commerce webhook cleanup (Shopify / WooCommerce) ──
+    const { data: ecomConnections } = await supabase
+      .from("ecommerce_connections")
+      .select("id, provider, store_url, access_token, api_secret, webhook_ids")
+      .eq("roaster_id", id);
+
+    if (ecomConnections) {
+      for (const conn of ecomConnections) {
+        const webhookIds = (conn.webhook_ids as Record<string, string | number>) || {};
+        for (const [topic, webhookId] of Object.entries(webhookIds)) {
+          try {
+            if (conn.provider === "shopify") {
+              await fetch(
+                `https://${conn.store_url}/admin/api/2024-01/webhooks/${webhookId}.json`,
+                { method: "DELETE", headers: { "X-Shopify-Access-Token": conn.access_token || "" } }
+              );
+            } else if (conn.provider === "woocommerce" && conn.access_token && conn.api_secret) {
+              const authHeader = Buffer.from(`${conn.access_token}:${conn.api_secret}`).toString("base64");
+              await fetch(
+                `https://${conn.store_url}/wp-json/wc/v3/webhooks/${webhookId}?force=true`,
+                { method: "DELETE", headers: { Authorization: `Basic ${authHeader}` } }
+              );
+            }
+            cleanup.push(`Removed ${conn.provider} webhook ${topic}`);
+          } catch (e) {
+            console.error(`Failed to remove ${conn.provider} webhook ${topic}:`, e);
+          }
+        }
+      }
+    }
+
+    // ── 5. Supabase Storage cleanup (product images) ──
+    try {
+      const { data: files } = await supabase.storage
+        .from("product-images")
+        .list(id, { limit: 1000 });
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `${id}/${f.name}`);
+        await supabase.storage.from("product-images").remove(paths);
+        cleanup.push(`Removed ${paths.length} product image(s) from storage`);
+      }
+    } catch (e) {
+      console.error("Failed to clean up product images from storage:", e);
+    }
+
+    // ── 6. Hard delete — DB ON DELETE CASCADE handles all related tables ──
     const { error } = await supabase
       .from("partner_roasters")
-      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .delete()
       .eq("id", id);
 
     if (error) {
-      console.error("Admin roaster deactivate error:", error);
+      console.error("Admin roaster delete error:", error);
       return NextResponse.json(
-        { error: "Failed to deactivate roaster" },
+        { error: "Failed to delete roaster" },
         { status: 500 }
       );
     }
 
-    // Log activity
-    await supabase.from("roaster_activity").insert({
-      roaster_id: id,
-      author_id: user.id,
-      activity_type: "roaster_deactivated",
-      description: `Roaster "${existing.business_name}" deactivated by admin`,
-    });
+    console.log(`[admin] Roaster "${existing.business_name}" (${id}) permanently deleted. Cleanup: ${cleanup.join(", ") || "none"}`);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deleted: true, cleanup });
   } catch (error) {
-    console.error("Admin roaster deactivate error:", error);
+    console.error("Admin roaster delete error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

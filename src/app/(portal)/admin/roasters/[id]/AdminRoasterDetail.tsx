@@ -36,6 +36,7 @@ import {
   Crown,
   Sparkles,
   Zap,
+  Trash2,
 } from "@/components/icons";
 import { UsageBar } from "@/components/shared/UsageBar";
 import { StatusBadge as TierBadge } from "@/components/admin/StatusBadge";
@@ -298,6 +299,12 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
   const [addingStrike, setAddingStrike] = useState(false);
   const [impersonating, setImpersonating] = useState(false);
 
+  // Delete & toggle confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [showToggleConfirm, setShowToggleConfirm] = useState(false);
+
   // ─── Data Loading ───
 
   const loadRoaster = useCallback(async () => {
@@ -431,8 +438,9 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
     setSaving(false);
   }
 
-  async function handleToggleActive() {
+  async function handleToggleActiveConfirmed() {
     if (!roaster) return;
+    setShowToggleConfirm(false);
     setTogglingActive(true);
     try {
       const res = await fetch(`/api/admin/roasters/${roasterId}`, {
@@ -448,6 +456,22 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
       // silent
     }
     setTogglingActive(false);
+  }
+
+  async function handleDeleteRoaster() {
+    if (!roaster || deleteConfirmText !== roaster.business_name) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/roasters/${roasterId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.push("/admin/roasters");
+      }
+    } catch {
+      // silent
+    }
+    setDeleting(false);
   }
 
   async function handleAddStrike() {
@@ -758,7 +782,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                 {impersonating ? "Opening..." : "View as Roaster"}
               </button>
               <button
-                onClick={handleToggleActive}
+                onClick={() => setShowToggleConfirm(true)}
                 disabled={togglingActive}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
                   roaster.is_active
@@ -782,6 +806,13 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                 {addingStrike
                   ? "Adding..."
                   : `Add Strike (${roaster.strikes || 0}/3)`}
+              </button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-300 rounded-lg text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete Roaster
               </button>
             </div>
           </div>
@@ -2068,6 +2099,125 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Deactivate/Activate Confirmation Modal */}
+      {showToggleConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                roaster.is_active ? "bg-red-100" : "bg-green-100"
+              }`}>
+                <Power className={`w-5 h-5 ${
+                  roaster.is_active ? "text-red-600" : "text-green-600"
+                }`} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900">
+                {roaster.is_active ? "Deactivate Roaster" : "Activate Roaster"}
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 mb-6">
+              {roaster.is_active
+                ? `This will deactivate "${roaster.business_name}". The roaster will lose access to the portal and their storefront will go offline.`
+                : `This will reactivate "${roaster.business_name}". The roaster will regain access to the portal.`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowToggleConfirm(false)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleToggleActiveConfirmed}
+                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white ${
+                  roaster.is_active
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-green-600 hover:bg-green-700"
+                }`}
+              >
+                {roaster.is_active ? "Deactivate" : "Activate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Roaster Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Delete Roaster Permanently
+                </h3>
+                <p className="text-xs text-red-600">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm font-medium text-red-800 mb-2">
+                The following data will be permanently deleted:
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-sm text-red-700">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>{`${stats?.orderCount ?? 0} orders`}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5" />
+                  <span>{`${stats?.productCount ?? 0} products`}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{`${stats?.teamCount ?? 0} team members`}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{`${usageData?.crmContacts?.current ?? 0} contacts`}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                {`Type "${roaster.business_name}" to confirm`}
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={roaster.business_name}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteRoaster}
+                disabled={deleting || deleteConfirmText !== roaster.business_name}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting..." : "Delete Permanently"}
+              </button>
+            </div>
           </div>
         </div>
       )}

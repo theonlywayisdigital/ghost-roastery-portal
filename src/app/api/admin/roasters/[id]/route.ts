@@ -327,7 +327,7 @@ export async function DELETE(
 
     const { data: existing } = await supabase
       .from("partner_roasters")
-      .select("id, business_name, stripe_sales_subscription_id, stripe_marketing_subscription_id, stripe_website_subscription_id, stripe_account_id, stripe_customer_id, website_custom_domain")
+      .select("id, business_name, user_id, stripe_sales_subscription_id, stripe_marketing_subscription_id, stripe_website_subscription_id, stripe_account_id, stripe_customer_id, website_custom_domain")
       .eq("id", id)
       .single();
 
@@ -468,6 +468,36 @@ export async function DELETE(
         { error: "Failed to delete roaster" },
         { status: 500 }
       );
+    }
+
+    // ── 7. Supabase Auth user + related public tables cleanup ──
+    if (existing.user_id) {
+      // Delete profiles, users rows (may have FKs that don't cascade from auth.users)
+      try {
+        await supabase.from("profiles").delete().eq("id", existing.user_id);
+        cleanup.push("Deleted profile");
+      } catch (e) {
+        console.error("Failed to delete profile:", e);
+      }
+
+      try {
+        await supabase.from("users").delete().eq("id", existing.user_id);
+        cleanup.push("Deleted users row");
+      } catch (e) {
+        console.error("Failed to delete users row:", e);
+      }
+
+      // Delete the Supabase Auth user (frees up the email for re-registration)
+      try {
+        const { error: authErr } = await supabase.auth.admin.deleteUser(existing.user_id);
+        if (authErr) {
+          console.error("Failed to delete auth user:", authErr);
+        } else {
+          cleanup.push("Deleted auth user");
+        }
+      } catch (e) {
+        console.error("Failed to delete auth user:", e);
+      }
     }
 
     console.log(`[admin] Roaster "${existing.business_name}" (${id}) permanently deleted. Cleanup: ${cleanup.join(", ") || "none"}`);

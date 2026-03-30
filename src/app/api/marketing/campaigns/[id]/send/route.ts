@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMarketingOwner, applyOwnerFilter } from "@/lib/marketing-auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, checkEmailLimits, renderCampaignEmail } from "@/lib/marketing-email";
+import type { MarketingEmailBranding } from "@/lib/render-email-html";
 import { getVerifiedDomain } from "@/lib/email";
 import { splitName } from "@/lib/people";
 
@@ -131,16 +132,24 @@ export async function POST(
     await supabase.from("campaign_recipients").insert(recipientRecords);
 
     // Fetch roaster's branding for email header
-    let logoUrl: string | null = null;
-    let brandAccentColour: string | null = null;
+    let emailBranding: MarketingEmailBranding | null = null;
     if (owner.owner_id) {
       const { data: roaster } = await supabase
         .from("partner_roasters")
-        .select("brand_logo_url, brand_accent_colour")
+        .select("brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style")
         .eq("id", owner.owner_id)
         .single();
-      logoUrl = (roaster?.brand_logo_url as string) || null;
-      brandAccentColour = (roaster?.brand_accent_colour as string) || null;
+      if (roaster) {
+        emailBranding = {
+          primaryColour: (roaster.brand_primary_colour as string) || null,
+          accentColour: (roaster.brand_accent_colour as string) || null,
+          buttonColour: (roaster.storefront_button_colour as string) || null,
+          buttonTextColour: (roaster.storefront_button_text_colour as string) || null,
+          buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || null,
+          logoUrl: (roaster.brand_logo_url as string) || null,
+          logoSize: (roaster.storefront_logo_size as "small" | "medium" | "large") || null,
+        };
+      }
     }
 
     // Render email HTML — use a placeholder roaster_id for admin unsubscribe links
@@ -150,8 +159,10 @@ export async function POST(
       owner.display_name,
       renderRoasterId,
       (campaign.email_bg_color as string) || undefined,
-      logoUrl,
-      brandAccentColour
+      emailBranding?.logoUrl,
+      emailBranding?.accentColour,
+      emailBranding?.logoSize,
+      emailBranding
     );
 
     // Send in batches

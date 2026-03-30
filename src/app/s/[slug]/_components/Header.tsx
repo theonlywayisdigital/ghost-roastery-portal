@@ -206,10 +206,11 @@ export function Header() {
               {!authLoading && !user && (
                 <Link
                   href={`/s/${slug}/login`}
-                  className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
+                  className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold border transition-colors"
                   style={{
                     borderColor: accent,
                     color: accent,
+                    borderRadius: "var(--sf-btn-radius)",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = accent;

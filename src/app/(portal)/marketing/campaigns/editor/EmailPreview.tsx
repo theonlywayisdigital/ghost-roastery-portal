@@ -3,15 +3,24 @@
 import { useState } from "react";
 import { Monitor, Smartphone } from "@/components/icons";
 import type { EmailBlock } from "@/types/marketing";
-import { renderEmailHtml } from "./renderEmailHtml";
+import { renderEmailHtml, type MarketingEmailBranding } from "./renderEmailHtml";
 
 interface EmailPreviewProps {
   blocks: EmailBlock[];
+  businessName?: string;
+  logoUrl?: string | null;
+  logoSize?: "small" | "medium" | "large";
+  primaryColour?: string | null;
+  accentColour?: string | null;
+  buttonColour?: string | null;
+  buttonTextColour?: string | null;
+  buttonStyle?: "sharp" | "rounded" | "pill" | null;
 }
 
-export function EmailPreview({ blocks }: EmailPreviewProps) {
+export function EmailPreview({ blocks, businessName, logoUrl, logoSize, primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle }: EmailPreviewProps) {
   const [view, setView] = useState<"desktop" | "mobile">("desktop");
-  const html = renderEmailHtml(blocks, "Your Business", "");
+  const branding: MarketingEmailBranding = { primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
+  const html = renderEmailHtml(blocks, businessName || "Your Business", "", undefined, undefined, undefined, undefined, branding);
 
   return (
     <div>

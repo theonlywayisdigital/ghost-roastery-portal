@@ -570,10 +570,10 @@ export function WholesaleProductDetail({
                           style={
                             vOutOfStock ||
                             (vRemainingForAdd !== null && vRemainingForAdd <= 0)
-                              ? {}
-                              : { backgroundColor: accent, color: accentText }
+                              ? { borderRadius: "var(--sf-btn-radius)" }
+                              : { backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }
                           }
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-opacity flex-shrink-0 ${
+                          className={`px-4 py-2 text-sm font-medium transition-opacity flex-shrink-0 ${
                             vOutOfStock ||
                             (vRemainingForAdd !== null && vRemainingForAdd <= 0)
                               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
@@ -635,8 +635,8 @@ export function WholesaleProductDetail({
                     ) : (
                       <button
                         onClick={() => addToOrder()}
-                        style={{ backgroundColor: accent, color: accentText }}
-                        className="w-full py-3.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
+                        className="w-full py-3.5 font-semibold text-sm hover:opacity-90 transition-opacity"
                       >
                         Add to Order
                       </button>
@@ -806,8 +806,8 @@ export function WholesaleProductDetail({
                 )}
                 <button
                   onClick={handleReviewOrder}
-                  style={{ backgroundColor: accent, color: accentText }}
-                  className="px-6 py-2.5 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
+                  className="px-6 py-2.5 font-semibold text-sm hover:opacity-90 transition-opacity"
                 >
                   Review Order
                 </button>

@@ -286,15 +286,15 @@ export function StorefrontWholesalePage({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href={`/s/${slug}/wholesale/apply`}
-              className="px-6 py-3 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90"
-              style={{ backgroundColor: accent, color: accentText }}
+              className="px-6 py-3 font-semibold text-sm transition-opacity hover:opacity-90"
+              style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
             >
               Apply for Wholesale Account
             </Link>
             <Link
               href={`/s/${slug}/wholesale/login`}
-              className="px-6 py-3 rounded-lg font-semibold text-sm border transition-colors hover:bg-slate-50"
-              style={{ borderColor: accent, color: accent }}
+              className="px-6 py-3 font-semibold text-sm border transition-colors hover:bg-slate-50"
+              style={{ borderColor: accent, color: accent, borderRadius: "var(--sf-btn-radius)" }}
             >
               Already have an account? Sign in
             </Link>
@@ -388,8 +388,8 @@ export function StorefrontWholesalePage({
           </h2>
           <Link
             href={`/s/${slug}/wholesale/apply`}
-            className="inline-block px-8 py-3.5 rounded-lg font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
-            style={{ color: primary }}
+            className="inline-block px-8 py-3.5 font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
+            style={{ color: primary, borderRadius: "var(--sf-btn-radius)" }}
           >
             Apply for an Account
           </Link>

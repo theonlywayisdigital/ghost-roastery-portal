@@ -24,7 +24,8 @@ export default async function EmbedShopPage({
     .select(
       `id, business_name, brand_logo_url, brand_primary_colour,
        brand_accent_colour, brand_heading_font, storefront_slug,
-       storefront_enabled, retail_enabled, stripe_account_id`
+       storefront_enabled, retail_enabled, stripe_account_id,
+       storefront_button_style`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
@@ -52,6 +53,7 @@ export default async function EmbedShopPage({
         slug: roaster.storefront_slug,
         accentColour: roaster.brand_accent_colour || "#0083dc",
         accentText: isLightColour(roaster.brand_accent_colour || "#0083dc") ? "#1e293b" : "#ffffff",
+        buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
         retailEnabled: roaster.retail_enabled && !!roaster.stripe_account_id,
       }}
       products={products || []}

@@ -1,6 +1,19 @@
 import type { EmailBlock } from "@/types/marketing";
 
 const DEFAULT_ACCENT = "#0083dc";
+const DEFAULT_PRIMARY = "#0f172a";
+const LOGO_SIZE_PX: Record<string, number> = { small: 80, medium: 120, large: 160 };
+const BTN_RADIUS: Record<string, string> = { sharp: "0px", rounded: "6px", pill: "9999px" };
+
+export interface MarketingEmailBranding {
+  primaryColour?: string | null;
+  accentColour?: string | null;
+  buttonColour?: string | null;
+  buttonTextColour?: string | null;
+  buttonStyle?: "sharp" | "rounded" | "pill" | null;
+  logoUrl?: string | null;
+  logoSize?: "small" | "medium" | "large" | null;
+}
 
 export function renderEmailHtml(
   blocks: EmailBlock[],
@@ -8,20 +21,29 @@ export function renderEmailHtml(
   unsubscribeUrl: string,
   emailBgColor?: string,
   logoUrl?: string | null,
-  brandAccentColour?: string | null
+  brandAccentColour?: string | null,
+  logoSize?: "small" | "medium" | "large" | null,
+  branding?: MarketingEmailBranding | null
 ): string {
-  const accent = brandAccentColour || DEFAULT_ACCENT;
-  const renderedBlocks = blocks.map((b) => renderBlock(b, accent)).join("");
+  const primary = branding?.primaryColour || DEFAULT_PRIMARY;
+  const accent = branding?.accentColour || brandAccentColour || DEFAULT_ACCENT;
+  const btnColour = branding?.buttonColour || accent;
+  const btnText = branding?.buttonTextColour || "#ffffff";
+  const btnRadius = BTN_RADIUS[branding?.buttonStyle || "rounded"] || BTN_RADIUS.rounded;
+  const effectiveLogoUrl = branding?.logoUrl ?? logoUrl;
+  const effectiveLogoSize = branding?.logoSize ?? logoSize;
+  const renderedBlocks = blocks.map((b) => renderBlock(b, btnColour, btnText, btnRadius)).join("");
   const bgColor = emailBgColor || "#f8fafc";
+  const logoMaxHeight = LOGO_SIZE_PX[effectiveLogoSize || "medium"] || LOGO_SIZE_PX.medium;
 
-  const logoHeader = logoUrl
-    ? `<div style="background-color:#0f172a;border-radius:12px 12px 0 0;padding:24px;text-align:center;">
-        <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:40px;max-width:200px;object-fit:contain;" />
+  const logoHeader = effectiveLogoUrl
+    ? `<div style="background-color:${primary};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
+        <img src="${escapeHtml(effectiveLogoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />
       </div>`
     : "";
 
-  const cardTopRadius = logoUrl ? "0" : "12px";
-  const cardBorderTop = logoUrl ? "border-top:none;" : "";
+  const cardTopRadius = effectiveLogoUrl ? "0" : "12px";
+  const cardBorderTop = effectiveLogoUrl ? "border-top:none;" : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -54,8 +76,11 @@ export function renderEmailHtml(
 }
 
 /** Render for preview thumbnail — no wrapper chrome, just the email card */
-export function renderEmailHtmlForPreview(blocks: EmailBlock[], emailBgColor?: string): string {
-  const renderedBlocks = blocks.map((b) => renderBlock(b, DEFAULT_ACCENT)).join("");
+export function renderEmailHtmlForPreview(blocks: EmailBlock[], emailBgColor?: string, branding?: MarketingEmailBranding | null): string {
+  const accent = branding?.buttonColour || branding?.accentColour || DEFAULT_ACCENT;
+  const btnText = branding?.buttonTextColour || "#ffffff";
+  const btnRadius = BTN_RADIUS[branding?.buttonStyle || "rounded"] || BTN_RADIUS.rounded;
+  const renderedBlocks = blocks.map((b) => renderBlock(b, accent, btnText, btnRadius)).join("");
   const bgColor = emailBgColor || "#f8fafc";
   return `<!DOCTYPE html>
 <html>
@@ -76,7 +101,7 @@ export function renderEmailHtmlForPreview(blocks: EmailBlock[], emailBgColor?: s
 </html>`;
 }
 
-function renderBlock(block: EmailBlock, accentColour: string): string {
+function renderBlock(block: EmailBlock, accentColour: string, accentTextColour: string = "#ffffff", accentBorderRadius: string = "8px"): string {
   switch (block.type) {
     case "header": {
       const sizes: Record<number, string> = { 1: "28px", 2: "22px", 3: "18px" };
@@ -109,9 +134,9 @@ function renderBlock(block: EmailBlock, accentColour: string): string {
       const bgColor = block.data.backgroundColor
         || (block.data.style === "filled" ? accentColour : "transparent");
       const textColor = block.data.textColor
-        || (block.data.style === "filled" ? "#ffffff" : accentColour);
+        || (block.data.style === "filled" ? accentTextColour : accentColour);
       const border = block.data.style === "outline" ? `2px solid ${block.data.backgroundColor || accentColour}` : "none";
-      const br = block.data.borderRadius != null ? `${block.data.borderRadius}px` : "8px";
+      const br = block.data.borderRadius != null ? `${block.data.borderRadius}px` : accentBorderRadius;
       return `<div style="margin:0 0 16px;text-align:${block.data.align};">
         <a href="${escapeHtml(block.data.url)}" style="display:inline-block;padding:12px 28px;background-color:${bgColor};color:${textColor};border:${border};border-radius:${br};font-weight:600;font-size:14px;text-decoration:none;line-height:1;">${escapeHtml(block.data.text)}</a>
       </div>`;

@@ -367,8 +367,8 @@ export function WholesaleApplyForm({
       <button
         type="submit"
         disabled={submitting}
-        style={{ backgroundColor: accentColour, color: accentText }}
-        className="w-full py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+        style={{ backgroundColor: accentColour, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
+        className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         {submitting ? "Submitting..." : "Apply for Trade Account"}
       </button>

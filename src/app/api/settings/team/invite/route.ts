@@ -108,12 +108,16 @@ export async function POST(request: Request) {
     // Fetch roaster branding for email template
     const { data: roasterBranding } = await supabase
       .from("partner_roasters")
-      .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+      .select("brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roaster.id)
       .single();
 
     const branding: EmailBranding | undefined = roasterBranding ? {
       logoUrl: roasterBranding.brand_logo_url,
+      logoSize: roasterBranding.storefront_logo_size || "medium",
+      buttonColour: roasterBranding.storefront_button_colour || undefined,
+      buttonTextColour: roasterBranding.storefront_button_text_colour || undefined,
+      buttonStyle: (roasterBranding.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
       primaryColour: roasterBranding.brand_primary_colour || undefined,
       accentColour: roasterBranding.brand_accent_colour || undefined,
       headingFont: roasterBranding.brand_heading_font || undefined,

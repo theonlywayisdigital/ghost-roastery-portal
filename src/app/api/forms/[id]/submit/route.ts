@@ -84,12 +84,16 @@ export async function POST(
     if (roaster) {
       const { data: rb } = await supabase
         .from("partner_roasters")
-        .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+        .select("brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
         .eq("id", roaster.id)
         .single();
       if (rb) {
         branding = {
           logoUrl: rb.brand_logo_url,
+          logoSize: rb.storefront_logo_size || "medium",
+          buttonColour: rb.storefront_button_colour || undefined,
+          buttonTextColour: rb.storefront_button_text_colour || undefined,
+          buttonStyle: (rb.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
           primaryColour: rb.brand_primary_colour || undefined,
           accentColour: rb.brand_accent_colour || undefined,
           headingFont: rb.brand_heading_font || undefined,

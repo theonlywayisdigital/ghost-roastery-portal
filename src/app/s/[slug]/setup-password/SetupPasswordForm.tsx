@@ -185,8 +185,9 @@ export function SetupPasswordForm({ slug, token, valid, roaster }: Props) {
                 style={{
                   backgroundColor: roaster.accentColour,
                   color: accentText,
+                  borderRadius: "var(--sf-btn-radius)",
                 }}
-                className="w-full py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {isLoading ? "Setting up…" : "Set Password"}
               </button>
@@ -206,8 +207,9 @@ export function SetupPasswordForm({ slug, token, valid, roaster }: Props) {
               style={{
                 backgroundColor: roaster.accentColour,
                 color: accentText,
+                borderRadius: "var(--sf-btn-radius)",
               }}
-              className="inline-flex items-center justify-center px-6 py-2.5 rounded-lg font-medium hover:opacity-90 transition-opacity"
+              className="inline-flex items-center justify-center px-6 py-2.5 font-medium hover:opacity-90 transition-opacity"
             >
               Go to Sign In
             </Link>

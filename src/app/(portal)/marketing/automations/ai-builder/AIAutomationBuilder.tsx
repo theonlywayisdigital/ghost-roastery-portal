@@ -119,6 +119,32 @@ export function AIAutomationBuilder() {
 
   const refineInputRef = useRef<HTMLInputElement>(null);
 
+  // Branding for email previews
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
+  const [brandLogoSize, setBrandLogoSize] = useState<"small" | "medium" | "large">("medium");
+  const [brandBusinessName, setBrandBusinessName] = useState<string>("");
+  const [brandPrimaryColour, setBrandPrimaryColour] = useState<string | null>(null);
+  const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
+  const [brandButtonColour, setBrandButtonColour] = useState<string | null>(null);
+  const [brandButtonTextColour, setBrandButtonTextColour] = useState<string | null>(null);
+  const [brandButtonStyle, setBrandButtonStyle] = useState<"sharp" | "rounded" | "pill" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/branding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.brand_logo_url) setBrandLogoUrl(data.brand_logo_url);
+        if (data?.storefront_logo_size) setBrandLogoSize(data.storefront_logo_size);
+        if (data?.business_name) setBrandBusinessName(data.business_name);
+        if (data?.brand_primary_colour) setBrandPrimaryColour(data.brand_primary_colour);
+        if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
+        if (data?.storefront_button_colour) setBrandButtonColour(data.storefront_button_colour);
+        if (data?.storefront_button_text_colour) setBrandButtonTextColour(data.storefront_button_text_colour);
+        if (data?.storefront_button_style) setBrandButtonStyle(data.storefront_button_style);
+      })
+      .catch(() => {});
+  }, []);
+
   // Load context data
   useEffect(() => {
     async function loadContext() {
@@ -671,7 +697,7 @@ export function AIAutomationBuilder() {
                 {/* Expanded preview */}
                 {isExpanded && (
                   <div className="border-t border-slate-100 p-4">
-                    <StepPreview step={step} />
+                    <StepPreview step={step} brandBusinessName={brandBusinessName} brandLogoUrl={brandLogoUrl} brandLogoSize={brandLogoSize} brandPrimaryColour={brandPrimaryColour} brandAccentColour={brandAccentColour} brandButtonColour={brandButtonColour} brandButtonTextColour={brandButtonTextColour} brandButtonStyle={brandButtonStyle} />
                   </div>
                 )}
               </div>
@@ -773,7 +799,7 @@ export function AIAutomationBuilder() {
 }
 
 // ─── Step Preview ────────────────────────────────────────────
-function StepPreview({ step }: { step: GeneratedStep }) {
+function StepPreview({ step, brandBusinessName, brandLogoUrl, brandLogoSize, brandPrimaryColour, brandAccentColour, brandButtonColour, brandButtonTextColour, brandButtonStyle }: { step: GeneratedStep; brandBusinessName: string; brandLogoUrl: string | null; brandLogoSize: "small" | "medium" | "large"; brandPrimaryColour: string | null; brandAccentColour: string | null; brandButtonColour: string | null; brandButtonTextColour: string | null; brandButtonStyle: "sharp" | "rounded" | "pill" | null }) {
   switch (step.step_type) {
     case "email": {
       const subject = (step.config.subject as string) || "";
@@ -800,7 +826,7 @@ function StepPreview({ step }: { step: GeneratedStep }) {
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
                 {`Content Preview (${blocks.length} blocks)`}
               </p>
-              <EmailMiniPreview blocks={blocks} emailBgColor={bgColor} />
+              <EmailMiniPreview blocks={blocks} emailBgColor={bgColor} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
             </div>
           )}
         </div>

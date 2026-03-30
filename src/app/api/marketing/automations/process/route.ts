@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { renderCampaignEmail, checkEmailLimits } from "@/lib/marketing-email";
+import type { MarketingEmailBranding } from "@/lib/render-email-html";
 import { fireAutomationTrigger, evaluateFilters } from "@/lib/automation-triggers";
 import { getVerifiedDomain } from "@/lib/email";
 import type { TriggerFilters } from "@/types/marketing";
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Find active enrollments that are due for their next step
     const { data: dueEnrollments } = await supabase
       .from("automation_enrollments")
-      .select("*, automations(*, partner_roasters(id, business_name, email, brand_logo_url, brand_accent_colour))")
+      .select("*, automations(*, partner_roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style))")
       .eq("status", "active")
       .lte("next_step_at", new Date().toISOString())
       .limit(100);
@@ -108,13 +109,24 @@ export async function GET(request: NextRequest) {
           }
 
           const content = (config.content as unknown[]) || [];
+          const mBranding: MarketingEmailBranding = {
+            primaryColour: (roaster.brand_primary_colour as string) || null,
+            accentColour: (roaster.brand_accent_colour as string) || null,
+            buttonColour: (roaster.storefront_button_colour as string) || null,
+            buttonTextColour: (roaster.storefront_button_text_colour as string) || null,
+            buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || null,
+            logoUrl: (roaster.brand_logo_url as string) || null,
+            logoSize: (roaster.storefront_logo_size as "small" | "medium" | "large") || null,
+          };
           const html = renderCampaignEmail(
             content,
             roaster.business_name as string,
             roaster.id as string,
             undefined,
-            (roaster.brand_logo_url as string) || null,
-            (roaster.brand_accent_colour as string) || null
+            mBranding.logoUrl,
+            mBranding.accentColour,
+            mBranding.logoSize,
+            mBranding
           );
 
           const fromName = (config.from_name as string) || (roaster.business_name as string);

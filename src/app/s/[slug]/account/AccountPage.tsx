@@ -524,8 +524,8 @@ export function AccountPage({
             <button
               onClick={handleSavePersonal}
               disabled={personalSaving}
-              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
-              style={{ backgroundColor: accent, color: accentText }}
+              className="px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
             >
               {personalSaving ? "Saving..." : "Save"}
             </button>
@@ -564,11 +564,11 @@ export function AccountPage({
             <button
               onClick={handleSaveEmail}
               disabled={emailSaving || email === profile.email}
-              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              className="px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
               style={
                 email !== profile.email && !emailSaving
-                  ? { backgroundColor: accent, color: accentText }
-                  : {}
+                  ? { backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }
+                  : { borderRadius: "var(--sf-btn-radius)" }
               }
             >
               {emailSaving ? "Saving..." : "Update Email"}
@@ -620,8 +620,8 @@ export function AccountPage({
               <button
                 onClick={handleSaveBusiness}
                 disabled={businessSaving}
-                className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
-                style={{ backgroundColor: accent, color: accentText }}
+                className="px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+                style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
               >
                 {businessSaving ? "Saving..." : "Save"}
               </button>
@@ -676,8 +676,8 @@ export function AccountPage({
               {wholesaleAccess.status === "approved" && (
                 <Link
                   href={`/s/${slug}/wholesale`}
-                  className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: accent, color: accentText }}
+                  className="inline-flex items-center px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
                 >
                   Access Wholesale Catalogue
                 </Link>
@@ -701,8 +701,8 @@ export function AccountPage({
               </h2>
               <button
                 onClick={openAddAddr}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-90"
-                style={{ backgroundColor: accent, color: accentText }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-90"
+                style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Address
@@ -903,8 +903,8 @@ export function AccountPage({
                   <button
                     onClick={handleSaveAddr}
                     disabled={addrSaving}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-                    style={{ backgroundColor: accent, color: accentText }}
+                    className="px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
                   >
                     {addrSaving
                       ? "Saving..."
@@ -976,11 +976,11 @@ export function AccountPage({
                 !newPassword ||
                 !confirmPassword
               }
-              className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
+              className="px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 shrink-0 ml-4"
               style={
                 currentPassword && newPassword && confirmPassword && !passwordSaving
-                  ? { backgroundColor: accent, color: accentText }
-                  : {}
+                  ? { backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }
+                  : { borderRadius: "var(--sf-btn-radius)" }
               }
             >
               {passwordSaving ? "Changing..." : "Change Password"}

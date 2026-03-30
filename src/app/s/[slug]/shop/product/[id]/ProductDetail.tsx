@@ -501,10 +501,10 @@ export function ProductDetail({
                   disabled={hasVariants && !selectedVariant}
                   style={
                     hasVariants && !selectedVariant
-                      ? undefined
-                      : { backgroundColor: accent, color: accentText }
+                      ? { borderRadius: "var(--sf-btn-radius)" }
+                      : { backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }
                   }
-                  className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-opacity ${
+                  className={`w-full py-3.5 font-semibold text-sm transition-opacity ${
                     hasVariants && !selectedVariant
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                       : "hover:opacity-90"

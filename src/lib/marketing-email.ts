@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import { createHmac } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EmailBlock } from "@/types/marketing";
-import { renderEmailHtml } from "@/lib/render-email-html";
+import { renderEmailHtml, type MarketingEmailBranding } from "@/lib/render-email-html";
 import { type TierLevel, getEffectiveLimits } from "@/lib/tier-config";
 
 const FROM_DOMAIN = "roasteryplatform.com";
@@ -17,11 +17,13 @@ export function renderCampaignEmail(
   roasterId: string,
   emailBgColor?: string,
   logoUrl?: string | null,
-  brandAccentColour?: string | null
+  brandAccentColour?: string | null,
+  logoSize?: "small" | "medium" | "large" | null,
+  branding?: MarketingEmailBranding | null
 ): string {
   const blocks = content as EmailBlock[];
   const unsubscribeUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com"}/api/marketing/unsubscribe?token={{unsubscribe_token}}`;
-  return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined, logoUrl, brandAccentColour);
+  return renderEmailHtml(blocks, businessName, unsubscribeUrl, emailBgColor || undefined, logoUrl, brandAccentColour, logoSize, branding);
 }
 
 // ─── Unsubscribe Tokens ───

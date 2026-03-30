@@ -8,21 +8,33 @@ import { resolveFontFamily, buildGoogleFontsUrl } from "@/lib/fonts";
 
 export interface EmailBranding {
   logoUrl?: string | null;
+  logoSize?: "small" | "medium" | "large";
   primaryColour?: string;
   accentColour?: string;
+  buttonColour?: string;
+  buttonTextColour?: string;
+  buttonStyle?: "sharp" | "rounded" | "pill";
   headingFont?: string;
   bodyFont?: string;
   businessName?: string;
   tagline?: string;
 }
 
+const LOGO_SIZE_PX: Record<string, number> = { small: 80, medium: 120, large: 160 };
+
 const PLATFORM_LOGO_URL =
   "https://zaryzynzbpxmscggufdc.supabase.co/storage/v1/object/public/assets/logo-main.png";
 
+const BTN_RADIUS: Record<string, string> = { sharp: "0px", rounded: "6px", pill: "9999px" };
+
 const DEFAULT_BRANDING: Required<Omit<EmailBranding, "tagline" | "businessName">> = {
   logoUrl: PLATFORM_LOGO_URL,
+  logoSize: "medium",
   primaryColour: "#0f172a",
   accentColour: "#0083dc",
+  buttonColour: "",
+  buttonTextColour: "",
+  buttonStyle: "rounded",
   headingFont: "inter",
   bodyFont: "inter",
 };
@@ -52,6 +64,7 @@ export function wrapEmailWithBranding(options: {
   const logoUrl = branding === undefined || branding === null
     ? DEFAULT_BRANDING.logoUrl
     : branding.logoUrl || null;
+  const logoMaxHeight = LOGO_SIZE_PX[branding?.logoSize || "medium"] || LOGO_SIZE_PX.medium;
   const tagline = branding?.tagline ?? (branding ? null : "Sell, market & manage — built for roasters");
 
   const fontsToLoad = Array.from(new Set([headingFamily, bodyFamily]));
@@ -69,7 +82,7 @@ export function wrapEmailWithBranding(options: {
     <!-- Header strip -->
     <div style="background-color:${primary};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
       ${logoUrl
-        ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:40px;max-width:200px;object-fit:contain;" />`
+        ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />`
         : `<p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;opacity:0.95;">${businessName}</p>`
       }
     </div>
@@ -98,12 +111,15 @@ export function emailButton(options: {
   label: string;
   branding?: EmailBranding | null;
 }): string {
-  const accent = options.branding?.accentColour || DEFAULT_BRANDING.accentColour;
-  const headingFamily = resolveFontFamily(options.branding?.headingFont || DEFAULT_BRANDING.headingFont);
+  const b = options.branding;
+  const btnBg = b?.buttonColour || b?.accentColour || DEFAULT_BRANDING.accentColour;
+  const btnText = b?.buttonTextColour || "#ffffff";
+  const btnRadius = BTN_RADIUS[b?.buttonStyle || "rounded"] || BTN_RADIUS.rounded;
+  const headingFamily = resolveFontFamily(b?.headingFont || DEFAULT_BRANDING.headingFont);
 
   return `<div style="text-align:center;margin:24px 0;">
   <a href="${options.href}"
-     style="display:inline-block;padding:12px 32px;background-color:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;font-family:'${headingFamily}',sans-serif;">
+     style="display:inline-block;padding:12px 32px;background-color:${btnBg};color:${btnText};text-decoration:none;border-radius:${btnRadius};font-weight:600;font-size:14px;font-family:'${headingFamily}',sans-serif;">
     ${options.label}
   </a>
 </div>`;

@@ -66,6 +66,13 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
 
   // Branding
   const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
+  const [brandPrimaryColour, setBrandPrimaryColour] = useState<string | null>(null);
+  const [brandButtonColour, setBrandButtonColour] = useState<string | null>(null);
+  const [brandButtonTextColour, setBrandButtonTextColour] = useState<string | null>(null);
+  const [brandButtonStyle, setBrandButtonStyle] = useState<"sharp" | "rounded" | "pill" | null>(null);
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
+  const [brandLogoSize, setBrandLogoSize] = useState<"small" | "medium" | "large">("medium");
+  const [brandBusinessName, setBrandBusinessName] = useState<string>("");
 
   // Template selection
   const [templates, setTemplates] = useState<{ prebuilt: EmailTemplate[]; custom: EmailTemplate[] }>({ prebuilt: [], custom: [] });
@@ -116,6 +123,13 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
+        if (data?.brand_primary_colour) setBrandPrimaryColour(data.brand_primary_colour);
+        if (data?.storefront_button_colour) setBrandButtonColour(data.storefront_button_colour);
+        if (data?.storefront_button_text_colour) setBrandButtonTextColour(data.storefront_button_text_colour);
+        if (data?.storefront_button_style) setBrandButtonStyle(data.storefront_button_style);
+        if (data?.brand_logo_url) setBrandLogoUrl(data.brand_logo_url);
+        if (data?.storefront_logo_size) setBrandLogoSize(data.storefront_logo_size);
+        if (data?.business_name) setBrandBusinessName(data.business_name);
       })
       .catch(() => {});
   }, []);
@@ -455,6 +469,14 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
               sendingTest={sendingTest}
               onSend={handleSend}
               sending={sending}
+              brandBusinessName={brandBusinessName}
+              brandLogoUrl={brandLogoUrl}
+              brandLogoSize={brandLogoSize}
+              brandPrimaryColour={brandPrimaryColour}
+              brandAccentColour={brandAccentColour}
+              brandButtonColour={brandButtonColour}
+              brandButtonTextColour={brandButtonTextColour}
+              brandButtonStyle={brandButtonStyle}
             />
           )}
         </div>
@@ -848,6 +870,8 @@ function ReviewStep({
   name, subject, previewText, fromName, replyTo, audienceType,
   customRecipients, content, scheduledAt, setScheduledAt,
   onSendTest, sendingTest, onSend, sending,
+  brandBusinessName, brandLogoUrl, brandLogoSize,
+  brandPrimaryColour, brandAccentColour, brandButtonColour, brandButtonTextColour, brandButtonStyle,
 }: {
   name: string; subject: string; previewText: string;
   fromName: string; replyTo: string; audienceType: AudienceType;
@@ -855,6 +879,10 @@ function ReviewStep({
   content: EmailBlock[]; scheduledAt: string; setScheduledAt: (v: string) => void;
   onSendTest: () => void; sendingTest: boolean;
   onSend: () => void; sending: boolean;
+  brandBusinessName: string; brandLogoUrl: string | null; brandLogoSize: "small" | "medium" | "large";
+  brandPrimaryColour: string | null; brandAccentColour: string | null;
+  brandButtonColour: string | null; brandButtonTextColour: string | null;
+  brandButtonStyle: "sharp" | "rounded" | "pill" | null;
 }) {
   const issues: string[] = [];
   if (!subject) issues.push("Subject line is required");
@@ -933,7 +961,7 @@ function ReviewStep({
         {/* Right: Email Preview */}
         <div>
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Preview</p>
-          <EmailPreview blocks={content} />
+          <EmailPreview blocks={content} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
         </div>
       </div>
     </div>

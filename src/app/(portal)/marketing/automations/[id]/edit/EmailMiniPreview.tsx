@@ -1,16 +1,33 @@
 "use client";
 
 import type { EmailBlock } from "@/types/marketing";
-import { renderEmailHtml } from "@/lib/render-email-html";
+import { renderEmailHtml, type MarketingEmailBranding } from "@/lib/render-email-html";
 
 export function EmailMiniPreview({
   blocks,
   emailBgColor,
+  businessName,
+  logoUrl,
+  logoSize,
+  primaryColour,
+  accentColour,
+  buttonColour,
+  buttonTextColour,
+  buttonStyle,
 }: {
   blocks: EmailBlock[];
   emailBgColor?: string;
+  businessName?: string;
+  logoUrl?: string | null;
+  logoSize?: "small" | "medium" | "large";
+  primaryColour?: string | null;
+  accentColour?: string | null;
+  buttonColour?: string | null;
+  buttonTextColour?: string | null;
+  buttonStyle?: "sharp" | "rounded" | "pill" | null;
 }) {
-  const html = renderEmailHtml(blocks, "", "", emailBgColor);
+  const branding: MarketingEmailBranding = { primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
+  const html = renderEmailHtml(blocks, businessName || "", "", emailBgColor, undefined, undefined, undefined, branding);
 
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden bg-white">

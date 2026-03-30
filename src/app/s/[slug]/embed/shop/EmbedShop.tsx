@@ -34,6 +34,7 @@ export function EmbedShop({
     slug: string;
     accentColour: string;
     accentText: string;
+    buttonStyle: "sharp" | "rounded" | "pill";
     retailEnabled: boolean;
   };
   products: Product[];
@@ -45,6 +46,9 @@ export function EmbedShop({
     observer.observe(document.body);
     return () => observer.disconnect();
   }, []);
+
+  const btnRadiusMap: Record<string, string> = { sharp: "0px", rounded: "6px", pill: "9999px" };
+  const btnRadius = btnRadiusMap[roaster.buttonStyle] || "6px";
 
   const storefrontBase =
     typeof window !== "undefined"
@@ -132,13 +136,14 @@ export function EmbedShop({
                   disabled={outOfStock}
                   style={
                     outOfStock
-                      ? undefined
+                      ? { borderRadius: btnRadius }
                       : {
                           backgroundColor: roaster.accentColour,
                           color: roaster.accentText,
+                          borderRadius: btnRadius,
                         }
                   }
-                  className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-opacity ${
+                  className={`w-full py-2.5 text-sm font-semibold transition-opacity ${
                     outOfStock
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                       : "hover:opacity-90"

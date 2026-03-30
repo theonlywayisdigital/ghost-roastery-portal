@@ -686,7 +686,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                         style={{
                           backgroundColor: buttonColour,
                           color: buttonTextColour,
-                          borderRadius: { sharp: "0px", rounded: "8px", pill: "9999px" }[buttonStyle],
+                          borderRadius: { sharp: "0px", rounded: "6px", pill: "9999px" }[buttonStyle],
                         }}
                       >
                         Order

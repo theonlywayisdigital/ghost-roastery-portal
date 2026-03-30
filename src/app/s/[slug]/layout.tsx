@@ -76,8 +76,8 @@ export default async function StorefrontLayout({
   const btnText = roaster.storefront_button_text_colour ?? "#ffffff";
   const pageBg = roaster.storefront_bg_colour ?? "#ffffff";
   const pageText = roaster.storefront_text_colour ?? "#0f172a";
-  const btnRadiusMap: Record<string, string> = { sharp: "0px", rounded: "8px", pill: "9999px" };
-  const btnRadius = btnRadiusMap[roaster.storefront_button_style ?? "rounded"] ?? "8px";
+  const btnRadiusMap: Record<string, string> = { sharp: "0px", rounded: "6px", pill: "9999px" };
+  const btnRadius = btnRadiusMap[roaster.storefront_button_style ?? "rounded"] ?? "6px";
 
   return (
     <>

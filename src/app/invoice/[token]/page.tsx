@@ -55,6 +55,9 @@ export default async function PublicInvoicePage({
   let accentColour = "#0f172a";
   let headingFontKey = "inter";
   let bodyFontKey = "inter";
+  let buttonColour: string | null = null;
+  let buttonTextColour: string | null = null;
+  let buttonStyle: "sharp" | "rounded" | "pill" = "rounded";
   let bankName: string | null = null;
   let bankAccountNumber: string | null = null;
   let bankSortCode: string | null = null;
@@ -64,7 +67,7 @@ export default async function PublicInvoicePage({
     const { data: roaster } = await supabase
       .from("partner_roasters")
       .select(
-        "business_name, email, address_line_1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, bank_name, bank_account_number, bank_sort_code, payment_instructions"
+        "business_name, email, address_line_1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, storefront_button_colour, storefront_button_text_colour, storefront_button_style, bank_name, bank_account_number, bank_sort_code, payment_instructions"
       )
       .eq("id", invoice.roaster_id)
       .single();
@@ -79,6 +82,9 @@ export default async function PublicInvoicePage({
       accentColour = roaster.brand_accent_colour || accentColour;
       headingFontKey = roaster.brand_heading_font || headingFontKey;
       bodyFontKey = roaster.brand_body_font || bodyFontKey;
+      buttonColour = roaster.storefront_button_colour || null;
+      buttonTextColour = roaster.storefront_button_text_colour || null;
+      if (roaster.storefront_button_style) buttonStyle = roaster.storefront_button_style as "sharp" | "rounded" | "pill";
       bankName = roaster.bank_name || null;
       bankAccountNumber = roaster.bank_account_number || null;
       bankSortCode = roaster.bank_sort_code || null;
@@ -395,8 +401,12 @@ export default async function PublicInvoicePage({
                   <div className="text-center">
                     <a
                       href={invoice.stripe_payment_link_url}
-                      className="inline-flex items-center gap-2 px-8 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
-                      style={{ backgroundColor: accentColour }}
+                      className="inline-flex items-center gap-2 px-8 py-3 font-semibold hover:opacity-90 transition-opacity"
+                      style={{
+                        backgroundColor: buttonColour || accentColour,
+                        color: buttonTextColour || "#ffffff",
+                        borderRadius: buttonStyle === "pill" ? "9999px" : buttonStyle === "sharp" ? "0px" : "6px",
+                      }}
                     >
                       Pay Now
                     </a>

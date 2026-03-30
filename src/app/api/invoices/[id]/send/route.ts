@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendInvoiceEmail } from "@/lib/email";
+import type { EmailBranding } from "@/lib/email-template";
 import { generateInvoiceAttachment } from "@/lib/invoice-pdf";
 import { stripe } from "@/lib/stripe";
 
@@ -105,7 +106,7 @@ export async function POST(
     let bankAccountNumber: string | null = null;
     let bankSortCode: string | null = null;
     let paymentInstructions: string | null = null;
-    let branding: { logoUrl?: string | null; primaryColour?: string; accentColour?: string; headingFont?: string; bodyFont?: string; businessName?: string } = {};
+    let branding: EmailBranding = {};
 
     let stripeAccountId: string | null = null;
     let platformFeePercent = 0;
@@ -113,7 +114,7 @@ export async function POST(
     if (invoice.owner_type === "roaster" && invoice.roaster_id) {
       const { data: roaster } = await supabase
         .from("partner_roasters")
-        .select("business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id, platform_fee_percent")
+        .select("business_name, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id, platform_fee_percent")
         .eq("id", invoice.roaster_id)
         .single();
 
@@ -129,6 +130,10 @@ export async function POST(
         platformFeePercent = roaster.platform_fee_percent || 0;
         branding = {
           logoUrl: roaster.brand_logo_url,
+          logoSize: roaster.storefront_logo_size || "medium",
+          buttonColour: roaster.storefront_button_colour || undefined,
+          buttonTextColour: roaster.storefront_button_text_colour || undefined,
+          buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
           primaryColour: roaster.brand_primary_colour || undefined,
           accentColour: roaster.brand_accent_colour || undefined,
           headingFont: roaster.brand_heading_font || undefined,

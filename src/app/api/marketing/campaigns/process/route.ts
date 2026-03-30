@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, renderCampaignEmail, checkEmailLimits } from "@/lib/marketing-email";
+import type { MarketingEmailBranding } from "@/lib/render-email-html";
 import { getVerifiedDomain } from "@/lib/email";
 import { splitName } from "@/lib/people";
 
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
   // Find scheduled campaigns that are due
   const { data: dueCampaigns, error } = await supabase
     .from("campaigns")
-    .select("*, partner_roasters(id, business_name, email, brand_logo_url, brand_accent_colour)")
+    .select("*, partner_roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style)")
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true })
@@ -43,7 +44,12 @@ export async function GET(request: Request) {
       business_name: string;
       email: string;
       brand_logo_url: string | null;
+      brand_primary_colour: string | null;
       brand_accent_colour: string | null;
+      storefront_logo_size: string | null;
+      storefront_button_colour: string | null;
+      storefront_button_text_colour: string | null;
+      storefront_button_style: string | null;
     } | null;
 
     try {
@@ -150,15 +156,24 @@ export async function GET(request: Request) {
       // Render email
       const displayName = roaster?.business_name || "Roastery Platform";
       const renderRoasterId = campaign.roaster_id || "platform";
-      const logoUrl = roaster?.brand_logo_url || null;
-      const brandAccentColour = roaster?.brand_accent_colour || null;
+      const mBranding: MarketingEmailBranding | null = roaster ? {
+        primaryColour: roaster.brand_primary_colour,
+        accentColour: roaster.brand_accent_colour,
+        buttonColour: roaster.storefront_button_colour,
+        buttonTextColour: roaster.storefront_button_text_colour,
+        buttonStyle: roaster.storefront_button_style as "sharp" | "rounded" | "pill" | null,
+        logoUrl: roaster.brand_logo_url,
+        logoSize: roaster.storefront_logo_size as "small" | "medium" | "large" | null,
+      } : null;
       const html = renderCampaignEmail(
         campaign.content as unknown[],
         displayName,
         renderRoasterId,
         (campaign.email_bg_color as string) || undefined,
-        logoUrl,
-        brandAccentColour
+        mBranding?.logoUrl,
+        mBranding?.accentColour,
+        mBranding?.logoSize,
+        mBranding
       );
 
       // Send

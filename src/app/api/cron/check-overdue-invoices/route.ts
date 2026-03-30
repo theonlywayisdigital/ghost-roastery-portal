@@ -71,7 +71,7 @@ export async function GET(request: Request) {
 
       const { data: roasters } = await supabase
         .from("partner_roasters")
-        .select("id, invoice_reminder_enabled, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
+        .select("id, invoice_reminder_enabled, business_name, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
         .in("id", roasterIds);
 
       const roasterMap = new Map(
@@ -115,6 +115,10 @@ export async function GET(request: Request) {
           const ownerName = roaster.business_name || "Roastery Platform";
           const branding = {
             logoUrl: roaster.brand_logo_url,
+            logoSize: (roaster.storefront_logo_size as "small" | "medium" | "large") || "medium",
+            buttonColour: roaster.storefront_button_colour || undefined,
+            buttonTextColour: roaster.storefront_button_text_colour || undefined,
+            buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
             primaryColour: roaster.brand_primary_colour || undefined,
             accentColour: roaster.brand_accent_colour || undefined,
             headingFont: roaster.brand_heading_font || undefined,

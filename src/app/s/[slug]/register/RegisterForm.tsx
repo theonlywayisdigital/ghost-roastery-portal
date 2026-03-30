@@ -239,8 +239,9 @@ export function RegisterForm({
               style={{
                 backgroundColor: roaster.accentColour,
                 color: accentText,
+                borderRadius: "var(--sf-btn-radius)",
               }}
-              className="w-full py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? "Creating account…" : "Create Account"}
             </button>

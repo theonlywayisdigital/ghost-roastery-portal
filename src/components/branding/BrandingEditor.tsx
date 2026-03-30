@@ -94,7 +94,7 @@ export function BrandingEditor({
   // Derived values for preview
   const effectiveButtonColour = buttonColour || accentColour;
   const effectiveButtonTextColour = buttonTextColour || "#ffffff";
-  const buttonRadius = { sharp: "0px", rounded: "8px", pill: "9999px" }[buttonStyle];
+  const buttonRadius = { sharp: "0px", rounded: "6px", pill: "9999px" }[buttonStyle];
   const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
   const previewLogoHeight = Math.round(logoHeight * 0.25);
 

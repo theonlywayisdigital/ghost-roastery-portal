@@ -226,8 +226,8 @@ export function Cart() {
 
                   <button
                     onClick={handleCheckout}
-                    style={{ backgroundColor: accent, color: accentText }}
-                    className="w-full py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
+                    className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity"
                   >
                     Checkout
                   </button>

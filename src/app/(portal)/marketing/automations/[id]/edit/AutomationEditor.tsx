@@ -74,6 +74,32 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Branding for email previews
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(null);
+  const [brandLogoSize, setBrandLogoSize] = useState<"small" | "medium" | "large">("medium");
+  const [brandBusinessName, setBrandBusinessName] = useState<string>("");
+  const [brandPrimaryColour, setBrandPrimaryColour] = useState<string | null>(null);
+  const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
+  const [brandButtonColour, setBrandButtonColour] = useState<string | null>(null);
+  const [brandButtonTextColour, setBrandButtonTextColour] = useState<string | null>(null);
+  const [brandButtonStyle, setBrandButtonStyle] = useState<"sharp" | "rounded" | "pill" | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/branding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.brand_logo_url) setBrandLogoUrl(data.brand_logo_url);
+        if (data?.storefront_logo_size) setBrandLogoSize(data.storefront_logo_size);
+        if (data?.business_name) setBrandBusinessName(data.business_name);
+        if (data?.brand_primary_colour) setBrandPrimaryColour(data.brand_primary_colour);
+        if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
+        if (data?.storefront_button_colour) setBrandButtonColour(data.storefront_button_colour);
+        if (data?.storefront_button_text_colour) setBrandButtonTextColour(data.storefront_button_text_colour);
+        if (data?.storefront_button_style) setBrandButtonStyle(data.storefront_button_style);
+      })
+      .catch(() => {});
+  }, []);
+
   const loadAutomation = useCallback(async () => {
     setLoading(true);
     try {
@@ -456,6 +482,14 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
                       step={step}
                       onChange={(config) => handleUpdateStepConfig(step.id, config)}
                       apiBase={apiBase}
+                      brandBusinessName={brandBusinessName}
+                      brandLogoUrl={brandLogoUrl}
+                      brandLogoSize={brandLogoSize}
+                      brandPrimaryColour={brandPrimaryColour}
+                      brandAccentColour={brandAccentColour}
+                      brandButtonColour={brandButtonColour}
+                      brandButtonTextColour={brandButtonTextColour}
+                      brandButtonStyle={brandButtonStyle}
                     />
                   </div>
                 )}
@@ -896,16 +930,32 @@ function StepConfigEditor({
   step,
   onChange,
   apiBase,
+  brandBusinessName,
+  brandLogoUrl,
+  brandLogoSize,
+  brandPrimaryColour,
+  brandAccentColour,
+  brandButtonColour,
+  brandButtonTextColour,
+  brandButtonStyle,
 }: {
   step: AutomationStep;
   onChange: (config: Record<string, unknown>) => void;
   apiBase: string;
+  brandBusinessName: string;
+  brandLogoUrl: string | null;
+  brandLogoSize: "small" | "medium" | "large";
+  brandPrimaryColour: string | null;
+  brandAccentColour: string | null;
+  brandButtonColour: string | null;
+  brandButtonTextColour: string | null;
+  brandButtonStyle: "sharp" | "rounded" | "pill" | null;
 }) {
   const config = step.config || {};
 
   switch (step.step_type) {
     case "email":
-      return <EmailStepConfig config={config} onChange={onChange} />;
+      return <EmailStepConfig config={config} onChange={onChange} brandBusinessName={brandBusinessName} brandLogoUrl={brandLogoUrl} brandLogoSize={brandLogoSize} brandPrimaryColour={brandPrimaryColour} brandAccentColour={brandAccentColour} brandButtonColour={brandButtonColour} brandButtonTextColour={brandButtonTextColour} brandButtonStyle={brandButtonStyle} />;
     case "delay":
       return <DelayStepConfig config={config} onChange={onChange} />;
     case "condition":
@@ -918,9 +968,25 @@ function StepConfigEditor({
 function EmailStepConfig({
   config,
   onChange,
+  brandBusinessName,
+  brandLogoUrl,
+  brandLogoSize,
+  brandPrimaryColour,
+  brandAccentColour,
+  brandButtonColour,
+  brandButtonTextColour,
+  brandButtonStyle,
 }: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
+  brandBusinessName: string;
+  brandLogoUrl: string | null;
+  brandLogoSize: "small" | "medium" | "large";
+  brandPrimaryColour: string | null;
+  brandAccentColour: string | null;
+  brandButtonColour: string | null;
+  brandButtonTextColour: string | null;
+  brandButtonStyle: "sharp" | "rounded" | "pill" | null;
 }) {
   const [showEditor, setShowEditor] = useState(false);
 
@@ -990,7 +1056,7 @@ function EmailStepConfig({
         <label className="block text-xs font-medium text-slate-600 mb-2">Email Content</label>
         {hasContent ? (
           <div className="space-y-2">
-            <EmailMiniPreview blocks={contentBlocks} emailBgColor={emailBgColor} />
+            <EmailMiniPreview blocks={contentBlocks} emailBgColor={emailBgColor} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-500">
                 {`${contentBlocks.length} block${contentBlocks.length !== 1 ? "s" : ""}`}

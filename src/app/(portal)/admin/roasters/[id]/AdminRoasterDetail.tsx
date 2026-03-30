@@ -466,10 +466,14 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
         method: "DELETE",
       });
       if (res.ok) {
-        router.push("/admin/roasters");
+        // Don't reset deleting state — let the redirect happen
+        window.location.href = "/admin/roasters";
+        return;
       }
+      const data = await res.json().catch(() => null);
+      alert(data?.error || "Failed to delete roaster");
     } catch {
-      // silent
+      alert("Failed to delete roaster — network error");
     }
     setDeleting(false);
   }

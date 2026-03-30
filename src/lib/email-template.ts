@@ -79,16 +79,15 @@ export function wrapEmailWithBranding(options: {
 </head>
 <body style="margin:0;padding:0;background-color:#f8fafc;font-family:'${bodyFamily}',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:40px 20px;">
-    <!-- Header strip -->
-    <div style="background-color:${primary};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
-      ${logoUrl
-        ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />`
-        : `<p style="margin:0;color:#ffffff;font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;opacity:0.95;">${businessName}</p>`
-      }
-    </div>
-
     <!-- Body card -->
-    <div style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:40px;">
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:40px;">
+      <!-- Logo / business name -->
+      <div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;">
+        ${logoUrl
+          ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />`
+          : `<p style="margin:0;color:${primary};font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;">${businessName}</p>`
+        }
+      </div>
       ${body}
     </div>
 

@@ -143,7 +143,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
     return <div className="text-center py-20 text-slate-400">Order not found</div>;
   }
 
-  const { order, orderType, roasterOrder, invoice, activities = [], contactId } = data;
+  const { order, orderType, roasterOrder, invoice, activities = [], contactId, invoicesAllowed } = data;
   const isGhost = orderType === "ghost";
   const orderNumber = isGhost ? order.order_number : order.id.slice(0, 8).toUpperCase();
   const customerName = order.customer_name;
@@ -244,6 +244,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
               paymentMethod={order.payment_method}
               paymentTerms={order.payment_terms}
               createHref={`/orders/${orderId}/create-invoice?type=${orderType}`}
+              showCreateButton={invoicesAllowed !== false}
             />
           )}
 

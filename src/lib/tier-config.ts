@@ -84,7 +84,7 @@ const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
 // ─── Sales Suite Features ───
 
 const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
-  invoices:                { free: true,  starter: true,  growth: true,  pro: true,  scale: true },
+  invoices:                { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   pipeline:                { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   customPipelineStages:    { free: false, starter: true,  growth: true,  pro: true,  scale: true },
   salesAnalyticsBasic:     { free: false, starter: true,  growth: true,  pro: true,  scale: true },

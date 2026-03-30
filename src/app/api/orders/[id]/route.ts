@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { checkFeature } from "@/lib/feature-gates";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -89,11 +90,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       : Promise.resolve({ data: null }),
   ]);
 
+  // Check if roaster has invoice feature access
+  const invoiceGate = await checkFeature(roasterId, "invoices");
+
   return NextResponse.json({
     orderType: order.order_channel === "wholesale" ? "wholesale" : "storefront",
     order,
     invoice: invoiceRes.data,
     activities: activitiesRes.data || [],
     contactId: contactRes.data?.id || null,
+    invoicesAllowed: invoiceGate.allowed,
   });
 }

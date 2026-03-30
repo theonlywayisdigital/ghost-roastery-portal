@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { InvoiceEditor } from "@/components/invoices/InvoiceEditor";
 import type { InvoiceInitialData } from "@/components/invoices/InvoiceEditor";
+import { checkFeature } from "@/lib/feature-gates";
+import { FeatureGate } from "@/components/shared/FeatureGate";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -15,6 +17,11 @@ export default async function RoasterCreateInvoiceFromOrderPage({
 }) {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) redirect("/login");
+
+  const gate = await checkFeature(user.roaster.id, "invoices");
+  if (!gate.allowed) {
+    return <FeatureGate featureName="Invoices" requiredTier={gate.requiredTier} productType={gate.requiredProduct} />;
+  }
 
   const { id } = await params;
   const { type } = await searchParams;

@@ -103,15 +103,27 @@ async function handleContacts(
   // Resolve business mappings: normalised name → business_id
   const businessIdCache = new Map<string, string | null>();
 
+  // Build a map of normalised name → original casing from CSV data
+  const originalNames = new Map<string, string>();
+  for (const c of contacts) {
+    if (c.business_name) {
+      const key = c.business_name.toLowerCase().trim();
+      if (!originalNames.has(key)) {
+        originalNames.set(key, c.business_name);
+      }
+    }
+  }
+
   if (businessMappings) {
     for (const [normalizedName, value] of Object.entries(businessMappings)) {
       if (value === "create") {
-        // Create new business
+        // Use original casing from CSV, fall back to normalised name
+        const displayName = originalNames.get(normalizedName) || normalizedName;
         const { data: newBiz } = await supabase
           .from("businesses")
           .insert({
             roaster_id: roasterId,
-            name: normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1),
+            name: displayName,
             source: "import",
             types: [],
             status: "active",
@@ -171,7 +183,7 @@ async function handleContacts(
       );
 
       // Insert contact
-      const { error } = await supabase.from("contacts").insert({
+      const { data: newContact, error } = await supabase.from("contacts").insert({
         roaster_id: roasterId,
         first_name: contact.first_name,
         last_name: contact.last_name,
@@ -187,24 +199,38 @@ async function handleContacts(
         county: contact.county,
         postcode: contact.postcode,
         country: contact.country,
-        notes: contact.notes,
         source: "import",
         status: "active",
         people_id: peopleId,
         owner_id: roasterId,
-      });
+      }).select("id").single();
 
-      if (error) throw error;
+      // If notes text was provided, insert as a contact_note
+      if (newContact && contact.notes) {
+        await supabase.from("contact_notes").insert({
+          contact_id: newContact.id,
+          content: contact.notes,
+        });
+      }
+
+      if (error) {
+        console.error(`[contacts-import] Supabase error:`, JSON.stringify(error));
+        throw error;
+      }
       imported++;
-    } catch (err) {
+    } catch (err: unknown) {
       const name =
         [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
         contact.email ||
         `Row ${i + 2}`;
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: string }).message)
+            : "Unknown error";
       console.error(`[contacts-import] Failed to import "${name}":`, err);
-      errors.push(
-        `${name}: ${err instanceof Error ? err.message : "Unknown error"}`
-      );
+      errors.push(`${name}: ${errMsg}`);
       skipped++;
     }
   }
@@ -298,7 +324,10 @@ async function handleBusinesses(
         .select("id")
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error(`[contacts-import] Supabase biz error:`, JSON.stringify(error));
+        throw error;
+      }
 
       // Create linked contact if primary contact fields present
       if (
@@ -331,14 +360,18 @@ async function handleBusinesses(
       }
 
       imported++;
-    } catch (err) {
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === "object" && err !== null && "message" in err
+            ? String((err as { message: string }).message)
+            : "Unknown error";
       console.error(
         `[contacts-import] Failed to import business "${biz.name}":`,
         err
       );
-      errors.push(
-        `${biz.name}: ${err instanceof Error ? err.message : "Unknown error"}`
-      );
+      errors.push(`${biz.name}: ${errMsg}`);
       skipped++;
     }
   }

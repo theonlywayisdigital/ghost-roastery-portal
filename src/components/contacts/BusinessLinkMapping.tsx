@@ -49,9 +49,9 @@ export function BusinessLinkMapping({
       .catch(() => setLoading(false));
   }, []);
 
-  // Auto-match on first load
+  // Auto-match on first load — match existing businesses, default unmatched to "create"
   useEffect(() => {
-    if (loading || existingBusinesses.length === 0) return;
+    if (loading) return;
 
     const initial: Record<string, string> = { ...businessMappings };
     let changed = false;
@@ -65,8 +65,10 @@ export function BusinessLinkMapping({
       );
       if (match) {
         initial[key] = match.id;
-        changed = true;
+      } else {
+        initial[key] = "create";
       }
+      changed = true;
     }
 
     if (changed) {

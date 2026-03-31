@@ -42,17 +42,19 @@ export async function POST(request: Request) {
   const supabase = createServerClient();
 
   // Parse CSV
-  const { buyers, errors: parseErrors } = csvToNormalisedWholesaleBuyers({
+  const { buyers, errors: parseErrors, totalRows } = csvToNormalisedWholesaleBuyers({
     csvText,
     mapping,
   });
 
+  const parseSkipped = totalRows - buyers.length;
+
   if (buyers.length === 0) {
     return NextResponse.json({
       imported: 0,
-      skipped: 0,
+      skipped: parseSkipped,
       errors: parseErrors.length > 0 ? parseErrors : ["No buyers found in CSV"],
-      total: 0,
+      total: totalRows,
       emailsFailed: 0,
     } satisfies WholesaleImportResult);
   }
@@ -537,9 +539,9 @@ export async function POST(request: Request) {
 
   const result: WholesaleImportResult = {
     imported,
-    skipped,
+    skipped: skipped + parseSkipped,
     errors,
-    total: buyers.length,
+    total: totalRows,
     emailsFailed,
   };
 

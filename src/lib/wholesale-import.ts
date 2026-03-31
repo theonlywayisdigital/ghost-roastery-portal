@@ -154,7 +154,7 @@ function getMapped(
 export function csvToNormalisedWholesaleBuyers(input: {
   csvText: string;
   mapping: Record<string, WholesaleField>;
-}): { buyers: NormalisedWholesaleBuyer[]; errors: string[] } {
+}): { buyers: NormalisedWholesaleBuyer[]; errors: string[]; totalRows: number } {
   const { csvText, mapping } = input;
   const errors: string[] = [];
 
@@ -170,9 +170,11 @@ export function csvToNormalisedWholesaleBuyers(input: {
     }
   }
 
-  if (parsed.data.length === 0) {
+  const totalRows = parsed.data.length;
+
+  if (totalRows === 0) {
     errors.push("CSV contains no data rows");
-    return { buyers: [], errors };
+    return { buyers: [], errors, totalRows: 0 };
   }
 
   const hasEmail = Object.values(mapping).includes("email");
@@ -182,17 +184,17 @@ export function csvToNormalisedWholesaleBuyers(input: {
 
   if (!hasEmail) {
     errors.push('"Email" must be mapped');
-    return { buyers: [], errors };
+    return { buyers: [], errors, totalRows: 0 };
   }
 
   if (!hasFirstName && !hasLastName) {
     errors.push('At least one of "First Name" or "Last Name" must be mapped');
-    return { buyers: [], errors };
+    return { buyers: [], errors, totalRows: 0 };
   }
 
   if (!hasBusinessName) {
     errors.push('"Business Name" must be mapped');
-    return { buyers: [], errors };
+    return { buyers: [], errors, totalRows: 0 };
   }
 
   const buyers: NormalisedWholesaleBuyer[] = [];
@@ -240,5 +242,5 @@ export function csvToNormalisedWholesaleBuyers(input: {
     });
   }
 
-  return { buyers, errors };
+  return { buyers, errors, totalRows };
 }

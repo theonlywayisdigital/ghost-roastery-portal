@@ -133,7 +133,6 @@ const colorMap: Record<string, Record<string, string>> = {
   },
   subscriptionTier: {
     free: "bg-slate-100 text-slate-600",
-    starter: "bg-blue-50 text-blue-700",
     growth: "bg-purple-50 text-purple-700",
     pro: "bg-amber-50 text-amber-700",
     scale: "bg-green-50 text-green-700",
@@ -272,7 +271,6 @@ const labelMap: Record<string, Record<string, string>> = {
   },
   subscriptionTier: {
     free: "Free",
-    starter: "Starter",
     growth: "Growth",
     pro: "Pro",
     scale: "Scale",

@@ -1265,7 +1265,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                       onChange={(e) => setSubSalesTier(e.target.value as TierLevel)}
                       className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                     >
-                      {(["free", "starter", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                      {(["free", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
                         <option key={t} value={t}>{TIER_NAMES[t]}</option>
                       ))}
                     </select>
@@ -1282,7 +1282,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                       onChange={(e) => setSubMarketingTier(e.target.value as TierLevel)}
                       className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                     >
-                      {(["free", "starter", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                      {(["free", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
                         <option key={t} value={t}>{TIER_NAMES[t]}</option>
                       ))}
                     </select>

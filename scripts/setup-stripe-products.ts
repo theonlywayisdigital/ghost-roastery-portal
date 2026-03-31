@@ -5,7 +5,7 @@
  *
  * Creates:
  *  - 2 Products: "Sales Suite" and "Marketing Suite"
- *  - 16 Prices: 4 paid tiers × 2 billing cycles × 2 products
+ *  - 12 Prices: 3 paid tiers × 2 billing cycles × 2 products
  *
  * Copy the output Price IDs into src/lib/tier-config.ts → STRIPE_PRICE_IDS
  */
@@ -14,21 +14,19 @@ import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-type TierLevel = "starter" | "growth" | "pro" | "scale";
+type TierLevel = "growth" | "pro" | "scale";
 
-const TIERS: TierLevel[] = ["starter", "growth", "pro", "scale"];
+const TIERS: TierLevel[] = ["growth", "pro", "scale"];
 
 // Prices in pence
 const SALES_PRICING: Record<TierLevel, { monthly: number; annual: number }> = {
-  starter: { monthly: 2900, annual: 2400 },
-  growth: { monthly: 4900, annual: 4100 },
+  growth: { monthly: 3900, annual: 3300 },
   pro: { monthly: 7900, annual: 6600 },
-  scale: { monthly: 14900, annual: 12400 },
+  scale: { monthly: 12900, annual: 10800 },
 };
 
 const MARKETING_PRICING: Record<TierLevel, { monthly: number; annual: number }> = {
-  starter: { monthly: 1900, annual: 1600 },
-  growth: { monthly: 3900, annual: 3300 },
+  growth: { monthly: 2900, annual: 2400 },
   pro: { monthly: 5900, annual: 4900 },
   scale: { monthly: 9900, annual: 8300 },
 };

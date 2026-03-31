@@ -17,7 +17,7 @@ export default async function AIStudioPage() {
     return (
       <FeatureGate
         featureName="AI Studio"
-        requiredTier={next?.tier ?? "starter"}
+        requiredTier={next?.tier ?? "growth"}
         productType={next?.product ?? "marketing"}
       />
     );

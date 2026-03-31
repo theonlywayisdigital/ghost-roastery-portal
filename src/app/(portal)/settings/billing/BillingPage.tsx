@@ -528,7 +528,7 @@ function SubscriptionTab({
       const res = await fetch("/api/billing/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productType: "website", tier: "starter", billingCycle }),
+        body: JSON.stringify({ productType: "website", tier: "growth", billingCycle }),
       });
       const data = await res.json();
       if (data.url) {

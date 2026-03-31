@@ -32,7 +32,7 @@ interface PlanSelectorProps {
   pendingTier?: TierLevel | null;
 }
 
-const TIERS: TierLevel[] = ["free", "starter", "growth", "pro", "scale"];
+const TIERS: TierLevel[] = ["free", "growth", "pro", "scale"];
 
 export function PlanSelector({
   productType,
@@ -44,7 +44,7 @@ export function PlanSelector({
   pendingTier,
 }: PlanSelectorProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {TIERS.map((tier) => {
         const isCurrent = tier === currentTier;
         const isPending = tier === pendingTier;

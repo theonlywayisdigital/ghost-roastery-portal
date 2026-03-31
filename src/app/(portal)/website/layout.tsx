@@ -17,7 +17,7 @@ export default async function WebsiteLayout({
     return (
       <FeatureGate
         featureName="Website Builder"
-        requiredTier="starter"
+        requiredTier="growth"
         productType="website"
       />
     );

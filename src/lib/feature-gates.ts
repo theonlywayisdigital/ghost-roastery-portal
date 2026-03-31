@@ -279,7 +279,7 @@ export async function checkFeature(
 ): Promise<FeatureCheckResult> {
   const roasterData = await getRoasterTierData(roasterId);
   if (!roasterData) {
-    return { allowed: false, requiredTier: "starter", requiredProduct: "sales", message: "Roaster not found" };
+    return { allowed: false, requiredTier: "growth", requiredProduct: "sales", message: "Roaster not found" };
   }
 
   const features = getEffectiveFeatures(roasterData.sales_tier, roasterData.marketing_tier);

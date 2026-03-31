@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Plus } from "@/components/icons";
+import { Plus, Upload } from "@/components/icons";
 import { WholesaleBuyersPage } from "./WholesaleBuyersPage";
 import { SettingsSection } from "./SettingsSection";
 import { AddWholesaleCustomerModal } from "./AddWholesaleCustomerModal";
+import { WholesaleImportWizard } from "./WholesaleImportWizard";
 
 interface WholesaleBuyer {
   id: string;
@@ -42,6 +43,7 @@ export function WholesaleSectionPage({
   hideHeader = false,
 }: WholesaleSectionPageProps) {
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [buyers, setBuyers] = useState(initialBuyers);
 
   const refreshBuyers = useCallback(async () => {
@@ -67,7 +69,14 @@ export function WholesaleSectionPage({
           </p>
         </div>
         )}
-        <div className={hideHeader ? "ml-auto" : ""}>
+        <div className={`${hideHeader ? "ml-auto" : ""} flex items-center gap-2`}>
+        <button
+          onClick={() => setShowImport(true)}
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+        >
+          <Upload className="w-4 h-4" />
+          Import CSV
+        </button>
         <button
           onClick={() => setShowAddModal(true)}
           className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
@@ -78,15 +87,27 @@ export function WholesaleSectionPage({
         </div>
       </div>
 
-      <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} roasterId={roasterId} />
+      {showImport ? (
+        <WholesaleImportWizard
+          onComplete={() => {
+            setShowImport(false);
+            refreshBuyers();
+          }}
+          onCancel={() => setShowImport(false)}
+        />
+      ) : (
+        <>
+          <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} roasterId={roasterId} />
 
-      <WholesaleBuyersPage
-        buyers={buyers}
-        autoApprove={autoApprove}
-        wholesaleStripeEnabled={wholesaleStripeEnabled}
-        roasterId={roasterId}
-        hideHeader
-      />
+          <WholesaleBuyersPage
+            buyers={buyers}
+            autoApprove={autoApprove}
+            wholesaleStripeEnabled={wholesaleStripeEnabled}
+            roasterId={roasterId}
+            hideHeader
+          />
+        </>
+      )}
 
       {showAddModal && (
         <AddWholesaleCustomerModal

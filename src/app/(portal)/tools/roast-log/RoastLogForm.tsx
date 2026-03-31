@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2, Star, Archive, Plus } from "@/components/icons";
+import { ArrowLeft, Trash2, Star, Archive, Plus, ChevronDown, ChevronUp } from "@/components/icons";
 import Link from "next/link";
 
 interface Bean {
@@ -99,6 +99,19 @@ export function RoastLogForm({
   const [stockQty, setStockQty] = useState("");
   const [createNewStock, setCreateNewStock] = useState(false);
   const [newStockName, setNewStockName] = useState("");
+
+  // Collapsible sections — auto-expand if editing and fields have data
+  const hasProfileData = !!(roastLog?.roast_level || roastLog?.roast_time_seconds || roastLog?.charge_temp_c || roastLog?.drop_temp_c);
+  const hasCrackData = !!(roastLog?.first_crack_time_seconds || roastLog?.first_crack_temp_c);
+  const hasSecondCrackData = !!(roastLog?.second_crack_time_seconds || roastLog?.second_crack_temp_c);
+  const hasEnvData = !!(roastLog?.roaster_machine || roastLog?.operator || roastLog?.ambient_temp_c);
+  const hasQualityData = !!(roastLog?.quality_rating || roastLog?.notes);
+
+  const [showProfile, setShowProfile] = useState(hasProfileData);
+  const [showFirstCrack, setShowFirstCrack] = useState(hasCrackData);
+  const [showSecondCrack, setShowSecondCrack] = useState(hasSecondCrackData);
+  const [showEnvironment, setShowEnvironment] = useState(hasEnvData);
+  const [showQuality, setShowQuality] = useState(hasQualityData);
 
   function update(field: keyof RoastLogData, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -267,124 +280,189 @@ export function RoastLogForm({
           </div>
         </div>
 
-        {/* Roast Profile */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-slate-900">Roast Profile</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div>
-              <label className={labelClass}>Roast Level</label>
-              <select value={form.roast_level} onChange={(e) => update("roast_level", e.target.value)} className={selectClass(!!form.roast_level)}>
-                <option value="">Select level</option>
-                {ROAST_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Roast Time (seconds)</label>
-              <input type="number" value={form.roast_time_seconds} onChange={(e) => update("roast_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 720" />
-            </div>
-            <div>
-              <label className={labelClass}>Charge Temp ({"\u00B0"}C)</label>
-              <input type="number" value={form.charge_temp_c} onChange={(e) => update("charge_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 200" />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Drop Temp ({"\u00B0"}C)</label>
-            <input type="number" value={form.drop_temp_c} onChange={(e) => update("drop_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 210" />
-          </div>
-        </div>
-
-        {/* First Crack */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-slate-900">First Crack</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>First Crack Time (seconds)</label>
-              <input type="number" value={form.first_crack_time_seconds} onChange={(e) => update("first_crack_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 540" />
-            </div>
-            <div>
-              <label className={labelClass}>First Crack Temp ({"\u00B0"}C)</label>
-              <input type="number" value={form.first_crack_temp_c} onChange={(e) => update("first_crack_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 196" />
-            </div>
-          </div>
-        </div>
-
-        {/* Second Crack (optional) */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-slate-900">Second Crack <span className="text-sm font-normal text-slate-400">(optional)</span></h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Second Crack Time (seconds)</label>
-              <input type="number" value={form.second_crack_time_seconds} onChange={(e) => update("second_crack_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 660" />
-            </div>
-            <div>
-              <label className={labelClass}>Second Crack Temp ({"\u00B0"}C)</label>
-              <input type="number" value={form.second_crack_temp_c} onChange={(e) => update("second_crack_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 224" />
-            </div>
-          </div>
-        </div>
-
-        {/* Environment */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-slate-900">Environment</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Roaster Machine</label>
-              <input type="text" value={form.roaster_machine} onChange={(e) => update("roaster_machine", e.target.value)} className={inputClass} placeholder="e.g. Probat P12" />
-            </div>
-            <div>
-              <label className={labelClass}>Operator</label>
-              <input type="text" value={form.operator} onChange={(e) => update("operator", e.target.value)} className={inputClass} placeholder="e.g. John" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className={labelClass}>Ambient Temp ({"\u00B0"}C)</label>
-              <input type="number" value={form.ambient_temp_c} onChange={(e) => update("ambient_temp_c", e.target.value)} className={inputClass} step="0.1" placeholder="e.g. 22" />
-            </div>
-            <div>
-              <label className={labelClass}>Ambient Humidity (%)</label>
-              <input type="number" value={form.ambient_humidity_percent} onChange={(e) => update("ambient_humidity_percent", e.target.value)} className={inputClass} min="0" max="100" step="0.1" placeholder="e.g. 55" />
-            </div>
-          </div>
-        </div>
-
-        {/* Quality */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-          <h2 className="text-lg font-semibold text-slate-900">Quality</h2>
-
-          <div>
-            <label className={labelClass}>Rating</label>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => update("quality_rating", form.quality_rating === String(star) ? "" : String(star))}
-                  className="p-1 rounded hover:bg-slate-100 transition-colors"
-                >
-                  <Star
-                    className={`w-6 h-6 ${
-                      Number(form.quality_rating) >= star ? "text-amber-400" : "text-slate-200"
-                    }`}
-                  />
-                </button>
-              ))}
-              {form.quality_rating && (
-                <span className="ml-2 text-sm text-slate-500">{form.quality_rating}/5</span>
+        {/* Roast Profile — collapsible */}
+        <div className="bg-white rounded-xl border border-slate-200">
+          <button type="button" onClick={() => setShowProfile(!showProfile)} className="flex items-center justify-between w-full p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">Roast Profile</h2>
+              {!showProfile && (form.roast_level || form.roast_time_seconds || form.charge_temp_c) && (
+                <span className="text-xs text-slate-500">
+                  {[form.roast_level, form.roast_time_seconds && `${form.roast_time_seconds}s`, form.charge_temp_c && `${form.charge_temp_c}\u00B0C charge`].filter(Boolean).join(", ")}
+                </span>
               )}
             </div>
-          </div>
+            {showProfile ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          {showProfile && (
+            <div className="px-6 pb-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label className={labelClass}>Roast Level</label>
+                  <select value={form.roast_level} onChange={(e) => update("roast_level", e.target.value)} className={selectClass(!!form.roast_level)}>
+                    <option value="">Select level</option>
+                    {ROAST_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Roast Time (seconds)</label>
+                  <input type="number" value={form.roast_time_seconds} onChange={(e) => update("roast_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 720" />
+                </div>
+                <div>
+                  <label className={labelClass}>Charge Temp ({"\u00B0"}C)</label>
+                  <input type="number" value={form.charge_temp_c} onChange={(e) => update("charge_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 200" />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Drop Temp ({"\u00B0"}C)</label>
+                <input type="number" value={form.drop_temp_c} onChange={(e) => update("drop_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 210" />
+              </div>
+            </div>
+          )}
+        </div>
 
-          <div>
-            <label className={labelClass}>Notes</label>
-            <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={inputClass} placeholder="Any observations about this roast..." />
-          </div>
+        {/* First Crack — collapsible */}
+        <div className="bg-white rounded-xl border border-slate-200">
+          <button type="button" onClick={() => setShowFirstCrack(!showFirstCrack)} className="flex items-center justify-between w-full p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">First Crack</h2>
+              {!showFirstCrack && (form.first_crack_time_seconds || form.first_crack_temp_c) && (
+                <span className="text-xs text-slate-500">
+                  {[form.first_crack_time_seconds && `${form.first_crack_time_seconds}s`, form.first_crack_temp_c && `${form.first_crack_temp_c}\u00B0C`].filter(Boolean).join(", ")}
+                </span>
+              )}
+            </div>
+            {showFirstCrack ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          {showFirstCrack && (
+            <div className="px-6 pb-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>First Crack Time (seconds)</label>
+                  <input type="number" value={form.first_crack_time_seconds} onChange={(e) => update("first_crack_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 540" />
+                </div>
+                <div>
+                  <label className={labelClass}>First Crack Temp ({"\u00B0"}C)</label>
+                  <input type="number" value={form.first_crack_temp_c} onChange={(e) => update("first_crack_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 196" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Second Crack — collapsible */}
+        <div className="bg-white rounded-xl border border-slate-200">
+          <button type="button" onClick={() => setShowSecondCrack(!showSecondCrack)} className="flex items-center justify-between w-full p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">Second Crack</h2>
+              <span className="text-sm font-normal text-slate-400">(optional)</span>
+              {!showSecondCrack && (form.second_crack_time_seconds || form.second_crack_temp_c) && (
+                <span className="text-xs text-slate-500">
+                  {[form.second_crack_time_seconds && `${form.second_crack_time_seconds}s`, form.second_crack_temp_c && `${form.second_crack_temp_c}\u00B0C`].filter(Boolean).join(", ")}
+                </span>
+              )}
+            </div>
+            {showSecondCrack ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          {showSecondCrack && (
+            <div className="px-6 pb-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Second Crack Time (seconds)</label>
+                  <input type="number" value={form.second_crack_time_seconds} onChange={(e) => update("second_crack_time_seconds", e.target.value)} className={inputClass} min="0" placeholder="e.g. 660" />
+                </div>
+                <div>
+                  <label className={labelClass}>Second Crack Temp ({"\u00B0"}C)</label>
+                  <input type="number" value={form.second_crack_temp_c} onChange={(e) => update("second_crack_temp_c", e.target.value)} className={inputClass} min="0" step="0.1" placeholder="e.g. 224" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Environment — collapsible */}
+        <div className="bg-white rounded-xl border border-slate-200">
+          <button type="button" onClick={() => setShowEnvironment(!showEnvironment)} className="flex items-center justify-between w-full p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">Environment</h2>
+              {!showEnvironment && (form.roaster_machine || form.operator) && (
+                <span className="text-xs text-slate-500">
+                  {[form.roaster_machine, form.operator].filter(Boolean).join(", ")}
+                </span>
+              )}
+            </div>
+            {showEnvironment ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          {showEnvironment && (
+            <div className="px-6 pb-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Roaster Machine</label>
+                  <input type="text" value={form.roaster_machine} onChange={(e) => update("roaster_machine", e.target.value)} className={inputClass} placeholder="e.g. Probat P12" />
+                </div>
+                <div>
+                  <label className={labelClass}>Operator</label>
+                  <input type="text" value={form.operator} onChange={(e) => update("operator", e.target.value)} className={inputClass} placeholder="e.g. John" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Ambient Temp ({"\u00B0"}C)</label>
+                  <input type="number" value={form.ambient_temp_c} onChange={(e) => update("ambient_temp_c", e.target.value)} className={inputClass} step="0.1" placeholder="e.g. 22" />
+                </div>
+                <div>
+                  <label className={labelClass}>Ambient Humidity (%)</label>
+                  <input type="number" value={form.ambient_humidity_percent} onChange={(e) => update("ambient_humidity_percent", e.target.value)} className={inputClass} min="0" max="100" step="0.1" placeholder="e.g. 55" />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quality — collapsible */}
+        <div className="bg-white rounded-xl border border-slate-200">
+          <button type="button" onClick={() => setShowQuality(!showQuality)} className="flex items-center justify-between w-full p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900">Quality</h2>
+              {!showQuality && form.quality_rating && (
+                <span className="inline-flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className={`w-3.5 h-3.5 ${i < Number(form.quality_rating) ? "text-amber-400" : "text-slate-200"}`} />
+                  ))}
+                </span>
+              )}
+            </div>
+            {showQuality ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          {showQuality && (
+            <div className="px-6 pb-6 space-y-5">
+              <div>
+                <label className={labelClass}>Rating</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => update("quality_rating", form.quality_rating === String(star) ? "" : String(star))}
+                      className="p-1 rounded hover:bg-slate-100 transition-colors"
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          Number(form.quality_rating) >= star ? "text-amber-400" : "text-slate-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {form.quality_rating && (
+                    <span className="ml-2 text-sm text-slate-500">{form.quality_rating}/5</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Notes</label>
+                <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className={inputClass} placeholder="Any observations about this roast..." />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stock Addition — shown when completing a roast with roasted weight */}

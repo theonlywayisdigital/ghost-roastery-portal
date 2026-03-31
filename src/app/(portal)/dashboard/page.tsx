@@ -3,10 +3,11 @@ import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import {
   Package, Coffee, TrendingUp, ArrowRight, ClipboardList, Users, Store,
-  ShoppingCart, Wallet, AlertTriangle, Receipt, Plus, Tag, Megaphone,
+  ShoppingCart, Wallet, AlertTriangle,
 } from "@/components/icons";
 import Link from "next/link";
 import { DashboardWidgets } from "./DashboardWidgets";
+import { DashboardQuickActions } from "./DashboardQuickActions";
 import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
 
 export default async function DashboardPage() {
@@ -356,38 +357,7 @@ export default async function DashboardPage() {
       </p>
 
       {/* Quick Actions */}
-      {isRoaster && (
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
-          <Link
-            href="/orders/new"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Create Order
-          </Link>
-          <Link
-            href="/products/new"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
-          >
-            <Tag className="w-4 h-4" />
-            Add Product
-          </Link>
-          <Link
-            href="/marketing/campaigns/new"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
-          >
-            <Megaphone className="w-4 h-4" />
-            Send Campaign
-          </Link>
-          <Link
-            href="/invoices/new"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 whitespace-nowrap"
-          >
-            <Receipt className="w-4 h-4" />
-            Create Invoice
-          </Link>
-        </div>
-      )}
+      {isRoaster && <DashboardQuickActions />}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

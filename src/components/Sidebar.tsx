@@ -217,7 +217,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     icon: Coffee,
     items: [
       { label: "Inventory", href: "/tools/inventory", icon: Package },
-      { label: "Roast Log", href: "/tools/roast-log", icon: Flame },
       { label: "Production", href: "/tools/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
       { label: "Cupping", href: "/tools/cupping", icon: TestTube },
       { label: "Calculators", href: "/tools/pricing", icon: PoundSterling },

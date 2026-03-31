@@ -4,12 +4,13 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload, Check, Flame } from "@/components/icons";
+import { Plus, Upload, Check, Flame, Scale } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
 
 interface RoastedStock {
   id: string;
@@ -168,6 +169,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const banner = useUpgradeBanner("roastedStock");
+  const [rebalanceItem, setRebalanceItem] = useState<{ id: string; name: string; currentKg: number; greenBeanId?: string; greenBeanName?: string } | null>(null);
 
   const filtered = useMemo(() => {
     let result = [...stock];
@@ -260,6 +262,13 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
             <Flame className="w-3 h-3" />
             Log Roast
           </Link>
+          <button
+            onClick={(e) => { e.stopPropagation(); setRebalanceItem({ id: row.id, name: row.name, currentKg: Number(row.current_stock_kg), greenBeanId: row.green_bean_id || undefined, greenBeanName: row.green_beans?.name || undefined }); }}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Scale className="w-3 h-3" />
+            Set
+          </button>
         </div>
       ),
     },
@@ -328,6 +337,15 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
         <div className="mt-4">
           <Pagination page={page} total={filtered.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
+      )}
+
+      {rebalanceItem && (
+        <QuickRebalanceModal
+          open={!!rebalanceItem}
+          onClose={() => setRebalanceItem(null)}
+          onSuccess={() => { setRebalanceItem(null); router.refresh(); }}
+          item={{ type: "roasted", id: rebalanceItem.id, name: rebalanceItem.name, currentKg: rebalanceItem.currentKg, linkedGreenBeanId: rebalanceItem.greenBeanId, linkedGreenBeanName: rebalanceItem.greenBeanName }}
+        />
       )}
     </div>
   );

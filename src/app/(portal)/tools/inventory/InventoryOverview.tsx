@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Package,
@@ -8,8 +9,16 @@ import {
   ShoppingCart,
   Flame,
   Settings,
+  ArrowRight,
+  AlertTriangle,
+  Scale,
+  ChevronDown,
+  ChevronUp,
 } from "@/components/icons";
 import { DataTable } from "@/components/admin/DataTable";
+import { QuickReceiveModal } from "@/components/inventory/QuickReceiveModal";
+import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
 
 interface RoastedStock {
   id: string;
@@ -38,6 +47,7 @@ interface OverviewData {
 interface TableRow {
   id: string;
   name: string;
+  greenBeanId: string | null;
   greenStockKg: number | null;
   greenBeanName: string | null;
   roastedStockKg: number;
@@ -47,7 +57,19 @@ interface TableRow {
   excessKg: number;
 }
 
+interface LowStockItem {
+  type: "green" | "roasted";
+  id: string;
+  name: string;
+  currentKg: number;
+  thresholdKg: number | null;
+  greenBeanId?: string;
+  greenBeanName?: string;
+  greenBeanKg?: number;
+}
+
 export function InventoryOverview({ roasterId }: { roasterId: string }) {
+  const router = useRouter();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [batchSize, setBatchSize] = useState("");
@@ -55,8 +77,18 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
   const [saved, setSaved] = useState(false);
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showBatchSettings, setShowBatchSettings] = useState(false);
 
-  useEffect(() => {
+  // Modal state
+  const [receiveModal, setReceiveModal] = useState<{ open: boolean; beanId?: string }>({ open: false });
+  const [roastModal, setRoastModal] = useState<{ open: boolean; beanId?: string; stockId?: string }>({ open: false });
+  const [rebalanceModal, setRebalanceModal] = useState<{
+    open: boolean;
+    item?: { type: "green" | "roasted"; id: string; name: string; currentKg: number; linkedGreenBeanId?: string; linkedGreenBeanName?: string; linkedGreenBeanKg?: number };
+  }>({ open: false });
+
+  function fetchData() {
+    setLoading(true);
     fetch("/api/tools/inventory/overview")
       .then((r) => r.json())
       .then((d: OverviewData) => {
@@ -65,7 +97,14 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { fetchData(); }, []);
+
+  function handleModalSuccess() {
+    fetchData();
+    router.refresh();
+  }
 
   async function handleSaveBatchSize() {
     setSaving(true);
@@ -118,7 +157,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
               Add Roasted Stock
             </Link>
             <Link
-              href="/tools/roast-log"
+              href="/tools/inventory/roast-log"
               className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
             >
               <Flame className="w-4 h-4" />
@@ -145,7 +184,6 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
     const roastedStockKg = Number(rs.current_stock_kg);
     const committedKg = data.committedByRoasted[rs.id] || 0;
     const requiredKg = committedKg - roastedStockKg;
-    // Per-coffee batch size takes priority, then global default
     const effectiveBatchSize = rs.batch_size_kg ?? globalBatchSizeKg;
     const batches =
       effectiveBatchSize && effectiveBatchSize > 0 && requiredKg > 0
@@ -158,6 +196,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
     return {
       id: rs.id,
       name: rs.name,
+      greenBeanId: rs.green_bean_id,
       greenStockKg,
       greenBeanName: gb?.name || null,
       roastedStockKg,
@@ -189,6 +228,32 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
   const totalRoastedKg = data.roastedStock.reduce((s, rs) => s + Number(rs.current_stock_kg), 0);
   const totalCommittedKg = Object.values(data.committedByRoasted).reduce((s, v) => s + v, 0);
   const totalBatches = rows.reduce((s, r) => s + (r.batches || 0), 0);
+
+  // Low stock items
+  const lowStockItems: LowStockItem[] = [];
+  for (const gb of data.greenBeans) {
+    const kg = Number(gb.current_stock_kg);
+    if (gb.low_stock_threshold_kg && kg <= Number(gb.low_stock_threshold_kg)) {
+      lowStockItems.push({ type: "green", id: gb.id, name: gb.name, currentKg: kg, thresholdKg: Number(gb.low_stock_threshold_kg) });
+    } else if (kg <= 0) {
+      lowStockItems.push({ type: "green", id: gb.id, name: gb.name, currentKg: kg, thresholdKg: null });
+    }
+  }
+  for (const rs of data.roastedStock) {
+    const kg = Number(rs.current_stock_kg);
+    const gb = rs.green_bean_id ? greenBeanMap[rs.green_bean_id] : null;
+    if (rs.low_stock_threshold_kg && kg <= Number(rs.low_stock_threshold_kg)) {
+      lowStockItems.push({
+        type: "roasted", id: rs.id, name: rs.name, currentKg: kg, thresholdKg: Number(rs.low_stock_threshold_kg),
+        greenBeanId: rs.green_bean_id || undefined, greenBeanName: gb?.name, greenBeanKg: gb ? Number(gb.current_stock_kg) : undefined,
+      });
+    } else if (kg <= 0) {
+      lowStockItems.push({
+        type: "roasted", id: rs.id, name: rs.name, currentKg: kg, thresholdKg: null,
+        greenBeanId: rs.green_bean_id || undefined, greenBeanName: gb?.name, greenBeanKg: gb ? Number(gb.current_stock_kg) : undefined,
+      });
+    }
+  }
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -276,13 +341,43 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
         </span>
       ),
     },
+    {
+      key: "actions",
+      label: "",
+      render: (row: TableRow) => {
+        const gb = row.greenBeanId ? greenBeanMap[row.greenBeanId] : null;
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setRebalanceModal({
+                open: true,
+                item: {
+                  type: "roasted",
+                  id: row.id,
+                  name: row.name,
+                  currentKg: row.roastedStockKg,
+                  linkedGreenBeanId: row.greenBeanId || undefined,
+                  linkedGreenBeanName: gb?.name,
+                  linkedGreenBeanKg: gb ? Number(gb.current_stock_kg) : undefined,
+                },
+              });
+            }}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Scale className="w-3 h-3" />
+            Set
+          </button>
+        );
+      },
+    },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
+      {/* Summary cards with flow arrows */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 relative">
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
               <Package className="w-4 h-4 text-green-600" />
@@ -290,9 +385,12 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             <p className="text-xs text-slate-500">Green Stock</p>
           </div>
           <p className="text-xl font-bold text-slate-900">{`${totalGreenKg.toFixed(2)} kg`}</p>
+          <div className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-5 bg-slate-100 rounded-full items-center justify-center">
+            <ArrowRight className="w-3 h-3 text-slate-400" />
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 relative">
           <div className="flex items-center gap-2.5 mb-2">
             <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
               <Archive className="w-4 h-4 text-amber-600" />
@@ -300,6 +398,9 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
             <p className="text-xs text-slate-500">Roasted Stock</p>
           </div>
           <p className="text-xl font-bold text-slate-900">{`${totalRoastedKg.toFixed(2)} kg`}</p>
+          <div className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-5 h-5 bg-slate-100 rounded-full items-center justify-center">
+            <ArrowRight className="w-3 h-3 text-slate-400" />
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -325,6 +426,67 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
         </div>
       </div>
 
+      {/* Low stock alerts */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-amber-900">Low Stock</h3>
+          </div>
+          <div className="space-y-2">
+            {lowStockItems.map((item) => (
+              <div key={`${item.type}-${item.id}`} className="flex items-center justify-between gap-3 py-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.currentKg <= 0 ? "bg-red-500" : "bg-amber-500"}`} />
+                  <span className="text-sm text-slate-900 truncate">{item.name}</span>
+                  <span className="text-xs text-slate-500 flex-shrink-0">
+                    ({item.type === "green" ? "Green" : "Roasted"})
+                  </span>
+                  <span className="text-sm font-medium text-slate-700 flex-shrink-0">
+                    {item.currentKg.toFixed(2)} kg
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {item.type === "green" && (
+                    <button
+                      onClick={() => setReceiveModal({ open: true, beanId: item.id })}
+                      className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-md hover:bg-green-200 transition-colors"
+                    >
+                      Receive
+                    </button>
+                  )}
+                  {item.type === "roasted" && (
+                    <button
+                      onClick={() => setRoastModal({ open: true, beanId: item.greenBeanId, stockId: item.id })}
+                      className="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
+                    >
+                      Log Roast
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setRebalanceModal({
+                      open: true,
+                      item: {
+                        type: item.type,
+                        id: item.id,
+                        name: item.name,
+                        currentKg: item.currentKg,
+                        linkedGreenBeanId: item.greenBeanId,
+                        linkedGreenBeanName: item.greenBeanName,
+                        linkedGreenBeanKg: item.greenBeanKg,
+                      },
+                    })}
+                    className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+                  >
+                    Rebalance
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Inventory table */}
       <DataTable
         columns={columns}
@@ -338,40 +500,78 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
         emptyMessage="No roasted stock items found."
       />
 
-      {/* Batch size setting */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <div className="flex items-center gap-2 mb-3">
+      {/* Batch size setting — collapsible */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <button
+          onClick={() => setShowBatchSettings(!showBatchSettings)}
+          className="flex items-center gap-2 w-full px-6 py-4 text-left"
+        >
           <Settings className="w-4 h-4 text-slate-400" />
-          <h3 className="text-sm font-semibold text-slate-900">Batch Size</h3>
-        </div>
-        <div className="flex items-center gap-3">
-          <div>
-            <label htmlFor="batch-size" className="text-xs text-slate-500">
-              Default roast batch size (kg)
-            </label>
-            <input
-              id="batch-size"
-              type="number"
-              step="0.1"
-              min="0"
-              value={batchSize}
-              onChange={(e) => setBatchSize(e.target.value)}
-              placeholder="e.g. 12"
-              className="mt-1 w-28 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            />
-          </div>
-          <button
-            onClick={handleSaveBatchSize}
-            disabled={saving}
-            className="mt-5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-          {saved && (
-            <span className="mt-5 text-sm text-green-600 font-medium">Saved</span>
+          <span className="text-sm font-semibold text-slate-900">Batch Size Settings</span>
+          {data.defaultBatchSizeKg && (
+            <span className="text-xs text-slate-500 ml-auto mr-2">{data.defaultBatchSizeKg} kg</span>
           )}
-        </div>
+          {showBatchSettings ? (
+            <ChevronUp className="w-4 h-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          )}
+        </button>
+        {showBatchSettings && (
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center gap-3">
+              <div>
+                <label htmlFor="batch-size" className="text-xs text-slate-500">
+                  Default roast batch size (kg)
+                </label>
+                <input
+                  id="batch-size"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(e.target.value)}
+                  placeholder="e.g. 12"
+                  className="mt-1 w-28 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <button
+                onClick={handleSaveBatchSize}
+                disabled={saving}
+                className="mt-5 px-3 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              {saved && (
+                <span className="mt-5 text-sm text-green-600 font-medium">Saved</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Modals */}
+      <QuickReceiveModal
+        open={receiveModal.open}
+        onClose={() => setReceiveModal({ open: false })}
+        onSuccess={handleModalSuccess}
+        preselectedBeanId={receiveModal.beanId}
+      />
+      <QuickRoastModal
+        open={roastModal.open}
+        onClose={() => setRoastModal({ open: false })}
+        onSuccess={handleModalSuccess}
+        preselectedBeanId={roastModal.beanId}
+        preselectedStockId={roastModal.stockId}
+      />
+      {rebalanceModal.open && rebalanceModal.item && (
+        <QuickRebalanceModal
+          open={rebalanceModal.open}
+          onClose={() => setRebalanceModal({ open: false })}
+          onSuccess={handleModalSuccess}
+          item={rebalanceModal.item}
+        />
+      )}
     </div>
   );
 }

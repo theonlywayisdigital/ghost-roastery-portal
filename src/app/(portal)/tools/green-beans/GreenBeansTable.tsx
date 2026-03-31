@@ -4,12 +4,13 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload, Check } from "@/components/icons";
+import { Plus, Upload, Check, Scale } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
 
 interface GreenBean {
   id: string;
@@ -170,6 +171,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
   const [sortKey, setSortKey] = useState("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const banner = useUpgradeBanner("greenBeans");
+  const [rebalanceItem, setRebalanceItem] = useState<{ id: string; name: string; currentKg: number } | null>(null);
 
   const filtered = useMemo(() => {
     let result = [...beans];
@@ -262,7 +264,18 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
     {
       key: "actions",
       label: "",
-      render: (row) => <QuickAddStock beanId={row.id} onAdded={(bal) => handleQuickAdd(row.id, bal)} />,
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          <QuickAddStock beanId={row.id} onAdded={(bal) => handleQuickAdd(row.id, bal)} />
+          <button
+            onClick={(e) => { e.stopPropagation(); setRebalanceItem({ id: row.id, name: row.name, currentKg: Number(row.current_stock_kg) }); }}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+          >
+            <Scale className="w-3 h-3" />
+            Set
+          </button>
+        </div>
+      ),
     },
   ];
 
@@ -329,6 +342,15 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
         <div className="mt-4">
           <Pagination page={page} total={filtered.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
+      )}
+
+      {rebalanceItem && (
+        <QuickRebalanceModal
+          open={!!rebalanceItem}
+          onClose={() => setRebalanceItem(null)}
+          onSuccess={() => { setRebalanceItem(null); router.refresh(); }}
+          item={{ type: "green", id: rebalanceItem.id, name: rebalanceItem.name, currentKg: rebalanceItem.currentKg }}
+        />
       )}
     </div>
   );

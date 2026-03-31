@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Minus, AlertTriangle } from "@/components/icons";
+import { ArrowLeft, Pencil, Plus, Minus, AlertTriangle, Flame, Scale } from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
 
 interface Movement {
   id: string;
@@ -70,6 +72,8 @@ export function RoastedStockDetail({
   const [showAddStock, setShowAddStock] = useState(false);
   const [stockForm, setStockForm] = useState({ type: "roast_addition", qty: "", cost: "", notes: "", deductGreen: true });
   const [saving, setSaving] = useState(false);
+  const [showRoastModal, setShowRoastModal] = useState(false);
+  const [showRebalanceModal, setShowRebalanceModal] = useState(false);
 
   const hasLinkedGreenBean = !!stock.green_bean_id && !!stock.green_beans;
   const showDeductOption = hasLinkedGreenBean && ["roast_addition"].includes(stockForm.type);
@@ -292,6 +296,20 @@ export function RoastedStockDetail({
               <button onClick={() => setShowAddStock(true)} className="w-full px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
                 Add Stock
               </button>
+              <button
+                onClick={() => setShowRoastModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Flame className="w-4 h-4" />
+                Log a Roast
+              </button>
+              <button
+                onClick={() => setShowRebalanceModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Scale className="w-4 h-4" />
+                Rebalance
+              </button>
               <Link href={`/tools/inventory/roasted/${stock.id}/edit`} className="block w-full px-4 py-2.5 text-center border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                 Edit Details
               </Link>
@@ -299,6 +317,30 @@ export function RoastedStockDetail({
           </div>
         </div>
       </div>
+
+      <QuickRoastModal
+        open={showRoastModal}
+        onClose={() => setShowRoastModal(false)}
+        onSuccess={() => { router.refresh(); setShowRoastModal(false); }}
+        preselectedBeanId={stock.green_bean_id || undefined}
+        preselectedStockId={stock.id}
+      />
+      {showRebalanceModal && (
+        <QuickRebalanceModal
+          open={showRebalanceModal}
+          onClose={() => setShowRebalanceModal(false)}
+          onSuccess={() => { router.refresh(); setShowRebalanceModal(false); }}
+          item={{
+            type: "roasted",
+            id: stock.id,
+            name: stock.name,
+            currentKg: currentStock,
+            linkedGreenBeanId: stock.green_bean_id || undefined,
+            linkedGreenBeanName: stock.green_beans?.name,
+            linkedGreenBeanKg: stock.green_beans ? Number(stock.green_beans.current_stock_kg) : undefined,
+          }}
+        />
+      )}
     </div>
   );
 }

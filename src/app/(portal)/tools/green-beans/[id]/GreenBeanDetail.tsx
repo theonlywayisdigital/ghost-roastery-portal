@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Minus } from "@/components/icons";
+import { ArrowLeft, Pencil, Plus, Minus, Package, Flame, Scale } from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { QuickReceiveModal } from "@/components/inventory/QuickReceiveModal";
+import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
 
 interface Movement {
   id: string;
@@ -67,6 +70,9 @@ export function GreenBeanDetail({
   const [showAddStock, setShowAddStock] = useState(false);
   const [stockForm, setStockForm] = useState({ type: "purchase", qty: "", cost: "", notes: "" });
   const [saving, setSaving] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showRoastModal, setShowRoastModal] = useState(false);
+  const [showRebalanceModal, setShowRebalanceModal] = useState(false);
 
   async function handleStockSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -239,13 +245,52 @@ export function GreenBeanDetail({
               <button onClick={() => setShowAddStock(true)} className="w-full px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
                 Add Stock
               </button>
-              <Link href={`/tools/roast-log/new?beanId=${bean.id}`} className="block w-full px-4 py-2.5 text-center border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+              <button
+                onClick={() => setShowReceiveModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Package className="w-4 h-4" />
+                Receive Stock
+              </button>
+              <button
+                onClick={() => setShowRoastModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Flame className="w-4 h-4" />
                 Log a Roast
-              </Link>
+              </button>
+              <button
+                onClick={() => setShowRebalanceModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Scale className="w-4 h-4" />
+                Rebalance
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      <QuickReceiveModal
+        open={showReceiveModal}
+        onClose={() => setShowReceiveModal(false)}
+        onSuccess={() => { router.refresh(); setShowReceiveModal(false); }}
+        preselectedBeanId={bean.id}
+      />
+      <QuickRoastModal
+        open={showRoastModal}
+        onClose={() => setShowRoastModal(false)}
+        onSuccess={() => { router.refresh(); setShowRoastModal(false); }}
+        preselectedBeanId={bean.id}
+      />
+      {showRebalanceModal && (
+        <QuickRebalanceModal
+          open={showRebalanceModal}
+          onClose={() => setShowRebalanceModal(false)}
+          onSuccess={() => { router.refresh(); setShowRebalanceModal(false); }}
+          item={{ type: "green", id: bean.id, name: bean.name, currentKg: currentStock }}
+        />
+      )}
     </div>
   );
 }

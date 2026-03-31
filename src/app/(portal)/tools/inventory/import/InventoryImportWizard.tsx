@@ -12,11 +12,12 @@ import {
   Check,
   X,
 } from "@/components/icons";
-import { CsvFieldMapper, type FieldOption } from "@/components/products/CsvFieldMapper";
+import { CsvFieldMapper } from "@/components/products/CsvFieldMapper";
 import {
   GreenBeanImportPreview,
   RoastedStockImportPreview,
 } from "@/components/inventory/InventoryImportPreview";
+import { GreenBeanLinkMapping } from "@/components/inventory/GreenBeanLinkMapping";
 import {
   GREEN_BEAN_FIELDS,
   ROASTED_STOCK_FIELDS,
@@ -32,18 +33,24 @@ import {
 } from "@/lib/inventory-import";
 
 type InventoryType = "green_beans" | "roasted_stock";
-type Step = "upload" | "map" | "preview" | "importing" | "done";
+type Step = "upload" | "map" | "link" | "preview" | "importing" | "done";
 
 const STEP_LABELS: Record<Step, string> = {
   upload: "Upload",
   map: "Map Fields",
+  link: "Link Green Beans",
   preview: "Preview",
   importing: "Importing",
   done: "Done",
 };
 
-const VISIBLE_STEPS: Step[] = ["upload", "map", "preview", "done"];
-const STEP_ORDER: Step[] = ["upload", "map", "preview", "importing", "done"];
+// Green beans: no link step
+const VISIBLE_STEPS_GB: Step[] = ["upload", "map", "preview", "done"];
+const STEP_ORDER_GB: Step[] = ["upload", "map", "preview", "importing", "done"];
+
+// Roasted stock: includes link step
+const VISIBLE_STEPS_RS: Step[] = ["upload", "map", "link", "preview", "done"];
+const STEP_ORDER_RS: Step[] = ["upload", "map", "link", "preview", "importing", "done"];
 
 export function InventoryImportWizard() {
   const router = useRouter();
@@ -62,11 +69,16 @@ export function InventoryImportWizard() {
   const [parsedStock, setParsedStock] = useState<NormalisedRoastedStock[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
 
+  // Green bean link mappings (roasted stock only) — index → green_bean_id
+  const [greenBeanMappings, setGreenBeanMappings] = useState<Record<number, string>>({});
+
   // Import result
   const [importResult, setImportResult] = useState<InventoryImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
   const isGreenBeans = inventoryType === "green_beans";
+  const visibleSteps = isGreenBeans ? VISIBLE_STEPS_GB : VISIBLE_STEPS_RS;
+  const stepOrder = isGreenBeans ? STEP_ORDER_GB : STEP_ORDER_RS;
 
   // ─── File handling ────────────────────────────────────
 
@@ -156,10 +168,19 @@ export function InventoryImportWizard() {
 
   // ─── Step navigation ──────────────────────────────────
 
-  const goToPreview = useCallback(() => {
+  const goFromMapStep = useCallback(() => {
     parseData();
+    if (isGreenBeans) {
+      setStep("preview");
+    } else {
+      // Roasted stock — go to link step
+      setStep("link");
+    }
+  }, [parseData, isGreenBeans]);
+
+  const goToPreviewFromLink = useCallback(() => {
     setStep("preview");
-  }, [parseData]);
+  }, []);
 
   const startImport = useCallback(async () => {
     setStep("importing");
@@ -173,6 +194,7 @@ export function InventoryImportWizard() {
           csvText,
           mapping,
           type: inventoryType,
+          greenBeanMappings: !isGreenBeans ? greenBeanMappings : undefined,
         }),
       });
 
@@ -192,14 +214,14 @@ export function InventoryImportWizard() {
       );
       setStep("preview");
     }
-  }, [csvText, mapping, inventoryType]);
+  }, [csvText, mapping, inventoryType, isGreenBeans, greenBeanMappings]);
 
   const nameIsMapped = Object.values(mapping).includes("name");
   const recordCount = isGreenBeans ? parsedBeans.length : parsedStock.length;
 
   // ─── Step indicator ───────────────────────────────────
 
-  const currentStepIndex = STEP_ORDER.indexOf(step);
+  const currentStepIndex = stepOrder.indexOf(step);
 
   // Reset helper
   const resetAll = useCallback(() => {
@@ -212,13 +234,13 @@ export function InventoryImportWizard() {
     setParsedBeans([]);
     setParsedStock([]);
     setParseErrors([]);
+    setGreenBeanMappings({});
     setImportResult(null);
     setImportError(null);
   }, []);
 
   const handleTypeChange = useCallback((type: InventoryType) => {
     setInventoryType(type);
-    // Reset file + mapping when type changes
     setCsvText("");
     setFileName("");
     setCsvHeaders([]);
@@ -227,6 +249,7 @@ export function InventoryImportWizard() {
     setParsedBeans([]);
     setParsedStock([]);
     setParseErrors([]);
+    setGreenBeanMappings({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
@@ -254,12 +277,12 @@ export function InventoryImportWizard() {
 
       {/* Step indicator */}
       <div className="flex items-center gap-1 mb-6">
-        {VISIBLE_STEPS.map((s, i) => {
-          const si = STEP_ORDER.indexOf(s);
+        {visibleSteps.map((s, i) => {
+          const si = stepOrder.indexOf(s);
           const isActive = si === currentStepIndex;
           const isDone =
             si < currentStepIndex ||
-            (step === "importing" && si <= STEP_ORDER.indexOf("preview"));
+            (step === "importing" && si <= stepOrder.indexOf("preview"));
           const label = STEP_LABELS[s];
 
           return (
@@ -408,13 +431,52 @@ export function InventoryImportWizard() {
                 Back
               </button>
               <button
-                onClick={goToPreview}
+                onClick={goFromMapStep}
                 disabled={!nameIsMapped}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Preview Import
+                {isGreenBeans ? "Preview Import" : "Link Green Beans"}
                 <ArrowRight className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Link Green Beans Step (roasted stock only) ─── */}
+        {step === "link" && (
+          <div>
+            <GreenBeanLinkMapping
+              stock={parsedStock}
+              greenBeanMappings={greenBeanMappings}
+              onMappingsChange={setGreenBeanMappings}
+            />
+
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+              <button
+                onClick={() => setStep("map")}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Mapping
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setGreenBeanMappings({});
+                    setStep("preview");
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={goToPreviewFromLink}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+                >
+                  Review Import
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -443,11 +505,11 @@ export function InventoryImportWizard() {
 
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
               <button
-                onClick={() => setStep("map")}
+                onClick={() => setStep(isGreenBeans ? "map" : "link")}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back to Mapping
+                {isGreenBeans ? "Back to Mapping" : "Back to Green Bean Links"}
               </button>
               <button
                 onClick={startImport}

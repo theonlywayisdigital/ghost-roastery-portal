@@ -17,10 +17,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { csvText, mapping, type } = body as {
+  const { csvText, mapping, type, greenBeanMappings } = body as {
     csvText: string;
     mapping: Record<string, string>;
     type: "green_beans" | "roasted_stock";
+    greenBeanMappings?: Record<string, string>;
   };
 
   if (!csvText || !mapping || !type) {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   if (type === "green_beans") {
     return handleGreenBeans(supabase, roasterId, csvText, mapping as Record<string, GreenBeanField>);
   } else if (type === "roasted_stock") {
-    return handleRoastedStock(supabase, roasterId, csvText, mapping as Record<string, RoastedStockField>);
+    return handleRoastedStock(supabase, roasterId, csvText, mapping as Record<string, RoastedStockField>, greenBeanMappings);
   }
 
   return NextResponse.json({ error: "Invalid type" }, { status: 400 });
@@ -168,7 +169,8 @@ async function handleRoastedStock(
   supabase: ReturnType<typeof createServerClient>,
   roasterId: string,
   csvText: string,
-  mapping: Record<string, RoastedStockField>
+  mapping: Record<string, RoastedStockField>,
+  greenBeanMappings?: Record<string, string>
 ) {
   const { stock, errors: parseErrors } = csvToNormalisedRoastedStock({ csvText, mapping });
 
@@ -190,22 +192,27 @@ async function handleRoastedStock(
     );
   }
 
-  // Build green bean name → id map
-  const beanNames = Array.from(
-    new Set(stock.map((s) => s.green_bean_name).filter((n): n is string => n != null))
-  );
-  const beanMap = new Map<string, string>();
+  // If client sent explicit green bean mappings (from the link step), use those.
+  // Otherwise fall back to server-side name lookup.
+  const hasClientMappings = greenBeanMappings && Object.keys(greenBeanMappings).length > 0;
 
-  if (beanNames.length > 0) {
-    const { data: greenBeans } = await supabase
-      .from("green_beans")
-      .select("id, name")
-      .eq("roaster_id", roasterId)
-      .eq("is_active", true);
+  let beanMap: Map<string, string> | null = null;
+  if (!hasClientMappings) {
+    const beanNames = Array.from(
+      new Set(stock.map((s) => s.green_bean_name).filter((n): n is string => n != null))
+    );
+    if (beanNames.length > 0) {
+      beanMap = new Map<string, string>();
+      const { data: greenBeans } = await supabase
+        .from("green_beans")
+        .select("id, name")
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true);
 
-    if (greenBeans) {
-      for (const gb of greenBeans) {
-        beanMap.set(gb.name.toLowerCase().trim(), gb.id);
+      if (greenBeans) {
+        for (const gb of greenBeans) {
+          beanMap.set(gb.name.toLowerCase().trim(), gb.id);
+        }
       }
     }
   }
@@ -214,11 +221,14 @@ async function handleRoastedStock(
   let skipped = 0;
   const errors = [...parseErrors];
 
-  for (const item of stock) {
+  for (let i = 0; i < stock.length; i++) {
+    const item = stock[i];
     try {
-      // Resolve green bean
+      // Resolve green bean — prefer client mapping, fall back to name lookup
       let greenBeanId: string | null = null;
-      if (item.green_bean_name) {
+      if (hasClientMappings) {
+        greenBeanId = greenBeanMappings[String(i)] || null;
+      } else if (item.green_bean_name && beanMap) {
         greenBeanId = beanMap.get(item.green_bean_name.toLowerCase().trim()) || null;
         if (!greenBeanId) {
           errors.push(`"${item.name}": Source bean "${item.green_bean_name}" not found — imported without link`);

@@ -31,6 +31,11 @@ export interface NormalisedProduct {
   is_retail?: boolean;
   is_wholesale?: boolean;
   minimum_wholesale_quantity?: number;
+  // Stock mapping (optional, set during import wizard stock step)
+  roasted_stock_id?: string | null;
+  green_bean_id?: string | null;
+  is_blend?: boolean;
+  blend_components?: { roasted_stock_id: string; percentage: number }[];
 }
 
 export interface NormalisedVariant {
@@ -251,12 +256,26 @@ export async function createNewProduct(
       ...(product.minimum_wholesale_quantity != null && {
         minimum_wholesale_quantity: product.minimum_wholesale_quantity,
       }),
+      // Stock mapping
+      roasted_stock_id: (!product.is_blend && product.roasted_stock_id) || null,
+      green_bean_id: product.green_bean_id || null,
+      is_blend: product.is_blend ?? false,
     })
     .select("id")
     .single();
 
   if (error || !created) {
     throw new Error(`Failed to create product: ${error?.message}`);
+  }
+
+  // Insert blend components if this is a blend product
+  if (product.is_blend && product.blend_components && product.blend_components.length > 0) {
+    const componentRows = product.blend_components.map((bc) => ({
+      product_id: created.id,
+      roasted_stock_id: bc.roasted_stock_id,
+      percentage: bc.percentage,
+    }));
+    await supabase.from("blend_components").insert(componentRows);
   }
 
   // Create variants

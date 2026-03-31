@@ -9,6 +9,13 @@ import {
 } from "@/lib/product-import";
 import { csvToNormalisedProducts, type CsvImportInput } from "@/lib/csv-import";
 
+interface StockMappingPayload {
+  roasted_stock_id: string | null;
+  green_bean_id: string | null;
+  is_blend: boolean;
+  blend_components: { roasted_stock_id: string; percentage: number }[];
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user?.roaster?.id) {
@@ -22,7 +29,10 @@ export async function POST(request: Request) {
     defaultCategory,
     defaultIsRetail,
     defaultIsWholesale,
-  } = body as CsvImportInput;
+    stockMappings,
+  } = body as CsvImportInput & {
+    stockMappings?: Record<string, StockMappingPayload>;
+  };
 
   if (!csvText || !mapping) {
     return NextResponse.json(
@@ -54,6 +64,19 @@ export async function POST(request: Request) {
       },
       { status: 200 }
     );
+  }
+
+  // Apply stock mappings to products
+  if (stockMappings) {
+    for (const product of products) {
+      const sm = stockMappings[product.external_id];
+      if (sm) {
+        product.roasted_stock_id = sm.is_blend ? null : sm.roasted_stock_id;
+        product.green_bean_id = sm.green_bean_id;
+        product.is_blend = sm.is_blend;
+        product.blend_components = sm.is_blend ? sm.blend_components : undefined;
+      }
+    }
   }
 
   // Check product limit

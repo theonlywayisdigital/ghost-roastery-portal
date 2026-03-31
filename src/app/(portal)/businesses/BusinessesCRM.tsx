@@ -187,14 +187,7 @@ export function BusinessesCRM() {
     setAddSaving(true);
     setAddError(null);
     try {
-      let types = addForm.types;
-      if (types.length === 0) {
-        if (activeTab === "retail") types = ["retail"];
-        else if (activeTab === "wholesale") types = ["wholesale"];
-        else if (activeTab === "suppliers") types = ["supplier"];
-        else if (activeTab === "leads") types = ["lead"];
-        else types = ["retail"];
-      }
+      const types = addForm.types;
 
       const { contact_first_name, contact_last_name, contact_email, contact_phone, contact_role, ...bizFields } = addForm;
       const res = await fetch("/api/businesses", {

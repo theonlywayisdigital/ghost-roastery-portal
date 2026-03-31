@@ -17,6 +17,7 @@ import {
   ArrowUpDown,
   X,
   Download,
+  Upload,
 } from "@/components/icons";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
@@ -360,14 +361,7 @@ export function UnifiedCRM() {
     setContactAddSaving(true);
     setContactAddError(null);
     try {
-      let types = contactAddForm.types;
-      if (types.length === 0) {
-        if (contactTypeTab === "retail") types = ["retail"];
-        else if (contactTypeTab === "wholesale") types = ["wholesale"];
-        else if (contactTypeTab === "suppliers") types = ["supplier"];
-        else if (contactTypeTab === "leads") types = ["lead"];
-        else types = ["retail"];
-      }
+      const types = contactAddForm.types;
 
       const res = await fetch("/api/contacts", {
         method: "POST",
@@ -394,14 +388,7 @@ export function UnifiedCRM() {
     setBizAddSaving(true);
     setBizAddError(null);
     try {
-      let types = bizAddForm.types;
-      if (types.length === 0) {
-        if (bizTypeTab === "retail") types = ["retail"];
-        else if (bizTypeTab === "wholesale") types = ["wholesale"];
-        else if (bizTypeTab === "suppliers") types = ["supplier"];
-        else if (bizTypeTab === "leads") types = ["lead"];
-        else types = ["retail"];
-      }
+      const types = bizAddForm.types;
 
       const { contact_first_name, contact_last_name, contact_email, contact_phone, contact_role, ...bizFields } = bizAddForm;
       const res = await fetch("/api/businesses", {
@@ -458,6 +445,13 @@ export function UnifiedCRM() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/contacts/import"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </Link>
           <button
             onClick={() => {
               const defaultTypes: string[] = [];

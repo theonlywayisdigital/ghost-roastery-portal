@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const bizTypes = types || ["retail"];
+    const bizTypes = types || [];
     const { data: business, error } = await supabase
       .from("businesses")
       .insert({

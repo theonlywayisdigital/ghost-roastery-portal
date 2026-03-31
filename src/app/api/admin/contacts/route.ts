@@ -170,7 +170,7 @@ export async function POST(request: Request) {
       phone
     );
 
-    const contactTypes = types || ["retail"];
+    const contactTypes = types || [];
     const { data: contact, error } = await supabase
       .from("contacts")
       .insert({

@@ -548,7 +548,7 @@ export function AdminBusinessDetail({ businessId }: { businessId: string }) {
           role: newContactForm.role.trim() || null,
           business_id: businessId,
           business_name: data?.business.name || "",
-          types: data?.business.types || ["retail"],
+          types: data?.business.types || [],
           source: "manual",
           status: "active",
         }),

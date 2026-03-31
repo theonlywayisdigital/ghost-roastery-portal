@@ -193,15 +193,7 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
     setAddSaving(true);
     setAddError(null);
     try {
-      let types = addForm.types;
-      if (types.length === 0) {
-        if (activeTab === "retail") types = ["retail"];
-        else if (activeTab === "leads") types = ["lead"];
-        else if (activeTab === "suppliers") types = ["supplier"];
-        else if (activeTab === "roasters") types = ["roaster"];
-        else if (activeTab === "partners") types = ["partner"];
-        else types = ["retail"];
-      }
+      const types = addForm.types;
 
       const res = await fetch("/api/admin/contacts", {
         method: "POST",

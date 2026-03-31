@@ -189,15 +189,7 @@ export function ContactsCRM() {
     setAddSaving(true);
     setAddError(null);
     try {
-      // Pre-select type based on current tab
-      let types = addForm.types;
-      if (types.length === 0) {
-        if (activeTab === "retail") types = ["retail"];
-        else if (activeTab === "wholesale") types = ["wholesale"];
-        else if (activeTab === "suppliers") types = ["supplier"];
-        else if (activeTab === "leads") types = ["lead"];
-        else types = ["retail"];
-      }
+      const types = addForm.types;
 
       const res = await fetch("/api/contacts", {
         method: "POST",

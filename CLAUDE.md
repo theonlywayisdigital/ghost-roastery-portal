@@ -12,20 +12,13 @@ Roastery Platform. Separate Next.js 14 app sharing the same Supabase database as
 - Resend (email)
 - Lucide React (icons)
 
+## Boundary Rule
+**NEVER operate on files outside this repository (`/Users/alexmccormick/ghost-roasting-portal/`).** Supabase migrations are managed in a separate repo and are NOT Claude's responsibility — do not create, edit, or run migrations.
+
 ## Supabase
-- Same database as main site (roasteryplatform.com)
-- Migrations live in the main repo: `/Users/alexmccormick/ghostroastery/supabase/migrations/`
+- Shares a database with the main site (roasteryplatform.com)
 - Service role key for server-side operations (bypasses RLS)
 - Project ref: zaryzynzbpxmscggufdc
-
-### Running Migrations
-Migrations must be run from the **ghostroastery** repo (not this portal repo):
-```bash
-cd /Users/alexmccormick/ghostroastery
-npx supabase link --project-ref zaryzynzbpxmscggufdc   # only needed once
-npx supabase db push                                     # applies pending migrations
-```
-Migration files follow the naming convention `YYYYMMDDHHMMSS_description.sql`.
 
 ## Auth
 - Uses Supabase Auth via @supabase/ssr (cookie-based sessions)

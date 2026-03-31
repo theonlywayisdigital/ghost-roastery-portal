@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Plus, Check, ArrowDown } from "@/components/icons";
+import { Pencil, Trash2, Plus, Check, ArrowDown, Upload } from "@/components/icons";
 import Link from "next/link";
 import { useUpgradeBanner } from "@/hooks/useUpgradeBanner";
 import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
@@ -206,13 +206,22 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
             Manage your wholesale coffee products.
           </p>
         </div>
-        <Link
-          href="/products/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Product
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/products/import"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </Link>
+          <Link
+            href="/products/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Product
+          </Link>
+        </div>
       </div>
 
       {banner.show && (

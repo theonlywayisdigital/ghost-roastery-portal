@@ -13,17 +13,21 @@ Roastery Platform. Separate Next.js 14 app sharing the same Supabase database as
 - Lucide React (icons)
 
 ## Boundary Rule
-**NEVER operate on files outside this repository (`/Users/alexmccormick/ghost-roasting-portal/`).** Supabase migrations are managed in a separate repo and are NOT Claude's responsibility — do not create, edit, or run migrations.
+**NEVER operate on files outside this repository (`/Users/alexmccormick/ghost-roasting-portal/`).**
 
 ## Supabase
 - Shares a database with the main site (roasteryplatform.com)
 - Service role key for server-side operations (bypasses RLS)
 - Project ref: zaryzynzbpxmscggufdc
+- Migrations are managed in `supabase/migrations/` in this repo
+- Create new migrations: `npx supabase migration new <name>`
+- Deploy migrations: `npx supabase db push`
+- Regenerate types: `npx supabase gen types typescript --linked > src/types/database.ts`
 
 ## Auth
 - Uses Supabase Auth via @supabase/ssr (cookie-based sessions)
 - `getCurrentUser()` from `src/lib/auth.ts` — returns user with roles and roaster data
-- `getCurrentRoaster()` — backward-compatible wrapper, returns partner_roasters row
+- `getCurrentRoaster()` — backward-compatible wrapper, returns roasters row
 - Roles stored in `user_roles` table: roaster, ghost_roastery_customer, retail_buyer, wholesale_buyer, admin
 - Middleware refreshes Supabase session on every request
 - Sidebar shows nav sections based on user roles

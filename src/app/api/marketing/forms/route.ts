@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     let logoUrl: string | null = null;
     if (owner.owner_type === "roaster" && owner.owner_id) {
       const { data: roasterData } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("storefront_accent_colour, storefront_logo_url")
         .eq("id", owner.owner_id)
         .single();

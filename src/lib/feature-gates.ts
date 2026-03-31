@@ -62,7 +62,7 @@ interface RoasterTiers {
 async function getRoasterTierData(roasterId: string): Promise<RoasterTiers | null> {
   const supabase = createServerClient();
   const { data } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, sales_tier, marketing_tier, monthly_wholesale_orders_count, monthly_wholesale_orders_reset_at, monthly_ai_credits_used, monthly_ai_credits_reset_at, monthly_emails_sent, monthly_email_reset_at, ai_credits_topup_balance"
     )
@@ -121,7 +121,7 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
         // Reset counter lazily
         const supabase = createServerClient();
         await supabase
-          .from("partner_roasters")
+          .from("roasters")
           .update({ monthly_wholesale_orders_count: 0, monthly_wholesale_orders_reset_at: new Date().toISOString() })
           .eq("id", roasterId);
         return 0;
@@ -141,7 +141,7 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
       if (isNewMonth(roasterData.monthly_email_reset_at)) {
         const supabase = createServerClient();
         await supabase
-          .from("partner_roasters")
+          .from("roasters")
           .update({ monthly_emails_sent: 0, monthly_email_reset_at: new Date().toISOString() })
           .eq("id", roasterId);
         return 0;
@@ -155,7 +155,7 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
       if (isNewMonth(roasterData.monthly_ai_credits_reset_at)) {
         const supabase = createServerClient();
         await supabase
-          .from("partner_roasters")
+          .from("roasters")
           .update({ monthly_ai_credits_used: 0, monthly_ai_credits_reset_at: new Date().toISOString() })
           .eq("id", roasterId);
         return 0;
@@ -263,7 +263,7 @@ export async function checkLimit(
 export async function checkWebsiteAccess(roasterId: string): Promise<boolean> {
   const supabase = createServerClient();
   const { data } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("website_subscription_active")
     .eq("id", roasterId)
     .single();

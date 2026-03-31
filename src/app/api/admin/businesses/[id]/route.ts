@@ -29,7 +29,7 @@ export async function GET(
   let roasterName: string | null = null;
   if (business.owner_type === "roaster" && business.roaster_id) {
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("business_name")
       .eq("id", business.roaster_id)
       .single();

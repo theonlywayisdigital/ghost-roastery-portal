@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch roasters lookup
   const { data: roastersList } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, business_name, storefront_type");
   const roasterMap = new Map(
     (roastersList || []).map((r) => [r.id, r])

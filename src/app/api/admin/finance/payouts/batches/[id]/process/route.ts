@@ -65,7 +65,7 @@ export async function POST(
     );
 
     const { data: roasters } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, stripe_account_id")
       .in("id", roasterIds);
 

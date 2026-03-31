@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
     // ─── Fetch roaster settings ───
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select(
         "id, platform_fee_percent, business_name, user_id, sales_tier, auto_create_invoices, auto_send_invoices, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id"
       )

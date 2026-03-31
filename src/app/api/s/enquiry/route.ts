@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     // Verify the roaster exists and has storefront enabled
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id")
       .eq("id", roaster_id)
       .eq("storefront_enabled", true)

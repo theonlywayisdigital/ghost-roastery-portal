@@ -41,7 +41,7 @@ export default async function WholesaleBuyersPageRoute() {
   }));
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("auto_approve_wholesale, wholesale_stripe_enabled")
     .eq("id", user.roaster.id)
     .single();

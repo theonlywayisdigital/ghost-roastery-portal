@@ -12,7 +12,7 @@ export async function GET(
 
   // Look up roaster
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, website_custom_domain, storefront_slug")
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)

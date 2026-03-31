@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, business_name")
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)
@@ -60,7 +60,7 @@ export default async function WebsiteHomePage({ params }: PageProps) {
 
   // Look up roaster
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id")
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)

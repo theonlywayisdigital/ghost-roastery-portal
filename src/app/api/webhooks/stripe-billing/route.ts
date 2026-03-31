@@ -92,7 +92,7 @@ async function handleCheckoutCompleted(
 
     // Get current balance
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("ai_credits_topup_balance")
       .eq("id", roasterId)
       .single();
@@ -101,7 +101,7 @@ async function handleCheckoutCompleted(
     const newBalance = currentBalance + credits;
 
     await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({
         ai_credits_topup_balance: newBalance,
         updated_at: new Date().toISOString(),
@@ -164,7 +164,7 @@ async function handleCheckoutCompleted(
   updates.tier_override_by = null; // Self-service, clear admin override
 
   await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(updates)
     .eq("id", roasterId);
 
@@ -199,7 +199,7 @@ async function scaffoldDefaultWebsitePages(
   if (!website) {
     // Get roaster info for website name
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("business_name, storefront_slug, website_template")
       .eq("id", roasterId)
       .single();
@@ -230,7 +230,7 @@ async function scaffoldDefaultWebsitePages(
 
   // Get roaster's template preference
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("website_template")
     .eq("id", roasterId)
     .single();
@@ -314,7 +314,7 @@ async function handleSubscriptionUpdated(
   }
 
   await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(updates)
     .eq("id", roasterId);
 
@@ -370,7 +370,7 @@ async function handleSubscriptionDeleted(
 
   // Check if ANY subscription still exists
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("stripe_sales_subscription_id, stripe_marketing_subscription_id, stripe_website_subscription_id")
     .eq("id", roasterId)
     .single();
@@ -391,7 +391,7 @@ async function handleSubscriptionDeleted(
   }
 
   await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(updates)
     .eq("id", roasterId);
 
@@ -434,7 +434,7 @@ async function handleInvoicePaid(
 
   // Clear past_due state
   await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update({
       subscription_status: "active",
       subscription_past_due_since: null,
@@ -472,7 +472,7 @@ async function handleInvoicePaymentFailed(
   const gracePeriodEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 14 days
 
   await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update({
       subscription_status: "past_due",
       subscription_past_due_since: now.toISOString(),

@@ -24,7 +24,7 @@ export async function POST(
     // Get form
     const { data: form } = await supabase
       .from("forms")
-      .select("*, partner_roasters(id, user_id, business_name)")
+      .select("*, roasters(id, user_id, business_name)")
       .eq("id", id)
       .eq("status", "active")
       .single();
@@ -35,7 +35,7 @@ export async function POST(
 
     const settings = (form.settings || {}) as Record<string, unknown>;
     const fields = (form.fields || []) as { id: string; type: string; label: string; required: boolean }[];
-    const roaster = form.partner_roasters as { id: string; user_id: string; business_name: string } | null;
+    const roaster = form.roasters as { id: string; user_id: string; business_name: string } | null;
 
     // Validate required fields
     const data = body.data as Record<string, unknown>;
@@ -83,7 +83,7 @@ export async function POST(
     let branding: EmailBranding | undefined;
     if (roaster) {
       const { data: rb } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
         .eq("id", roaster.id)
         .single();
@@ -378,7 +378,7 @@ async function getNotificationEmail(
   roasterId: string
 ): Promise<string | null> {
   const { data } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("email")
     .eq("id", roasterId)
     .single();

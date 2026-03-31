@@ -15,7 +15,7 @@ export async function PATCH(request: Request) {
 
   const supabase = createServerClient();
   const { error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update({ default_batch_size_kg })
     .eq("id", user.roaster.id);
 

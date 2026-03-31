@@ -137,7 +137,7 @@ export async function PATCH(
         try {
           const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
           const { data: grRoaster } = await supabase
-            .from("partner_roasters")
+            .from("roasters")
             .select("storefront_slug")
             .eq("id", roasterId)
             .single();

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   // Find scheduled campaigns that are due
   const { data: dueCampaigns, error } = await supabase
     .from("campaigns")
-    .select("*, partner_roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style)")
+    .select("*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style)")
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true })
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   const errors: string[] = [];
 
   for (const campaign of dueCampaigns) {
-    const roaster = campaign.partner_roasters as {
+    const roaster = campaign.roasters as {
       id: string;
       business_name: string;
       email: string;
@@ -218,7 +218,7 @@ export async function GET(request: Request) {
 
         if (rpcError) {
           await supabase
-            .from("partner_roasters")
+            .from("roasters")
             .update({ monthly_emails_sent: recipients.length })
             .eq("id", campaign.roaster_id);
         }

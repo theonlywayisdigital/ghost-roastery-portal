@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase";
  * Resolve Roastery Platform's own roaster ID.
  *
  * Prefers the GHOST_ROASTERY_ROASTER_ID env var for speed.
- * Falls back to querying partner_roasters where
+ * Falls back to querying roasters where
  * business_name = 'Roastery Platform' AND is_active = true.
  */
 export async function getGRRoasterId(): Promise<string> {
@@ -13,7 +13,7 @@ export async function getGRRoasterId(): Promise<string> {
 
   const supabase = createServerClient();
   const { data, error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id")
     .eq("business_name", "Ghost Roastery")
     .eq("is_active", true)
@@ -22,7 +22,7 @@ export async function getGRRoasterId(): Promise<string> {
 
   if (error || !data) {
     throw new Error(
-      "Roastery Platform roaster account not found. Set GHOST_ROASTERY_ROASTER_ID env var or ensure a partner_roasters row exists."
+      "Roastery Platform roaster account not found. Set GHOST_ROASTERY_ROASTER_ID env var or ensure a roasters row exists."
     );
   }
 

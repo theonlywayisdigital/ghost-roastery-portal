@@ -19,7 +19,7 @@ export default async function WholesaleCataloguePage({
 
   // Fetch roaster by storefront_slug
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_logo_url, storefront_slug, storefront_enabled, stripe_account_id, platform_fee_percent"
     )

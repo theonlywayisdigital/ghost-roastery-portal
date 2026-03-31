@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const supabase = createServerClient();
 
   const { data: existing } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id")
     .eq("storefront_slug", slug)
     .neq("id", roaster.id)

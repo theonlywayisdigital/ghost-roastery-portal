@@ -11,7 +11,7 @@ export default async function AdminUsersPage() {
 
   // Load roasters list for the filter dropdown
   const { data: roasters } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, business_name")
     .eq("is_active", true)
     .order("business_name");

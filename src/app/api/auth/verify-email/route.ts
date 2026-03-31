@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // Send welcome email (fire-and-forget)
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("email, contact_name, business_name")
       .eq("user_id", tokenRow.user_id)
       .single();

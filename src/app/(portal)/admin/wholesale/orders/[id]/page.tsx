@@ -33,7 +33,7 @@ export default async function AdminWholesaleOrderDetailPage({ params }: Props) {
   const [roasterRes, activitiesRes, commsRes, invoiceRes, refundsRes] =
     await Promise.all([
       supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("*")
         .eq("id", order.roaster_id)
         .single(),

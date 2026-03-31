@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch roasters lookup for name resolution
   const { data: roastersList } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, business_name, storefront_type, is_ghost_roaster");
   const roasterMap = new Map(
     (roastersList || []).map((r) => [r.id, r])

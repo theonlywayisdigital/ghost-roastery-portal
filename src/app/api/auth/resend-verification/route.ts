@@ -48,9 +48,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get contact name from partner_roasters
+    // Get contact name from roasters
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("contact_name")
       .eq("user_id", user.id)
       .single();

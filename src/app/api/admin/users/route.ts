@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     if (roasterIds.length > 0) {
       const uniqueRoasterIds = Array.from(new Set(roasterIds));
       const { data: roasters } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("id, business_name")
         .in("id", uniqueRoasterIds);
       if (roasters) {

@@ -19,7 +19,7 @@ export async function GET(
 
   const [roasterResult, ledgerResult] = await Promise.all([
     supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("marketing_tier, monthly_ai_credits_used, monthly_ai_credits_reset_at, ai_credits_topup_balance")
       .eq("id", id)
       .single(),
@@ -69,7 +69,7 @@ export async function POST(
 
   // Verify roaster exists
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, ai_credits_topup_balance")
     .eq("id", id)
     .single();
@@ -83,7 +83,7 @@ export async function POST(
   // Update balance + insert ledger entry
   const [updateResult, ledgerResult] = await Promise.all([
     supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({
         ai_credits_topup_balance: newBalance,
         updated_at: new Date().toISOString(),

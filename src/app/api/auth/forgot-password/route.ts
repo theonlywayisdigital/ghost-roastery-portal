@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     // Look up roaster
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, contact_name, email")
       .eq("email", normalizedEmail)
       .eq("is_active", true)

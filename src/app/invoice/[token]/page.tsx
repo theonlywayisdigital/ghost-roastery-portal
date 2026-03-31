@@ -65,7 +65,7 @@ export default async function PublicInvoicePage({
 
   if (invoice.owner_type === "roaster" && invoice.roaster_id) {
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select(
         "business_name, email, address_line_1, city, postcode, country, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, storefront_button_colour, storefront_button_text_colour, storefront_button_style, bank_name, bank_account_number, bank_sort_code, payment_instructions"
       )

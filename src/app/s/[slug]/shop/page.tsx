@@ -15,7 +15,7 @@ export default async function ShopPageRoute({
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, storefront_type")
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)

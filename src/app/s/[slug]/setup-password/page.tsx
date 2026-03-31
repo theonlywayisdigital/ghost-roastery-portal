@@ -20,7 +20,7 @@ export default async function StorefrontSetupPasswordPage({
 
   // Verify roaster exists and storefront is enabled
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_enabled, storefront_type"
     )

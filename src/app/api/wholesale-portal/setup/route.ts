@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
       // Check availability
       const { data: existing } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("id")
         .eq("storefront_slug", slug)
         .neq("id", roaster.id)
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(updateData)
     .eq("id", roaster.id);
 

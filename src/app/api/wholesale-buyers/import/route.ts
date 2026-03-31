@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   // Get roaster details for emails
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, user_id, business_name, email, storefront_slug, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline"
     )

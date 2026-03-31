@@ -11,7 +11,7 @@ export default async function AdminRoastersPage() {
 
   // Load countries for filter dropdown
   const { data: roasters } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("country")
     .not("country", "is", null);
 

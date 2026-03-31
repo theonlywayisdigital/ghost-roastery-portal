@@ -16,7 +16,7 @@ export default async function StorefrontPageRoute({
 
   // Verify roaster exists and is enabled
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, storefront_type")
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)

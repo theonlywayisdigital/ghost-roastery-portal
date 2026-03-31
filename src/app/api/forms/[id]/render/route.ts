@@ -10,7 +10,7 @@ export async function GET(
 
   const { data: form } = await supabase
     .from("forms")
-    .select("id, name, description, form_type, fields, settings, branding, roaster_id, partner_roasters(business_name)")
+    .select("id, name, description, form_type, fields, settings, branding, roaster_id, roasters(business_name)")
     .eq("id", id)
     .eq("status", "active")
     .single();

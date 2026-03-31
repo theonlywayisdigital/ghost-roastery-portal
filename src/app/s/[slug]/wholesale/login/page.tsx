@@ -13,7 +13,7 @@ export default async function WholesaleLoginRoute({
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_enabled, storefront_type"
     )

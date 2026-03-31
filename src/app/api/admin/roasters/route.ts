@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
 
   let query = supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("*", { count: "exact" });
 
   if (status && status !== "all") {
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
     // Check for duplicate slug
     const { data: existing } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id")
       .eq("roaster_slug", slug)
       .single();
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     }
 
     const { data: roaster, error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .insert({
         business_name: business_name.trim(),
         contact_first_name: contact_first_name || contact_name?.split(" ")[0] || "",

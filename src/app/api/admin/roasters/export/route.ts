@@ -13,7 +13,7 @@ export async function GET() {
 
     // Fetch all roasters
     const { data: roasters, error: roasterError } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("*")
       .order("created_at", { ascending: false });
 

@@ -110,7 +110,7 @@ export async function POST(request: Request) {
 
     // Verify roaster exists and has Stripe connected
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, stripe_account_id, platform_fee_percent, business_name, sales_tier, wholesale_stripe_enabled")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)

@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Find active enrollments that are due for their next step
     const { data: dueEnrollments } = await supabase
       .from("automation_enrollments")
-      .select("*, automations(*, partner_roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style))")
+      .select("*, automations(*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style))")
       .eq("status", "active")
       .lte("next_step_at", new Date().toISOString())
       .limit(100);
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         continue; // Skip paused/draft automations
       }
 
-      const roaster = automation.partner_roasters as Record<string, unknown>;
+      const roaster = automation.roasters as Record<string, unknown>;
       if (!roaster) continue;
 
       // Get steps for this automation

@@ -17,6 +17,7 @@ import {
   Link2,
   Mail,
 } from "@/components/icons";
+import { ReopenSetupGuide } from "@/components/onboarding/ReopenSetupGuide";
 
 const settingsItems = [
   {
@@ -158,6 +159,12 @@ export default async function SettingsPage() {
           );
         })}
       </div>
+
+      {isRoaster && (
+        <div className="mt-6">
+          <ReopenSetupGuide />
+        </div>
+      )}
     </>
   );
 }

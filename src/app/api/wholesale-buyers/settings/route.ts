@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
   const supabase = createServerClient();
 
   const { error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(update)
     .eq("id", user.roaster.id);
 

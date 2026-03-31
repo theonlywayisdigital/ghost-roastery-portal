@@ -29,7 +29,7 @@ export async function GET(
   let roasterName: string | null = null;
   if (contact.owner_type === "roaster" && contact.roaster_id) {
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("business_name")
       .eq("id", contact.roaster_id)
       .single();
@@ -79,7 +79,7 @@ export async function GET(
       crossReference = { id: crossContact.id, owner_type: crossContact.owner_type };
       if (crossContact.roaster_id) {
         const { data: crossRoaster } = await supabase
-          .from("partner_roasters")
+          .from("roasters")
           .select("business_name")
           .eq("id", crossContact.roaster_id)
           .single();

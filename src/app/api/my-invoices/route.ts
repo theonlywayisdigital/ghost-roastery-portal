@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
     let roasterMap = new Map<string, string>();
     if (roasterIds.length > 0) {
       const { data: roasters } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("id, business_name")
         .in("id", roasterIds);
 

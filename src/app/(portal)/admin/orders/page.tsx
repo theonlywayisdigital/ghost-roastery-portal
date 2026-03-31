@@ -16,7 +16,7 @@ export default async function AdminOrdersPage() {
     supabase.from("ghost_orders").select("id, order_status, total_price, payment_status"),
     supabase.from("orders").select("id, status, subtotal"),
     supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, business_name")
       .eq("is_active", true)
       .order("business_name"),

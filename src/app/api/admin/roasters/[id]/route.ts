@@ -18,7 +18,7 @@ export async function GET(
 
   // Get roaster
   const { data: roaster, error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("*")
     .eq("id", id)
     .single();
@@ -118,7 +118,7 @@ export async function PUT(
 
     // Verify roaster exists
     const { data: existing } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, is_active, sales_tier, marketing_tier")
       .eq("id", id)
       .single();
@@ -167,7 +167,7 @@ export async function PUT(
     if (tierChanged) {
       // Fetch full roaster to get subscription IDs
       const { data: fullRoaster } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("stripe_sales_subscription_id, stripe_marketing_subscription_id, sales_billing_cycle, marketing_billing_cycle")
         .eq("id", id)
         .single();
@@ -251,7 +251,7 @@ export async function PUT(
     }
 
     const { error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update(updates)
       .eq("id", id);
 
@@ -326,7 +326,7 @@ export async function DELETE(
     const supabase = createServerClient();
 
     const { data: existing } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, business_name, user_id, stripe_sales_subscription_id, stripe_marketing_subscription_id, stripe_website_subscription_id, stripe_account_id, stripe_customer_id, website_custom_domain")
       .eq("id", id)
       .single();
@@ -458,7 +458,7 @@ export async function DELETE(
 
     // ── 6. Hard delete — DB ON DELETE CASCADE handles all related tables ──
     const { error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .delete()
       .eq("id", id);
 

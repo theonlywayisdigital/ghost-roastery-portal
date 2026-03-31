@@ -48,7 +48,7 @@ interface FormData {
   settings: FormSettings;
   branding: FormBranding;
   roaster_id: string;
-  partner_roasters: { business_name: string } | null;
+  roasters: { business_name: string } | null;
 }
 
 interface SubmitResponse {
@@ -713,7 +713,7 @@ function FormPageInner() {
           <div style={{ marginBottom: 20, textAlign: "center" }}>
             <img
               src={branding.logo_url}
-              alt={form.partner_roasters?.business_name || form.name}
+              alt={form.roasters?.business_name || form.name}
               style={{
                 maxHeight: 56,
                 maxWidth: "70%",

@@ -38,7 +38,7 @@ export async function GET(
         : Promise.resolve({ data: null }),
       profile.associated_roaster_id
         ? supabase
-            .from("partner_roasters")
+            .from("roasters")
             .select("id, business_name")
             .eq("id", profile.associated_roaster_id)
             .single()

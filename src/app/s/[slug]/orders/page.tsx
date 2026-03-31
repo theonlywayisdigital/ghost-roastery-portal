@@ -28,7 +28,7 @@ export default async function StorefrontOrdersRoute({
 
   // Fetch roaster
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_primary_colour, brand_accent_colour"
     )

@@ -11,7 +11,7 @@ export default async function BrandingSettingsPage() {
 
   const supabase = createServerClient();
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, storefront_button_colour, storefront_button_text_colour, storefront_bg_colour, storefront_text_colour, storefront_button_style, storefront_logo_size, brand_hero_image_url, brand_instagram, brand_facebook, brand_tiktok"
     )

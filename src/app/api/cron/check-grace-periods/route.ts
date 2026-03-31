@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   // Find roasters whose grace period has expired
   const { data: expiredRoasters, error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, stripe_sales_subscription_id, stripe_marketing_subscription_id, sales_tier, marketing_tier")
     .eq("subscription_status", "past_due")
     .lt("grace_period_expires_at", now);
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
 
       // Downgrade to free
       await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .update({
           sales_tier: "free",
           marketing_tier: "free",

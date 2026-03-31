@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2 } from "@/components/icons";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { X, Loader2, Search, Check } from "@/components/icons";
 
 const BUSINESS_TYPE_OPTIONS = [
   { value: "cafe", label: "Caf\u00e9" },
@@ -30,6 +30,16 @@ const TERMS_OPTIONS = [
   { value: "net30", label: "Net 30" },
 ];
 
+interface SearchContact {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone: string | null;
+  business_name: string | null;
+  businesses: { id: string; name: string } | null;
+}
+
 interface AddWholesaleCustomerModalProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -41,6 +51,14 @@ export function AddWholesaleCustomerModal({
 }: AddWholesaleCustomerModalProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Contact search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchContact[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<SearchContact | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -60,6 +78,72 @@ export function AddWholesaleCustomerModal({
   function updateField(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
   }
+
+  // Debounced contact search
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(
+          `/api/contacts?search=${encodeURIComponent(searchQuery)}&status=active`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.contacts || []);
+          setShowDropdown(true);
+        }
+      } catch {
+        // Silently fail — search is optional
+      }
+      setSearchLoading(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectContact = useCallback((contact: SearchContact) => {
+    setSelectedContact(contact);
+    setSearchQuery("");
+    setShowDropdown(false);
+    setForm((f) => ({
+      ...f,
+      firstName: contact.first_name || "",
+      lastName: contact.last_name || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+      businessName: contact.businesses?.name || contact.business_name || "",
+    }));
+  }, []);
+
+  const handleClearContact = useCallback(() => {
+    setSelectedContact(null);
+    setSearchQuery("");
+    setForm((f) => ({
+      ...f,
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      businessName: "",
+    }));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -122,6 +206,79 @@ export function AddWholesaleCustomerModal({
               Contact Details
             </h4>
             <div className="space-y-3">
+              {/* Contact Search */}
+              <div ref={dropdownRef} className="relative">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Link Existing Contact{" "}
+                  <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                {selectedContact ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-200 rounded-lg text-sm">
+                    <Check className="w-4 h-4 text-brand-600 shrink-0" />
+                    <span className="text-slate-900">
+                      Linked to:{" "}
+                      <span className="font-medium">
+                        {selectedContact.first_name} {selectedContact.last_name}
+                      </span>
+                      {selectedContact.email && (
+                        <span className="text-slate-500"> — {selectedContact.email}</span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearContact}
+                      className="ml-auto text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search contacts by name or email..."
+                      className="w-full pl-9 pr-9 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />
+                    )}
+                  </div>
+                )}
+                {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {searchResults.map((contact) => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => handleSelectContact(contact)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50 text-sm border-b border-slate-100 last:border-b-0"
+                      >
+                        <span className="font-medium text-slate-900">
+                          {contact.first_name} {contact.last_name}
+                        </span>
+                        {contact.email && (
+                          <span className="text-slate-500"> — {contact.email}</span>
+                        )}
+                        {(contact.businesses?.name || contact.business_name) && (
+                          <span className="text-slate-400">
+                            {" "}
+                            — {contact.businesses?.name || contact.business_name}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showDropdown && searchQuery.length >= 2 && !searchLoading && searchResults.length === 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg px-3 py-3 text-sm text-slate-500">
+                    No contacts found
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">

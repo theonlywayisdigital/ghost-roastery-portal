@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
   const supabase = createServerClient();
 
   const { error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update(updateData)
     .eq("id", roaster.id);
 

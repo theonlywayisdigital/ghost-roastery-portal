@@ -29,7 +29,7 @@ export default async function WholesaleSuppliersPage() {
     .from("wholesale_access")
     .select(
       `id, price_tier, payment_terms, roaster_id,
-       partner_roasters!wholesale_access_roaster_id_fkey(
+       roasters!wholesale_access_roaster_id_fkey(
          id, business_name, brand_logo_url, storefront_slug
        )`
     )
@@ -56,7 +56,7 @@ export default async function WholesaleSuppliersPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {accounts.map((account) => {
-            const roastersRaw = account.partner_roasters as unknown;
+            const roastersRaw = account.roasters as unknown;
             const roaster = Array.isArray(roastersRaw)
               ? (roastersRaw[0] as { id: string; business_name: string; brand_logo_url: string | null; storefront_slug: string } | undefined)
               : (roastersRaw as { id: string; business_name: string; brand_logo_url: string | null; storefront_slug: string } | null);

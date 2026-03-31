@@ -20,7 +20,7 @@ export default async function AdminDashboardPage() {
     .eq("order_status", "Pending");
 
   const { count: roasterCount } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("*", { count: "exact", head: true })
     .eq("is_active", true);
 

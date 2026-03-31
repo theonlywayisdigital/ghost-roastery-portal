@@ -13,7 +13,7 @@ export async function GET() {
 
     // Get all ghost roasters (partners)
     const { data: partners, error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, business_name, contact_name, email, country, city, is_active, is_ghost_roaster, is_verified, ghost_roaster_approved_at, created_at")
       .eq("is_ghost_roaster", true)
       .order("business_name");

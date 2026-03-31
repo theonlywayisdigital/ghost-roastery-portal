@@ -180,7 +180,7 @@ export async function PATCH(
         try {
           const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
           const { data: roasterData } = await supabase
-            .from("partner_roasters")
+            .from("roasters")
             .select("storefront_slug, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
             .eq("id", roasterId)
             .single();

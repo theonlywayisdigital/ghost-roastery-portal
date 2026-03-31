@@ -35,9 +35,9 @@ export async function POST(request: Request) {
     const serviceClient = createServiceClient();
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if email already exists in partner_roasters
+    // Check if email already exists in roasters
     const { data: existing } = await serviceClient
-      .from("partner_roasters")
+      .from("roasters")
       .select("id")
       .eq("email", normalizedEmail)
       .single();
@@ -91,9 +91,9 @@ export async function POST(request: Request) {
       last_name: resolvedLastName,
     }, { onConflict: "id" });
 
-    // Create partner_roasters row linked to auth user
+    // Create roasters row linked to auth user
     const { data: roaster, error: dbError } = await serviceClient
-      .from("partner_roasters")
+      .from("roasters")
       .insert({
         email: normalizedEmail,
         password_hash: "supabase_auth", // No longer using bcrypt
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
     if (dbError) {
       console.error("Signup DB error:", dbError);
-      // Clean up auth user if partner_roasters insert fails
+      // Clean up auth user if roasters insert fails
       await serviceClient.auth.admin.deleteUser(authData.user.id);
       if (dbError.code === "23505") {
         return NextResponse.json(

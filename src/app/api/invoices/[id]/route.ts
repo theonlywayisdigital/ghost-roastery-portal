@@ -132,7 +132,7 @@ export async function GET(
     let roasterName: string | null = null;
     if (invoice.roaster_id) {
       const { data: roaster } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("business_name")
         .eq("id", invoice.roaster_id)
         .single();

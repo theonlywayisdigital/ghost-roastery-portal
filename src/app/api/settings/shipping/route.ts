@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
 
     const supabase = createServerClient();
     const { error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({
         default_dispatch_time: default_dispatch_time || "2_business_days",
         dispatch_cutoff_time: dispatch_cutoff_time || "14:00",

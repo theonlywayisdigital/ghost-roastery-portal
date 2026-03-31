@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   // Find submission by token
   const { data: submission } = await supabase
     .from("form_submissions")
-    .select("id, form_id, data, email_verified, forms(id, name, settings, roaster_id, partner_roasters(id, user_id, business_name))")
+    .select("id, form_id, data, email_verified, forms(id, name, settings, roaster_id, roasters(id, user_id, business_name))")
     .eq("verification_token", token)
     .single();
 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   const form = submission.forms as unknown as Record<string, unknown>;
   if (form) {
     const settings = (form.settings || {}) as Record<string, unknown>;
-    const roaster = form.partner_roasters as { id: string; user_id: string; business_name: string } | null;
+    const roaster = form.roasters as { id: string; user_id: string; business_name: string } | null;
     const data = submission.data as Record<string, unknown>;
     const email = (data.email as string)?.toLowerCase();
 

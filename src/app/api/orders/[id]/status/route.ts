@@ -149,7 +149,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         if (orderForEmail?.customer_email) {
           // Fetch roaster branding
           const { data: roasterBranding } = await supabase
-            .from("partner_roasters")
+            .from("roasters")
             .select("brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, business_name")
             .eq("id", roaster.id)
             .single();

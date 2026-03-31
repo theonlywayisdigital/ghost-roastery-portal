@@ -17,7 +17,7 @@ export async function GET(
 
     // Fetch roaster
     const { data: roaster, error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("*")
       .eq("id", roasterId)
       .single();

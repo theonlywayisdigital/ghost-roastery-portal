@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
     // Check domain not already taken by another roaster
     const { data: existing } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id")
       .eq("website_custom_domain", normalised)
       .neq("id", roaster.id)
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
 
     // Save domain to database
     const { error } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({
         website_custom_domain: normalised,
         website_domain_verified: false,
@@ -171,7 +171,7 @@ export async function DELETE() {
   }
 
   const { error } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .update({
       website_custom_domain: null,
       website_domain_verified: false,

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     // Update subscription status in DB
     const supabase = createServerClient();
     await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({ subscription_status: "cancelling" })
       .eq("id", roaster.id);
 

@@ -27,7 +27,7 @@ export async function POST(
 
     // Fetch current strikes
     const { data: roaster, error: fetchError } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, strikes")
       .eq("id", id)
       .single();
@@ -44,7 +44,7 @@ export async function POST(
 
     // Update strikes
     const { error: updateError } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({ strikes: newCount })
       .eq("id", id);
 

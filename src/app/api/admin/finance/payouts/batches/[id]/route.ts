@@ -54,7 +54,7 @@ export async function GET(
 
     // Fetch roaster names
     const { data: roasters } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, business_name")
       .in("id", roasterIds.length > 0 ? roasterIds : ["none"]);
 

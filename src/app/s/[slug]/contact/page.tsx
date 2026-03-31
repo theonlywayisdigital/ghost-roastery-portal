@@ -13,7 +13,7 @@ export default async function ContactPageRoute({
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_logo_url, storefront_contact_email, storefront_contact_phone, storefront_contact_address, storefront_enabled, storefront_type"
     )

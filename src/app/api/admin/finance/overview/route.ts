@@ -87,16 +87,16 @@ export async function GET() {
     // Recent ledger entries
     const { data: recentLedger } = await supabase
       .from("platform_fee_ledger")
-      .select("*, partner_roasters(business_name)")
+      .select("*, roasters(business_name)")
       .order("created_at", { ascending: false })
       .limit(20);
 
     const recentLedgerEntries = (recentLedger || []).map((e) => ({
       ...e,
       roaster_name:
-        (e.partner_roasters as { business_name: string } | null)
+        (e.roasters as { business_name: string } | null)
           ?.business_name || null,
-      partner_roasters: undefined,
+      roasters: undefined,
     }));
 
     // Monthly revenue (last 12 months)

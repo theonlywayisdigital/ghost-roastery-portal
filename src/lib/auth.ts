@@ -43,7 +43,7 @@ export interface PortalUser {
 
 /**
  * Get the currently authenticated user from the Supabase session.
- * Fetches roles from user_roles and roaster data from partner_roasters.
+ * Fetches roles from user_roles and roaster data from roasters.
  * Returns null if not authenticated.
  */
 export async function getCurrentUser(): Promise<PortalUser | null> {
@@ -68,7 +68,7 @@ export async function getCurrentUser(): Promise<PortalUser | null> {
   let roaster: PortalUser["roaster"] = null;
   if (roles.includes("roaster")) {
     const { data } = await serviceClient
-      .from("partner_roasters")
+      .from("roasters")
       .select("*")
       .eq("user_id", user.id)
       .eq("is_active", true)
@@ -100,7 +100,7 @@ export async function getCurrentUser(): Promise<PortalUser | null> {
 }
 
 /**
- * Backward-compatible wrapper: returns the partner_roasters row
+ * Backward-compatible wrapper: returns the roasters row
  * just like the old bcrypt-based getCurrentRoaster().
  *
  * All existing pages that call getCurrentRoaster() continue to work

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   try {
     let query = supabase
       .from("platform_fee_ledger")
-      .select("*, partner_roasters(business_name)", { count: "exact" });
+      .select("*, roasters(business_name)", { count: "exact" });
 
     if (orderType) query = query.eq("order_type", orderType);
     if (status) query = query.eq("status", status);
@@ -47,9 +47,9 @@ export async function GET(req: NextRequest) {
     const entries = (data || []).map((e) => ({
       ...e,
       roaster_name:
-        (e.partner_roasters as { business_name: string } | null)
+        (e.roasters as { business_name: string } | null)
           ?.business_name || null,
-      partner_roasters: undefined,
+      roasters: undefined,
     }));
 
     return NextResponse.json({

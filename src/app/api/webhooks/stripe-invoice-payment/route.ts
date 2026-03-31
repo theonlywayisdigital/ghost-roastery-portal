@@ -270,7 +270,7 @@ export async function POST(request: Request) {
 
             if (invoice.owner_type === "roaster" && invoice.roaster_id) {
               const { data: roaster } = await supabase
-                .from("partner_roasters")
+                .from("roasters")
                 .select("business_name, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions")
                 .eq("id", invoice.roaster_id)
                 .single();

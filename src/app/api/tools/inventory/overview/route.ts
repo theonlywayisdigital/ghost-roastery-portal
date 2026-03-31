@@ -40,7 +40,7 @@ export async function GET() {
       .eq("roaster_id", roasterId)
       .not("status", "in", '("delivered","cancelled")'),
     supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("default_batch_size_kg")
       .eq("id", roasterId)
       .single(),

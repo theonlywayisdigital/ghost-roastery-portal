@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
     // Fetch roaster branding for email template
     const { data: roasterBranding } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roaster.id)
       .single();

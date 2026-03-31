@@ -135,7 +135,7 @@ export async function POST(
     let emailBranding: MarketingEmailBranding | null = null;
     if (owner.owner_id) {
       const { data: roaster } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style")
         .eq("id", owner.owner_id)
         .single();
@@ -207,7 +207,7 @@ export async function POST(
 
       if (rpcError) {
         await supabase
-          .from("partner_roasters")
+          .from("roasters")
           .update({
             monthly_emails_sent: recipients.length,
           })

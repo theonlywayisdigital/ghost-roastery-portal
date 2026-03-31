@@ -434,7 +434,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
 
   // 9. Roaster notification
   const { data: roasterData } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("user_id")
     .eq("id", roasterId)
     .single();
@@ -464,7 +464,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
 
     if (!existingEmail) {
       const { data: roasterBranding } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline, business_name, storefront_slug")
         .eq("id", roasterId)
         .single();
@@ -584,7 +584,7 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   // Only runs when roaster has auto_create_invoices enabled
   try {
     const { data: roasterSettings } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("auto_create_invoices, business_name, email, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, default_payment_terms, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font")
       .eq("id", roasterId)
       .single();

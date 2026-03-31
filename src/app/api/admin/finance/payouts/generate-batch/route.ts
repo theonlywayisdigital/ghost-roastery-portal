@@ -48,7 +48,7 @@ export async function POST() {
     // Fetch roaster details for all partner roasters in this batch
     const roasterIds = Array.from(grouped.keys());
     const { data: roasters, error: roastersError } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, business_name, stripe_account_id")
       .in("id", roasterIds);
 

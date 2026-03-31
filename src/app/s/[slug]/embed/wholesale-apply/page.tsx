@@ -13,7 +13,7 @@ export default async function EmbedWholesaleApplyPage({
   const supabase = createServerClient();
 
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       `id, business_name, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type`
     )

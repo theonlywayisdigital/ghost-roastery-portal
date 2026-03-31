@@ -61,7 +61,7 @@ export async function POST() {
   if (verified) {
     const supabase = createServerClient();
     await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({ website_domain_verified: true })
       .eq("id", roaster.id);
   }

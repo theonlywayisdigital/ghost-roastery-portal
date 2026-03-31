@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       });
       stripeCustomerId = customer.id;
       await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .update({ stripe_customer_id: customer.id })
         .eq("id", roaster.id);
     }

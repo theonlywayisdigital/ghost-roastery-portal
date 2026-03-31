@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   // Log activity + fetch partner details for notifications
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("business_name, email, contact_name, user_id")
     .eq("id", partnerId)
     .single();

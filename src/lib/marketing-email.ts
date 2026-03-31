@@ -67,7 +67,7 @@ export async function checkEmailLimits(
   supabase: SupabaseClient
 ): Promise<{ allowed: boolean; message?: string }> {
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("monthly_emails_sent, monthly_email_reset_at, marketing_tier")
     .eq("id", roasterId)
     .single();
@@ -89,14 +89,14 @@ export async function checkEmailLimits(
     if (resetDate.getMonth() !== now.getMonth() || resetDate.getFullYear() !== now.getFullYear()) {
       currentCount = 0;
       await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .update({ monthly_emails_sent: 0, monthly_email_reset_at: now.toISOString() })
         .eq("id", roasterId);
     }
   } else {
     // First time — set reset date
     await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .update({ monthly_email_reset_at: new Date().toISOString() })
       .eq("id", roasterId);
   }

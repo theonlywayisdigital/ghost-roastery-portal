@@ -73,7 +73,7 @@ export async function generateInvoiceNumber(
       invoicePrefix = settings?.invoice_prefix || "GR-INV-";
     } else if (roasterId) {
       const { data: roaster } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("invoice_prefix")
         .eq("id", roasterId)
         .single();

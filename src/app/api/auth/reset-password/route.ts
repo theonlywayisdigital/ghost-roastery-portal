@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     // Find the roaster to get their user_id
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id, user_id")
       .eq("id", resetToken.roaster_id)
       .single();

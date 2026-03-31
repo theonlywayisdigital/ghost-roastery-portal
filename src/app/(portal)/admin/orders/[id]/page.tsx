@@ -38,7 +38,7 @@ export default async function OrderDetailPage({
     const [roasterRes, roasterOrderRes, labelRes, activitiesRes, commsRes, refundsRes] =
       await Promise.all([
         order.roaster_id
-          ? supabase.from("partner_roasters").select("*").eq("id", order.roaster_id).single()
+          ? supabase.from("roasters").select("*").eq("id", order.roaster_id).single()
           : { data: null },
         supabase.from("roaster_orders").select("*").eq("order_id", id).single(),
         order.label_id
@@ -77,7 +77,7 @@ export default async function OrderDetailPage({
   }
 
   const [roasterRes, activitiesRes, commsRes, invoiceRes, refundsRes] = await Promise.all([
-    supabase.from("partner_roasters").select("*").eq("id", order.roaster_id).single(),
+    supabase.from("roasters").select("*").eq("id", order.roaster_id).single(),
     supabase.from("order_activity_log").select("*").eq("order_id", id).order("created_at", { ascending: false }),
     supabase.from("order_communications").select("*").eq("order_id", id).order("created_at", { ascending: false }),
     order.invoice_id

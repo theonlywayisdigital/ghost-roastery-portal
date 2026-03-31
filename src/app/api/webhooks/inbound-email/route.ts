@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     // Look up roaster by roaster_slug or storefront_slug (either can be used as the email local part)
     const supabase = createServerClient();
     let { data: roaster, error: roasterError } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("id")
       .or(`roaster_slug.eq.${slug},storefront_slug.eq.${slug}`)
       .limit(1)
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       console.log("[inbound-email] Trying fuzzy match, stripped slug:", slugNoHyphens);
 
       const { data: allRoasters } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("id, roaster_slug, storefront_slug");
 
       const match = (allRoasters || []).find(

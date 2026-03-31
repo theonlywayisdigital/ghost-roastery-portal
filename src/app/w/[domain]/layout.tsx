@@ -18,7 +18,7 @@ async function getWebsite(domain: string) {
 
   // Look up roaster by custom domain or storefront slug
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id, business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_instagram, brand_facebook, brand_tiktok, website_custom_domain, storefront_slug")
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)

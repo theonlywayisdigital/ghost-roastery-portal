@@ -23,7 +23,7 @@ export default async function ProductDetailRoute({
 
   // Verify roaster
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select("id")
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)

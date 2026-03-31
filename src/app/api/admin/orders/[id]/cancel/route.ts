@@ -237,7 +237,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   if (isGhost && order.partner_roaster_id) {
     // Ghost order with allocated partner
     const { data: partner } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("email, contact_name, business_name, user_id")
       .eq("id", order.partner_roaster_id)
       .single();
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   } else if (!isGhost && order.roaster_id) {
     // Storefront/wholesale order — notify roaster
     const { data: roaster } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("email, contact_name, business_name, user_id")
       .eq("id", order.roaster_id)
       .single();

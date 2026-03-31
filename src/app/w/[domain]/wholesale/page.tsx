@@ -14,7 +14,7 @@ export default async function WebsiteWholesalePageRoute({
 
   // Resolve roaster by custom domain or storefront slug (same as layout.tsx)
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "id, business_name, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type, stripe_account_id, platform_fee_percent"
     )

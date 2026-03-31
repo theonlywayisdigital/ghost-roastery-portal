@@ -60,10 +60,10 @@ export async function PUT(
       return NextResponse.json({ error: "Failed to update application" }, { status: 500 });
     }
 
-    // On approval: enable ghost roaster on the partner_roasters record
+    // On approval: enable ghost roaster on the roasters record
     if (status === "approved") {
       await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .update({
           is_ghost_roaster: true,
           ghost_roaster_application_status: "approved",
@@ -76,7 +76,7 @@ export async function PUT(
     // On rejection: update application status on roaster
     if (status === "rejected") {
       await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .update({
           ghost_roaster_application_status: "rejected",
         })

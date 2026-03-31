@@ -98,7 +98,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     // Partner notification (if allocated)
     if (order.partner_roaster_id) {
       const { data: partner } = await supabase
-        .from("partner_roasters")
+        .from("roasters")
         .select("email, contact_name, business_name, user_id")
         .eq("id", order.partner_roaster_id)
         .single();
@@ -306,7 +306,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Roaster notification
   if (order.roaster_id) {
     const { data: roasterData } = await supabase
-      .from("partner_roasters")
+      .from("roasters")
       .select("email, contact_name, business_name, user_id")
       .eq("id", order.roaster_id)
       .single();

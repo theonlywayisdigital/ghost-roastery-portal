@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const supabase = createServerClient();
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       "business_name, brand_tagline, storefront_seo_title, storefront_seo_description, storefront_enabled"
     )
@@ -43,7 +43,7 @@ export default async function StorefrontLayout({
   const { slug } = await params;
   const supabase = createServerClient();
   const { data: roaster } = await supabase
-    .from("partner_roasters")
+    .from("roasters")
     .select(
       `id, business_name, brand_logo_url, brand_primary_colour, brand_accent_colour,
        brand_heading_font, brand_body_font, brand_tagline, brand_hero_image_url, brand_about,

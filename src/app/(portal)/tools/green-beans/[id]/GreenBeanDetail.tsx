@@ -73,7 +73,7 @@ export function GreenBeanDetail({
     if (!stockForm.qty) return;
     setSaving(true);
 
-    const res = await fetch(`/api/tools/inventory/green/${bean.id}/movements`, {
+    const res = await fetch(`/api/tools/green-beans/${bean.id}/movements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

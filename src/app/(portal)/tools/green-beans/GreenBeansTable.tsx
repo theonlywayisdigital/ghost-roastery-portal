@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload } from "@/components/icons";
+import { Plus, Upload, Check } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -55,8 +55,89 @@ function getStockStatus(bean: GreenBean): "ok" | "low" | "out" {
   return "ok";
 }
 
+function QuickAddStock({ beanId, onAdded }: { beanId: string; onAdded: (newBalance: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!qty || saving) return;
+    setSaving(true);
+
+    const res = await fetch(`/api/tools/green-beans/${beanId}/movements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ movement_type: "purchase", quantity_kg: qty, unit_cost: null, notes: "Quick add from listing" }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      onAdded(data.balance);
+      setQty("");
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); setOpen(false); }, 800);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 bg-brand-50 rounded-md hover:bg-brand-100 transition-colors"
+      >
+        <Plus className="w-3 h-3" />
+        Add Stock
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-52" onClick={(e) => e.stopPropagation()}>
+          {success ? (
+            <div className="flex items-center gap-2 text-sm text-green-600 py-1">
+              <Check className="w-4 h-4" /> Stock added
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <label className="block text-xs font-medium text-slate-600">Quantity (kg)</label>
+              <input
+                type="number"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                min="0.001"
+                step="0.001"
+                autoFocus
+                required
+              />
+              <button
+                type="submit"
+                disabled={saving || !qty}
+                className="w-full px-3 py-1.5 bg-brand-600 text-white rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? "Adding..." : "Add Purchase"}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
   const router = useRouter();
+  const [beans, setBeans] = useState(initial);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
@@ -65,7 +146,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
   const banner = useUpgradeBanner("greenBeans");
 
   const filtered = useMemo(() => {
-    let result = [...initial];
+    let result = [...beans];
 
     if (filterValues.search) {
       const q = filterValues.search.toLowerCase();
@@ -96,9 +177,13 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
     });
 
     return result;
-  }, [initial, filterValues, sortKey, sortDir]);
+  }, [beans, filterValues, sortKey, sortDir]);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  function handleQuickAdd(beanId: string, newBalance: number) {
+    setBeans((prev) => prev.map((b) => b.id === beanId ? { ...b, current_stock_kg: newBalance } : b));
+  }
 
   const columns: Column<GreenBean>[] = [
     {
@@ -147,6 +232,11 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
       key: "stock_status",
       label: "Status",
       render: (row) => <StatusBadge status={getStockStatus(row)} type="stockAlert" />,
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (row) => <QuickAddStock beanId={row.id} onAdded={(bal) => handleQuickAdd(row.id, bal)} />,
     },
   ];
 

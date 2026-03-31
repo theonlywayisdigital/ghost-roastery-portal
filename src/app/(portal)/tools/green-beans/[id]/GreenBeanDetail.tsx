@@ -109,9 +109,6 @@ export function GreenBeanDetail({
             {[bean.origin_country, bean.origin_region].filter(Boolean).join(", ") || "No origin specified"}
           </p>
         </div>
-        <Link href={`/tools/inventory/green/${bean.id}?edit=true`} onClick={(e) => { e.preventDefault(); router.push(`/tools/inventory/green/${bean.id}`); }} className="hidden">
-          {/* placeholder */}
-        </Link>
         <StatusBadge status={stockStatus} type="stockAlert" />
       </div>
 
@@ -122,7 +119,7 @@ export function GreenBeanDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Details</h2>
-              <Link href={`/tools/inventory/green/${bean.id}`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+              <Link href={`/tools/inventory/green/${bean.id}/edit`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
                 <Pencil className="w-4 h-4" />
               </Link>
             </div>

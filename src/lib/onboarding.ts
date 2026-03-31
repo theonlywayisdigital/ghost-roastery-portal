@@ -82,6 +82,7 @@ export interface OnboardingStepStatus extends OnboardingStep {
 export interface OnboardingState {
   dismissed: boolean;
   dismissed_at: string | null;
+  welcome_seen?: boolean;
 }
 
 export interface OnboardingResponse {
@@ -89,4 +90,5 @@ export interface OnboardingResponse {
   dismissed: boolean;
   completedCount: number;
   totalCount: number;
+  welcome_seen: boolean;
 }

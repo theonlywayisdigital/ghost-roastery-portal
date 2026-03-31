@@ -54,6 +54,7 @@ import {
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingWidget } from "@/components/onboarding/OnboardingWidget";
 import { OnboardingPanel } from "@/components/onboarding/OnboardingPanel";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import {
   getEffectiveFeatures,
   getEffectiveLimits,
@@ -716,6 +717,11 @@ export function Sidebar({ user }: { user: SidebarUser }) {
 
       {/* Desktop flyout */}
       {renderDesktopFlyout()}
+
+      {/* Welcome modal for first-time roasters */}
+      {isRoaster && !isAdmin && (
+        <WelcomeModal onGetStarted={() => setOnboardingPanelOpen(true)} />
+      )}
 
       {/* Onboarding slide-out panel */}
       {isRoaster && !isAdmin && (

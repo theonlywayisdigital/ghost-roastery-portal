@@ -102,6 +102,7 @@ export async function GET() {
     dismissed: state.dismissed,
     completedCount,
     totalCount: steps.length,
+    welcome_seen: !!state.welcome_seen,
   };
 
   return NextResponse.json(response);
@@ -115,13 +116,26 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const dismissed = !!body.dismissed;
 
     const supabase = createServerClient();
-    const state: OnboardingState = {
-      dismissed,
-      dismissed_at: dismissed ? new Date().toISOString() : null,
-    };
+
+    // Read existing state so we can merge
+    const rawState = (user.roaster as Record<string, unknown>).onboarding_state;
+    const existing: OnboardingState =
+      rawState && typeof rawState === "object"
+        ? (rawState as OnboardingState)
+        : { dismissed: false, dismissed_at: null };
+
+    const state: OnboardingState = { ...existing };
+
+    if (body.dismissed !== undefined) {
+      state.dismissed = !!body.dismissed;
+      state.dismissed_at = state.dismissed ? new Date().toISOString() : null;
+    }
+
+    if (body.welcome_seen !== undefined) {
+      state.welcome_seen = !!body.welcome_seen;
+    }
 
     const { error } = await supabase
       .from("roasters")

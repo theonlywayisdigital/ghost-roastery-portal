@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload } from "@/components/icons";
+import { Plus, Upload, Check, Flame } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -13,6 +14,7 @@ import { UpgradeBanner } from "@/components/shared/UpgradeBanner";
 interface RoastedStock {
   id: string;
   name: string;
+  green_bean_id: string | null;
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
   is_active: boolean;
@@ -52,8 +54,114 @@ function getStockStatus(item: RoastedStock): "ok" | "low" | "out" {
   return "ok";
 }
 
+function QuickAddStock({ stockId, onAdded }: { stockId: string; onAdded: (newBalance: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const updatePos = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.right - 208 });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updatePos();
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [open, updatePos]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!qty || saving) return;
+    setSaving(true);
+
+    const res = await fetch(`/api/tools/roasted-stock/${stockId}/movements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ movement_type: "roast_addition", quantity_kg: qty, unit_cost: null, notes: "Quick add from listing" }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      onAdded(data.balance);
+      setQty("");
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); setOpen(false); }, 800);
+    }
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 bg-brand-50 rounded-md hover:bg-brand-100 transition-colors"
+      >
+        <Plus className="w-3 h-3" />
+        Add Stock
+      </button>
+      {open && mounted && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-52"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {success ? (
+            <div className="flex items-center gap-2 text-sm text-green-600 py-1">
+              <Check className="w-4 h-4" /> Stock added
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <label className="block text-xs font-medium text-slate-600">Quantity (kg)</label>
+              <input
+                type="number"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                min="0.001"
+                step="0.001"
+                autoFocus
+                required
+              />
+              <button
+                type="submit"
+                disabled={saving || !qty}
+                className="w-full px-3 py-1.5 bg-brand-600 text-white rounded-md text-xs font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? "Adding..." : "Add Roast"}
+              </button>
+            </form>
+          )}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] }) {
   const router = useRouter();
+  const [stock, setStock] = useState(initial);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
@@ -62,7 +170,7 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
   const banner = useUpgradeBanner("roastedStock");
 
   const filtered = useMemo(() => {
-    let result = [...initial];
+    let result = [...stock];
 
     if (filterValues.search) {
       const q = filterValues.search.toLowerCase();
@@ -91,9 +199,13 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
     });
 
     return result;
-  }, [initial, filterValues, sortKey, sortDir]);
+  }, [stock, filterValues, sortKey, sortDir]);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  function handleQuickAdd(stockId: string, newBalance: number) {
+    setStock((prev) => prev.map((s) => s.id === stockId ? { ...s, current_stock_kg: newBalance } : s));
+  }
 
   const columns: Column<RoastedStock>[] = [
     {
@@ -135,14 +247,20 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
       render: (row) => <StatusBadge status={getStockStatus(row)} type="stockAlert" />,
     },
     {
-      key: "updated_at",
-      label: "Updated",
-      hiddenOnMobile: true,
-      sortable: true,
+      key: "actions",
+      label: "",
       render: (row) => (
-        <span className="text-slate-500 text-xs">
-          {new Date(row.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <QuickAddStock stockId={row.id} onAdded={(bal) => handleQuickAdd(row.id, bal)} />
+          <Link
+            href={`/tools/roast-log/new${row.green_bean_id ? `?beanId=${row.green_bean_id}&stockId=${row.id}` : `?stockId=${row.id}`}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 rounded-md hover:bg-amber-100 transition-colors"
+          >
+            <Flame className="w-3 h-3" />
+            Log Roast
+          </Link>
+        </div>
       ),
     },
   ];

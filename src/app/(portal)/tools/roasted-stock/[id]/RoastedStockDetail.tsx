@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Plus, Minus } from "@/components/icons";
+import { ArrowLeft, Pencil, Plus, Minus, AlertTriangle } from "@/components/icons";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 
 interface Movement {
@@ -18,6 +18,12 @@ interface Movement {
   created_at: string;
 }
 
+interface GreenBeanInfo {
+  id: string;
+  name: string;
+  current_stock_kg: number;
+}
+
 interface RoastedStock {
   id: string;
   name: string;
@@ -26,7 +32,7 @@ interface RoastedStock {
   low_stock_threshold_kg: number | null;
   is_active: boolean;
   notes: string | null;
-  green_beans: { id: string; name: string } | null;
+  green_beans: { id: string; name: string; current_stock_kg: number } | null;
 }
 
 const MOVEMENT_LABELS: Record<string, string> = {
@@ -60,31 +66,45 @@ export function RoastedStockDetail({
   const router = useRouter();
   const [movements, setMovements] = useState(initialMovements);
   const [currentStock, setCurrentStock] = useState(Number(stock.current_stock_kg));
+  const [greenBeanStock, setGreenBeanStock] = useState(Number(stock.green_beans?.current_stock_kg || 0));
   const [showAddStock, setShowAddStock] = useState(false);
-  const [stockForm, setStockForm] = useState({ type: "roast_addition", qty: "", cost: "", notes: "" });
+  const [stockForm, setStockForm] = useState({ type: "roast_addition", qty: "", cost: "", notes: "", deductGreen: true });
   const [saving, setSaving] = useState(false);
+
+  const hasLinkedGreenBean = !!stock.green_bean_id && !!stock.green_beans;
+  const showDeductOption = hasLinkedGreenBean && ["roast_addition"].includes(stockForm.type);
 
   async function handleStockSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!stockForm.qty) return;
     setSaving(true);
 
+    const payload: Record<string, unknown> = {
+      movement_type: stockForm.type,
+      quantity_kg: stockForm.qty,
+      unit_cost: stockForm.cost || null,
+      notes: stockForm.notes || null,
+    };
+
+    // Include green bean deduction if applicable
+    if (showDeductOption && stockForm.deductGreen) {
+      payload.deduct_green_bean_kg = stockForm.qty;
+    }
+
     const res = await fetch(`/api/tools/roasted-stock/${stock.id}/movements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        movement_type: stockForm.type,
-        quantity_kg: stockForm.qty,
-        unit_cost: stockForm.cost || null,
-        notes: stockForm.notes || null,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (res.ok) {
       const data = await res.json();
       setCurrentStock(data.balance);
+      if (data.green_bean_balance !== null && data.green_bean_balance !== undefined) {
+        setGreenBeanStock(data.green_bean_balance);
+      }
       setShowAddStock(false);
-      setStockForm({ type: "roast_addition", qty: "", cost: "", notes: "" });
+      setStockForm({ type: "roast_addition", qty: "", cost: "", notes: "", deductGreen: true });
       router.refresh();
     }
     setSaving(false);
@@ -177,6 +197,34 @@ export function RoastedStockDetail({
                     <input type="text" value={stockForm.notes} onChange={(e) => setStockForm((p) => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
                   </div>
                 </div>
+
+                {/* Green bean deduction prompt */}
+                {showDeductOption && stock.green_beans && (
+                  <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="deduct-green"
+                          checked={stockForm.deductGreen}
+                          onChange={(e) => setStockForm((p) => ({ ...p, deductGreen: e.target.checked }))}
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        <label htmlFor="deduct-green" className="text-sm font-medium text-slate-900">
+                          Deduct {stockForm.qty || "—"} kg from {stock.green_beans.name}
+                        </label>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 ml-6">
+                        Current green stock: {greenBeanStock.toFixed(2)} kg
+                        {stockForm.qty && greenBeanStock > 0 && (
+                          <> → {Math.max(0, greenBeanStock - parseFloat(stockForm.qty || "0")).toFixed(2)} kg after deduction</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button type="submit" disabled={saving} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">{saving ? "Saving..." : "Record Movement"}</button>
                   <button type="button" onClick={() => setShowAddStock(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
@@ -227,6 +275,16 @@ export function RoastedStockDetail({
               <p className="text-xs text-slate-500 mt-1">{`Low stock alert at ${Number(stock.low_stock_threshold_kg).toFixed(2)} kg`}</p>
             )}
           </div>
+
+          {hasLinkedGreenBean && stock.green_beans && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h3 className="text-sm font-medium text-slate-500 mb-2">Linked Green Bean</h3>
+              <Link href={`/tools/inventory/green/${stock.green_beans.id}`} className="text-sm font-medium text-brand-600 hover:text-brand-700">
+                {stock.green_beans.name}
+              </Link>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{greenBeanStock.toFixed(2)} <span className="text-base font-normal text-slate-500">kg</span></p>
+            </div>
+          )}
 
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-sm font-medium text-slate-500 mb-3">Quick Actions</h3>

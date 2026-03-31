@@ -11,7 +11,7 @@ export default async function InventoryRoastedPage() {
   const supabase = createServerClient();
   const { data: stock } = await supabase
     .from("roasted_stock")
-    .select("*, green_beans(name)")
+    .select("*, green_bean_id, green_beans(name)")
     .eq("roaster_id", user.roaster.id)
     .order("created_at", { ascending: false });
 

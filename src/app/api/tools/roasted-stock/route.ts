@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, green_bean_id, current_stock_kg, low_stock_threshold_kg, batch_size_kg, notes } = body;
+  const { name, green_bean_id, current_stock_kg, low_stock_threshold_kg, batch_size_kg, notes, deduct_green_bean_kg } = body;
 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
@@ -61,6 +61,38 @@ export async function POST(request: Request) {
       balance_after_kg: initialStock,
       notes: "Initial stock on creation",
     });
+
+    // Deduct from linked green bean if requested
+    if (deduct_green_bean_kg && green_bean_id) {
+      const deductKg = parseFloat(deduct_green_bean_kg);
+      if (deductKg > 0) {
+        const { data: bean } = await supabase
+          .from("green_beans")
+          .select("id, current_stock_kg")
+          .eq("id", green_bean_id)
+          .eq("roaster_id", roaster.id)
+          .single();
+
+        if (bean) {
+          const greenCurrent = parseFloat(String(bean.current_stock_kg)) || 0;
+          const greenBalance = Math.max(0, greenCurrent - deductKg);
+
+          await supabase.from("green_bean_movements").insert({
+            roaster_id: roaster.id,
+            green_bean_id,
+            movement_type: "roast_deduction",
+            quantity_kg: -deductKg,
+            balance_after_kg: greenBalance,
+            notes: `Roast deduction for ${name} (initial stock)`,
+          });
+
+          await supabase
+            .from("green_beans")
+            .update({ current_stock_kg: greenBalance })
+            .eq("id", green_bean_id);
+        }
+      }
+    }
   }
 
   return NextResponse.json({ roastedStock: data }, { status: 201 });

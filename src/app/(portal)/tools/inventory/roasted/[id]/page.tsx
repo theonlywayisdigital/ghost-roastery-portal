@@ -12,7 +12,7 @@ export default async function RoastedStockDetailPage({ params }: { params: Promi
   const supabase = createServerClient();
 
   const [{ data: stock }, { data: movements }] = await Promise.all([
-    supabase.from("roasted_stock").select("*, green_beans(id, name)").eq("id", id).eq("roaster_id", user.roaster.id).single(),
+    supabase.from("roasted_stock").select("*, green_beans(id, name, current_stock_kg)").eq("id", id).eq("roaster_id", user.roaster.id).single(),
     supabase.from("roasted_stock_movements").select("*").eq("roasted_stock_id", id).eq("roaster_id", user.roaster.id).order("created_at", { ascending: false }).limit(50),
   ]);
 

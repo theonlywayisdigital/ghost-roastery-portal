@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await request.json();
-  const { movement_type, quantity_kg, unit_cost, notes } = body;
+  const { movement_type, quantity_kg, unit_cost, notes, deduct_green_bean_kg } = body;
 
   if (!movement_type || !quantity_kg) {
     return NextResponse.json({ error: "Movement type and quantity are required" }, { status: 400 });
@@ -22,10 +22,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const supabase = createServerClient();
 
-  // Get current stock
+  // Get current stock (include green_bean_id for deduction)
   const { data: stock } = await supabase
     .from("roasted_stock")
-    .select("id, current_stock_kg")
+    .select("id, current_stock_kg, green_bean_id")
     .eq("id", id)
     .eq("roaster_id", roaster.id)
     .single();
@@ -59,10 +59,43 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await supabase.rpc("deduct_roasted_stock", { stock_id: id, qty_kg: Math.abs(effectiveQty) });
   }
 
+  // Deduct from linked green bean if requested
+  let greenBeanBalance: number | null = null;
+  if (deduct_green_bean_kg && stock.green_bean_id) {
+    const deductKg = parseFloat(deduct_green_bean_kg);
+    if (deductKg > 0) {
+      const { data: bean } = await supabase
+        .from("green_beans")
+        .select("id, current_stock_kg")
+        .eq("id", stock.green_bean_id)
+        .eq("roaster_id", roaster.id)
+        .single();
+
+      if (bean) {
+        const greenCurrent = parseFloat(String(bean.current_stock_kg)) || 0;
+        greenBeanBalance = Math.max(0, greenCurrent - deductKg);
+
+        await supabase.from("green_bean_movements").insert({
+          roaster_id: roaster.id,
+          green_bean_id: stock.green_bean_id,
+          movement_type: "roast_deduction",
+          quantity_kg: -deductKg,
+          balance_after_kg: greenBeanBalance,
+          notes: notes ? `Roast deduction: ${notes}` : "Roast deduction from roasted stock movement",
+        });
+
+        await supabase
+          .from("green_beans")
+          .update({ current_stock_kg: greenBeanBalance })
+          .eq("id", stock.green_bean_id);
+      }
+    }
+  }
+
   // Push stock to ecommerce channels (fire-and-forget)
   pushStockToChannels(roaster.id as string, id).catch((err) =>
     console.error("[roasted-stock-movement] Stock push error:", err)
   );
 
-  return NextResponse.json({ balance: newBalance }, { status: 201 });
+  return NextResponse.json({ balance: newBalance, green_bean_balance: greenBeanBalance }, { status: 201 });
 }

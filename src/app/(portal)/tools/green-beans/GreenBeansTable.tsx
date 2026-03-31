@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Upload, Check } from "@/components/icons";
@@ -60,16 +61,34 @@ function QuickAddStock({ beanId, onAdded }: { beanId: string; onAdded: (newBalan
   const [qty, setQty] = useState("");
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const updatePos = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 4, left: rect.right - 208 });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    updatePos();
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+    window.addEventListener("scroll", updatePos, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", updatePos, true);
+    };
+  }, [open, updatePos]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,16 +112,22 @@ function QuickAddStock({ beanId, onAdded }: { beanId: string; onAdded: (newBalan
   }
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={btnRef}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 bg-brand-50 rounded-md hover:bg-brand-100 transition-colors"
       >
         <Plus className="w-3 h-3" />
         Add Stock
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-52" onClick={(e) => e.stopPropagation()}>
+      {open && mounted && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-50 bg-white border border-slate-200 rounded-lg shadow-lg p-3 w-52"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {success ? (
             <div className="flex items-center gap-2 text-sm text-green-600 py-1">
               <Check className="w-4 h-4" /> Stock added
@@ -129,9 +154,10 @@ function QuickAddStock({ beanId, onAdded }: { beanId: string; onAdded: (newBalan
               </button>
             </form>
           )}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 

@@ -12,10 +12,11 @@ import {
   Package,
   Globe,
   CreditCard,
-  Contact,
-  Share2,
   Store,
   Link2,
+  Archive,
+  Users,
+  Send,
 } from "@/components/icons";
 import type { OnboardingResponse, OnboardingStepStatus } from "@/lib/onboarding";
 import { TIER_NAMES, type TierLevel } from "@/lib/tier-config";
@@ -32,10 +33,11 @@ const STEP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   Package,
   Globe,
   CreditCard,
-  Contact,
-  Share2,
   Store,
   Link2,
+  Archive,
+  Users,
+  Send,
 };
 
 export function OnboardingPanel({ open, onClose, salesTier, marketingTier }: OnboardingPanelProps) {

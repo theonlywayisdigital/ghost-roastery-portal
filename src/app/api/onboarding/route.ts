@@ -28,42 +28,52 @@ export async function GET() {
   const supabase = createServerClient();
 
   // Parallel count queries
-  const [productsRes, contactsRes, socialRes, integrationsRes] = await Promise.all([
+  const [productsRes, roastedStockRes, greenBeansRes, wholesaleAccessRes, integrationsRes, campaignsRes] = await Promise.all([
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", roasterId),
     supabase
-      .from("contacts")
+      .from("roasted_stock")
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", roasterId),
     supabase
-      .from("social_connections")
+      .from("green_beans")
       .select("id", { count: "exact", head: true })
-      .eq("roaster_id", roasterId)
-      .eq("status", "active"),
+      .eq("roaster_id", roasterId),
+    supabase
+      .from("wholesale_access")
+      .select("id", { count: "exact", head: true })
+      .eq("roaster_id", roasterId),
     supabase
       .from("roaster_integrations")
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", roasterId)
       .eq("is_active", true),
+    supabase
+      .from("campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("roaster_id", roasterId),
   ]);
 
   const productCount = productsRes.count ?? 0;
-  const contactCount = contactsRes.count ?? 0;
-  const socialCount = socialRes.count ?? 0;
+  const roastedStockCount = roastedStockRes.count ?? 0;
+  const greenBeansCount = greenBeansRes.count ?? 0;
+  const wholesaleAccessCount = wholesaleAccessRes.count ?? 0;
   const integrationCount = integrationsRes.count ?? 0;
+  const campaignCount = campaignsRes.count ?? 0;
 
   // Completion checks keyed by step key
   const completionMap: Record<string, boolean> = {
     logo: !!(roaster as Record<string, unknown>).brand_logo_url,
-    product: productCount > 0,
     domain: !!(roaster as Record<string, unknown>).storefront_slug,
-    stripe: !!roaster.stripe_account_id,
-    contacts: contactCount > 0,
-    social: socialCount > 0,
+    stock: (roastedStockCount + greenBeansCount) > 0,
+    product: productCount > 0,
     wholesale: !!(roaster as Record<string, unknown>).storefront_setup_complete,
+    wholesale_buyers: wholesaleAccessCount > 0,
     integrations: integrationCount > 0,
+    stripe: !!roaster.stripe_account_id,
+    campaigns: campaignCount > 0,
   };
 
   // Feature gating

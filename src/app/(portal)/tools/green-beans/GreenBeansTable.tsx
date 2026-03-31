@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "@/components/icons";
+import { Plus, Upload } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -166,13 +166,22 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
           <h1 className="text-2xl font-bold text-slate-900">Green Bean Inventory</h1>
           <p className="text-slate-500 mt-1">Track your green bean stock, origins, and suppliers.</p>
         </div>
-        <Link
-          href="/tools/inventory/green/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Bean
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/tools/inventory/import"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </Link>
+          <Link
+            href="/tools/inventory/green/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Bean
+          </Link>
+        </div>
       </div>
 
       {banner.show && (

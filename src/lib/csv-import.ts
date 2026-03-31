@@ -162,7 +162,7 @@ function parseBool(val: string | undefined | null): boolean | null {
   return null;
 }
 
-function parseNum(val: string | undefined | null): number | null {
+export function parseNum(val: string | undefined | null): number | null {
   if (!val) return null;
   const cleaned = val.replace(/[£$€,]/g, "").trim();
   const num = parseFloat(cleaned);

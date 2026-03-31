@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import {
@@ -14,90 +13,60 @@ import {
   X,
 } from "@/components/icons";
 import { CsvFieldMapper, type FieldOption } from "@/components/products/CsvFieldMapper";
-import { ImportPreview } from "@/components/products/ImportPreview";
-import { StockMapping, type ProductStockMapping } from "@/components/products/StockMapping";
-import { autoMapHeaders, csvToNormalisedProducts, type GRField } from "@/lib/csv-import";
-import type { NormalisedProduct, ImportResult } from "@/lib/product-import";
+import {
+  GreenBeanImportPreview,
+  RoastedStockImportPreview,
+} from "@/components/inventory/InventoryImportPreview";
+import {
+  GREEN_BEAN_FIELDS,
+  ROASTED_STOCK_FIELDS,
+  autoMapGreenBeanHeaders,
+  autoMapRoastedStockHeaders,
+  csvToNormalisedGreenBeans,
+  csvToNormalisedRoastedStock,
+  type GreenBeanField,
+  type RoastedStockField,
+  type NormalisedGreenBean,
+  type NormalisedRoastedStock,
+  type InventoryImportResult,
+} from "@/lib/inventory-import";
 
-const GR_FIELD_OPTIONS: FieldOption<GRField>[] = [
-  { value: "ignore", label: "\u2014 Ignore \u2014", group: "" },
-  { value: "name", label: "Product Name", group: "Product" },
-  { value: "description", label: "Description", group: "Product" },
-  { value: "origin", label: "Origin", group: "Product" },
-  { value: "tasting_notes", label: "Tasting Notes", group: "Product" },
-  { value: "brand", label: "Brand", group: "Product" },
-  { value: "image_url", label: "Image URL", group: "Product" },
-  { value: "status", label: "Status", group: "Product" },
-  { value: "is_retail", label: "Is Retail", group: "Product" },
-  { value: "is_wholesale", label: "Is Wholesale", group: "Product" },
-  { value: "minimum_wholesale_quantity", label: "Min Wholesale Qty", group: "Product" },
-  { value: "sku", label: "SKU", group: "Variant" },
-  { value: "retail_price", label: "Retail Price", group: "Variant" },
-  { value: "wholesale_price", label: "Wholesale Price", group: "Variant" },
-  { value: "weight", label: "Weight", group: "Variant" },
-  { value: "grind_type", label: "Grind Type", group: "Variant" },
-  { value: "retail_stock_count", label: "Stock Count", group: "Variant" },
-  { value: "track_stock", label: "Track Stock", group: "Variant" },
-  { value: "option1_name", label: "Option 1 Name", group: "Variant" },
-  { value: "option1_value", label: "Option 1 Value", group: "Variant" },
-  { value: "option2_name", label: "Option 2 Name", group: "Variant" },
-  { value: "option2_value", label: "Option 2 Value", group: "Variant" },
-  { value: "gtin", label: "GTIN / Barcode", group: "Meta" },
-  { value: "vat_rate", label: "VAT Rate", group: "Meta" },
-  { value: "meta_description", label: "Meta Description", group: "Meta" },
-];
-
-type Step = "upload" | "map" | "stock" | "preview" | "importing" | "done";
+type InventoryType = "green_beans" | "roasted_stock";
+type Step = "upload" | "map" | "preview" | "importing" | "done";
 
 const STEP_LABELS: Record<Step, string> = {
   upload: "Upload",
   map: "Map Fields",
-  stock: "Stock Mapping",
-  preview: "Review",
+  preview: "Preview",
   importing: "Importing",
   done: "Done",
 };
 
-// Steps that appear in the visible indicator (importing is hidden)
-const VISIBLE_STEPS_COFFEE: Step[] = ["upload", "map", "stock", "preview", "done"];
-const VISIBLE_STEPS_OTHER: Step[] = ["upload", "map", "preview", "done"];
+const VISIBLE_STEPS: Step[] = ["upload", "map", "preview", "done"];
+const STEP_ORDER: Step[] = ["upload", "map", "preview", "importing", "done"];
 
-// Full step order for navigation
-const STEP_ORDER_COFFEE: Step[] = ["upload", "map", "stock", "preview", "importing", "done"];
-const STEP_ORDER_OTHER: Step[] = ["upload", "map", "preview", "importing", "done"];
-
-export function ImportWizard() {
+export function InventoryImportWizard() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("upload");
+  const [inventoryType, setInventoryType] = useState<InventoryType>("green_beans");
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState("");
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [sampleRows, setSampleRows] = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping] = useState<Record<string, GRField>>({});
-  const [category, setCategory] = useState<"coffee" | "other">("coffee");
-  const [defaultIsRetail, setDefaultIsRetail] = useState(true);
-  const [defaultIsWholesale, setDefaultIsWholesale] = useState(false);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
 
-  // Parsed products (set after map step, used by stock + preview)
-  const [parsedProducts, setParsedProducts] = useState<NormalisedProduct[]>([]);
+  // Parsed data
+  const [parsedBeans, setParsedBeans] = useState<NormalisedGreenBean[]>([]);
+  const [parsedStock, setParsedStock] = useState<NormalisedRoastedStock[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
 
-  // Stock mapping state
-  const [stockMappings, setStockMappings] = useState<Record<string, ProductStockMapping>>({});
-
-  // Preview state (products with stock mappings applied)
-  const [previewProducts, setPreviewProducts] = useState<NormalisedProduct[]>([]);
-  const [previewErrors, setPreviewErrors] = useState<string[]>([]);
-
-  // Import result state
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  // Import result
+  const [importResult, setImportResult] = useState<InventoryImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
-  const isCoffee = category === "coffee";
-  const visibleSteps = isCoffee ? VISIBLE_STEPS_COFFEE : VISIBLE_STEPS_OTHER;
-  const stepOrder = isCoffee ? STEP_ORDER_COFFEE : STEP_ORDER_OTHER;
+  const isGreenBeans = inventoryType === "green_beans";
 
   // ─── File handling ────────────────────────────────────
 
@@ -125,10 +94,13 @@ export function ImportWizard() {
           setCsvHeaders(headers);
           setSampleRows(parsed.data.slice(0, 3));
 
-          const autoMapping = autoMapHeaders(headers);
+          const autoMapping = isGreenBeans
+            ? autoMapGreenBeanHeaders(headers)
+            : autoMapRoastedStockHeaders(headers);
+
           for (const h of headers) {
             if (!autoMapping[h]) {
-              autoMapping[h] = "ignore";
+              (autoMapping as Record<string, string>)[h] = "ignore";
             }
           }
           setMapping(autoMapping);
@@ -137,7 +109,7 @@ export function ImportWizard() {
       };
       reader.readAsText(file);
     },
-    []
+    [isGreenBeans]
   );
 
   const handleDrop = useCallback(
@@ -158,82 +130,49 @@ export function ImportWizard() {
     []
   );
 
-  // ─── Parse CSV into products ──────────────────────────
+  // ─── Parse CSV ────────────────────────────────────────
 
-  const parseProducts = useCallback(() => {
-    const { products, errors } = csvToNormalisedProducts({
-      csvText,
-      mapping,
-      defaultCategory: category,
-      defaultIsRetail,
-      defaultIsWholesale,
-    });
-    setParsedProducts(products);
-    setParseErrors(errors);
-    return { products, errors };
-  }, [csvText, mapping, category, defaultIsRetail, defaultIsWholesale]);
-
-  // ─── Apply stock mappings to products ─────────────────
-
-  function applyStockMappings(products: NormalisedProduct[]): NormalisedProduct[] {
-    return products.map((p) => {
-      const sm = stockMappings[p.external_id];
-      if (!sm) return p;
-      return {
-        ...p,
-        roasted_stock_id: sm.is_blend ? null : sm.roasted_stock_id,
-        green_bean_id: sm.green_bean_id,
-        is_blend: sm.is_blend,
-        blend_components: sm.is_blend ? sm.blend_components : undefined,
-      };
-    });
-  }
+  const parseData = useCallback(() => {
+    if (isGreenBeans) {
+      const { beans, errors } = csvToNormalisedGreenBeans({
+        csvText,
+        mapping: mapping as Record<string, GreenBeanField>,
+      });
+      setParsedBeans(beans);
+      setParsedStock([]);
+      setParseErrors(errors);
+      return { count: beans.length, errors };
+    } else {
+      const { stock, errors } = csvToNormalisedRoastedStock({
+        csvText,
+        mapping: mapping as Record<string, RoastedStockField>,
+      });
+      setParsedStock(stock);
+      setParsedBeans([]);
+      setParseErrors(errors);
+      return { count: stock.length, errors };
+    }
+  }, [csvText, mapping, isGreenBeans]);
 
   // ─── Step navigation ──────────────────────────────────
 
-  const goFromMapStep = useCallback(() => {
-    const { products, errors } = parseProducts();
-    if (isCoffee) {
-      // Go to stock mapping step
-      setStep("stock");
-    } else {
-      // Skip stock step for non-coffee, go straight to preview
-      setPreviewProducts(products);
-      setPreviewErrors(errors);
-      setStep("preview");
-    }
-  }, [parseProducts, isCoffee]);
-
-  const goToPreviewFromStock = useCallback(() => {
-    const withStock = applyStockMappings(parsedProducts);
-    setPreviewProducts(withStock);
-    setPreviewErrors(parseErrors);
+  const goToPreview = useCallback(() => {
+    parseData();
     setStep("preview");
-  }, [parsedProducts, parseErrors, stockMappings]);
+  }, [parseData]);
 
   const startImport = useCallback(async () => {
     setStep("importing");
     setImportError(null);
 
-    // Apply stock mappings before sending
-    const productsToImport = isCoffee
-      ? applyStockMappings(parsedProducts)
-      : parsedProducts;
-
-    // Build stock mappings payload for the API
-    const stockMappingsPayload = isCoffee ? stockMappings : undefined;
-
     try {
-      const res = await fetch("/api/products/import", {
+      const res = await fetch("/api/tools/inventory/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           csvText,
           mapping,
-          defaultCategory: category,
-          defaultIsRetail,
-          defaultIsWholesale,
-          stockMappings: stockMappingsPayload,
+          type: inventoryType,
         }),
       });
 
@@ -245,7 +184,7 @@ export function ImportWizard() {
         return;
       }
 
-      setImportResult(data as ImportResult);
+      setImportResult(data as InventoryImportResult);
       setStep("done");
     } catch (err) {
       setImportError(
@@ -253,13 +192,14 @@ export function ImportWizard() {
       );
       setStep("preview");
     }
-  }, [csvText, mapping, category, defaultIsRetail, defaultIsWholesale, isCoffee, parsedProducts, stockMappings]);
+  }, [csvText, mapping, inventoryType]);
 
   const nameIsMapped = Object.values(mapping).includes("name");
+  const recordCount = isGreenBeans ? parsedBeans.length : parsedStock.length;
 
   // ─── Step indicator ───────────────────────────────────
 
-  const currentStepIndex = stepOrder.indexOf(step);
+  const currentStepIndex = STEP_ORDER.indexOf(step);
 
   // Reset helper
   const resetAll = useCallback(() => {
@@ -269,37 +209,41 @@ export function ImportWizard() {
     setCsvHeaders([]);
     setSampleRows([]);
     setMapping({});
-    setParsedProducts([]);
+    setParsedBeans([]);
+    setParsedStock([]);
     setParseErrors([]);
-    setStockMappings({});
-    setPreviewProducts([]);
-    setPreviewErrors([]);
     setImportResult(null);
     setImportError(null);
+  }, []);
+
+  const handleTypeChange = useCallback((type: InventoryType) => {
+    setInventoryType(type);
+    // Reset file + mapping when type changes
+    setCsvText("");
+    setFileName("");
+    setCsvHeaders([]);
+    setSampleRows([]);
+    setMapping({});
+    setParsedBeans([]);
+    setParsedStock([]);
+    setParseErrors([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/products"
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Import Products
-            </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              Import products from a CSV or spreadsheet file.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">
+            Import Inventory
+          </h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            Import {isGreenBeans ? "green beans" : "roasted stock"} from a CSV file.
+          </p>
         </div>
         <a
-          href={`/api/products/import/template?category=${category}`}
+          href={`/api/tools/inventory/import/template?type=${inventoryType}`}
           download
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
         >
@@ -310,11 +254,12 @@ export function ImportWizard() {
 
       {/* Step indicator */}
       <div className="flex items-center gap-1 mb-6">
-        {visibleSteps.map((s, i) => {
-          const si = stepOrder.indexOf(s);
+        {VISIBLE_STEPS.map((s, i) => {
+          const si = STEP_ORDER.indexOf(s);
           const isActive = si === currentStepIndex;
-          // importing step counts as "preview done" for the indicator
-          const isDone = si < currentStepIndex || (step === "importing" && si <= stepOrder.indexOf("preview"));
+          const isDone =
+            si < currentStepIndex ||
+            (step === "importing" && si <= STEP_ORDER.indexOf("preview"));
           const label = STEP_LABELS[s];
 
           return (
@@ -356,55 +301,33 @@ export function ImportWizard() {
         {/* ─── Upload Step ─── */}
         {step === "upload" && (
           <div>
-            {/* Category toggle */}
+            {/* Type toggle */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-slate-700 mb-2">
-                Product Category
+                Inventory Type
               </label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setCategory("coffee")}
+                  onClick={() => handleTypeChange("green_beans")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    category === "coffee"
+                    inventoryType === "green_beans"
                       ? "bg-brand-600 text-white"
                       : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  Coffee
+                  Green Beans
                 </button>
                 <button
-                  onClick={() => setCategory("other")}
+                  onClick={() => handleTypeChange("roasted_stock")}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    category === "other"
+                    inventoryType === "roasted_stock"
                       ? "bg-brand-600 text-white"
                       : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  Other Products
+                  Roasted Stock
                 </button>
               </div>
-            </div>
-
-            {/* Default channel toggles */}
-            <div className="mb-6 flex gap-6">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={defaultIsRetail}
-                  onChange={(e) => setDefaultIsRetail(e.target.checked)}
-                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                <span className="text-slate-700">Retail by default</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={defaultIsWholesale}
-                  onChange={(e) => setDefaultIsWholesale(e.target.checked)}
-                  className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                />
-                <span className="text-slate-700">Wholesale by default</span>
-              </label>
             </div>
 
             {/* Drop zone */}
@@ -419,7 +342,8 @@ export function ImportWizard() {
                 Drop your CSV file here, or click to browse
               </p>
               <p className="text-xs text-slate-400">
-                Supports .csv files. Rows sharing the same Product Name will be grouped as variants.
+                Supports .csv files. Each row will create one{" "}
+                {isGreenBeans ? "green bean" : "roasted stock"} record.
               </p>
               <input
                 ref={fileInputRef}
@@ -438,19 +362,35 @@ export function ImportWizard() {
             <div className="flex items-center gap-2 mb-4 text-sm text-slate-500">
               <FileText className="w-4 h-4" />
               <span>{fileName}</span>
-              <span className="text-slate-300">•</span>
-              <span>{sampleRows.length > 0 ? `${csvHeaders.length} columns detected` : ""}</span>
+              <span className="text-slate-300">&bull;</span>
+              <span>
+                {sampleRows.length > 0
+                  ? `${csvHeaders.length} columns detected`
+                  : ""}
+              </span>
             </div>
 
-            <CsvFieldMapper<GRField>
-              csvHeaders={csvHeaders}
-              sampleRows={sampleRows}
-              mapping={mapping}
-              onMappingChange={setMapping}
-              fieldOptions={GR_FIELD_OPTIONS}
-              requiredField="name"
-              requiredFieldLabel="Product Name"
-            />
+            {isGreenBeans ? (
+              <CsvFieldMapper<GreenBeanField>
+                csvHeaders={csvHeaders}
+                sampleRows={sampleRows}
+                mapping={mapping as Record<string, GreenBeanField>}
+                onMappingChange={(m) => setMapping(m)}
+                fieldOptions={GREEN_BEAN_FIELDS}
+                requiredField="name"
+                requiredFieldLabel="Bean Name"
+              />
+            ) : (
+              <CsvFieldMapper<RoastedStockField>
+                csvHeaders={csvHeaders}
+                sampleRows={sampleRows}
+                mapping={mapping as Record<string, RoastedStockField>}
+                onMappingChange={(m) => setMapping(m)}
+                fieldOptions={ROASTED_STOCK_FIELDS}
+                requiredField="name"
+                requiredFieldLabel="Stock Name"
+              />
+            )}
 
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
               <button
@@ -468,55 +408,13 @@ export function ImportWizard() {
                 Back
               </button>
               <button
-                onClick={goFromMapStep}
+                onClick={goToPreview}
                 disabled={!nameIsMapped}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isCoffee ? "Stock Mapping" : "Review Import"}
+                Preview Import
                 <ArrowRight className="w-4 h-4" />
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Stock Mapping Step ─── */}
-        {step === "stock" && (
-          <div>
-            <StockMapping
-              products={parsedProducts}
-              stockMappings={stockMappings}
-              onMappingsChange={setStockMappings}
-            />
-
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
-              <button
-                onClick={() => setStep("map")}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Mapping
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    // Skip — clear stock mappings and go to preview
-                    setStockMappings({});
-                    setPreviewProducts(parsedProducts);
-                    setPreviewErrors(parseErrors);
-                    setStep("preview");
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={goToPreviewFromStock}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-                >
-                  Review Import
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -531,25 +429,35 @@ export function ImportWizard() {
               </div>
             )}
 
-            <ImportPreview
-              products={previewProducts}
-              errors={previewErrors}
-            />
+            {isGreenBeans ? (
+              <GreenBeanImportPreview
+                beans={parsedBeans}
+                errors={parseErrors}
+              />
+            ) : (
+              <RoastedStockImportPreview
+                stock={parsedStock}
+                errors={parseErrors}
+              />
+            )}
 
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
               <button
-                onClick={() => setStep(isCoffee ? "stock" : "map")}
+                onClick={() => setStep("map")}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
-                {isCoffee ? "Back to Stock Mapping" : "Back to Mapping"}
+                Back to Mapping
               </button>
               <button
                 onClick={startImport}
-                disabled={previewProducts.length === 0}
+                disabled={recordCount === 0}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Import {previewProducts.length} Product{previewProducts.length !== 1 ? "s" : ""}
+                Import {recordCount}{" "}
+                {isGreenBeans
+                  ? `Bean${recordCount !== 1 ? "s" : ""}`
+                  : `Stock Item${recordCount !== 1 ? "s" : ""}`}
                 <Check className="w-4 h-4" />
               </button>
             </div>
@@ -561,7 +469,7 @@ export function ImportWizard() {
           <div className="py-12 text-center">
             <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4" />
             <p className="text-sm font-medium text-slate-700">
-              Importing products…
+              Importing {isGreenBeans ? "green beans" : "roasted stock"}&hellip;
             </p>
             <p className="text-xs text-slate-400 mt-1">
               This may take a moment.
@@ -581,18 +489,18 @@ export function ImportWizard() {
             <p className="text-sm text-slate-500 mb-6">
               {importResult.imported} imported, {importResult.skipped} skipped
               {importResult.errors.length > 0
-                ? `, ${importResult.errors.length} error${importResult.errors.length !== 1 ? "s" : ""}`
+                ? `, ${importResult.errors.length} warning${importResult.errors.length !== 1 ? "s" : ""}`
                 : ""}
             </p>
 
             {importResult.errors.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6 text-left max-w-md mx-auto">
                 <h4 className="text-sm font-medium text-amber-800 mb-1">
-                  Errors
+                  Warnings
                 </h4>
-                <ul className="text-xs text-amber-700 space-y-0.5">
+                <ul className="text-xs text-amber-700 space-y-0.5 max-h-40 overflow-y-auto">
                   {importResult.errors.map((err, i) => (
-                    <li key={i}>• {err}</li>
+                    <li key={i}>&bull; {err}</li>
                   ))}
                 </ul>
               </div>
@@ -600,10 +508,16 @@ export function ImportWizard() {
 
             <div className="flex items-center justify-center gap-3">
               <button
-                onClick={() => router.push("/products")}
+                onClick={() =>
+                  router.push(
+                    isGreenBeans
+                      ? "/tools/green-beans"
+                      : "/tools/roasted-stock"
+                  )
+                }
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
               >
-                View Products
+                View {isGreenBeans ? "Green Beans" : "Roasted Stock"}
               </button>
               <button
                 onClick={resetAll}

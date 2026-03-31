@@ -181,7 +181,6 @@ async function handleContacts(
         business_name: contact.business_name,
         role: contact.role,
         types: contact.types,
-        tags: contact.tags,
         address_line_1: contact.address_line_1,
         address_line_2: contact.address_line_2,
         city: contact.city,
@@ -192,6 +191,7 @@ async function handleContacts(
         source: "import",
         status: "active",
         people_id: peopleId,
+        owner_id: roasterId,
       });
 
       if (error) throw error;
@@ -326,6 +326,7 @@ async function handleBusinesses(
           source: "import",
           status: "active",
           people_id: peopleId,
+          owner_id: roasterId,
         });
       }
 

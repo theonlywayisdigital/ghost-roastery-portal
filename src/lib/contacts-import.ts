@@ -14,7 +14,6 @@ export type ContactField =
   | "business_name"
   | "role"
   | "types"
-  | "tags"
   | "address_line_1"
   | "address_line_2"
   | "city"
@@ -42,7 +41,6 @@ export const CONTACT_FIELDS: {
   { value: "postcode", label: "Postcode", group: "Address" },
   { value: "country", label: "Country", group: "Address" },
   { value: "types", label: "Types", group: "Other" },
-  { value: "tags", label: "Tags", group: "Other" },
   { value: "notes", label: "Notes", group: "Other" },
   { value: "ignore", label: "— Ignore —", group: "Other" },
 ];
@@ -128,9 +126,6 @@ const CONTACT_HEADER_ALIASES: Record<string, ContactField> = {
   "types": "types",
   "type": "types",
   "category": "types",
-  "tags": "tags",
-  "tag": "tags",
-  "labels": "tags",
   "address": "address_line_1",
   "address line 1": "address_line_1",
   "address_line_1": "address_line_1",
@@ -243,7 +238,6 @@ export interface NormalisedContact {
   business_name: string | null;
   role: string | null;
   types: string[];
-  tags: string[];
   address_line_1: string | null;
   address_line_2: string | null;
   city: string | null;
@@ -363,7 +357,6 @@ export function csvToNormalisedContacts(input: {
       business_name: getMapped(row, mapping, "business_name") || null,
       role: getMapped(row, mapping, "role") || null,
       types: parseCommaSeparated(getMapped(row, mapping, "types")),
-      tags: parseCommaSeparated(getMapped(row, mapping, "tags")),
       address_line_1: getMapped(row, mapping, "address_line_1") || null,
       address_line_2: getMapped(row, mapping, "address_line_2") || null,
       city: getMapped(row, mapping, "city") || null,

@@ -302,17 +302,27 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   }
 
   // 7. Stock decrement — product-level AND variant-level
+  // Only decrement manual retail_stock_count when the product is NOT
+  // linked to a roasted stock pool. When roasted stock is linked it is
+  // the source of truth and the KG-based deduction in 7b handles it.
   for (const item of normalizedItems) {
-    await supabase.rpc("decrement_product_stock", {
-      product_id: item.productId,
-      qty: item.quantity,
-    });
+    const productInfo = productMap[item.productId];
+    const hasRoastedStock =
+      productInfo?.roasted_stock_id ||
+      (productInfo?.is_blend && blendComponentMap[item.productId]?.length > 0);
 
-    if (item.variantId) {
-      await supabase.rpc("decrement_variant_stock", {
-        variant_id: item.variantId,
+    if (!hasRoastedStock) {
+      await supabase.rpc("decrement_product_stock", {
+        product_id: item.productId,
         qty: item.quantity,
       });
+
+      if (item.variantId) {
+        await supabase.rpc("decrement_variant_stock", {
+          variant_id: item.variantId,
+          qty: item.quantity,
+        });
+      }
     }
   }
 

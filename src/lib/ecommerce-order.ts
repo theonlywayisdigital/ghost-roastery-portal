@@ -374,18 +374,23 @@ export async function processEcommerceOrder(
   for (const item of orderItems) {
     if (item.unmapped || !item.productId) continue;
 
-    // Product-level stock
-    await supabase.rpc("decrement_product_stock", {
-      product_id: item.productId,
-      qty: item.quantity,
-    });
-
-    // Variant-level stock
-    if (item.variantId) {
-      await supabase.rpc("decrement_variant_stock", {
-        variant_id: item.variantId,
+    // Only decrement manual retail_stock_count when the product is NOT
+    // linked to a roasted stock pool. When roasted stock is linked it is
+    // the source of truth and the KG-based deduction below handles it.
+    if (!item.roastedStockId) {
+      // Product-level stock
+      await supabase.rpc("decrement_product_stock", {
+        product_id: item.productId,
         qty: item.quantity,
       });
+
+      // Variant-level stock
+      if (item.variantId) {
+        await supabase.rpc("decrement_variant_stock", {
+          variant_id: item.variantId,
+          qty: item.quantity,
+        });
+      }
     }
 
     // Roasted stock

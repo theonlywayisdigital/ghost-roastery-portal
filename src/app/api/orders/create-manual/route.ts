@@ -318,12 +318,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── Decrement stock atomically for tracked products ───
+    // ─── Decrement manual stock for tracked products ───
+    // Only decrement retail_stock_count when the product is NOT linked to
+    // a roasted stock pool. Products with roasted stock use KG-based deduction.
     for (const item of orderItems) {
-      await supabase.rpc("decrement_product_stock", {
-        product_id: item.productId,
-        qty: item.quantity,
-      });
+      const itemData = item as Record<string, unknown>;
+      const hasRoastedStock = itemData.roastedStockId ||
+        (itemData.blendComponents as unknown[] | undefined)?.length;
+      if (!hasRoastedStock) {
+        await supabase.rpc("decrement_product_stock", {
+          product_id: item.productId,
+          qty: item.quantity,
+        });
+      }
     }
 
     // ─── Roasted stock deduction — deduct KG based on item weight x quantity ───

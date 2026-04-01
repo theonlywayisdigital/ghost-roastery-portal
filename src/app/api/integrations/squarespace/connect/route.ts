@@ -120,6 +120,27 @@ export async function POST(request: Request) {
       // Non-critical — assume no write access
     }
 
+    // Fetch store pages — auto-select if only one
+    let storePageId: string | null = null;
+    try {
+      const spRes = await fetch(`${baseUrl}/store_pages`, {
+        headers: {
+          Authorization: `Bearer ${api_key}`,
+          "User-Agent": "GhostRoastery/1.0",
+        },
+      });
+      if (spRes.ok) {
+        const spData = await spRes.json();
+        const pages = (spData.storePages || []) as { id: string; isEnabled: boolean }[];
+        const enabledPages = pages.filter((p) => p.isEnabled);
+        if (enabledPages.length === 1) {
+          storePageId = enabledPages[0].id;
+        }
+      }
+    } catch {
+      // Non-critical — user can select later
+    }
+
     // Register webhook subscriptions
     const webhookIds: Record<string, string> = {};
     const portalUrl =
@@ -182,6 +203,7 @@ export async function POST(request: Request) {
           settings: {
             connected_at: new Date().toISOString(),
             has_write_access: hasWriteAccess,
+            store_page_id: storePageId,
           },
           updated_at: new Date().toISOString(),
         },

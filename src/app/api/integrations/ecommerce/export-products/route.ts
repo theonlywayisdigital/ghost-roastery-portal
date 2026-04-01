@@ -124,7 +124,7 @@ export async function POST(request: Request) {
   // Verify connection belongs to this roaster
   const { data: connection } = await supabase
     .from("ecommerce_connections")
-    .select("id, provider, roaster_id, store_url, access_token, api_secret, sync_stock")
+    .select("id, provider, roaster_id, store_url, access_token, api_secret, sync_stock, settings")
     .eq("id", connectionId)
     .eq("roaster_id", roasterId)
     .single();
@@ -133,6 +133,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Connection not found" },
       { status: 404 }
+    );
+  }
+
+  // For Squarespace, a store page ID is required to create products
+  const connectionSettings = (connection.settings as Record<string, unknown>) || {};
+  const sqStorePageId = connectionSettings.store_page_id as string | undefined;
+  if (connection.provider === "squarespace" && !sqStorePageId) {
+    return NextResponse.json(
+      { error: "No store page selected. Go to Settings \u2192 Integrations \u2192 Squarespace and select a store page before exporting." },
+      { status: 400 }
     );
   }
 
@@ -209,7 +219,8 @@ export async function POST(request: Request) {
         const result = await createSquarespaceProduct(
           connectionId,
           product,
-          activeVariants
+          activeVariants,
+          sqStorePageId!
         );
         externalProductId = result.externalProductId;
         externalVariantIds = result.externalVariantIds;
@@ -612,7 +623,8 @@ async function createSquarespaceProduct(
     weight_grams: number | null;
     unit: string | null;
   },
-  variants: ExportVariant[]
+  variants: ExportVariant[],
+  storePageId: string
 ): Promise<{
   externalProductId: string;
   externalVariantIds: Record<string, string>;
@@ -679,6 +691,7 @@ async function createSquarespaceProduct(
 
   const payload = {
     type: "PHYSICAL",
+    storePageId,
     name: product.name,
     description: product.description || "",
     isVisible: product.status === "published",

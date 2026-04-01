@@ -57,6 +57,7 @@ interface EcommerceStatus {
   connected_at?: string | null;
   webhook_ids?: Record<string, string>;
   has_write_access?: boolean | null;
+  store_page_id?: string | null;
 }
 
 interface PreviewProduct {
@@ -232,6 +233,11 @@ export function IntegrationsPage() {
   const [sqShowKey, setSqShowKey] = useState(false);
   const [sqConnecting, setSqConnecting] = useState(false);
   const [sqError, setSqError] = useState<string | null>(null);
+
+  // Squarespace store page selection
+  const [sqStorePages, setSqStorePages] = useState<{ id: string; title: string; isEnabled: boolean }[]>([]);
+  const [sqStorePagesLoading, setSqStorePagesLoading] = useState(false);
+  const [sqSavingStorePage, setSqSavingStorePage] = useState(false);
 
   // Import modal state
   const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
@@ -766,6 +772,39 @@ export function IntegrationsPage() {
       setSqError("Could not connect. Please check your API key and try again.");
     } finally {
       setSqConnecting(false);
+    }
+  }
+
+  async function handleLoadSqStorePages() {
+    setSqStorePagesLoading(true);
+    try {
+      const res = await fetch("/api/integrations/squarespace/store-pages");
+      const data = await res.json();
+      if (res.ok && data.storePages) {
+        setSqStorePages(data.storePages);
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setSqStorePagesLoading(false);
+    }
+  }
+
+  async function handleSaveSqStorePage(storePageId: string) {
+    setSqSavingStorePage(true);
+    try {
+      const res = await fetch("/api/integrations/squarespace/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ store_page_id: storePageId }),
+      });
+      if (res.ok) {
+        setSqStatus((prev) => prev ? { ...prev, store_page_id: storePageId } : prev);
+      }
+    } catch {
+      // Non-critical
+    } finally {
+      setSqSavingStorePage(false);
     }
   }
 
@@ -1436,6 +1475,72 @@ export function IntegrationsPage() {
                     Your Squarespace API key does not have write permissions. Product export and stock sync will fail. Generate a new API key with <strong>Read and Write</strong> Commerce permissions, then disconnect and reconnect.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Squarespace store page selector */}
+            {provider === "squarespace" && (
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">Store Page</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Products will be exported to this store page.
+                    </p>
+                  </div>
+                  {!status.store_page_id && (
+                    <span className="text-xs font-medium text-amber-600">Required for export</span>
+                  )}
+                </div>
+                {status.store_page_id && sqStorePages.length === 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">
+                      {status.store_page_id}
+                    </span>
+                    <button
+                      onClick={handleLoadSqStorePages}
+                      disabled={sqStorePagesLoading}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                    >
+                      {sqStorePagesLoading ? "Loading..." : "Change"}
+                    </button>
+                  </div>
+                )}
+                {!status.store_page_id && sqStorePages.length === 0 && (
+                  <button
+                    onClick={handleLoadSqStorePages}
+                    disabled={sqStorePagesLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {sqStorePagesLoading ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Store className="w-3 h-3" />
+                    )}
+                    {sqStorePagesLoading ? "Loading pages..." : "Select Store Page"}
+                  </button>
+                )}
+                {sqStorePages.length > 0 && (
+                  <div className="space-y-1.5">
+                    {sqStorePages.filter((p) => p.isEnabled).map((page) => (
+                      <button
+                        key={page.id}
+                        onClick={() => handleSaveSqStorePage(page.id)}
+                        disabled={sqSavingStorePage}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-colors ${
+                          status.store_page_id === page.id
+                            ? "border-brand-300 bg-brand-50 text-brand-700"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/50"
+                        }`}
+                      >
+                        <span className="font-medium">{page.title}</span>
+                        {status.store_page_id === page.id && (
+                          <CheckCircle2 className="w-4 h-4 text-brand-600" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

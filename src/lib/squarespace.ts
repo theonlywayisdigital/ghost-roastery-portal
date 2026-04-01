@@ -72,6 +72,50 @@ export async function getSquarespaceClient(
   };
 }
 
+export interface SquarespaceStorePage {
+  id: string;
+  title: string;
+  isEnabled: boolean;
+}
+
+/**
+ * Fetch all store pages from Squarespace.
+ */
+export async function fetchSquarespaceStorePages(
+  connectionId: string
+): Promise<SquarespaceStorePage[]> {
+  const client = await getSquarespaceClient(connectionId);
+  const allPages: SquarespaceStorePage[] = [];
+  let cursor: string | null = null;
+
+  while (true) {
+    const fetchUrl = cursor
+      ? `${client.baseUrl}/store_pages?cursor=${encodeURIComponent(cursor)}`
+      : `${client.baseUrl}/store_pages`;
+
+    const res = await fetch(fetchUrl, { headers: client.headers });
+    if (!res.ok) {
+      throw new Error(
+        `Squarespace store pages API error: ${res.status} ${res.statusText}`
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json();
+    if (data.storePages) {
+      allPages.push(...data.storePages);
+    }
+
+    if (data.pagination?.hasNextPage && data.pagination.nextPageCursor) {
+      cursor = data.pagination.nextPageCursor;
+    } else {
+      break;
+    }
+  }
+
+  return allPages;
+}
+
 /**
  * Fetch all products from Squarespace using cursor-based pagination.
  */

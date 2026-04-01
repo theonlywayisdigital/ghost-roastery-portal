@@ -39,6 +39,7 @@ export async function GET() {
     last_stock_sync_at: connection.last_stock_sync_at,
     connected_at: settings.connected_at || connection.created_at,
     has_write_access: settings.has_write_access ?? null,
+    store_page_id: settings.store_page_id ?? null,
   });
 }
 
@@ -49,17 +50,18 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { sync_products, sync_orders, sync_stock } = body as {
+  const { sync_products, sync_orders, sync_stock, store_page_id } = body as {
     sync_products?: boolean;
     sync_orders?: boolean;
     sync_stock?: boolean;
+    store_page_id?: string;
   };
 
   const supabase = createServerClient();
 
   const { data: connection } = await supabase
     .from("ecommerce_connections")
-    .select("id")
+    .select("id, settings")
     .eq("roaster_id", user.roaster.id)
     .eq("provider", "squarespace")
     .single();
@@ -78,6 +80,12 @@ export async function PATCH(request: Request) {
   if (sync_products !== undefined) updates.sync_products = sync_products;
   if (sync_orders !== undefined) updates.sync_orders = sync_orders;
   if (sync_stock !== undefined) updates.sync_stock = sync_stock;
+
+  // Merge store_page_id into settings JSONB
+  if (store_page_id !== undefined) {
+    const existingSettings = (connection.settings as Record<string, unknown>) || {};
+    updates.settings = { ...existingSettings, store_page_id };
+  }
 
   const { error } = await supabase
     .from("ecommerce_connections")

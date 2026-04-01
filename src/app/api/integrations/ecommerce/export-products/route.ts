@@ -609,6 +609,22 @@ async function createWooCommerceProduct(
   return { externalProductId, externalVariantIds };
 }
 
+// ─── Squarespace helpers ──────────────────────────────────────────────
+
+function generateSqSku(productName: string, variant: ExportVariant | null): string {
+  const slug = productName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 20);
+  if (!variant) return slug || "PROD";
+  const weight = formatWeightLabel(variant.weight_grams).toUpperCase();
+  const grind = getGrindName(variant);
+  const parts = [slug, weight];
+  if (grind) parts.push(grind.toUpperCase().replace(/[^A-Z0-9]+/g, "-").slice(0, 10));
+  return parts.join("-") || "PROD";
+}
+
 // ─── Squarespace product creation ─────────────────────────────────────
 
 async function createSquarespaceProduct(
@@ -643,7 +659,7 @@ async function createSquarespaceProduct(
     }
 
     return {
-      sku: v.sku || product.sku || "",
+      sku: v.sku || product.sku || generateSqSku(product.name, v),
       pricing: {
         basePrice: {
           value: price.toFixed(2),
@@ -667,7 +683,7 @@ async function createSquarespaceProduct(
   if (sqVariants.length === 0) {
     const price = product.retail_price ?? 0;
     sqVariants.push({
-      sku: product.sku || "",
+      sku: product.sku || generateSqSku(product.name, null),
       pricing: {
         basePrice: {
           value: price.toFixed(2),

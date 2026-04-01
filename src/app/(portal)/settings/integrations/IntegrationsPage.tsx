@@ -56,6 +56,7 @@ interface EcommerceStatus {
   last_stock_sync_at?: string | null;
   connected_at?: string | null;
   webhook_ids?: Record<string, string>;
+  has_write_access?: boolean | null;
 }
 
 interface PreviewProduct {
@@ -1423,6 +1424,21 @@ export function IntegrationsPage() {
               )}
             </div>
 
+            {/* Squarespace write-access warning */}
+            {provider === "squarespace" && status.has_write_access === false && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Read-only API key detected
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Your Squarespace API key does not have write permissions. Product export and stock sync will fail. Generate a new API key with <strong>Read and Write</strong> Commerce permissions, then disconnect and reconnect.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Webhook status — Shopify only */}
             {provider === "shopify" && status.webhook_ids && (
               <div className="bg-slate-50 rounded-lg p-3 space-y-1.5">
@@ -1697,7 +1713,7 @@ export function IntegrationsPage() {
                   Connect {config.label}
                 </button>
                 <p className="text-xs text-slate-400 mt-2">
-                  Enter your Squarespace Commerce API key to connect.
+                  Enter your Squarespace Commerce API key to connect. Ensure the key has <strong>Read and Write</strong> permissions.
                 </p>
               </>
             )}
@@ -1756,7 +1772,7 @@ export function IntegrationsPage() {
                   </button>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Generate an API key in Squarespace &rarr; Settings &rarr; Developer Tools &rarr; API Keys. Grant &ldquo;Commerce&rdquo; permissions.
+                  Generate an API key in Squarespace &rarr; Settings &rarr; Developer Tools &rarr; API Keys. Grant <strong>Read and Write</strong> Commerce permissions.
                 </p>
               </div>
             )}

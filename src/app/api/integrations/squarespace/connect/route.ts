@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "API key does not have Commerce permissions. Ensure you've granted the correct scopes.",
+              "API key does not have Commerce permissions. Generate a new key with Read and Write Commerce access.",
           },
           { status: 400 }
         );
@@ -97,6 +97,27 @@ export async function POST(request: Request) {
       }
     } catch {
       // Non-critical — use defaults
+    }
+
+    // Test write access — attempt a POST to commerce/products with an empty body.
+    // If the key has write permissions we get 400 (validation error).
+    // If the key only has read permissions we get 403.
+    let hasWriteAccess = false;
+    try {
+      const writeTestRes = await fetch(`${baseUrl}/commerce/products`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${api_key}`,
+          "Content-Type": "application/json",
+          "User-Agent": "GhostRoastery/1.0",
+        },
+        body: JSON.stringify({}),
+      });
+      // 400 = validation error = write access granted
+      // 403 = no write permission
+      hasWriteAccess = writeTestRes.status !== 403;
+    } catch {
+      // Non-critical — assume no write access
     }
 
     // Register webhook subscriptions
@@ -160,6 +181,7 @@ export async function POST(request: Request) {
           webhook_ids: webhookIds,
           settings: {
             connected_at: new Date().toISOString(),
+            has_write_access: hasWriteAccess,
           },
           updated_at: new Date().toISOString(),
         },

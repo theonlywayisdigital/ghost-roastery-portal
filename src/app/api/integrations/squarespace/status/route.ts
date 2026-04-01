@@ -38,6 +38,7 @@ export async function GET() {
     last_order_sync_at: connection.last_order_sync_at,
     last_stock_sync_at: connection.last_stock_sync_at,
     connected_at: settings.connected_at || connection.created_at,
+    has_write_access: settings.has_write_access ?? null,
   });
 }
 

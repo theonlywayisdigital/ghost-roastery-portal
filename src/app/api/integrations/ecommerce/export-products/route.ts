@@ -621,9 +621,7 @@ async function createSquarespaceProduct(
 
   // Build variants for Squarespace
   const sqVariants = variants.map((v) => {
-    const priceCents = Math.round(
-      (v.retail_price ?? product.retail_price ?? 0) * 100
-    );
+    const price = v.retail_price ?? product.retail_price ?? 0;
     const grindName = getGrindName(v);
     const attributes: Record<string, string> = {};
 
@@ -636,7 +634,7 @@ async function createSquarespaceProduct(
       sku: v.sku || product.sku || "",
       pricing: {
         basePrice: {
-          value: String(priceCents),
+          value: price.toFixed(2),
           currency: "GBP",
         },
       },
@@ -655,12 +653,12 @@ async function createSquarespaceProduct(
 
   // If no variants, create a single default
   if (sqVariants.length === 0) {
-    const priceCents = Math.round((product.retail_price ?? 0) * 100);
+    const price = product.retail_price ?? 0;
     sqVariants.push({
       sku: product.sku || "",
       pricing: {
         basePrice: {
-          value: String(priceCents),
+          value: price.toFixed(2),
           currency: "GBP",
         },
       },

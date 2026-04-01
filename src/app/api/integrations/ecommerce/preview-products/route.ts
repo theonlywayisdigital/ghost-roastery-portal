@@ -153,10 +153,9 @@ function normaliseSquarespacePreview(
 ): PreviewProduct {
   const extId = String(p.id);
   const firstVariant = p.variants?.[0];
-  // Squarespace prices are in cents
-  const priceCents = firstVariant?.pricing?.basePrice?.value;
-  const priceStr = priceCents
-    ? (parseFloat(priceCents) / 100).toFixed(2)
+  const priceValue = firstVariant?.pricing?.basePrice?.value;
+  const priceStr = priceValue
+    ? parseFloat(priceValue).toFixed(2)
     : null;
 
   return {

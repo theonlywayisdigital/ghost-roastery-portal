@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       const variantUpdates = (productData.variants || []).map((v: any) => ({
         external_variant_id: String(v.id),
         price: v.pricing?.basePrice?.value
-          ? parseFloat(v.pricing.basePrice.value) / 100
+          ? parseFloat(v.pricing.basePrice.value)
           : undefined,
         sku: v.sku || undefined,
       }));
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     name: item.productName || item.name || "Unknown",
     quantity: item.quantity || 1,
     price: item.unitPricePaid?.value
-      ? parseFloat(item.unitPricePaid.value) / 100
+      ? parseFloat(item.unitPricePaid.value)
       : 0,
     sku: item.sku || null,
   }));
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
     shipping_address: shippingAddress,
     payment_method: paymentMethod,
     total: orderData.grandTotal?.value
-      ? parseFloat(orderData.grandTotal.value) / 100
+      ? parseFloat(orderData.grandTotal.value)
       : 0,
     currency: orderData.grandTotal?.currency || "GBP",
   };

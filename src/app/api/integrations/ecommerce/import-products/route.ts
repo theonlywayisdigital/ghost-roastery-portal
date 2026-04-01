@@ -326,8 +326,8 @@ function normaliseSquarespaceProduct(
   p: SquarespaceProduct
 ): NormalisedProduct {
   const firstVariant = p.variants?.[0];
-  const priceCents = firstVariant?.pricing?.basePrice?.value;
-  const price = priceCents ? parseFloat(priceCents) / 100 : null;
+  const priceValue = firstVariant?.pricing?.basePrice?.value;
+  const price = priceValue ? parseFloat(priceValue) : null;
 
   return {
     external_id: String(p.id),
@@ -364,8 +364,8 @@ function normaliseSquarespaceVariant(
     );
   }
 
-  const priceCents = v.pricing?.basePrice?.value;
-  const price = priceCents ? parseFloat(priceCents) / 100 : null;
+  const priceValue = v.pricing?.basePrice?.value;
+  const price = priceValue ? parseFloat(priceValue) : null;
 
   return {
     external_id: String(v.id),

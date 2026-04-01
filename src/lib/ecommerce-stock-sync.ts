@@ -674,14 +674,12 @@ async function pushProductToSquarespace(
     const v = variants.find((vr) => vr.id === ghostId);
     if (!v) continue;
 
-    const priceCents = Math.round(
-      (v.retail_price ?? product.retail_price ?? 0) * 100
-    );
+    const price = v.retail_price ?? product.retail_price ?? 0;
 
     const varPayload: Record<string, unknown> = {
       pricing: {
         basePrice: {
-          value: String(priceCents),
+          value: price.toFixed(2),
           currency: "GBP",
         },
       },

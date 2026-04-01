@@ -647,15 +647,21 @@ async function createSquarespaceProduct(
 }> {
   const client = await getSquarespaceClient(connectionId);
 
+  // Determine which attribute dimensions are present across all variants.
+  // Squarespace requires: product.variantAttributes lists the dimension names,
+  // and EVERY variant.attributes must have exactly those same keys.
+  const hasGrind = variants.some((v) => getGrindName(v) !== null);
+  const variantAttributes: string[] = ["Size"];
+  if (hasGrind) variantAttributes.push("Grind");
+
   // Build variants for Squarespace
   const sqVariants = variants.map((v) => {
     const price = v.retail_price ?? product.retail_price ?? 0;
-    const grindName = getGrindName(v);
-    const attributes: Record<string, string> = {};
-
-    attributes["Weight"] = v.unit || formatWeightLabel(v.weight_grams);
-    if (grindName) {
-      attributes["Grind"] = grindName;
+    const attributes: Record<string, string> = {
+      Size: v.unit || formatWeightLabel(v.weight_grams),
+    };
+    if (hasGrind) {
+      attributes["Grind"] = getGrindName(v) || "Standard";
     }
 
     return {
@@ -682,6 +688,9 @@ async function createSquarespaceProduct(
   // If no variants, create a single default
   if (sqVariants.length === 0) {
     const price = product.retail_price ?? 0;
+    const attributes: Record<string, string> = {
+      Size: product.unit || "250g",
+    };
     sqVariants.push({
       sku: product.sku || generateSqSku(product.name, null),
       pricing: {
@@ -691,9 +700,7 @@ async function createSquarespaceProduct(
         },
       },
       stock: { quantity: 0, unlimited: false },
-      attributes: {
-        Weight: product.unit || "250g",
-      },
+      attributes,
       shippingMeasurements: product.weight_grams
         ? {
             weight: {
@@ -711,6 +718,7 @@ async function createSquarespaceProduct(
     name: product.name,
     description: product.description || "",
     isVisible: product.status === "published",
+    variantAttributes,
     variants: sqVariants,
   };
 

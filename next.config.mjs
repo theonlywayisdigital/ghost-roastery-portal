@@ -18,6 +18,24 @@ const nextConfig = {
         protocol: "https",
         hostname: "zaryzynzbpxmscggufdc.supabase.co",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.shopify.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.squarespace-cdn.com",
+      },
+      {
+        protocol: "https",
+        hostname: "static.wixstatic.com",
+      },
+      // WooCommerce images are served from each roaster's own WordPress domain.
+      // No single CDN — use a wildcard to cover all possible hosts.
+      {
+        protocol: "https",
+        hostname: "**",
+      },
     ],
   },
   async headers() {

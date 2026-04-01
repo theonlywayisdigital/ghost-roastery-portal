@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const tabs = [
   { label: "Overview", href: "/tools/inventory" },
   { label: "Green Stock", href: "/tools/inventory/green" },
-  { label: "Roasted Stock", href: "/tools/inventory/roasted" },
+  { label: "Roast Profiles", href: "/tools/inventory/roasted" },
   { label: "Roast Log", href: "/tools/inventory/roast-log" },
 ];
 

@@ -170,7 +170,7 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
         }),
       });
       if (!createRes.ok) {
-        setError("Failed to create roasted stock record");
+        setError("Failed to create roast profile");
         setSaving(false);
         return;
       }
@@ -362,7 +362,7 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
                   onChange={(e) => setAddToStock(e.target.checked)}
                   className="w-4 h-4 text-brand-600 border-slate-300 rounded focus:ring-brand-500"
                 />
-                <span className="text-sm font-medium text-slate-700">Add to Roasted Stock</span>
+                <span className="text-sm font-medium text-slate-700">Add to Roast Profile</span>
               </label>
 
               {addToStock && (
@@ -374,7 +374,7 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
                         onChange={(e) => setSelectedStockId(e.target.value)}
                         className={`${inputClass} ${selectedStockId ? "" : "text-slate-400"}`}
                       >
-                        <option value="">Select stock record</option>
+                        <option value="">Select roast profile</option>
                         {sortedStocks.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name} ({Number(s.current_stock_kg).toFixed(2)} kg)
@@ -388,7 +388,7 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
                         className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Create new stock record
+                        Create new roast profile
                       </button>
                     </div>
                   ) : (
@@ -405,7 +405,7 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
                         onClick={() => { setCreateNewStock(false); setNewStockName(""); }}
                         className="text-sm text-slate-500 hover:text-slate-700"
                       >
-                        Use existing record instead
+                        Use existing profile instead
                       </button>
                     </div>
                   )}

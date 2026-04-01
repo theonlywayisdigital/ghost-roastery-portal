@@ -1,34 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase";
-import { RoastLogForm } from "../RoastLogForm";
 
-export default async function NewRoastLogPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (!user.roaster) redirect("/dashboard");
-
-  const supabase = createServerClient();
-  const [{ data: beans }, { data: products }, { data: roastedStocks }] = await Promise.all([
-    supabase
-      .from("green_beans")
-      .select("id, name")
-      .eq("roaster_id", user.roaster.id)
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("products")
-      .select("id, name")
-      .eq("roaster_id", user.roaster.id)
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("roasted_stock")
-      .select("id, name, green_bean_id, current_stock_kg")
-      .eq("roaster_id", user.roaster.id)
-      .eq("is_active", true)
-      .order("name"),
-  ]);
-
-  return <RoastLogForm beans={beans || []} products={products || []} roastedStocks={roastedStocks || []} />;
+export default function NewRoastLogPage() {
+  redirect("/tools/inventory/roast-log");
 }

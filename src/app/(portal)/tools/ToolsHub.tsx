@@ -35,7 +35,7 @@ const toolCards = [
     title: "Roast Log",
     description: "Log roasts, track weight loss, and monitor quality.",
     icon: Flame,
-    href: "/tools/roast-log",
+    href: "/tools/inventory/roast-log",
     countKey: "roastLogs" as const,
     color: "text-orange-600 bg-orange-50",
   },

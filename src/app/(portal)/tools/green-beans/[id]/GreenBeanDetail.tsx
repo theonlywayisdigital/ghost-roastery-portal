@@ -67,38 +67,9 @@ export function GreenBeanDetail({
   const router = useRouter();
   const [movements, setMovements] = useState(initialMovements);
   const [currentStock, setCurrentStock] = useState(Number(bean.current_stock_kg));
-  const [showAddStock, setShowAddStock] = useState(false);
-  const [stockForm, setStockForm] = useState({ type: "purchase", qty: "", cost: "", notes: "" });
-  const [saving, setSaving] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showRoastModal, setShowRoastModal] = useState(false);
   const [showRebalanceModal, setShowRebalanceModal] = useState(false);
-
-  async function handleStockSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!stockForm.qty) return;
-    setSaving(true);
-
-    const res = await fetch(`/api/tools/green-beans/${bean.id}/movements`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        movement_type: stockForm.type,
-        quantity_kg: stockForm.qty,
-        unit_cost: stockForm.cost || null,
-        notes: stockForm.notes || null,
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      setCurrentStock(data.balance);
-      setShowAddStock(false);
-      setStockForm({ type: "purchase", qty: "", cost: "", notes: "" });
-      router.refresh();
-    }
-    setSaving(false);
-  }
 
   const stockStatus = getStockStatus({ ...bean, current_stock_kg: currentStock });
 
@@ -153,43 +124,11 @@ export function GreenBeanDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-900">Stock Movements</h2>
-              <button onClick={() => setShowAddStock(!showAddStock)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
-                <Plus className="w-3.5 h-3.5" />
-                Add Movement
+              <button onClick={() => setShowReceiveModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
+                <Package className="w-3.5 h-3.5" />
+                Receive Stock
               </button>
             </div>
-
-            {showAddStock && (
-              <form onSubmit={handleStockSubmit} className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Type</label>
-                    <select value={stockForm.type} onChange={(e) => setStockForm((p) => ({ ...p, type: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                      <option value="purchase">Purchase</option>
-                      <option value="adjustment">Adjustment</option>
-                      <option value="waste">Waste</option>
-                      <option value="return">Return</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Quantity (kg)</label>
-                    <input type="number" value={stockForm.qty} onChange={(e) => setStockForm((p) => ({ ...p, qty: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" min="0.001" step="0.001" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Unit Cost (£/kg)</label>
-                    <input type="number" value={stockForm.cost} onChange={(e) => setStockForm((p) => ({ ...p, cost: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" min="0" step="0.01" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
-                    <input type="text" value={stockForm.notes} onChange={(e) => setStockForm((p) => ({ ...p, notes: e.target.value }))} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button type="submit" disabled={saving} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">{saving ? "Saving..." : "Record Movement"}</button>
-                  <button type="button" onClick={() => setShowAddStock(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
-                </div>
-              </form>
-            )}
 
             {movements.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">No stock movements recorded yet.</p>
@@ -242,12 +181,9 @@ export function GreenBeanDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-sm font-medium text-slate-500 mb-3">Quick Actions</h3>
             <div className="space-y-2">
-              <button onClick={() => setShowAddStock(true)} className="w-full px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
-                Add Stock
-              </button>
               <button
                 onClick={() => setShowReceiveModal(true)}
-                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
               >
                 <Package className="w-4 h-4" />
                 Receive Stock

@@ -145,8 +145,8 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
           <Archive className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">No inventory to show yet</h3>
           <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
-            Add roasted stock items to start tracking your inventory. You can add stock manually
-            via the Roasted Stock tab, or it will be created automatically when you complete a roast log.
+            Create roast profiles to start tracking your inventory. You can add profiles manually
+            via the Roast Profiles tab, or they will be created automatically when you complete a roast log.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link
@@ -154,7 +154,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
             >
               <Archive className="w-4 h-4" />
-              Add Roasted Stock
+              New Roast Profile
             </Link>
             <Link
               href="/tools/inventory/roast-log"

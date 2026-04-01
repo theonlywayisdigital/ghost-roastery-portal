@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Plus, Star } from "@/components/icons";
+import { Star, Flame } from "@/components/icons";
+import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -64,6 +64,7 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
   const [sortKey, setSortKey] = useState("roast_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const banner = useUpgradeBanner("roastLogsPerMonth");
+  const [showRoastModal, setShowRoastModal] = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...initial];
@@ -189,13 +190,13 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
           <h1 className="text-2xl font-bold text-slate-900">Roast Log</h1>
           <p className="text-slate-500 mt-1">Record and track every roast batch.</p>
         </div>
-        <Link
-          href="/tools/roast-log/new"
+        <button
+          onClick={() => setShowRoastModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          New Roast
-        </Link>
+          <Flame className="w-4 h-4" />
+          Log Roast
+        </button>
       </div>
 
       {banner.show && (
@@ -219,7 +220,7 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
         onSort={handleSort}
         sortKey={sortKey}
         sortDirection={sortDir}
-        onRowClick={(row) => router.push(`/tools/roast-log/${row.id}`)}
+        onRowClick={(row) => router.push(`/tools/inventory/roast-log/${row.id}`)}
         emptyMessage="No roast logs yet — record your first roast to get started."
       />
 
@@ -228,6 +229,12 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
           <Pagination page={page} total={filtered.length} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
         </div>
       )}
+
+      <QuickRoastModal
+        open={showRoastModal}
+        onClose={() => setShowRoastModal(false)}
+        onSuccess={() => { setShowRoastModal(false); router.refresh(); }}
+      />
     </div>
   );
 }

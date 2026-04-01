@@ -158,7 +158,7 @@ export function RoastLogForm({
         }),
       });
       if (!createRes.ok) {
-        setError("Failed to create roasted stock record");
+        setError("Failed to create roast profile");
         setSaving(false);
         return;
       }
@@ -188,7 +188,7 @@ export function RoastLogForm({
       return;
     }
 
-    router.push("/tools/roast-log");
+    router.push("/tools/inventory/roast-log");
     router.refresh();
   }
 
@@ -196,13 +196,13 @@ export function RoastLogForm({
     if (!isEdit) return;
     if (!confirm("Delete this roast log? This action cannot be undone.")) return;
     const res = await fetch(`/api/tools/roast-log/${roastLog!.id}`, { method: "DELETE" });
-    if (res.ok) { router.push("/tools/roast-log"); router.refresh(); }
+    if (res.ok) { router.push("/tools/inventory/roast-log"); router.refresh(); }
   }
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/tools/roast-log" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+        <Link href="/tools/inventory/roast-log" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
@@ -473,8 +473,8 @@ export function RoastLogForm({
                 <Archive className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Add to Roasted Stock</h2>
-                <p className="text-sm text-slate-500">Record the roasted output in your stock inventory</p>
+                <h2 className="text-lg font-semibold text-slate-900">Add to Roast Profile</h2>
+                <p className="text-sm text-slate-500">Record the roasted output in your roast profile</p>
               </div>
             </div>
 
@@ -495,7 +495,7 @@ export function RoastLogForm({
               <div className="space-y-4 pl-7">
                 {/* Stock record selection */}
                 <div>
-                  <label className={labelClass}>Roasted Stock Record</label>
+                  <label className={labelClass}>Roast Profile</label>
                   {!createNewStock ? (
                     <div className="space-y-2">
                       <select
@@ -503,7 +503,7 @@ export function RoastLogForm({
                         onChange={(e) => setSelectedStockId(e.target.value)}
                         className={selectClass(!!selectedStockId)}
                       >
-                        <option value="">Select existing stock record</option>
+                        <option value="">Select existing roast profile</option>
                         {roastedStocks.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name} ({Number(s.current_stock_kg).toFixed(2)} kg)
@@ -516,7 +516,7 @@ export function RoastLogForm({
                         className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        Create new stock record
+                        Create new roast profile
                       </button>
                     </div>
                   ) : (
@@ -536,7 +536,7 @@ export function RoastLogForm({
                         onClick={() => { setCreateNewStock(false); setNewStockName(""); }}
                         className="text-sm text-slate-500 hover:text-slate-700"
                       >
-                        Use existing record instead
+                        Use existing profile instead
                       </button>
                     </div>
                   )}
@@ -586,7 +586,7 @@ export function RoastLogForm({
           <button type="submit" disabled={saving} className="px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50">
             {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Roast Log"}
           </button>
-          <Link href="/tools/roast-log" className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors">Cancel</Link>
+          <Link href="/tools/inventory/roast-log" className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors">Cancel</Link>
         </div>
       </form>
     </div>

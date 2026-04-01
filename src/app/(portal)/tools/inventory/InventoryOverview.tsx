@@ -267,12 +267,23 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
   const columns = [
     {
       key: "name",
-      label: "Coffee",
+      label: "Roast Profile",
       sortable: true,
       render: (row: TableRow) => (
         <Link href={`/tools/inventory/roasted/${row.id}`} className="text-brand-600 hover:text-brand-700 font-medium">
           {row.name}
         </Link>
+      ),
+    },
+    {
+      key: "greenBeanName",
+      label: "Green Bean",
+      sortable: true,
+      hiddenOnMobile: true,
+      render: (row: TableRow) => (
+        <span className="text-slate-600">
+          {row.greenBeanName || "—"}
+        </span>
       ),
     },
     {

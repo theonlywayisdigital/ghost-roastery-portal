@@ -214,6 +214,78 @@ export async function loadGrindTypeMap(
   return grindTypeMap;
 }
 
+// ─── Image Import ───────────────────────────────────────────
+
+const IMAGE_BUCKET = "product-images";
+
+/**
+ * Fetch an external image URL, upload it to Supabase storage,
+ * and create a product_images row. Updates products.image_url
+ * with the new Supabase public URL for backward compatibility.
+ */
+async function importProductImage(
+  supabase: SupabaseClient,
+  productId: string,
+  roasterId: string,
+  externalUrl: string
+): Promise<void> {
+  try {
+    const res = await fetch(externalUrl, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) return;
+
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    // Skip if too large (5MB) or not an image
+    if (buffer.byteLength > 5 * 1024 * 1024) return;
+    if (!contentType.startsWith("image/")) return;
+
+    // Derive extension from content-type
+    const extMap: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+      "image/gif": "gif",
+    };
+    const ext = extMap[contentType] || "jpg";
+    const storagePath = `${roasterId}/${Date.now()}-imported.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: false });
+
+    if (uploadError) {
+      console.error("[import] Image upload failed:", uploadError.message);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from(IMAGE_BUCKET)
+      .getPublicUrl(storagePath);
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Create product_images row
+    await supabase.from("product_images").insert({
+      product_id: productId,
+      roaster_id: roasterId,
+      storage_path: storagePath,
+      url: publicUrl,
+      sort_order: 0,
+      is_primary: true,
+    });
+
+    // Update products.image_url to the Supabase URL
+    await supabase
+      .from("products")
+      .update({ image_url: publicUrl })
+      .eq("id", productId);
+  } catch (err) {
+    // Non-critical — product is still imported, just without a local image copy
+    console.error("[import] Image import failed:", err);
+  }
+}
+
 // ─── Product Creation ────────────────────────────────────────
 
 export async function createNewProduct(
@@ -318,6 +390,11 @@ export async function createNewProduct(
     }
   }
 
+  // Import product image to Supabase storage + product_images table
+  if (product.image_url) {
+    await importProductImage(supabase, created.id, roasterId, product.image_url);
+  }
+
   // Create ecommerce mapping if connectionId provided
   if (connectionId) {
     await supabase.from("product_channel_mappings").insert({
@@ -420,6 +497,18 @@ export async function updateExistingProduct(
       if (insertedVariant) {
         updatedVariantMap[insertedVariant.id] = v.external_id;
       }
+    }
+  }
+
+  // Import product image if no product_images rows exist yet
+  if (product.image_url) {
+    const { count } = await supabase
+      .from("product_images")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", productId);
+
+    if ((count || 0) === 0) {
+      await importProductImage(supabase, productId, roasterId, product.image_url);
     }
   }
 

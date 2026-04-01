@@ -489,7 +489,6 @@ export function ProductForm({ product }: { product?: Product }) {
 
             // Reconstruct retail
             if (retailVars.length > 0) {
-              setRetailVariantsEnabled(true);
               const weightMap = new Map<number, { unit: string; price: number | null }>();
               const gtIds = new Set<string>();
               const cells: Record<string, MatrixCell> = {};
@@ -509,6 +508,13 @@ export function ProductForm({ product }: { product?: Product }) {
                   };
                 }
               }
+              // Only enable the variant UI if at least one variant was
+              // reconstructable into the matrix. Imported variants with
+              // unparseable attributes (weight_grams=null, grind_type_id=null)
+              // should not activate the matrix — otherwise an empty array is
+              // submitted on save and the API deletes all variants.
+              const hasMatrixCells = Object.keys(cells).length > 0;
+              setRetailVariantsEnabled(hasMatrixCells);
               setRetailWeightOptions(
                 Array.from(weightMap.entries()).map(([wg, info]) => ({ weight_grams: wg, unit: info.unit, price: info.price }))
               );
@@ -518,7 +524,6 @@ export function ProductForm({ product }: { product?: Product }) {
 
             // Reconstruct wholesale
             if (wholesaleVars.length > 0) {
-              setWholesaleVariantsEnabled(true);
               const weightMap = new Map<number, { unit: string; price: number | null }>();
               const gtIds = new Set<string>();
               const cells: Record<string, MatrixCell> = {};
@@ -538,6 +543,8 @@ export function ProductForm({ product }: { product?: Product }) {
                   };
                 }
               }
+              const hasMatrixCells = Object.keys(cells).length > 0;
+              setWholesaleVariantsEnabled(hasMatrixCells);
               setWholesaleWeightOptions(
                 Array.from(weightMap.entries()).map(([wg, info]) => ({ weight_grams: wg, unit: info.unit, price: info.price }))
               );
@@ -1216,15 +1223,11 @@ export function ProductForm({ product }: { product?: Product }) {
       });
     }
 
-    // Only send variants when the variant UI is actively engaged.
-    // This prevents wiping externally-imported variants that don't fit
-    // the weight×grind matrix (e.g. Squarespace imports).
-    const variantUiActive =
-      (retailVariantsEnabled && isRetail) ||
-      (wholesaleVariantsEnabled && isWholesale) ||
-      (category === "other" && otherVariantCells.length > 0);
-
-    if (flatVariants.length > 0 || variantUiActive) {
+    // Only send variants when there are actual variants to submit.
+    // Never send an empty array — the API interprets that as "delete all
+    // existing variants". This protects imported products whose variants
+    // couldn't be reconstructed into the weight×grind matrix.
+    if (flatVariants.length > 0) {
       body.variants = flatVariants;
     }
 

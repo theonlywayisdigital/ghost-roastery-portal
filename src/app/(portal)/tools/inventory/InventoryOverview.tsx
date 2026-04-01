@@ -557,6 +557,10 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
                 <span className="mt-5 text-sm text-green-600 font-medium">Saved</span>
               )}
             </div>
+            <p className="text-xs text-slate-500 mt-2">
+              This is the default batch size. Edit per-profile batch sizes in the{" "}
+              <Link href="/tools/inventory/roasted" className="text-brand-600 hover:text-brand-700 font-medium">Roast Profile editor</Link>.
+            </p>
           </div>
         )}
       </div>

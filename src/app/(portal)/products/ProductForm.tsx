@@ -1402,6 +1402,17 @@ export function ProductForm({ product }: { product?: Product }) {
                           placeholder="Price"
                           className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                         />
+                        {/* Calculated available units from roasted stock pool */}
+                        {roastedStockId && (() => {
+                          const linkedStock = roastedStocks.find((s) => s.id === roastedStockId);
+                          if (!linkedStock || w.weight_grams <= 0) return null;
+                          const available = Math.floor((Number(linkedStock.current_stock_kg) * 1000) / w.weight_grams);
+                          return (
+                            <span className={`text-xs font-medium tabular-nums ml-1 ${available <= 0 ? "text-red-500" : available < 10 ? "text-amber-500" : "text-slate-400"}`}>
+                              {available} avail
+                            </span>
+                          );
+                        })()}
                       </div>
                       <button
                         type="button"

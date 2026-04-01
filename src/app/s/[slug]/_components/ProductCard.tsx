@@ -30,13 +30,18 @@ export function ProductCard({ product }: { product: Product }) {
   const displayPrice = hasVariantPrices ? variantMin : (product.retail_price ?? product.price);
   const isRange = hasVariantPrices && variantMin !== variantMax;
 
+  // When roasted stock is linked, retail_stock_count is not the source
+  // of truth — stock is derived from the pool's current_stock_kg.
+  // Only consult the manual counter for non-pool products.
+  const useManualStock = product.track_stock && !product.roasted_stock_id;
+
   const outOfStock =
-    product.track_stock &&
+    useManualStock &&
     product.retail_stock_count != null &&
     product.retail_stock_count <= 0;
 
   const lowStock =
-    product.track_stock &&
+    useManualStock &&
     product.retail_stock_count != null &&
     product.retail_stock_count > 0 &&
     product.retail_stock_count < 5;

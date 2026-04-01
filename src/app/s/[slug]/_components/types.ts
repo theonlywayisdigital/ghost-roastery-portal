@@ -79,6 +79,7 @@ export interface Product {
   is_purchasable: boolean;
   retail_stock_count: number | null;
   track_stock: boolean;
+  roasted_stock_id: string | null;
   product_variants?: ProductVariant[] | null;
   product_images?: { id: string; url: string; sort_order: number; is_primary: boolean }[] | null;
 }

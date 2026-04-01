@@ -255,27 +255,35 @@ export async function POST(request: Request) {
         }
       }
 
-      // Product-level stock check
-      if (
-        !isWholesale &&
-        product.track_stock &&
-        product.retail_stock_count != null &&
-        product.retail_stock_count < item.quantity
-      ) {
-        return NextResponse.json(
-          { error: `"${product.name}" only has ${product.retail_stock_count} in stock.` },
-          { status: 400 }
-        );
-      }
+      // Manual stock check — only applies when there is NO roasted stock
+      // linkage. Products linked to a roasted stock pool (or blends) are
+      // validated below via the KG-based pool check.
+      const hasRoastedStock = product.roasted_stock_id ||
+        (product.is_blend && blendComponentMap[product.id]?.length > 0);
 
-      // Variant-level stock check
-      if (!isWholesale && item.variantId && variantMap[item.variantId]) {
-        const v = variantMap[item.variantId];
-        if (v.track_stock && v.retail_stock_count != null && v.retail_stock_count < item.quantity) {
+      if (!hasRoastedStock) {
+        // Product-level stock check
+        if (
+          !isWholesale &&
+          product.track_stock &&
+          product.retail_stock_count != null &&
+          product.retail_stock_count < item.quantity
+        ) {
           return NextResponse.json(
-            { error: `"${product.name}" (${item.variantLabel || ""}) only has ${v.retail_stock_count} in stock.` },
+            { error: `"${product.name}" only has ${product.retail_stock_count} in stock.` },
             { status: 400 }
           );
+        }
+
+        // Variant-level stock check
+        if (!isWholesale && item.variantId && variantMap[item.variantId]) {
+          const v = variantMap[item.variantId];
+          if (v.track_stock && v.retail_stock_count != null && v.retail_stock_count < item.quantity) {
+            return NextResponse.json(
+              { error: `"${product.name}" (${item.variantLabel || ""}) only has ${v.retail_stock_count} in stock.` },
+              { status: 400 }
+            );
+          }
         }
       }
 

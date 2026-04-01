@@ -144,25 +144,30 @@ export function ProductDetail({
   // Unit: variant unit overrides product unit
   const displayUnit = selectedVariant?.unit || product.unit;
 
+  // When roasted stock is linked, retail_stock_count is not the source
+  // of truth — stock is derived from the pool's current_stock_kg.
+  // Only consult the manual counter for non-pool products.
+  const useManualStock = !product.roasted_stock_id;
+
   const outOfStock = isOther
-    ? (otherSelectedVariant?.track_stock &&
+    ? (useManualStock && otherSelectedVariant?.track_stock &&
        (otherSelectedVariant?.retail_stock_count ?? 1) <= 0)
-    : (product.track_stock &&
+    : (useManualStock && product.track_stock &&
        product.retail_stock_count != null &&
        product.retail_stock_count <= 0);
 
   const lowStock = isOther
-    ? (otherSelectedVariant?.track_stock &&
+    ? (useManualStock && otherSelectedVariant?.track_stock &&
        (otherSelectedVariant?.retail_stock_count ?? 1) > 0 &&
        (otherSelectedVariant?.retail_stock_count ?? 1) < 5)
-    : (product.track_stock &&
+    : (useManualStock && product.track_stock &&
        product.retail_stock_count != null &&
        product.retail_stock_count > 0 &&
        product.retail_stock_count < 5);
 
   const stockCount = isOther
-    ? otherSelectedVariant?.retail_stock_count
-    : product.retail_stock_count;
+    ? (useManualStock ? otherSelectedVariant?.retail_stock_count : null)
+    : (useManualStock ? product.retail_stock_count : null);
 
   // Build variant label for "other" products from selected option values
   const otherVariantLabel = useMemo(() => {

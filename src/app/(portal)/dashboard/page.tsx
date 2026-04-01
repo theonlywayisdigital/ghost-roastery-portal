@@ -144,7 +144,9 @@ export default async function DashboardPage() {
           .eq("status", "overdue")
       : Promise.resolve({ count: 0 }),
 
-    // Low stock products
+    // Low stock products — only count products that use manual stock
+    // (no roasted stock linkage). Products linked to roasted stock pools
+    // derive their availability from current_stock_kg, not retail_stock_count.
     isRoaster && roasterId
       ? supabase
           .from("products")
@@ -152,6 +154,7 @@ export default async function DashboardPage() {
           .eq("roaster_id", roasterId)
           .eq("track_stock", true)
           .eq("is_purchasable", true)
+          .is("roasted_stock_id", null)
           .lte("retail_stock_count", 5)
       : Promise.resolve({ count: 0 }),
 

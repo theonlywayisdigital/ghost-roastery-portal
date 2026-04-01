@@ -17,6 +17,7 @@ interface Product {
   is_purchasable: boolean;
   retail_stock_count: number | null;
   track_stock: boolean;
+  roasted_stock_id: string | null;
 }
 
 function postHeight() {
@@ -72,8 +73,9 @@ export function EmbedShop({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {products.map((product) => {
           const displayPrice = product.retail_price ?? product.price;
+          const useManualStock = product.track_stock && !product.roasted_stock_id;
           const outOfStock =
-            product.track_stock &&
+            useManualStock &&
             product.retail_stock_count != null &&
             product.retail_stock_count <= 0;
 

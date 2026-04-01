@@ -36,7 +36,7 @@ export default async function ProductDetailRoute({
     .from("products")
     .select(
       `id, name, category, origin, tasting_notes, description, price, unit, image_url, sort_order,
-       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock, roasted_stock_id,
        product_variants(id, retail_price, is_active, channel, unit, weight_grams, track_stock, retail_stock_count, grind_type:roaster_grind_types(id, name),
          option_values:product_variant_option_values(option_value:product_option_values(id, value, option_type:product_option_types(id, name, sort_order)))
        ),
@@ -89,7 +89,7 @@ export default async function ProductDetailRoute({
     .from("products")
     .select(
       `id, name, category, origin, tasting_notes, description, price, unit, image_url, sort_order,
-       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock,
+       is_retail, is_wholesale, retail_price, is_purchasable, retail_stock_count, track_stock, roasted_stock_id,
        product_variants(id, retail_price, is_active, channel),
        product_images(id, url, sort_order, is_primary)`
     )

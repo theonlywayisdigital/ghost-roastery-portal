@@ -396,6 +396,14 @@ export function IntegrationsPage() {
     }
   }, [loadStatus]);
 
+  // Auto-load Squarespace store pages when connected but no store page selected
+  useEffect(() => {
+    if (sqStatus?.connected && !sqStatus.store_page_id && sqStorePages.length === 0 && !sqStorePagesLoading) {
+      handleLoadSqStorePages(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sqStatus?.connected, sqStatus?.store_page_id]);
+
   // Load webhooks when tab is active
   useEffect(() => {
     if (activeTab === "webhooks" && webhooksLoading) {
@@ -775,13 +783,21 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleLoadSqStorePages() {
+  async function handleLoadSqStorePages(autoSelect = false) {
     setSqStorePagesLoading(true);
     try {
       const res = await fetch("/api/integrations/squarespace/store-pages");
       const data = await res.json();
       if (res.ok && data.storePages) {
-        setSqStorePages(data.storePages);
+        const pages = data.storePages as { id: string; title: string; isEnabled: boolean }[];
+        setSqStorePages(pages);
+        // Auto-select if only one enabled page and no page already selected
+        if (autoSelect) {
+          const enabled = pages.filter((p: { isEnabled: boolean }) => p.isEnabled);
+          if (enabled.length === 1) {
+            await handleSaveSqStorePage(enabled[0].id);
+          }
+        }
       }
     } catch {
       // Non-critical
@@ -1479,70 +1495,73 @@ export function IntegrationsPage() {
             )}
 
             {/* Squarespace store page selector */}
-            {provider === "squarespace" && (
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Store Page</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Products will be exported to this store page.
-                    </p>
+            {provider === "squarespace" && (() => {
+              const selectedPageTitle = sqStorePages.find((p) => p.id === status.store_page_id)?.title;
+              return (
+                <div className={`rounded-lg p-4 space-y-2 ${!status.store_page_id ? "bg-amber-50 border border-amber-200" : "bg-slate-50"}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">Store Page</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Products will be exported to this store page.
+                      </p>
+                    </div>
+                    {!status.store_page_id && !sqStorePagesLoading && (
+                      <span className="text-xs font-medium text-amber-600">Required for export</span>
+                    )}
                   </div>
-                  {!status.store_page_id && (
-                    <span className="text-xs font-medium text-amber-600">Required for export</span>
+                  {sqStorePagesLoading && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Loading store pages...</span>
+                    </div>
+                  )}
+                  {!sqStorePagesLoading && status.store_page_id && sqStorePages.length === 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-700 font-medium">
+                        {selectedPageTitle || status.store_page_id}
+                      </span>
+                      <button
+                        onClick={() => handleLoadSqStorePages(false)}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                  {!sqStorePagesLoading && !status.store_page_id && sqStorePages.length === 0 && (
+                    <button
+                      onClick={() => handleLoadSqStorePages(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors"
+                    >
+                      <Store className="w-3 h-3" />
+                      Select Store Page
+                    </button>
+                  )}
+                  {!sqStorePagesLoading && sqStorePages.length > 0 && (
+                    <div className="space-y-1.5">
+                      {sqStorePages.filter((p) => p.isEnabled).map((page) => (
+                        <button
+                          key={page.id}
+                          onClick={() => handleSaveSqStorePage(page.id)}
+                          disabled={sqSavingStorePage}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-colors ${
+                            status.store_page_id === page.id
+                              ? "border-brand-300 bg-brand-50 text-brand-700"
+                              : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/50"
+                          }`}
+                        >
+                          <span className="font-medium">{page.title}</span>
+                          {status.store_page_id === page.id && (
+                            <CheckCircle2 className="w-4 h-4 text-brand-600" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {status.store_page_id && sqStorePages.length === 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">
-                      {status.store_page_id}
-                    </span>
-                    <button
-                      onClick={handleLoadSqStorePages}
-                      disabled={sqStorePagesLoading}
-                      className="text-xs font-medium text-brand-600 hover:text-brand-700 disabled:opacity-50"
-                    >
-                      {sqStorePagesLoading ? "Loading..." : "Change"}
-                    </button>
-                  </div>
-                )}
-                {!status.store_page_id && sqStorePages.length === 0 && (
-                  <button
-                    onClick={handleLoadSqStorePages}
-                    disabled={sqStorePagesLoading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {sqStorePagesLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : (
-                      <Store className="w-3 h-3" />
-                    )}
-                    {sqStorePagesLoading ? "Loading pages..." : "Select Store Page"}
-                  </button>
-                )}
-                {sqStorePages.length > 0 && (
-                  <div className="space-y-1.5">
-                    {sqStorePages.filter((p) => p.isEnabled).map((page) => (
-                      <button
-                        key={page.id}
-                        onClick={() => handleSaveSqStorePage(page.id)}
-                        disabled={sqSavingStorePage}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition-colors ${
-                          status.store_page_id === page.id
-                            ? "border-brand-300 bg-brand-50 text-brand-700"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-brand-50/50"
-                        }`}
-                      >
-                        <span className="font-medium">{page.title}</span>
-                        {status.store_page_id === page.id && (
-                          <CheckCircle2 className="w-4 h-4 text-brand-600" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             {/* Webhook status — Shopify only */}
             {provider === "shopify" && status.webhook_ids && (

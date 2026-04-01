@@ -576,9 +576,19 @@ export function ProductForm({ product }: { product?: Product }) {
             }
           }
 
-          // Load product images
-          if (data.images) {
+          // Load product images — if no product_images rows exist but the
+          // product has an image_url (e.g. Squarespace import), seed the
+          // images array so the URL isn't wiped on save.
+          if (data.images && data.images.length > 0) {
             setImages(data.images);
+          } else if (data.product?.image_url) {
+            setImages([{
+              id: "imported-image",
+              url: data.product.image_url,
+              storage_path: "",
+              sort_order: 0,
+              is_primary: true,
+            }]);
           }
 
           // Load blend components
@@ -1206,7 +1216,15 @@ export function ProductForm({ product }: { product?: Product }) {
       });
     }
 
-    if (flatVariants.length > 0 || isEditing) {
+    // Only send variants when the variant UI is actively engaged.
+    // This prevents wiping externally-imported variants that don't fit
+    // the weight×grind matrix (e.g. Squarespace imports).
+    const variantUiActive =
+      (retailVariantsEnabled && isRetail) ||
+      (wholesaleVariantsEnabled && isWholesale) ||
+      (category === "other" && otherVariantCells.length > 0);
+
+    if (flatVariants.length > 0 || variantUiActive) {
       body.variants = flatVariants;
     }
 
@@ -1264,9 +1282,9 @@ export function ProductForm({ product }: { product?: Product }) {
             }
           }
 
-          // Add new images (temp IDs)
+          // Add new images (temp IDs) — skip imported images without storage_path
           for (const img of images) {
-            if (!existingIds.has(img.id)) {
+            if (!existingIds.has(img.id) && img.storage_path) {
               await fetch(`/api/products/${productId}/images`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

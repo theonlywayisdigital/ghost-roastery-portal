@@ -49,16 +49,14 @@ export default async function ProductDetailRoute({
 
   if (!product) notFound();
 
-  // Fetch option types for "other" products
+  // Fetch option types for ALL products
   let optionTypes: StorefrontOptionType[] = [];
-  if (product.category === "other") {
-    const { data: types } = await supabase
-      .from("product_option_types")
-      .select("id, name, sort_order, product_option_values(id, value, sort_order)")
-      .eq("product_id", id)
-      .order("sort_order", { ascending: true });
-    optionTypes = (types as StorefrontOptionType[]) || [];
-  }
+  const { data: types } = await supabase
+    .from("product_option_types")
+    .select("id, name, sort_order, is_weight, product_option_values(id, value, sort_order)")
+    .eq("product_id", id)
+    .order("sort_order", { ascending: true });
+  optionTypes = (types as StorefrontOptionType[]) || [];
 
   // Block wholesale-only products unless viewer is an approved wholesale buyer
   if (!product.is_retail && product.is_wholesale) {

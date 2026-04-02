@@ -182,11 +182,13 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Fetch variants with grind type names
+      // Fetch variants with grind type names and option values
       const { data: variants } = await supabase
         .from("product_variants")
         .select(
-          "id, sku, retail_price, weight_grams, unit, is_active, sort_order, grind_type_id, channel, roaster_grind_types:grind_type_id (name)"
+          `id, sku, retail_price, weight_grams, unit, is_active, sort_order, grind_type_id, channel,
+           roaster_grind_types:grind_type_id (name),
+           product_variant_option_values(option_value:product_option_values(id, value, option_type:product_option_types(id, name, is_weight)))`
         )
         .eq("product_id", productId)
         .eq("roaster_id", roasterId)
@@ -308,6 +310,8 @@ interface ExportVariant {
   channel: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   roaster_grind_types: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  product_variant_option_values?: any[];
 }
 
 function getGrindName(v: ExportVariant): string | null {
@@ -327,6 +331,91 @@ function formatWeightLabel(grams: number | null): string {
   return `${grams}g`;
 }
 
+/**
+ * Collect unique option dimensions from a set of export variants.
+ * Returns array of { name, values[] } ordered by first appearance.
+ * Falls back to legacy weight_grams + grind_type_id if no option values exist.
+ */
+function collectExportOptions(
+  variants: ExportVariant[]
+): { name: string; values: string[] }[] {
+  // Check if any variant has option values from the new system
+  const hasOptionValues = variants.some(
+    (v) => v.product_variant_option_values && v.product_variant_option_values.length > 0
+  );
+
+  if (hasOptionValues) {
+    // New system: read from product_variant_option_values
+    const optionMap = new Map<string, { name: string; values: Set<string> }>();
+    const optionOrder: string[] = [];
+
+    for (const v of variants) {
+      for (const ov of v.product_variant_option_values || []) {
+        const typeId = ov.option_value.option_type.id;
+        if (!optionMap.has(typeId)) {
+          optionMap.set(typeId, {
+            name: ov.option_value.option_type.name,
+            values: new Set(),
+          });
+          optionOrder.push(typeId);
+        }
+        optionMap.get(typeId)!.values.add(ov.option_value.value);
+      }
+    }
+
+    return optionOrder.map((typeId) => {
+      const entry = optionMap.get(typeId)!;
+      return { name: entry.name, values: Array.from(entry.values) };
+    });
+  }
+
+  // Legacy fallback: weight_grams + grind_type_id
+  const options: { name: string; values: string[] }[] = [];
+
+  const weightLabels = Array.from(
+    new Set(variants.map((v) => v.unit || formatWeightLabel(v.weight_grams)))
+  );
+  if (weightLabels.length > 0) {
+    options.push({ name: "Weight", values: weightLabels });
+  }
+
+  const grindNames = Array.from(
+    new Set(
+      variants
+        .map((v) => getGrindName(v))
+        .filter((g): g is string => g !== null)
+    )
+  );
+  if (grindNames.length > 0) {
+    options.push({ name: "Grind", values: grindNames });
+  }
+
+  return options;
+}
+
+/**
+ * Get the option value string for a specific option name from a variant.
+ * Falls back to legacy fields if no option values exist.
+ */
+function getVariantOptionValue(v: ExportVariant, optionName: string): string | null {
+  // Try new system first
+  if (v.product_variant_option_values && v.product_variant_option_values.length > 0) {
+    const match = v.product_variant_option_values.find(
+      (ov) => ov.option_value.option_type.name === optionName
+    );
+    return match?.option_value.value || null;
+  }
+
+  // Legacy fallback
+  if (optionName === "Weight") {
+    return v.unit || formatWeightLabel(v.weight_grams);
+  }
+  if (optionName === "Grind") {
+    return getGrindName(v);
+  }
+  return null;
+}
+
 async function createShopifyProduct(
   connectionId: string,
   product: {
@@ -343,37 +432,21 @@ async function createShopifyProduct(
 ): Promise<{ externalProductId: string; externalVariantIds: Record<string, string> }> {
   const client = await getShopifyClient(connectionId);
 
-  // Determine unique weight and grind options across variants
-  const weightLabels = Array.from(
-    new Set(variants.map((v) => v.unit || formatWeightLabel(v.weight_grams)))
-  );
-  const grindNames = Array.from(
-    new Set(
-      variants
-        .map((v) => getGrindName(v))
-        .filter((g): g is string => g !== null)
-    )
-  );
-
-  const hasMultipleWeights = weightLabels.length > 1;
-  const hasGrinds = grindNames.length > 0;
+  // Collect option dimensions from option types or legacy fields
+  const exportOptions = collectExportOptions(variants);
 
   // Build Shopify options
-  const options: { name: string; values: string[] }[] = [];
-  if (hasMultipleWeights || variants.length > 0) {
-    options.push({
-      name: "Weight",
-      values: weightLabels.length > 0 ? weightLabels : [product.unit || "250g"],
-    });
-  }
-  if (hasGrinds) {
-    options.push({ name: "Grind", values: grindNames });
-  }
+  const options: { name: string; values: string[] }[] = exportOptions.length > 0
+    ? exportOptions
+    : variants.length > 0
+      ? [{ name: "Weight", values: [product.unit || "250g"] }]
+      : [];
 
   // Build Shopify variants
   const shopifyVariants = variants.map((v) => ({
-    option1: v.unit || formatWeightLabel(v.weight_grams),
-    option2: hasGrinds ? (getGrindName(v) || grindNames[0]) : undefined,
+    option1: exportOptions[0] ? (getVariantOptionValue(v, exportOptions[0].name) || exportOptions[0].values[0]) : (v.unit || formatWeightLabel(v.weight_grams)),
+    option2: exportOptions[1] ? (getVariantOptionValue(v, exportOptions[1].name) || exportOptions[1].values[0]) : undefined,
+    option3: exportOptions[2] ? (getVariantOptionValue(v, exportOptions[2].name) || exportOptions[2].values[0]) : undefined,
     price: (v.retail_price ?? product.retail_price ?? 0).toFixed(2),
     sku: v.sku || product.sku || undefined,
     weight: v.weight_grams ? v.weight_grams / 1000 : product.weight_grams ? product.weight_grams / 1000 : undefined,
@@ -387,6 +460,7 @@ async function createShopifyProduct(
     shopifyVariants.push({
       option1: product.unit || "250g",
       option2: undefined,
+      option3: undefined,
       price: (product.retail_price ?? 0).toFixed(2),
       sku: product.sku || undefined,
       weight: product.weight_grams ? product.weight_grams / 1000 : undefined,
@@ -459,20 +533,8 @@ async function createWooCommerceProduct(
 ): Promise<{ externalProductId: string; externalVariantIds: Record<string, string> }> {
   const client = await getWooCommerceClient(connectionId);
 
-  // Determine unique weight and grind options
-  const weightLabels = Array.from(
-    new Set(variants.map((v) => v.unit || formatWeightLabel(v.weight_grams)))
-  );
-  const grindNames = Array.from(
-    new Set(
-      variants
-        .map((v) => getGrindName(v))
-        .filter((g): g is string => g !== null)
-    )
-  );
-
-  const hasGrinds = grindNames.length > 0;
-  const isVariable = variants.length > 1 || hasGrinds;
+  const exportOptions = collectExportOptions(variants);
+  const isVariable = variants.length > 1 || exportOptions.length > 1;
 
   if (!isVariable) {
     // Simple product
@@ -517,23 +579,12 @@ async function createWooCommerceProduct(
   }
 
   // Variable product
-  const attributes: { name: string; options: string[]; variation: boolean; visible: boolean }[] = [];
-  if (weightLabels.length > 0) {
-    attributes.push({
-      name: "Weight",
-      options: weightLabels,
-      variation: true,
-      visible: true,
-    });
-  }
-  if (hasGrinds) {
-    attributes.push({
-      name: "Grind",
-      options: grindNames,
-      variation: true,
-      visible: true,
-    });
-  }
+  const attributes = exportOptions.map((opt) => ({
+    name: opt.name,
+    options: opt.values,
+    variation: true,
+    visible: true,
+  }));
 
   const productPayload = {
     name: product.name,
@@ -562,17 +613,10 @@ async function createWooCommerceProduct(
   const externalVariantIds: Record<string, string> = {};
 
   for (const v of variants) {
-    const varAttrs: { name: string; option: string }[] = [];
-    varAttrs.push({
-      name: "Weight",
-      option: v.unit || formatWeightLabel(v.weight_grams),
-    });
-    if (hasGrinds) {
-      varAttrs.push({
-        name: "Grind",
-        option: getGrindName(v) || grindNames[0],
-      });
-    }
+    const varAttrs: { name: string; option: string }[] = exportOptions.map((opt) => ({
+      name: opt.name,
+      option: getVariantOptionValue(v, opt.name) || opt.values[0],
+    }));
 
     const varPayload = {
       regular_price: (v.retail_price ?? product.retail_price ?? 0).toFixed(2),
@@ -647,21 +691,22 @@ async function createSquarespaceProduct(
 }> {
   const client = await getSquarespaceClient(connectionId);
 
-  // Determine which attribute dimensions are present across all variants.
-  // Squarespace requires: product.variantAttributes lists the dimension names,
-  // and EVERY variant.attributes must have exactly those same keys.
-  const hasGrind = variants.some((v) => getGrindName(v) !== null);
-  const variantAttributes: string[] = ["Size"];
-  if (hasGrind) variantAttributes.push("Grind");
+  const exportOptions = collectExportOptions(variants);
+  // Squarespace requires variantAttributes to list dimension names
+  const variantAttributes: string[] = exportOptions.length > 0
+    ? exportOptions.map((opt) => opt.name)
+    : ["Size"];
 
   // Build variants for Squarespace
   const sqVariants = variants.map((v) => {
     const price = v.retail_price ?? product.retail_price ?? 0;
-    const attributes: Record<string, string> = {
-      Size: v.unit || formatWeightLabel(v.weight_grams),
-    };
-    if (hasGrind) {
-      attributes["Grind"] = getGrindName(v) || "Standard";
+    const attributes: Record<string, string> = {};
+    if (exportOptions.length > 0) {
+      for (const opt of exportOptions) {
+        attributes[opt.name] = getVariantOptionValue(v, opt.name) || opt.values[0];
+      }
+    } else {
+      attributes["Size"] = v.unit || formatWeightLabel(v.weight_grams);
     }
 
     return {
@@ -774,50 +819,20 @@ async function createWixProduct(
 }> {
   const client = await getWixClient(connectionId);
 
-  // Determine unique weight and grind options
-  const grindNames = Array.from(
-    new Set(
-      variants
-        .map((v) => getGrindName(v))
-        .filter((g): g is string => g !== null)
-    )
-  );
-
-  const hasGrinds = grindNames.length > 0;
+  const exportOptions = collectExportOptions(variants);
 
   // Build product options
-  const productOptions: {
-    name: string;
-    optionType: string;
-    choices: { value: string; description: string }[];
-  }[] = [];
-
-  const weightLabels = Array.from(
-    new Set(variants.map((v) => v.unit || formatWeightLabel(v.weight_grams)))
-  );
-
-  if (weightLabels.length > 0) {
-    productOptions.push({
-      name: "Weight",
-      optionType: "drop_down",
-      choices: weightLabels.map((w) => ({ value: w, description: w })),
-    });
-  }
-
-  if (hasGrinds) {
-    productOptions.push({
-      name: "Grind",
-      optionType: "drop_down",
-      choices: grindNames.map((g) => ({ value: g, description: g })),
-    });
-  }
+  const productOptions = exportOptions.map((opt) => ({
+    name: opt.name,
+    optionType: "drop_down",
+    choices: opt.values.map((val) => ({ value: val, description: val })),
+  }));
 
   // Build Wix variants
   const wixVariants = variants.map((v) => {
     const choices: Record<string, string> = {};
-    choices["Weight"] = v.unit || formatWeightLabel(v.weight_grams);
-    if (hasGrinds) {
-      choices["Grind"] = getGrindName(v) || grindNames[0];
+    for (const opt of exportOptions) {
+      choices[opt.name] = getVariantOptionValue(v, opt.name) || opt.values[0];
     }
 
     return {

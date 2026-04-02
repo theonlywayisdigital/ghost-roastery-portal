@@ -70,6 +70,7 @@ interface PreviewProduct {
   status: string;
   already_imported: boolean;
   mapped_product_id: string | null;
+  option_names: string[];
 }
 
 interface ImportResult {
@@ -248,6 +249,9 @@ export function IntegrationsPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [unmappedCount, setUnmappedCount] = useState(0);
+  const [importStep, setImportStep] = useState<"select" | "mapping" | "importing">("select");
+  const [importIsCoffee, setImportIsCoffee] = useState(true);
+  const [importWeightAttribute, setImportWeightAttribute] = useState<string | null>(null);
 
   // Export modal state
   const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
@@ -834,6 +838,9 @@ export function IntegrationsPage() {
     setImportProducts([]);
     setImportSelected(new Set());
     setImportResult(null);
+    setImportStep("select");
+    setImportIsCoffee(true);
+    setImportWeightAttribute(null);
 
     try {
       const res = await fetch(
@@ -895,6 +902,8 @@ export function IntegrationsPage() {
           body: JSON.stringify({
             connectionId: importConnectionId,
             selectedProductIds: Array.from(importSelected),
+            isCoffee: importIsCoffee,
+            weightAttributeName: importIsCoffee ? importWeightAttribute : null,
           }),
         }
       );
@@ -2655,7 +2664,8 @@ export function IntegrationsPage() {
                 </div>
               )}
 
-              {!importLoading && !importResult && importProducts.length > 0 && (
+              {/* Step 1: Product selection */}
+              {!importLoading && !importResult && importProducts.length > 0 && importStep === "select" && (
                 <div>
                   {/* Select all header */}
                   <div className="flex items-center gap-3 px-6 py-3 bg-slate-50 border-b border-slate-200">
@@ -2762,6 +2772,123 @@ export function IntegrationsPage() {
                 </div>
               )}
 
+              {/* Step 2: Attribute mapping */}
+              {!importLoading && !importResult && importStep === "mapping" && (
+                <div className="p-6 space-y-6">
+                  {/* Product type */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800 mb-2">
+                      Product type
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setImportIsCoffee(true)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                          importIsCoffee
+                            ? "bg-brand-600 border-brand-600 text-white"
+                            : "border-slate-300 text-slate-700 hover:border-slate-400"
+                        }`}
+                      >
+                        Coffee
+                      </button>
+                      <button
+                        onClick={() => {
+                          setImportIsCoffee(false);
+                          setImportWeightAttribute(null);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                          !importIsCoffee
+                            ? "bg-brand-600 border-brand-600 text-white"
+                            : "border-slate-300 text-slate-700 hover:border-slate-400"
+                        }`}
+                      >
+                        Other
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {importIsCoffee
+                        ? "Coffee products use weight-based variants for stock calculations."
+                        : "Non-coffee products import all attributes as custom option types."}
+                    </p>
+                  </div>
+
+                  {/* Weight attribute mapping — coffee only */}
+                  {importIsCoffee && (() => {
+                    // Collect unique attribute names from selected products
+                    const selectedProducts = importProducts.filter(
+                      (p) => importSelected.has(p.external_id) && !p.already_imported
+                    );
+                    const allNames = Array.from(
+                      new Set(selectedProducts.flatMap((p) => p.option_names || []))
+                    );
+                    if (allNames.length === 0) return null;
+
+                    return (
+                      <div>
+                        <label className="block text-sm font-medium text-slate-800 mb-2">
+                          Which attribute represents weight?
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">
+                          This maps to the product weight for stock tracking and shipping calculations.
+                        </p>
+                        <div className="space-y-2">
+                          {allNames.map((name) => (
+                            <label
+                              key={name}
+                              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                                importWeightAttribute === name
+                                  ? "border-brand-600 bg-brand-50"
+                                  : "border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="weightAttr"
+                                checked={importWeightAttribute === name}
+                                onChange={() => setImportWeightAttribute(name)}
+                                className="w-4 h-4 text-brand-600"
+                              />
+                              <span className="text-sm font-medium text-slate-800">{name}</span>
+                            </label>
+                          ))}
+                          <label
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                              importWeightAttribute === null
+                                ? "border-brand-600 bg-brand-50"
+                                : "border-slate-200 hover:border-slate-300"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="weightAttr"
+                              checked={importWeightAttribute === null}
+                              onChange={() => setImportWeightAttribute(null)}
+                              className="w-4 h-4 text-brand-600"
+                            />
+                            <span className="text-sm text-slate-500">None / auto-detect from values</span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Summary */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-slate-800 mb-1">
+                      Import summary
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {importSelected.size} product{importSelected.size !== 1 ? "s" : ""} will be imported as{" "}
+                      <span className="font-medium text-slate-700">{importIsCoffee ? "coffee" : "other"}</span>
+                      {importIsCoffee && importWeightAttribute && (
+                        <> with <span className="font-medium text-slate-700">{importWeightAttribute}</span> mapped to weight</>
+                      )}
+                      . All variant attributes will be created as option types.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {importResult && (
                 <div className="p-6 space-y-4">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
@@ -2812,15 +2939,29 @@ export function IntegrationsPage() {
             <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
               <button
                 onClick={() => {
-                  setImportModalProvider(null);
-                  setImportResult(null);
+                  if (importStep === "mapping") {
+                    setImportStep("select");
+                  } else {
+                    setImportModalProvider(null);
+                    setImportResult(null);
+                  }
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
               >
-                {importResult ? "Done" : "Cancel"}
+                {importResult ? "Done" : importStep === "mapping" ? "Back" : "Cancel"}
               </button>
 
-              {!importResult && !importLoading && importProducts.length > 0 && (
+              {!importResult && !importLoading && importProducts.length > 0 && importStep === "select" && (
+                <button
+                  onClick={() => setImportStep("mapping")}
+                  disabled={importSelected.size === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  Next
+                </button>
+              )}
+
+              {!importResult && importStep === "mapping" && (
                 <button
                   onClick={handleRunImport}
                   disabled={importing || importSelected.size === 0}

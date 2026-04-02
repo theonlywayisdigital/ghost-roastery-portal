@@ -45,29 +45,27 @@ export async function GET(_request: Request, { params }: RouteParams) {
     product_variant_option_values: undefined,
   }));
 
-  // Fetch option types with values for "other" products
-  let option_types: { id: string; name: string; sort_order: number; values: { id: string; value: string; sort_order: number }[] }[] = [];
-  if (product.category === "other") {
-    const { data: types } = await supabase
-      .from("product_option_types")
-      .select("id, name, sort_order")
+  // Fetch option types with values for ALL products
+  let option_types: { id: string; name: string; sort_order: number; is_weight: boolean; values: { id: string; value: string; sort_order: number; weight_grams: number | null }[] }[] = [];
+  const { data: types } = await supabase
+    .from("product_option_types")
+    .select("id, name, sort_order, is_weight")
+    .eq("product_id", id)
+    .eq("roaster_id", roaster.id)
+    .order("sort_order", { ascending: true });
+
+  if (types && types.length > 0) {
+    const { data: values } = await supabase
+      .from("product_option_values")
+      .select("id, option_type_id, value, sort_order, weight_grams")
       .eq("product_id", id)
       .eq("roaster_id", roaster.id)
       .order("sort_order", { ascending: true });
 
-    if (types && types.length > 0) {
-      const { data: values } = await supabase
-        .from("product_option_values")
-        .select("id, option_type_id, value, sort_order")
-        .eq("product_id", id)
-        .eq("roaster_id", roaster.id)
-        .order("sort_order", { ascending: true });
-
-      option_types = types.map((t) => ({
-        ...t,
-        values: (values || []).filter((v: { option_type_id: string }) => v.option_type_id === t.id),
-      }));
-    }
+    option_types = types.map((t) => ({
+      ...t,
+      values: (values || []).filter((v: { option_type_id: string }) => v.option_type_id === t.id),
+    }));
   }
 
   // Fetch product images
@@ -199,7 +197,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
           // Update existing type
           await supabase
             .from("product_option_types")
-            .update({ name: ot.name, sort_order: ot.sort_order ?? 0 })
+            .update({ name: ot.name, sort_order: ot.sort_order ?? 0, is_weight: ot.is_weight ?? false })
             .eq("id", ot.id)
             .eq("roaster_id", roaster.id);
         } else {
@@ -211,6 +209,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
               roaster_id: roaster.id,
               name: ot.name,
               sort_order: ot.sort_order ?? 0,
+              is_weight: ot.is_weight ?? false,
             })
             .select("id")
             .single();
@@ -241,12 +240,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
           }
 
           for (const [vi, v] of ot.values.entries()) {
-            const val = v as { id?: string; value: string; sort_order?: number };
+            const val = v as { id?: string; value: string; sort_order?: number; weight_grams?: number | null };
             if (val.id && existingValueIds.has(val.id)) {
               // Update existing value (preserves UUID)
               await supabase
                 .from("product_option_values")
-                .update({ value: val.value, sort_order: val.sort_order ?? vi })
+                .update({ value: val.value, sort_order: val.sort_order ?? vi, weight_grams: val.weight_grams ?? null })
                 .eq("id", val.id)
                 .eq("roaster_id", roaster.id);
               valueIdMap[val.id] = val.id;
@@ -260,6 +259,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
                   roaster_id: roaster.id,
                   value: val.value,
                   sort_order: val.sort_order ?? vi,
+                  weight_grams: val.weight_grams ?? null,
                 })
                 .select("id")
                 .single();

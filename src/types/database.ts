@@ -4595,6 +4595,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_weight: boolean
           name: string
           product_id: string
           roaster_id: string
@@ -4603,6 +4604,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_weight?: boolean
           name: string
           product_id: string
           roaster_id: string
@@ -4611,6 +4613,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_weight?: boolean
           name?: string
           product_id?: string
           roaster_id?: string
@@ -4649,6 +4652,7 @@ export type Database = {
           roaster_id: string
           sort_order: number
           value: string
+          weight_grams: number | null
         }
         Insert: {
           created_at?: string | null
@@ -4658,6 +4662,7 @@ export type Database = {
           roaster_id: string
           sort_order?: number
           value: string
+          weight_grams?: number | null
         }
         Update: {
           created_at?: string | null
@@ -4667,6 +4672,7 @@ export type Database = {
           roaster_id?: string
           sort_order?: number
           value?: string
+          weight_grams?: number | null
         }
         Relationships: [
           {

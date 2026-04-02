@@ -22,6 +22,7 @@ export interface PreviewProduct {
   status: string;
   already_imported: boolean;
   mapped_product_id: string | null;
+  option_names: string[];
 }
 
 export async function GET(request: Request) {
@@ -122,6 +123,7 @@ function normaliseShopifyPreview(
     status: p.status,
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
+    option_names: p.options?.map((o) => o.name) || [],
   };
 }
 
@@ -144,6 +146,7 @@ function normaliseWooPreview(
     status: p.status,
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
+    option_names: p.attributes?.map((a) => a.name) || [],
   };
 }
 
@@ -168,6 +171,7 @@ function normaliseSquarespacePreview(
     status: p.isVisible ? "active" : "draft",
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
+    option_names: firstVariant?.attributes ? Object.keys(firstVariant.attributes) : [],
   };
 }
 
@@ -176,15 +180,17 @@ function normaliseWixPreview(
   mappedExternalIds: Map<string, string>
 ): PreviewProduct {
   const extId = String(p.id);
+  const firstVariant = p.variants?.[0];
   return {
     external_id: extId,
     name: p.name,
     image_url: p.media?.mainMedia?.image?.url || null,
     price: p.price?.price != null ? p.price.price.toFixed(2) : null,
-    sku: p.sku || p.variants?.[0]?.sku || null,
+    sku: p.sku || firstVariant?.sku || null,
     variant_count: p.variants?.length || 0,
     status: p.visible ? "active" : "draft",
     already_imported: mappedExternalIds.has(extId),
     mapped_product_id: mappedExternalIds.get(extId) || null,
+    option_names: firstVariant?.choices ? Object.keys(firstVariant.choices) : [],
   };
 }

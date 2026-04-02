@@ -25,6 +25,7 @@ import {
 import {
   type NormalisedProduct,
   type NormalisedVariant,
+  type ImportMappingOptions,
   parseWeightFromOptions,
   parseWeightString,
   parseGrindFromOptions,
@@ -42,10 +43,17 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { connectionId, selectedProductIds } = body as {
+  const { connectionId, selectedProductIds, isCoffee, weightAttributeName } = body as {
     connectionId: string;
     selectedProductIds?: string[];
+    isCoffee?: boolean;
+    weightAttributeName?: string | null;
   };
+
+  const mappingOptions: ImportMappingOptions | undefined =
+    isCoffee !== undefined
+      ? { isCoffee, weightAttributeName: weightAttributeName ?? null }
+      : undefined;
 
   if (!connectionId) {
     return NextResponse.json(
@@ -164,7 +172,8 @@ export async function POST(request: Request) {
             product,
             roasterId,
             grindTypeMap,
-            connectionId
+            connectionId,
+            mappingOptions
           );
           imported++;
         }
@@ -221,6 +230,7 @@ function normaliseShopifyProduct(p: ShopifyProduct): NormalisedProduct {
     variants: (p.variants || []).map((v) =>
       normaliseShopifyVariant(v, p)
     ),
+    option_names: p.options?.map((o) => o.name) || [],
   };
 }
 
@@ -251,11 +261,19 @@ function normaliseShopifyVariant(
     stock_quantity: v.inventory_quantity ?? null,
     track_stock: v.inventory_management === "shopify",
     image_url: variantImage || null,
+    option1_name: product.options?.[0]?.name || null,
+    option1_value: v.option1 || null,
+    option2_name: product.options?.[1]?.name || null,
+    option2_value: v.option2 || null,
+    option3_name: product.options?.[2]?.name || null,
+    option3_value: v.option3 || null,
   };
 }
 
 function normaliseWooProduct(p: WooProduct): NormalisedProduct {
   if (p.type === "variable" && p._variations && p._variations.length > 0) {
+    // Extract attribute names from product-level attributes
+    const attrNames = p.attributes?.map((a) => a.name) || [];
     return {
       external_id: String(p.id),
       name: p.name,
@@ -266,7 +284,8 @@ function normaliseWooProduct(p: WooProduct): NormalisedProduct {
       status: p.status === "publish" ? "published" : "draft",
       track_stock: p._variations.some((v) => v.manage_stock),
       stock_quantity: p.stock_quantity,
-      variants: p._variations.map((v) => normaliseWooVariation(v)),
+      variants: p._variations.map((v) => normaliseWooVariation(v, attrNames)),
+      option_names: attrNames,
     };
   }
 
@@ -298,7 +317,7 @@ function normaliseWooProduct(p: WooProduct): NormalisedProduct {
   };
 }
 
-function normaliseWooVariation(v: WooVariation): NormalisedVariant {
+function normaliseWooVariation(v: WooVariation, attrNames: string[] = []): NormalisedVariant {
   const attrValues = v.attributes.map((a) => a.option);
   const weightInfo = parseWeightFromOptions(attrValues);
   const grindLabel = parseGrindFromOptions(attrValues);
@@ -319,6 +338,12 @@ function normaliseWooVariation(v: WooVariation): NormalisedVariant {
     stock_quantity: v.stock_quantity,
     track_stock: v.manage_stock,
     image_url: v.image?.src || null,
+    option1_name: v.attributes?.[0]?.name || attrNames[0] || null,
+    option1_value: v.attributes?.[0]?.option || null,
+    option2_name: v.attributes?.[1]?.name || attrNames[1] || null,
+    option2_value: v.attributes?.[1]?.option || null,
+    option3_name: v.attributes?.[2]?.name || attrNames[2] || null,
+    option3_value: v.attributes?.[2]?.option || null,
   };
 }
 
@@ -328,6 +353,9 @@ function normaliseSquarespaceProduct(
   const firstVariant = p.variants?.[0];
   const priceValue = firstVariant?.pricing?.basePrice?.value;
   const price = priceValue ? parseFloat(priceValue) : null;
+
+  // Extract attribute names from first variant's attributes
+  const attrNames = firstVariant?.attributes ? Object.keys(firstVariant.attributes) : [];
 
   return {
     external_id: String(p.id),
@@ -342,6 +370,7 @@ function normaliseSquarespaceProduct(
     variants: (p.variants || []).map((v) =>
       normaliseSquarespaceVariant(v, p)
     ),
+    option_names: attrNames,
   };
 }
 
@@ -367,6 +396,9 @@ function normaliseSquarespaceVariant(
   const priceValue = v.pricing?.basePrice?.value;
   const price = priceValue ? parseFloat(priceValue) : null;
 
+  const attrKeys = Object.keys(v.attributes || {});
+  const attrVals = Object.values(v.attributes || {});
+
   return {
     external_id: String(v.id),
     sku: v.sku || null,
@@ -377,11 +409,18 @@ function normaliseSquarespaceVariant(
     stock_quantity: v.stock?.quantity ?? null,
     track_stock: !v.stock?.unlimited,
     image_url: v.image?.url || product.images?.[0]?.url || null,
+    option1_name: attrKeys[0] || null,
+    option1_value: attrVals[0] || null,
+    option2_name: attrKeys[1] || null,
+    option2_value: attrVals[1] || null,
+    option3_name: attrKeys[2] || null,
+    option3_value: attrVals[2] || null,
   };
 }
 
 function normaliseWixProduct(p: WixProduct): NormalisedProduct {
   const firstVariant = p.variants?.[0];
+  const choiceKeys = firstVariant?.choices ? Object.keys(firstVariant.choices) : [];
 
   return {
     external_id: String(p.id),
@@ -394,6 +433,7 @@ function normaliseWixProduct(p: WixProduct): NormalisedProduct {
     track_stock: p.stock?.trackInventory ?? firstVariant?.stock?.trackInventory ?? false,
     stock_quantity: p.stock?.quantity ?? firstVariant?.stock?.quantity ?? null,
     variants: (p.variants || []).map((v) => normaliseWixVariant(v, p)),
+    option_names: choiceKeys,
   };
 }
 
@@ -410,6 +450,9 @@ function normaliseWixVariant(
     weightGrams = Math.round(v.weight * 1000);
   }
 
+  const choiceKeys = Object.keys(v.choices || {});
+  const choiceVals = Object.values(v.choices || {});
+
   return {
     external_id: String(v.id),
     sku: v.sku || null,
@@ -423,5 +466,11 @@ function normaliseWixVariant(
       v.media?.mainMedia?.image?.url ||
       product.media?.mainMedia?.image?.url ||
       null,
+    option1_name: choiceKeys[0] || null,
+    option1_value: choiceVals[0] || null,
+    option2_name: choiceKeys[1] || null,
+    option2_value: choiceVals[1] || null,
+    option3_name: choiceKeys[2] || null,
+    option3_value: choiceVals[2] || null,
   };
 }

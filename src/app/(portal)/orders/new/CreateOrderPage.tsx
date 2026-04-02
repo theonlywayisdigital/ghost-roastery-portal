@@ -86,8 +86,11 @@ function formatPrice(pounds: number) {
 
 function getVariantLabel(v: ProductVariant): string {
   const parts: string[] = [];
-  if (v.unit) parts.push(v.unit);
-  if (v.weight_grams) parts.push(`${v.weight_grams}g`);
+  if (v.unit) {
+    parts.push(v.unit);
+  } else if (v.weight_grams) {
+    parts.push(`${v.weight_grams}g`);
+  }
   if (v.grind_type?.name) parts.push(v.grind_type.name);
   return parts.join(" / ") || "Variant";
 }
@@ -799,6 +802,8 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           if (oldVariant) {
             variant = channelVariants.find(
               (v) => v.weight_grams === oldVariant.weight_grams && v.grind_type_id === oldVariant.grind_type_id
+            ) || channelVariants.find(
+              (v) => v.unit === oldVariant.unit
             ) || channelVariants[0];
           } else {
             variant = channelVariants[0];

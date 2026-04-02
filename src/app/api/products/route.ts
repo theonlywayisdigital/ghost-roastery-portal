@@ -127,9 +127,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // For "other" products: insert option types + values FIRST so we get real UUIDs
+    // Insert option types + values FIRST so we get real UUIDs
     const valueTextToId: Record<string, string> = {};
-    if (category === "other" && Array.isArray(option_types) && option_types.length > 0) {
+    if (Array.isArray(option_types) && option_types.length > 0) {
       for (const ot of option_types) {
         const { data: insertedType } = await supabase
           .from("product_option_types")
@@ -138,24 +138,26 @@ export async function POST(request: Request) {
             roaster_id: roaster.id,
             name: ot.name,
             sort_order: ot.sort_order ?? 0,
+            is_weight: ot.is_weight ?? false,
           })
           .select()
           .single();
 
         if (insertedType && Array.isArray(ot.values)) {
-          const valueRows = ot.values.map((v: { value: string; sort_order?: number }, vi: number) => ({
+          const valueRows = ot.values.map((v: { value: string; sort_order?: number; weight_grams?: number | null }, vi: number) => ({
             option_type_id: insertedType.id,
             product_id: product.id,
             roaster_id: roaster.id,
             value: v.value,
             sort_order: v.sort_order ?? vi,
+            weight_grams: v.weight_grams ?? null,
           }));
           const { data: insertedValues } = await supabase
             .from("product_option_values")
             .insert(valueRows)
-            .select("id, value");
+            .select("id, value, weight_grams");
 
-          // Build lookup: value text → real UUID
+          // Build lookup: value text → real UUID (and store weight_grams for variant population)
           if (insertedValues) {
             for (const iv of insertedValues) {
               valueTextToId[iv.value] = iv.id;
@@ -192,8 +194,8 @@ export async function POST(request: Request) {
         console.error("Variant creation error:", variantError);
       }
 
-      // Link "other" product variants to option values via junction table
-      if (category === "other" && insertedVariants) {
+      // Link product variants to option values via junction table
+      if (insertedVariants) {
         for (let i = 0; i < variants.length; i++) {
           const v = variants[i] as Record<string, unknown>;
           const rawIds = v.option_value_ids as string[] | undefined;

@@ -55,6 +55,7 @@ export interface StorefrontOptionType {
   id: string;
   name: string;
   sort_order: number;
+  is_weight?: boolean;
   product_option_values: Array<{
     id: string;
     value: string;

@@ -36,6 +36,8 @@ export interface NormalisedProduct {
   green_bean_id?: string | null;
   is_blend?: boolean;
   blend_components?: { roasted_stock_id: string; percentage: number }[];
+  // Attribute names from source platform (e.g. ["Size", "Grind"])
+  option_names?: string[];
 }
 
 export interface NormalisedVariant {
@@ -53,6 +55,8 @@ export interface NormalisedVariant {
   option1_value?: string | null;
   option2_name?: string | null;
   option2_value?: string | null;
+  option3_name?: string | null;
+  option3_value?: string | null;
 }
 
 export interface ImportResult {
@@ -288,12 +292,18 @@ async function importProductImage(
 
 // ─── Product Creation ────────────────────────────────────────
 
+export interface ImportMappingOptions {
+  isCoffee: boolean;
+  weightAttributeName: string | null;
+}
+
 export async function createNewProduct(
   supabase: SupabaseClient,
   product: NormalisedProduct,
   roasterId: string,
   grindTypeMap: Map<string, string>,
-  connectionId?: string
+  connectionId?: string,
+  mappingOptions?: ImportMappingOptions
 ) {
   const plainDescription = product.description
     ? product.description.replace(/<[^>]*>/g, "").trim()
@@ -318,7 +328,7 @@ export async function createNewProduct(
       is_wholesale: product.is_wholesale ?? false,
       track_stock: product.track_stock,
       retail_stock_count: product.stock_quantity,
-      category: product.category || "coffee",
+      category: mappingOptions ? (mappingOptions.isCoffee ? "coffee" : "other") : (product.category || "coffee"),
       ...(product.origin && { origin: product.origin }),
       ...(product.tasting_notes && { tasting_notes: product.tasting_notes }),
       ...(product.brand && { brand: product.brand }),
@@ -352,6 +362,8 @@ export async function createNewProduct(
 
   // Create variants
   const externalVariantMap: Record<string, string> = {};
+  // Track inserted variant IDs for option value junction creation
+  const insertedVariantRows: { id: string; variant: NormalisedVariant }[] = [];
 
   if (product.variants.length > 0) {
     for (const v of product.variants) {
@@ -386,8 +398,20 @@ export async function createNewProduct(
 
       if (insertedVariant) {
         externalVariantMap[insertedVariant.id] = v.external_id;
+        insertedVariantRows.push({ id: insertedVariant.id, variant: v });
       }
     }
+  }
+
+  // Create option types from variant attributes when mappingOptions is provided
+  if (mappingOptions && insertedVariantRows.length > 0) {
+    await createOptionTypesFromVariants(
+      supabase,
+      created.id,
+      roasterId,
+      insertedVariantRows,
+      mappingOptions
+    );
   }
 
   // Import product image to Supabase storage + product_images table
@@ -522,5 +546,118 @@ export async function updateExistingProduct(
       })
       .eq("connection_id", connectionId)
       .eq("product_id", productId);
+  }
+}
+
+// ─── Option Type Creation from Import Variants ───────────────
+
+async function createOptionTypesFromVariants(
+  supabase: SupabaseClient,
+  productId: string,
+  roasterId: string,
+  variantRows: { id: string; variant: NormalisedVariant }[],
+  mapping: ImportMappingOptions
+) {
+  // Collect unique attribute names and their values across all variants
+  // Each variant can have up to 3 option slots (option1, option2, option3)
+  const attrMap = new Map<string, Set<string>>(); // name → unique values
+  const attrOrder: string[] = []; // preserve insertion order
+
+  for (const { variant } of variantRows) {
+    const slots = [
+      { name: variant.option1_name, value: variant.option1_value },
+      { name: variant.option2_name, value: variant.option2_value },
+      { name: variant.option3_name, value: variant.option3_value },
+    ];
+    for (const { name, value } of slots) {
+      if (!name || !value) continue;
+      if (!attrMap.has(name)) {
+        attrMap.set(name, new Set());
+        attrOrder.push(name);
+      }
+      attrMap.get(name)!.add(value);
+    }
+  }
+
+  if (attrMap.size === 0) return;
+
+  // Create option types and values
+  // Map: attr name → { typeId, valueMap: value string → value id }
+  const typeMap = new Map<string, { typeId: string; valueMap: Map<string, string> }>();
+
+  for (let sortIdx = 0; sortIdx < attrOrder.length; sortIdx++) {
+    const attrName = attrOrder[sortIdx];
+    const isWeight = mapping.weightAttributeName
+      ? attrName.toLowerCase().trim() === mapping.weightAttributeName.toLowerCase().trim()
+      : false;
+
+    const { data: optionType } = await supabase
+      .from("product_option_types")
+      .insert({
+        product_id: productId,
+        roaster_id: roasterId,
+        name: attrName,
+        sort_order: sortIdx,
+        is_weight: isWeight,
+      })
+      .select("id")
+      .single();
+
+    if (!optionType) continue;
+
+    const values = Array.from(attrMap.get(attrName)!);
+    const valueMap = new Map<string, string>();
+
+    for (let vi = 0; vi < values.length; vi++) {
+      const val = values[vi];
+      // Parse weight_grams from value when this is a weight attribute
+      let weightGrams: number | null = null;
+      if (isWeight) {
+        const parsed = parseWeightFromOptions([val]);
+        if (parsed) weightGrams = parsed.grams;
+      }
+
+      const { data: optionValue } = await supabase
+        .from("product_option_values")
+        .insert({
+          option_type_id: optionType.id,
+          product_id: productId,
+          roaster_id: roasterId,
+          value: val,
+          sort_order: vi,
+          weight_grams: weightGrams,
+        })
+        .select("id")
+        .single();
+
+      if (optionValue) {
+        valueMap.set(val, optionValue.id);
+      }
+    }
+
+    typeMap.set(attrName, { typeId: optionType.id, valueMap });
+  }
+
+  // Create junction rows: product_variant_option_values
+  for (const { id: variantId, variant } of variantRows) {
+    const slots = [
+      { name: variant.option1_name, value: variant.option1_value },
+      { name: variant.option2_name, value: variant.option2_value },
+      { name: variant.option3_name, value: variant.option3_value },
+    ];
+    const junctionRows: { variant_id: string; option_value_id: string }[] = [];
+
+    for (const { name, value } of slots) {
+      if (!name || !value) continue;
+      const entry = typeMap.get(name);
+      if (!entry) continue;
+      const valueId = entry.valueMap.get(value);
+      if (!valueId) continue;
+      junctionRows.push({ variant_id: variantId, option_value_id: valueId });
+    }
+
+    if (junctionRows.length > 0) {
+      await supabase.from("product_variant_option_values").insert(junctionRows);
+    }
   }
 }

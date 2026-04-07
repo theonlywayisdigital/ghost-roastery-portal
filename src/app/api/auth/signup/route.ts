@@ -202,11 +202,13 @@ export async function POST(request: Request) {
       expires_at: expiresAt,
     });
 
-    // Send confirmation email (fire-and-forget)
+    // Send confirmation email
     const confirmUrl = `${process.env.NEXT_PUBLIC_PORTAL_URL}/verify-email?token=${token}`;
-    sendEmailConfirmation(normalizedEmail, resolvedContactName, confirmUrl).catch(
-      (err) => console.error("Failed to send confirmation email:", err)
-    );
+    try {
+      await sendEmailConfirmation(normalizedEmail, resolvedContactName, confirmUrl);
+    } catch (err) {
+      console.error("Failed to send confirmation email:", err);
+    }
 
     return NextResponse.json({ success: true, requiresVerification: true });
   } catch (error) {

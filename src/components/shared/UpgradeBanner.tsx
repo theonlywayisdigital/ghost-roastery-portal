@@ -33,7 +33,7 @@ export function UpgradeBanner({ type, message, upgradeTier, productType }: Upgra
         <p className={`text-sm mt-0.5 ${isBlocked ? "text-red-700" : "text-amber-700"}`}>
           {message}
         </p>
-        {upgradeTier && upgradeTier !== "free" && (
+        {upgradeTier && (
           <Link
             href={`/settings/billing?tab=subscription`}
             className={`inline-flex items-center gap-1 mt-2 text-sm font-medium ${

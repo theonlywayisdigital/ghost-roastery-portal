@@ -67,8 +67,8 @@ export async function GET(
   const revenue = orders.reduce((sum, o) => sum + (o.subtotal || 0), 0);
 
   // Build usage data using tier config
-  const salesTier = (roaster.sales_tier as TierLevel) || "free";
-  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
+  const salesTier = (roaster.sales_tier as TierLevel) || "growth";
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "growth";
   const { getEffectiveLimits } = await import("@/lib/tier-config");
   const limits = getEffectiveLimits(salesTier, marketingTier);
 
@@ -159,7 +159,7 @@ export async function PUT(
       updates.tier_override_by = user.id;
       // Update platform_fee_percent based on new sales tier
       if (body.sales_tier) {
-        updates.platform_fee_percent = getEffectivePlatformFee((body.sales_tier as TierLevel) || "free");
+        updates.platform_fee_percent = getEffectivePlatformFee((body.sales_tier as TierLevel) || "growth");
       }
     }
 
@@ -176,30 +176,19 @@ export async function PUT(
         // Sales tier changed
         if (changes.includes("sales_tier") && fullRoaster.stripe_sales_subscription_id) {
           const newSalesTier = body.sales_tier as TierLevel;
-          if (newSalesTier === "free") {
-            // Cancel Stripe subscription
+          // Update to new price
+          const cycle = (fullRoaster.sales_billing_cycle || "monthly") as "monthly" | "annual";
+          const priceId = getStripePriceId("sales", newSalesTier, cycle);
+          if (priceId) {
             try {
-              await stripe.subscriptions.cancel(fullRoaster.stripe_sales_subscription_id);
-              updates.stripe_sales_subscription_id = null;
-              updates.sales_billing_cycle = null;
+              const sub = await stripe.subscriptions.retrieve(fullRoaster.stripe_sales_subscription_id);
+              await stripe.subscriptions.update(fullRoaster.stripe_sales_subscription_id, {
+                items: [{ id: sub.items.data[0].id, price: priceId }],
+                metadata: { ...sub.metadata, tier: newSalesTier },
+                proration_behavior: "create_prorations",
+              });
             } catch (e) {
-              console.error("Failed to cancel sales subscription:", e);
-            }
-          } else {
-            // Update to new price
-            const cycle = (fullRoaster.sales_billing_cycle || "monthly") as "monthly" | "annual";
-            const priceId = getStripePriceId("sales", newSalesTier, cycle);
-            if (priceId) {
-              try {
-                const sub = await stripe.subscriptions.retrieve(fullRoaster.stripe_sales_subscription_id);
-                await stripe.subscriptions.update(fullRoaster.stripe_sales_subscription_id, {
-                  items: [{ id: sub.items.data[0].id, price: priceId }],
-                  metadata: { ...sub.metadata, tier: newSalesTier },
-                  proration_behavior: "create_prorations",
-                });
-              } catch (e) {
-                console.error("Failed to update sales subscription:", e);
-              }
+              console.error("Failed to update sales subscription:", e);
             }
           }
         }
@@ -207,46 +196,23 @@ export async function PUT(
         // Marketing tier changed
         if (changes.includes("marketing_tier") && fullRoaster.stripe_marketing_subscription_id) {
           const newMarketingTier = body.marketing_tier as TierLevel;
-          if (newMarketingTier === "free") {
+          const cycle = (fullRoaster.marketing_billing_cycle || "monthly") as "monthly" | "annual";
+          const priceId = getStripePriceId("marketing", newMarketingTier, cycle);
+          if (priceId) {
             try {
-              await stripe.subscriptions.cancel(fullRoaster.stripe_marketing_subscription_id);
-              updates.stripe_marketing_subscription_id = null;
-              updates.marketing_billing_cycle = null;
+              const sub = await stripe.subscriptions.retrieve(fullRoaster.stripe_marketing_subscription_id);
+              await stripe.subscriptions.update(fullRoaster.stripe_marketing_subscription_id, {
+                items: [{ id: sub.items.data[0].id, price: priceId }],
+                metadata: { ...sub.metadata, tier: newMarketingTier },
+                proration_behavior: "create_prorations",
+              });
             } catch (e) {
-              console.error("Failed to cancel marketing subscription:", e);
-            }
-          } else {
-            const cycle = (fullRoaster.marketing_billing_cycle || "monthly") as "monthly" | "annual";
-            const priceId = getStripePriceId("marketing", newMarketingTier, cycle);
-            if (priceId) {
-              try {
-                const sub = await stripe.subscriptions.retrieve(fullRoaster.stripe_marketing_subscription_id);
-                await stripe.subscriptions.update(fullRoaster.stripe_marketing_subscription_id, {
-                  items: [{ id: sub.items.data[0].id, price: priceId }],
-                  metadata: { ...sub.metadata, tier: newMarketingTier },
-                  proration_behavior: "create_prorations",
-                });
-              } catch (e) {
-                console.error("Failed to update marketing subscription:", e);
-              }
+              console.error("Failed to update marketing subscription:", e);
             }
           }
         }
 
-        // Update subscription_status only if roaster HAD active subscriptions that are now all gone
-        const hadAnySub = !!fullRoaster.stripe_sales_subscription_id || !!fullRoaster.stripe_marketing_subscription_id;
-        if (hadAnySub) {
-          const salesSubRemains = changes.includes("sales_tier") && body.sales_tier === "free"
-            ? false
-            : !!fullRoaster.stripe_sales_subscription_id;
-          const marketingSubRemains = changes.includes("marketing_tier") && body.marketing_tier === "free"
-            ? false
-            : !!fullRoaster.stripe_marketing_subscription_id;
-
-          if (!salesSubRemains && !marketingSubRemains) {
-            updates.subscription_status = "inactive";
-          }
-        }
+        // No subscription_status change needed for tier changes — subscriptions remain active
       }
     }
 
@@ -270,7 +236,7 @@ export async function PUT(
         eventInserts.push({
           roaster_id: id,
           event_type: "tier_changed_by_admin",
-          previous_tier: existing.sales_tier || "free",
+          previous_tier: existing.sales_tier || "growth",
           new_tier: body.sales_tier,
           product_type: "sales",
           metadata: { reason: body.tier_override_reason || null },
@@ -281,7 +247,7 @@ export async function PUT(
         eventInserts.push({
           roaster_id: id,
           event_type: "tier_changed_by_admin",
-          previous_tier: existing.marketing_tier || "free",
+          previous_tier: existing.marketing_tier || "growth",
           new_tier: body.marketing_tier,
           product_type: "marketing",
           metadata: { reason: body.tier_override_reason || null },

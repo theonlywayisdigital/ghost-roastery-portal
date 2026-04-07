@@ -15,9 +15,9 @@ export default async function BlogPostEditorRoute({
   if (!user) redirect("/login");
   if (!user.roaster) redirect("/dashboard");
 
-  // Tier gate — free tier cannot access blog
+  // Tier gate — must have marketing tier
   const marketingTier = (user.roaster as Record<string, unknown>).marketing_tier as string | undefined;
-  if (!marketingTier || marketingTier === "free") {
+  if (!marketingTier) {
     redirect("/marketing/blog");
   }
 

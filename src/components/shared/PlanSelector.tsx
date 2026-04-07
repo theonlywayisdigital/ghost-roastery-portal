@@ -32,7 +32,7 @@ interface PlanSelectorProps {
   pendingTier?: TierLevel | null;
 }
 
-const TIERS: TierLevel[] = ["free", "growth", "pro", "scale"];
+const TIERS: TierLevel[] = ["growth", "pro", "scale"];
 
 export function PlanSelector({
   productType,
@@ -44,7 +44,7 @@ export function PlanSelector({
   pendingTier,
 }: PlanSelectorProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {TIERS.map((tier) => {
         const isCurrent = tier === currentTier;
         const isPending = tier === pendingTier;
@@ -68,21 +68,18 @@ export function PlanSelector({
           : (["emailSendsPerMonth", "embeddedForms", "aiCreditsPerMonth"] as MarketingLimitKey[]);
 
         const featureKeys = productType === "sales"
-          ? (["invoices", "salesAnalyticsBasic", "salesAnalyticsFull", "crmEmailIntegration", "integrationsEcommerce", "integrationsAccounting"] as SalesFeatureKey[])
-          : (["contentCalendar", "socialScheduling", "automations", "marketingAnalyticsBasic", "marketingAnalyticsFull", "formBrandingRemoved", "integrationsSocial"] as MarketingFeatureKey[]);
+          ? (["invoices", "integrationsEcommerce", "integrationsAccounting"] as SalesFeatureKey[])
+          : (["contentCalendar", "socialScheduling", "automations", "integrationsSocial"] as MarketingFeatureKey[]);
 
         // Determine CTA text
         const isUpgrade = tierIndex(tier) > tierIndex(currentTier);
         const isDowngrade = tierIndex(tier) < tierIndex(currentTier);
-        const isDowngradeToFree = isDowngrade && tier === "free";
 
         let ctaText = "Select Plan";
         if (isCurrent) {
           ctaText = "Current Plan";
         } else if (isUpgrade) {
           ctaText = "Upgrade";
-        } else if (isDowngradeToFree) {
-          ctaText = "Downgrade to Free";
         } else if (isDowngrade) {
           ctaText = "Downgrade";
         }
@@ -109,26 +106,22 @@ export function PlanSelector({
 
             <div className="text-center mb-4">
               <h3 className="text-lg font-bold text-slate-900">{TIER_NAMES[tier]}</h3>
-              {displayPrice === 0 ? (
-                <p className="text-2xl font-bold text-slate-900 mt-1">Free</p>
-              ) : (
-                <div className="mt-1">
-                  <p className="text-2xl font-bold text-slate-900">
-                    {`\u00A3${(displayPrice / 100).toFixed(0)}`}
-                    <span className="text-sm font-normal text-slate-500">/mo</span>
+              <div className="mt-1">
+                <p className="text-2xl font-bold text-slate-900">
+                  {`\u00A3${(displayPrice / 100).toFixed(0)}`}
+                  <span className="text-sm font-normal text-slate-500">/mo</span>
+                </p>
+                {billingCycle === "monthly" && pricing.annual > 0 && (
+                  <p className="text-xs text-slate-400">
+                    {`\u00A3${(pricing.annual / 100).toFixed(0)}/mo billed annually`}
                   </p>
-                  {billingCycle === "monthly" && pricing.annual > 0 && (
-                    <p className="text-xs text-slate-400">
-                      {`\u00A3${(pricing.annual / 100).toFixed(0)}/mo billed annually`}
-                    </p>
-                  )}
-                  {billingCycle === "annual" && (
-                    <p className="text-xs text-slate-400">
-                      {`\u00A3${((displayPrice * 12) / 100).toFixed(0)} billed annually`}
-                    </p>
-                  )}
-                </div>
-              )}
+                )}
+                {billingCycle === "annual" && (
+                  <p className="text-xs text-slate-400">
+                    {`\u00A3${((displayPrice * 12) / 100).toFixed(0)} billed annually`}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Limits */}
@@ -168,8 +161,6 @@ export function PlanSelector({
                 className={`w-full mt-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isCurrent
                     ? "bg-slate-100 text-slate-400 cursor-default"
-                    : isDowngradeToFree
-                    ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
                     : isDowngrade
                     ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     : "bg-brand-600 text-white hover:bg-brand-700"

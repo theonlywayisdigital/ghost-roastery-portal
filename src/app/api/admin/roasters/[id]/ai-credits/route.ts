@@ -36,8 +36,8 @@ export async function GET(
   }
 
   const r = roasterResult.data;
-  const marketingTier = (r.marketing_tier as TierLevel) || "free";
-  const limits = getEffectiveLimits("free", marketingTier);
+  const marketingTier = (r.marketing_tier as TierLevel) || "growth";
+  const limits = getEffectiveLimits("growth", marketingTier);
 
   return NextResponse.json({
     monthlyAllocation: limits.aiCreditsPerMonth,

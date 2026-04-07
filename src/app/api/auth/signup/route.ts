@@ -107,6 +107,8 @@ export async function POST(request: Request) {
         is_active: true,
         wholesale_enabled: true,
         user_id: authData.user.id,
+        sales_tier: "growth",
+        marketing_tier: "growth",
       })
       .select()
       .single();

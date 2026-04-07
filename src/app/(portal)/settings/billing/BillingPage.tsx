@@ -8,10 +8,8 @@ import {
   ExternalLink,
   Loader2,
   Receipt,
-  Percent,
   Landmark,
   XCircle,
-  ArrowRight,
   FileText,
   Building2,
   Send,
@@ -447,8 +445,8 @@ function SubscriptionTab({
   usageData: UsageData | null;
   loading: boolean;
 }) {
-  const salesTier = (roaster.sales_tier as TierLevel) || "free";
-  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
+  const salesTier = (roaster.sales_tier as TierLevel) || "growth";
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "growth";
   const salesPricing = getSalesPricing(salesTier);
   const marketingPricing = getMarketingPricing(marketingTier);
   const platformFee = getEffectivePlatformFee(salesTier);
@@ -462,6 +460,7 @@ function SubscriptionTab({
 
   // Handle checkout URL params
   const [checkoutResult, setCheckoutResult] = useState<"success" | "cancel" | null>(null);
+  const [showSubscribePrompt, setShowSubscribePrompt] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -476,6 +475,13 @@ function SubscriptionTab({
           setTimeout(() => setCheckoutResult(null), 5000);
         }
       }
+      // Show subscribe prompt if redirected from lockout
+      if (params.get("subscribe") === "true") {
+        setShowSubscribePrompt(true);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("subscribe");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
   }, []);
 
@@ -483,11 +489,6 @@ function SubscriptionTab({
   const isAdminOverride = !!roaster.tier_override_by;
 
   async function handleSelectPlan(productType: "sales" | "marketing", tier: TierLevel) {
-    if (tier === "free") {
-      setShowCancelModal(productType);
-      return;
-    }
-
     setCheckoutLoading(true);
     setPendingTier({ product: productType, tier });
 
@@ -585,6 +586,16 @@ function SubscriptionTab({
 
   return (
     <div className="space-y-6">
+      {/* Subscribe prompt banner (shown when redirected from lockout) */}
+      {showSubscribePrompt && (
+        <div className="p-4 bg-brand-50 border border-brand-200 rounded-lg flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-brand-600 flex-shrink-0" />
+          <p className="text-sm font-medium text-brand-800">
+            Subscribe to a plan below to access the platform.
+          </p>
+        </div>
+      )}
+
       {/* Checkout result banner */}
       {checkoutResult === "success" && (
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
@@ -667,14 +678,10 @@ function SubscriptionTab({
             </div>
           </div>
           <div className="p-6">
-            {salesPricing.monthly === 0 ? (
-              <p className="text-2xl font-bold text-slate-900">Free</p>
-            ) : (
-              <p className="text-2xl font-bold text-slate-900">
-                {`\u00A3${(salesPricing.monthly / 100).toFixed(0)}`}
-                <span className="text-sm font-normal text-slate-500">/mo</span>
-              </p>
-            )}
+            <p className="text-2xl font-bold text-slate-900">
+              {`\u00A3${(salesPricing.monthly / 100).toFixed(0)}`}
+              <span className="text-sm font-normal text-slate-500">/mo</span>
+            </p>
             <p className="text-sm text-slate-500 mt-1">
               {`Platform fee: ${platformFee}%`}
             </p>
@@ -682,6 +689,14 @@ function SubscriptionTab({
               <p className="text-xs text-slate-400 mt-1">
                 {`Billed ${roaster.sales_billing_cycle}`}
               </p>
+            )}
+            {roaster.stripe_sales_subscription_id && subscriptionStatus !== "cancelling" && (
+              <button
+                onClick={() => setShowCancelModal("sales")}
+                className="mt-3 text-xs text-red-500 hover:text-red-700 transition-colors"
+              >
+                Cancel subscription
+              </button>
             )}
           </div>
         </section>
@@ -698,18 +713,22 @@ function SubscriptionTab({
             </div>
           </div>
           <div className="p-6">
-            {marketingPricing.monthly === 0 ? (
-              <p className="text-2xl font-bold text-slate-900">Free</p>
-            ) : (
-              <p className="text-2xl font-bold text-slate-900">
-                {`\u00A3${(marketingPricing.monthly / 100).toFixed(0)}`}
-                <span className="text-sm font-normal text-slate-500">/mo</span>
-              </p>
-            )}
+            <p className="text-2xl font-bold text-slate-900">
+              {`\u00A3${(marketingPricing.monthly / 100).toFixed(0)}`}
+              <span className="text-sm font-normal text-slate-500">/mo</span>
+            </p>
             {roaster.marketing_billing_cycle && (
               <p className="text-xs text-slate-400 mt-1">
                 {`Billed ${roaster.marketing_billing_cycle}`}
               </p>
+            )}
+            {roaster.stripe_marketing_subscription_id && subscriptionStatus !== "cancelling" && (
+              <button
+                onClick={() => setShowCancelModal("marketing")}
+                className="mt-3 text-xs text-red-500 hover:text-red-700 transition-colors"
+              >
+                Cancel subscription
+              </button>
             )}
           </div>
         </section>
@@ -969,10 +988,10 @@ function SubscriptionTab({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Downgrade to Free
+              Cancel Subscription
             </h3>
             <p className="text-sm text-slate-600 mb-6">
-              {`Your ${showCancelModal === "sales" ? "Sales Suite" : showCancelModal === "website" ? "Website" : "Marketing Suite"} subscription will be cancelled at the end of your current billing period. You'll keep access until then.`}
+              {`Your ${showCancelModal === "sales" ? "Sales Suite" : showCancelModal === "website" ? "Website" : "Marketing Suite"} subscription will be cancelled at the end of your current billing period. You'll keep access until then. After that, you'll need to resubscribe to access the platform.`}
             </p>
             <div className="flex gap-3">
               <button
@@ -1215,63 +1234,7 @@ function MyBillingTab({
 }) {
   return (
     <div className="space-y-6">
-      {/* ─── Section 1: Stripe Connect (moved to Integrations) ─── */}
-      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-900">
-              Stripe Connect
-            </h2>
-          </div>
-        </div>
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-5 h-5 text-slate-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-700">
-                Stripe Connect settings have moved to the Integrations page.
-              </p>
-              <a
-                href="/settings/integrations?tab=payments"
-                className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-600 hover:text-brand-700"
-              >
-                Go to Payment Integrations
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Section 2: Platform Fees ─── */}
-      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Percent className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-900">
-              Platform Fees
-            </h2>
-          </div>
-        </div>
-        <div className="p-6">
-          <div className="flex items-center gap-3 py-3">
-            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">
-                No platform fees
-              </p>
-              <p className="text-xs text-slate-500">
-                Only standard Stripe processing fees apply, paid directly to Stripe.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── Section 3: Payouts ─── */}
+      {/* ─── Section 1: Payouts ─── */}
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">

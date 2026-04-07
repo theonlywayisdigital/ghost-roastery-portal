@@ -50,12 +50,12 @@ export async function GET(request: Request) {
         }
       }
 
-      // Downgrade to free
+      // Downgrade to growth (inactive)
       await supabase
         .from("roasters")
         .update({
-          sales_tier: "free",
-          marketing_tier: "free",
+          sales_tier: "growth",
+          marketing_tier: "growth",
           stripe_sales_subscription_id: null,
           stripe_marketing_subscription_id: null,
           sales_billing_cycle: null,
@@ -65,30 +65,30 @@ export async function GET(request: Request) {
           grace_period_expires_at: null,
           tier_changed_at: now,
           tier_override_by: null,
-          platform_fee_percent: getEffectivePlatformFee("free"),
+          platform_fee_percent: getEffectivePlatformFee("growth"),
           updated_at: now,
         })
         .eq("id", roaster.id);
 
       // Log events
       const events = [];
-      if (roaster.sales_tier !== "free") {
+      if (roaster.sales_tier !== "growth") {
         events.push({
           roaster_id: roaster.id,
           event_type: "grace_period_expired",
           product_type: "sales",
           previous_tier: roaster.sales_tier,
-          new_tier: "free",
+          new_tier: "growth",
           metadata: { reason: "Grace period expired after payment failure" },
         });
       }
-      if (roaster.marketing_tier !== "free") {
+      if (roaster.marketing_tier !== "growth") {
         events.push({
           roaster_id: roaster.id,
           event_type: "grace_period_expired",
           product_type: "marketing",
           previous_tier: roaster.marketing_tier,
-          new_tier: "free",
+          new_tier: "growth",
           metadata: { reason: "Grace period expired after payment failure" },
         });
       }

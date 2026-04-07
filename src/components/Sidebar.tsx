@@ -553,28 +553,11 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       {/* Onboarding widget / Upgrade CTA */}
       {isRoaster && !isAdmin && (
         <OnboardingWidget
-          salesTier={user.salesTier || "free"}
-          marketingTier={user.marketingTier || "free"}
+          salesTier={user.salesTier || "growth"}
+          marketingTier={user.marketingTier || "growth"}
           onOpenPanel={() => setOnboardingPanelOpen(true)}
         >
-          {/* Upgrade CTA fallback (shown when onboarding dismissed or complete) */}
-          {user.salesTier === "free" && user.marketingTier === "free" && (
-            <div className="px-3 pb-2">
-              <Link
-                href="/settings/billing?tab=subscription"
-                onClick={() => setMobileOpen(false)}
-                className="block p-3 bg-gradient-to-br from-brand-50 to-brand-100 rounded-lg border border-brand-200 hover:border-brand-300 transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-brand-600" />
-                  <span className="text-sm font-semibold text-brand-900">Upgrade your plan</span>
-                </div>
-                <p className="text-xs text-brand-700">
-                  Unlock more products, contacts, email sends, and advanced features.
-                </p>
-              </Link>
-            </div>
-          )}
+          {null}
         </OnboardingWidget>
       )}
 
@@ -715,8 +698,8 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         <OnboardingPanel
           open={onboardingPanelOpen}
           onClose={() => setOnboardingPanelOpen(false)}
-          salesTier={user.salesTier || "free"}
-          marketingTier={user.marketingTier || "free"}
+          salesTier={user.salesTier || "growth"}
+          marketingTier={user.marketingTier || "growth"}
         />
       )}
     </>

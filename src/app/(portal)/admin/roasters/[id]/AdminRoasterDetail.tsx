@@ -251,8 +251,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
   const [inviting, setInviting] = useState(false);
 
   // Subscription tab
-  const [subSalesTier, setSubSalesTier] = useState<TierLevel>("free");
-  const [subMarketingTier, setSubMarketingTier] = useState<TierLevel>("free");
+  const [subSalesTier, setSubSalesTier] = useState<TierLevel>("growth");
+  const [subMarketingTier, setSubMarketingTier] = useState<TierLevel>("growth");
   const [subOverrideReason, setSubOverrideReason] = useState("");
   const [subSalesDiscount, setSubSalesDiscount] = useState(0);
   const [subMarketingDiscount, setSubMarketingDiscount] = useState(0);
@@ -319,8 +319,8 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
       setRoaster(data.roaster);
       setStats(data.stats);
       if (data.usage) setUsageData(data.usage);
-      setSubSalesTier((data.roaster.sales_tier as TierLevel) || "free");
-      setSubMarketingTier((data.roaster.marketing_tier as TierLevel) || "free");
+      setSubSalesTier((data.roaster.sales_tier as TierLevel) || "growth");
+      setSubMarketingTier((data.roaster.marketing_tier as TierLevel) || "growth");
       setSubSalesDiscount(Number(data.roaster.sales_discount_percent) || 0);
       setSubMarketingDiscount(Number(data.roaster.marketing_discount_percent) || 0);
       setSubDiscountNote(data.roaster.discount_note || "");
@@ -1265,7 +1265,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                       onChange={(e) => setSubSalesTier(e.target.value as TierLevel)}
                       className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                     >
-                      {(["free", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                      {(["growth", "pro", "scale"] as TierLevel[]).map((t) => (
                         <option key={t} value={t}>{TIER_NAMES[t]}</option>
                       ))}
                     </select>
@@ -1282,7 +1282,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                       onChange={(e) => setSubMarketingTier(e.target.value as TierLevel)}
                       className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                     >
-                      {(["free", "growth", "pro", "scale"] as TierLevel[]).map((t) => (
+                      {(["growth", "pro", "scale"] as TierLevel[]).map((t) => (
                         <option key={t} value={t}>{TIER_NAMES[t]}</option>
                       ))}
                     </select>
@@ -1366,7 +1366,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                         className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
                       <span className="text-sm text-slate-500">%</span>
-                      {subSalesTier !== "free" && (
+                      {(
                         <span className="text-xs text-slate-400">
                           {(() => {
                             const p = getSalesPricing(subSalesTier);
@@ -1395,7 +1395,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
                         className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
                       <span className="text-sm text-slate-500">%</span>
-                      {subMarketingTier !== "free" && (
+                      {(
                         <span className="text-xs text-slate-400">
                           {(() => {
                             const p = getMarketingPricing(subMarketingTier);
@@ -1480,7 +1480,7 @@ export function AdminRoasterDetail({ roasterId }: { roasterId: string }) {
               )}
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-slate-500">
-                  {`Card payment fees: ${subSalesTier === "free" ? "5% + 20p" : "2% + 20p"} (derived from Sales tier)`}
+                  {`Card payment fees: 2% + 20p (derived from Sales tier)`}
                 </p>
               </div>
             </div>

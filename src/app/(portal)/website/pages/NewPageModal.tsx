@@ -125,7 +125,7 @@ export function NewPageModal({ open, onClose, marketingTier }: NewPageModalProps
 
   if (!open) return null;
 
-  const isFree = !marketingTier || marketingTier === "free";
+  const isFree = !marketingTier;
 
   function handleSelectTemplate(template: PageTemplate) {
     if (template.requiresPaidMarketing && isFree) return;

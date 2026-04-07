@@ -3,7 +3,7 @@
 // Pure TypeScript constants. No database queries.
 // ═══════════════════════════════════════════════════════════════
 
-export type TierLevel = "free" | "growth" | "pro" | "scale";
+export type TierLevel = "growth" | "pro" | "scale";
 export type ProductType = "sales" | "marketing" | "website";
 
 // ─── Limit Keys ───
@@ -35,9 +35,6 @@ export type SalesFeatureKey =
   | "invoices"
   | "pipeline"
   | "customPipelineStages"
-  | "salesAnalyticsBasic"
-  | "salesAnalyticsFull"
-  | "crmEmailIntegration"
   | "customEmailDomain"
   | "integrationsAccounting"
   | "integrationsEcommerce"
@@ -47,21 +44,17 @@ export type MarketingFeatureKey =
   | "contentCalendar"
   | "socialScheduling"
   | "automations"
-  | "marketingAnalyticsBasic"
-  | "marketingAnalyticsFull"
-  | "formBrandingRemoved"
   | "integrationsSocial";
 
 export type ToolsFeatureKey =
   | "toolsProductionPlanner"
-  | "toolsBreakeven"
-  | "toolsLowStockAlerts";
+  | "toolsBreakeven";
 
 export type FeatureKey = SalesFeatureKey | MarketingFeatureKey | ToolsFeatureKey;
 
 // ─── Tier Order ───
 
-const TIER_ORDER: TierLevel[] = ["free", "growth", "pro", "scale"];
+const TIER_ORDER: TierLevel[] = ["growth", "pro", "scale"];
 
 export function tierIndex(tier: TierLevel): number {
   return TIER_ORDER.indexOf(tier);
@@ -74,64 +67,57 @@ export function isHigherTier(a: TierLevel, b: TierLevel): boolean {
 // ─── Sales Suite Limits ───
 
 const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
-  products:                { free: 3,   growth: 20,   pro: 50,    scale: Infinity },
-  wholesaleOrdersPerMonth: { free: 20,  growth: 400,  pro: 800,   scale: Infinity },
-  wholesaleAccounts:       { free: 5,   growth: 50,   pro: 200,   scale: Infinity },
-  crmContacts:             { free: 100, growth: 1500, pro: 5000,  scale: Infinity },
-  teamMembers:             { free: 1,   growth: 3,    pro: 5,     scale: 10 },
+  products:                { growth: 20,   pro: 50,    scale: Infinity },
+  wholesaleOrdersPerMonth: { growth: 400,  pro: 800,   scale: Infinity },
+  wholesaleAccounts:       { growth: 50,   pro: 200,   scale: Infinity },
+  crmContacts:             { growth: 1500, pro: 5000,  scale: Infinity },
+  teamMembers:             { growth: 3,    pro: 5,     scale: 10 },
 };
 
 // ─── Sales Suite Features ───
 
 const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
-  invoices:                { free: false, growth: true,  pro: true,  scale: true },
-  pipeline:                { free: false, growth: true,  pro: true,  scale: true },
-  customPipelineStages:    { free: false, growth: true,  pro: true,  scale: true },
-  salesAnalyticsBasic:     { free: false, growth: true,  pro: true,  scale: true },
-  salesAnalyticsFull:      { free: false, growth: true,  pro: true,  scale: true },
-  crmEmailIntegration:     { free: false, growth: true,  pro: true,  scale: true },
-  customEmailDomain:       { free: false, growth: true,  pro: true,  scale: true },
-  integrationsAccounting:  { free: false, growth: false, pro: true,  scale: true },
-  integrationsEcommerce:   { free: false, growth: true,  pro: true,  scale: true },
-  orderExtraction:         { free: false, growth: true,  pro: true,  scale: true },
+  invoices:                { growth: true,  pro: true,  scale: true },
+  pipeline:                { growth: true,  pro: true,  scale: true },
+  customPipelineStages:    { growth: true,  pro: true,  scale: true },
+  customEmailDomain:       { growth: true,  pro: true,  scale: true },
+  integrationsAccounting:  { growth: false, pro: true,  scale: true },
+  integrationsEcommerce:   { growth: true,  pro: true,  scale: true },
+  orderExtraction:         { growth: true,  pro: true,  scale: true },
 };
 
 // ─── Marketing Suite Limits ───
 
 const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
-  emailSendsPerMonth: { free: 500,  growth: 5000,  pro: 15000, scale: Infinity },
-  embeddedForms:      { free: 1,    growth: 10,    pro: Infinity, scale: Infinity },
-  aiCreditsPerMonth:  { free: 0,    growth: 150,   pro: 500,   scale: 1500 },
+  emailSendsPerMonth: { growth: 5000,  pro: 15000, scale: Infinity },
+  embeddedForms:      { growth: 10,    pro: Infinity, scale: Infinity },
+  aiCreditsPerMonth:  { growth: 150,   pro: 500,   scale: 1500 },
 };
 
 // ─── Tools Suite Limits (gated via Sales Suite tier) ───
 
 const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
-  greenBeans:              { free: 3,  growth: 50,       pro: Infinity, scale: Infinity },
-  roastedStock:            { free: 3,  growth: 50,       pro: Infinity, scale: Infinity },
-  roastLogsPerMonth:       { free: 10, growth: Infinity, pro: Infinity, scale: Infinity },
-  cuppingSessionsPerMonth: { free: 2,  growth: Infinity, pro: Infinity, scale: Infinity },
-  certifications:          { free: 3,  growth: Infinity, pro: Infinity, scale: Infinity },
+  greenBeans:              { growth: 50,       pro: Infinity, scale: Infinity },
+  roastedStock:            { growth: 50,       pro: Infinity, scale: Infinity },
+  roastLogsPerMonth:       { growth: Infinity, pro: Infinity, scale: Infinity },
+  cuppingSessionsPerMonth: { growth: Infinity, pro: Infinity, scale: Infinity },
+  certifications:          { growth: Infinity, pro: Infinity, scale: Infinity },
 };
 
 // ─── Tools Suite Features (gated via Sales Suite tier) ───
 
 const TOOLS_FEATURES: Record<ToolsFeatureKey, Record<TierLevel, boolean>> = {
-  toolsProductionPlanner: { free: false, growth: true,  pro: true,  scale: true },
-  toolsBreakeven:         { free: false, growth: true,  pro: true,  scale: true },
-  toolsLowStockAlerts:    { free: false, growth: true,  pro: true,  scale: true },
+  toolsProductionPlanner: { growth: true,  pro: true,  scale: true },
+  toolsBreakeven:         { growth: true,  pro: true,  scale: true },
 };
 
 // ─── Marketing Suite Features ───
 
 const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>> = {
-  contentCalendar:         { free: false, growth: true,  pro: true,  scale: true },
-  socialScheduling:        { free: false, growth: true,  pro: true,  scale: true },
-  automations:             { free: false, growth: true,  pro: true,  scale: true },
-  marketingAnalyticsBasic: { free: false, growth: true,  pro: true,  scale: true },
-  marketingAnalyticsFull:  { free: false, growth: true,  pro: true,  scale: true },
-  formBrandingRemoved:     { free: false, growth: true,  pro: true,  scale: true },
-  integrationsSocial:      { free: false, growth: true,  pro: true,  scale: true },
+  contentCalendar:         { growth: true,  pro: true,  scale: true },
+  socialScheduling:        { growth: true,  pro: true,  scale: true },
+  automations:             { growth: true,  pro: true,  scale: true },
+  integrationsSocial:      { growth: true,  pro: true,  scale: true },
 };
 
 // ─── Platform Fee ───
@@ -149,14 +135,12 @@ export interface TierPricing {
 }
 
 const SALES_PRICING: Record<TierLevel, TierPricing> = {
-  free:   { monthly: 0,     annual: 0 },
   growth: { monthly: 3900,  annual: 3300 },
   pro:    { monthly: 7900,  annual: 6600 },
   scale:  { monthly: 12900, annual: 10800 },
 };
 
 const MARKETING_PRICING: Record<TierLevel, TierPricing> = {
-  free:   { monthly: 0,    annual: 0 },
   growth: { monthly: 2900, annual: 2400 },
   pro:    { monthly: 5900, annual: 4900 },
   scale:  { monthly: 9900, annual: 8300 },
@@ -172,7 +156,6 @@ export const WEBSITE_PRICING: TierPricing = {
 // ─── Tier Display Names ───
 
 export const TIER_NAMES: Record<TierLevel, string> = {
-  free: "Free",
   growth: "Growth",
   pro: "Pro",
   scale: "Scale",
@@ -213,9 +196,6 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     invoices: SALES_FEATURES.invoices[salesTier],
     pipeline: SALES_FEATURES.pipeline[salesTier],
     customPipelineStages: SALES_FEATURES.customPipelineStages[salesTier],
-    salesAnalyticsBasic: SALES_FEATURES.salesAnalyticsBasic[salesTier],
-    salesAnalyticsFull: SALES_FEATURES.salesAnalyticsFull[salesTier],
-    crmEmailIntegration: SALES_FEATURES.crmEmailIntegration[salesTier],
     customEmailDomain: SALES_FEATURES.customEmailDomain[salesTier],
     integrationsAccounting: SALES_FEATURES.integrationsAccounting[salesTier],
     integrationsEcommerce: SALES_FEATURES.integrationsEcommerce[salesTier],
@@ -224,14 +204,10 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
     automations: MARKETING_FEATURES.automations[marketingTier],
-    marketingAnalyticsBasic: MARKETING_FEATURES.marketingAnalyticsBasic[marketingTier],
-    marketingAnalyticsFull: MARKETING_FEATURES.marketingAnalyticsFull[marketingTier],
-    formBrandingRemoved: MARKETING_FEATURES.formBrandingRemoved[marketingTier],
     integrationsSocial: MARKETING_FEATURES.integrationsSocial[marketingTier],
     // Tools features (gated via sales tier)
     toolsProductionPlanner: TOOLS_FEATURES.toolsProductionPlanner[salesTier],
     toolsBreakeven: TOOLS_FEATURES.toolsBreakeven[salesTier],
-    toolsLowStockAlerts: TOOLS_FEATURES.toolsLowStockAlerts[salesTier],
   };
 }
 
@@ -361,9 +337,6 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   invoices: "Invoices",
   pipeline: "Sales Pipeline",
   customPipelineStages: "Custom Pipeline Stages",
-  salesAnalyticsBasic: "Basic Sales Analytics",
-  salesAnalyticsFull: "Advanced Sales Analytics",
-  crmEmailIntegration: "CRM Email Integration",
   customEmailDomain: "Custom Email Domain",
   integrationsAccounting: "Accounting Integrations",
   integrationsEcommerce: "E-commerce Integrations",
@@ -371,13 +344,9 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   contentCalendar: "Content Calendar",
   socialScheduling: "Social Scheduling",
   automations: "Automations",
-  marketingAnalyticsBasic: "Basic Marketing Analytics",
-  marketingAnalyticsFull: "Advanced Marketing Analytics",
-  formBrandingRemoved: "Remove Form Branding",
   integrationsSocial: "Social Integrations",
   toolsProductionPlanner: "Production Planner",
   toolsBreakeven: "Break-even Calculator",
-  toolsLowStockAlerts: "Low Stock Alerts",
 };
 
 // ─── Limit product mapping ───
@@ -437,7 +406,7 @@ export function getMarketingFeatures(tier: TierLevel): Record<MarketingFeatureKe
 
 export type BillingCycle = "monthly" | "annual";
 
-type PaidTierLevel = Exclude<TierLevel, "free">;
+type PaidTierLevel = TierLevel;
 
 export type TieredProductType = Exclude<ProductType, "website">;
 
@@ -467,7 +436,6 @@ export function getWebsitePriceId(billingCycle: BillingCycle): string {
 
 export function getStripePriceId(product: ProductType, tier: TierLevel, billingCycle: BillingCycle): string | null {
   if (product === "website") return getWebsitePriceId(billingCycle);
-  if (tier === "free") return null;
   const tieredProduct = product as TieredProductType;
   return STRIPE_PRICE_IDS[tieredProduct]?.[tier as PaidTierLevel]?.[billingCycle] || null;
 }

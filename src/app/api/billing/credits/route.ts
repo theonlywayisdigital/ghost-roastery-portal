@@ -16,8 +16,8 @@ export async function GET() {
 
   const supabase = createServerClient();
 
-  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
-  const limits = getEffectiveLimits("free", marketingTier);
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "growth";
+  const limits = getEffectiveLimits("growth", marketingTier);
 
   const { data: ledger } = await supabase
     .from("ai_credit_ledger")

@@ -73,8 +73,8 @@ async function getRoasterTierData(roasterId: string): Promise<RoasterTiers | nul
 
   return {
     id: data.id,
-    sales_tier: (data.sales_tier as TierLevel) || "free",
-    marketing_tier: (data.marketing_tier as TierLevel) || "free",
+    sales_tier: (data.sales_tier as TierLevel) || "growth",
+    marketing_tier: (data.marketing_tier as TierLevel) || "growth",
     monthly_wholesale_orders_count: (data.monthly_wholesale_orders_count as number) || 0,
     monthly_wholesale_orders_reset_at: data.monthly_wholesale_orders_reset_at as string | null,
     monthly_ai_credits_used: (data.monthly_ai_credits_used as number) || 0,

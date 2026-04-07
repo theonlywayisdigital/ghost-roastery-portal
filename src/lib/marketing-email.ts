@@ -75,8 +75,8 @@ export async function checkEmailLimits(
   if (!roaster) return { allowed: false, message: "Roaster not found" };
 
   // Get tier-based email limit
-  const marketingTier = (roaster.marketing_tier as TierLevel) || "free";
-  const limits = getEffectiveLimits("free", marketingTier);
+  const marketingTier = (roaster.marketing_tier as TierLevel) || "growth";
+  const limits = getEffectiveLimits("growth", marketingTier);
   const emailLimit = limits.emailSendsPerMonth;
 
   let currentCount = (roaster.monthly_emails_sent as number) || 0;

@@ -22,8 +22,8 @@ export async function GET() {
 
   const roaster = user.roaster;
   const roasterId = roaster.id;
-  const salesTier = ((roaster as Record<string, unknown>).sales_tier as TierLevel) || "free";
-  const marketingTier = ((roaster as Record<string, unknown>).marketing_tier as TierLevel) || "free";
+  const salesTier = ((roaster as Record<string, unknown>).sales_tier as TierLevel) || "growth";
+  const marketingTier = ((roaster as Record<string, unknown>).marketing_tier as TierLevel) || "growth";
 
   const supabase = createServerClient();
 

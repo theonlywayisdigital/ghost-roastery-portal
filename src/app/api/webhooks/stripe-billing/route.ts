@@ -358,12 +358,12 @@ async function handleSubscriptionDeleted(
     updates.stripe_website_subscription_id = null;
     updates.website_billing_cycle = null;
   } else if (productType === "sales") {
-    updates.sales_tier = "free";
+    updates.sales_tier = "growth";
     updates.stripe_sales_subscription_id = null;
     updates.sales_billing_cycle = null;
-    updates.platform_fee_percent = getEffectivePlatformFee("free");
+    updates.platform_fee_percent = getEffectivePlatformFee("growth");
   } else {
-    updates.marketing_tier = "free";
+    updates.marketing_tier = "growth";
     updates.stripe_marketing_subscription_id = null;
     updates.marketing_billing_cycle = null;
   }
@@ -401,7 +401,7 @@ async function handleSubscriptionDeleted(
     event_type: "subscription_deleted",
     product_type: productType,
     previous_tier: subscription.metadata?.tier || null,
-    new_tier: "free",
+    new_tier: "growth",
     metadata: { subscription_id: subscription.id },
   });
 }

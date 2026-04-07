@@ -10,7 +10,7 @@ export default async function BlogPostsPage() {
   if (!user.roaster) redirect("/dashboard");
 
   const marketingTier = (user.roaster as Record<string, unknown>).marketing_tier as string | undefined;
-  const isFree = !marketingTier || marketingTier === "free";
+  const isFree = !marketingTier;
 
   if (isFree) {
     return (

@@ -60,9 +60,11 @@ export async function GET(request: NextRequest) {
       if (existing) {
         contactId = existing.id;
         const types = (existing.types as string[]) || [];
+        const contactUpdates: Record<string, unknown> = { marketing_consent: true };
         if (!types.includes("lead")) {
-          await supabase.from("contacts").update({ types: [...types, "lead"] }).eq("id", existing.id);
+          contactUpdates.types = [...types, "lead"];
         }
+        await supabase.from("contacts").update(contactUpdates).eq("id", existing.id);
         await supabase.from("form_submissions").update({ contact_id: existing.id }).eq("id", submission.id);
       } else {
         const defaultType = (settings.default_contact_type as string) || "lead";
@@ -84,6 +86,7 @@ export async function GET(request: NextRequest) {
             source: "form",
             people_id: peopleId,
             owner_id: roaster.id,
+            marketing_consent: true,
           })
           .select("id")
           .single();

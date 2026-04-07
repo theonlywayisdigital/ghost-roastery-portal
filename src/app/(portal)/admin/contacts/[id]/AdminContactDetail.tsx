@@ -60,6 +60,7 @@ interface Contact {
   county: string | null;
   postcode: string | null;
   country: string | null;
+  marketing_consent: boolean;
   businesses: { id: string; name: string; types: string[]; total_spend: number; industry: string | null } | null;
 }
 
@@ -163,6 +164,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
     county: "",
     postcode: "",
     country: "GB",
+    marketing_consent: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -207,6 +209,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
         county: d.contact.county || "",
         postcode: d.contact.postcode || "",
         country: d.contact.country || "GB",
+        marketing_consent: d.contact.marketing_consent ?? false,
       });
     } catch {
       setError("Failed to load contact");
@@ -810,6 +813,16 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
                       : "Never"}
                   </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Marketing</span>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                    contact.marketing_consent
+                      ? "bg-green-50 text-green-700"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    {contact.marketing_consent ? "Opted in" : "Not opted in"}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -988,6 +1001,33 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
                   <option value="inactive">Inactive</option>
                   <option value="archived">Archived</option>
                 </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Marketing Consent
+                  </label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Contact has opted in to receive marketing emails
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={editForm.marketing_consent}
+                  onClick={() =>
+                    setEditForm((f) => ({ ...f, marketing_consent: !f.marketing_consent }))
+                  }
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    editForm.marketing_consent ? "bg-brand-600" : "bg-slate-200"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      editForm.marketing_consent ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 

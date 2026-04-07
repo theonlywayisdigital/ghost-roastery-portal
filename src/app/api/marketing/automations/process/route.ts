@@ -95,11 +95,11 @@ export async function GET(request: NextRequest) {
           // Get contact email
           const { data: contact } = await supabase
             .from("contacts")
-            .select("email, first_name, last_name, unsubscribed")
+            .select("email, first_name, last_name, unsubscribed, marketing_consent")
             .eq("id", enrollment.contact_id)
             .single();
 
-          if (!contact || !contact.email || contact.unsubscribed) {
+          if (!contact || !contact.email || contact.unsubscribed || !contact.marketing_consent) {
             await supabase
               .from("automation_enrollments")
               .update({ status: "cancelled" })
@@ -399,6 +399,7 @@ async function processNoActivityTrigger(
     .eq("roaster_id", roasterId)
     .eq("status", "active")
     .eq("unsubscribed", false)
+    .eq("marketing_consent", true)
     .lt("last_activity_at", cutoff.toISOString())
     .limit(50);
 
@@ -456,6 +457,7 @@ async function processDateBasedTrigger(
       .eq("roaster_id", roasterId)
       .eq("status", "active")
       .eq("unsubscribed", false)
+      .eq("marketing_consent", true)
       .not("birthday", "is", null)
       .limit(200);
 
@@ -496,6 +498,7 @@ async function processDateBasedTrigger(
       .eq("roaster_id", roasterId)
       .eq("status", "active")
       .eq("unsubscribed", false)
+      .eq("marketing_consent", true)
       .limit(200);
 
     if (!contacts || contacts.length === 0) return;

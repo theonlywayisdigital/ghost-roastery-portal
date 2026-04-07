@@ -22,10 +22,10 @@ export async function GET(request: NextRequest) {
   const supabase = createServerClient();
   const now = new Date().toISOString();
 
-  // Unsubscribe the contact
+  // Unsubscribe the contact and revoke marketing consent
   await supabase
     .from("contacts")
-    .update({ unsubscribed: true, unsubscribed_at: now })
+    .update({ unsubscribed: true, unsubscribed_at: now, marketing_consent: false })
     .eq("roaster_id", payload.roasterId)
     .eq("email", payload.email);
 

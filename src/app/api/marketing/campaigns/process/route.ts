@@ -89,7 +89,8 @@ export async function GET(request: Request) {
           .select("id, email, first_name, last_name")
           .eq("status", "active")
           .not("email", "is", null)
-          .eq("unsubscribed", false);
+          .eq("unsubscribed", false)
+          .eq("marketing_consent", true);
 
         // Scope to roaster or ghost_roastery
         if (campaign.roaster_id) {

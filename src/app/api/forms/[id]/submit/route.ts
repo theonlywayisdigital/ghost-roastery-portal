@@ -278,14 +278,16 @@ async function createOrUpdateContact(
     .single();
 
   if (existing) {
-    // Update existing contact, add lead type if not present
+    // Update existing contact, add lead type if not present, re-opt in for marketing
     const types = (existing.types as string[]) || [];
+    const contactUpdates: Record<string, unknown> = { marketing_consent: true };
     if (!types.includes("lead")) {
-      await supabase
-        .from("contacts")
-        .update({ types: [...types, "lead"] })
-        .eq("id", existing.id);
+      contactUpdates.types = [...types, "lead"];
     }
+    await supabase
+      .from("contacts")
+      .update(contactUpdates)
+      .eq("id", existing.id);
 
     // Link submission
     await supabase
@@ -324,6 +326,7 @@ async function createOrUpdateContact(
         source: "form",
         people_id: peopleId,
         owner_id: roasterId,
+        marketing_consent: true,
       })
       .select("id")
       .single();

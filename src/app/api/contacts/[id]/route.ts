@@ -147,6 +147,7 @@ export async function PUT(
       "first_name", "last_name", "email", "phone", "business_name",
       "types", "status", "business_id", "role", "pipeline_stage",
       "address_line_1", "address_line_2", "city", "county", "postcode", "country",
+      "marketing_consent",
     ];
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };

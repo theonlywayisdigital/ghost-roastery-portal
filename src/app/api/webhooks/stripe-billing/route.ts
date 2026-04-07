@@ -140,10 +140,23 @@ async function handleCheckoutCompleted(
 
   const subscriptionId = session.subscription as string;
 
+  // Retrieve the full subscription to check trial status
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const isTrial = subscription.status === "trialing";
+
   const updates: Record<string, unknown> = {
-    subscription_status: "active",
+    subscription_status: isTrial ? "trialing" : "active",
     updated_at: new Date().toISOString(),
   };
+
+  // Set trial fields if this is a trial subscription
+  if (isTrial) {
+    updates.trial_started_at = new Date().toISOString();
+    updates.trial_ends_at = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toISOString()
+      : null;
+    updates.trial_used = true;
+  }
 
   if (productType === "website") {
     updates.website_subscription_active = true;
@@ -174,7 +187,7 @@ async function handleCheckoutCompleted(
     event_type: "checkout_completed",
     product_type: productType,
     new_tier: tier || null,
-    metadata: { subscription_id: subscriptionId, billing_cycle: billingCycle },
+    metadata: { subscription_id: subscriptionId, billing_cycle: billingCycle, is_trial: isTrial },
   });
 
   // Scaffold default website pages on first website subscription
@@ -306,11 +319,13 @@ async function handleSubscriptionUpdated(
     updates.tier_override_by = null;
   }
 
-  // Handle cancel_at_period_end
+  // Handle subscription status transitions
   if (subscription.cancel_at_period_end) {
     updates.subscription_status = "cancelling";
   } else if (subscription.status === "active") {
     updates.subscription_status = "active";
+  } else if (subscription.status === "trialing") {
+    updates.subscription_status = "trialing";
   }
 
   await supabase

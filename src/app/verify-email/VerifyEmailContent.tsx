@@ -74,13 +74,13 @@ export function VerifyEmailContent() {
                 Email verified!
               </h2>
               <p className="text-sm text-slate-500 mb-6">
-                Your email address has been confirmed. You can now sign in to your account.
+                Your email address has been confirmed. Let&apos;s set up your free trial.
               </p>
               <Link
-                href="/login"
+                href="/start-trial"
                 className="inline-flex items-center justify-center w-full py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
               >
-                Sign In
+                Start Your 14-Day Free Trial
               </Link>
             </>
           )}

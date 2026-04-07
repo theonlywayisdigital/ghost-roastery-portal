@@ -6083,6 +6083,9 @@ export type Database = {
           tier_changed_at: string | null
           tier_override_by: string | null
           tier_override_reason: string | null
+          trial_ends_at: string | null
+          trial_started_at: string | null
+          trial_used: boolean
           updated_at: string | null
           user_id: string | null
           vat_number: string | null
@@ -6205,6 +6208,9 @@ export type Database = {
           tier_changed_at?: string | null
           tier_override_by?: string | null
           tier_override_reason?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean
           updated_at?: string | null
           user_id?: string | null
           vat_number?: string | null
@@ -6327,6 +6333,9 @@ export type Database = {
           tier_changed_at?: string | null
           tier_override_by?: string | null
           tier_override_reason?: string | null
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+          trial_used?: boolean
           updated_at?: string | null
           user_id?: string | null
           vat_number?: string | null

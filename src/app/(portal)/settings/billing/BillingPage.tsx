@@ -76,6 +76,10 @@ interface RoasterData {
   stripe_sales_subscription_id: string | null;
   stripe_marketing_subscription_id: string | null;
   tier_override_by: string | null;
+  // Trial fields
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
+  trial_used: boolean;
   // Website subscription
   website_subscription_active: boolean;
   website_billing_cycle: string | null;
@@ -587,11 +591,13 @@ function SubscriptionTab({
   return (
     <div className="space-y-6">
       {/* Subscribe prompt banner (shown when redirected from lockout) */}
-      {showSubscribePrompt && (
+      {showSubscribePrompt && subscriptionStatus !== "trialing" && (
         <div className="p-4 bg-brand-50 border border-brand-200 rounded-lg flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-brand-600 flex-shrink-0" />
           <p className="text-sm font-medium text-brand-800">
-            Subscribe to a plan below to access the platform.
+            {roaster.trial_used
+              ? "Your trial has ended. Subscribe to a plan below to continue using the platform."
+              : "Subscribe to a plan below to access the platform."}
           </p>
         </div>
       )}
@@ -620,6 +626,8 @@ function SubscriptionTab({
         <div className={`p-4 rounded-lg border flex items-center gap-3 ${
           subscriptionStatus === "active"
             ? "bg-green-50 border-green-200"
+            : subscriptionStatus === "trialing"
+            ? "bg-brand-50 border-brand-200"
             : subscriptionStatus === "past_due"
             ? "bg-red-50 border-red-200"
             : subscriptionStatus === "cancelling"
@@ -630,6 +638,14 @@ function SubscriptionTab({
             <>
               <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
               <p className="text-sm font-medium text-green-800">Subscription active</p>
+            </>
+          )}
+          {subscriptionStatus === "trialing" && (
+            <>
+              <CheckCircle2 className="w-5 h-5 text-brand-600 flex-shrink-0" />
+              <p className="text-sm font-medium text-brand-800">
+                {`Free trial — ends ${roaster.trial_ends_at ? new Date(roaster.trial_ends_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "soon"}`}
+              </p>
             </>
           )}
           {subscriptionStatus === "past_due" && (

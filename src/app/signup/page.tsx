@@ -12,10 +12,10 @@ export default function SignupPage() {
             <Logo variant="stacked" height={150} className="h-[150px] w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Join Roastery Platform
+            Start Your Free Trial
           </h1>
           <p className="text-slate-500 mt-1">
-            Get your free wholesale portal in minutes
+            14 days free, then £39/mo. Cancel anytime.
           </p>
         </div>
 
@@ -38,12 +38,12 @@ export default function SignupPage() {
         {/* Benefits */}
         <div className="mt-8 text-center text-sm text-slate-500">
           <p className="font-medium text-slate-700 mb-2">
-            What you get — completely free:
+            What you get:
           </p>
           <ul className="space-y-1">
-            <li>Your own wholesale ordering portal</li>
-            <li>Share with your cafes, restaurants & clients</li>
-            <li>No monthly fees — we take a small % per transaction</li>
+            <li>14-day free trial — no charge until day 15</li>
+            <li>Full access to Sales Growth features</li>
+            <li>Cancel anytime before your trial ends</li>
           </ul>
         </div>
       </div>

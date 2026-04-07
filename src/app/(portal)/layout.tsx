@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { PastDueBanner } from "@/components/PastDueBanner";
+import { TrialBanner } from "@/components/TrialBanner";
 
 export default async function PortalLayout({
   children,
@@ -39,6 +40,9 @@ export default async function PortalLayout({
   return (
     <div className="min-h-screen bg-slate-50">
       {subscriptionStatus === "past_due" && <PastDueBanner />}
+      {subscriptionStatus === "trialing" && (
+        <TrialBanner trialEndsAt={(user.roaster?.trial_ends_at as string) || null} />
+      )}
 
       <Sidebar
         user={{

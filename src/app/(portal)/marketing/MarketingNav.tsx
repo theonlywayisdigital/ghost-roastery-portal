@@ -6,12 +6,9 @@ import {
   CalendarDays,
   Send,
   Share2,
-  Zap,
   LayoutTemplate,
   Ticket,
   FileText,
-  Sparkles,
-  BarChart3,
   Lock,
 } from "@/components/icons";
 import { getEffectiveFeatures, getEffectiveLimits, type TierLevel, type FeatureKey, type LimitKey } from "@/lib/tier-config";
@@ -31,12 +28,9 @@ const TAB_DEFS: TabDef[] = [
   { label: "Content Calendar", path: "", icon: CalendarDays, exact: true, requiredFeature: "contentCalendar" },
   { label: "Campaigns", path: "/campaigns", icon: Send },
   { label: "Social", path: "/social", icon: Share2, requiredFeature: "socialScheduling" },
-  { label: "Automations", path: "/automations", icon: Zap, requiredFeature: "automations" },
   { label: "Templates", path: "/templates", icon: LayoutTemplate },
   ...(RETAIL_ENABLED ? [{ label: "Discount Codes", path: "/discount-codes", icon: Ticket }] : []),
   { label: "Forms", path: "/forms", icon: FileText },
-  { label: "AI Studio", path: "/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" },
-  { label: "Analytics", path: "/analytics", icon: BarChart3 },
 ];
 
 interface MarketingNavProps {

@@ -209,24 +209,13 @@ export function IntegrationsPage() {
 
   // Ecommerce integration state
   const [shopifyStatus, setShopifyStatus] = useState<EcommerceStatus | null>(null);
-  const [wooStatus, setWooStatus] = useState<EcommerceStatus | null>(null);
   const [sqStatus, setSqStatus] = useState<EcommerceStatus | null>(null);
-  const [wixStatus, setWixStatus] = useState<EcommerceStatus | null>(null);
   const [ecomDisconnecting, setEcomDisconnecting] = useState<string | null>(null);
   const [ecomToggling, setEcomToggling] = useState<string | null>(null);
 
   // Shopify connect
   const [shopifyShopUrl, setShopifyShopUrl] = useState("");
   const [showShopifyInput, setShowShopifyInput] = useState(false);
-
-  // WooCommerce connect form
-  const [showWooForm, setShowWooForm] = useState(false);
-  const [wooStoreUrl, setWooStoreUrl] = useState("");
-  const [wooConsumerKey, setWooConsumerKey] = useState("");
-  const [wooConsumerSecret, setWooConsumerSecret] = useState("");
-  const [wooShowSecret, setWooShowSecret] = useState(false);
-  const [wooConnecting, setWooConnecting] = useState(false);
-  const [wooError, setWooError] = useState<string | null>(null);
 
   // Squarespace connect form
   const [showSqForm, setShowSqForm] = useState(false);
@@ -241,7 +230,7 @@ export function IntegrationsPage() {
   const [sqSavingStorePage, setSqSavingStorePage] = useState(false);
 
   // Import modal state
-  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
+  const [importModalProvider, setImportModalProvider] = useState<"shopify" | "squarespace" | null>(null);
   const [importConnectionId, setImportConnectionId] = useState<string | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importProducts, setImportProducts] = useState<PreviewProduct[]>([]);
@@ -254,7 +243,7 @@ export function IntegrationsPage() {
   const [importWeightAttribute, setImportWeightAttribute] = useState<string | null>(null);
 
   // Export modal state
-  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "woocommerce" | "squarespace" | "wix" | null>(null);
+  const [exportModalProvider, setExportModalProvider] = useState<"shopify" | "squarespace" | null>(null);
   const [exportConnectionId, setExportConnectionId] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportProducts, setExportProducts] = useState<ExportableProduct[]>([]);
@@ -275,38 +264,32 @@ export function IntegrationsPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const [xeroRes, sageRes, qbRes, shopifyRes, wooRes, sqRes, wixRes, stripeRes] = await Promise.all([
+      const [xeroRes, sageRes, qbRes, shopifyRes, sqRes, stripeRes] = await Promise.all([
         fetch("/api/integrations/xero/status"),
         fetch("/api/integrations/sage/status"),
         fetch("/api/integrations/quickbooks/status"),
         fetch("/api/integrations/shopify/status"),
-        fetch("/api/integrations/woocommerce/status"),
         fetch("/api/integrations/squarespace/status"),
-        fetch("/api/integrations/wix/status"),
         fetch("/api/wholesale-portal/stripe/status"),
       ]);
-      const [xeroData, sageData, qbData, shopifyData, wooData, sqData, wixData, stripeData] = await Promise.all([
+      const [xeroData, sageData, qbData, shopifyData, sqData, stripeData] = await Promise.all([
         xeroRes.json(),
         sageRes.json(),
         qbRes.json(),
         shopifyRes.json(),
-        wooRes.json(),
         sqRes.json(),
-        wixRes.json(),
         stripeRes.json(),
       ]);
       setXeroStatus(xeroData);
       setSageStatus(sageData);
       setQuickbooksStatus(qbData);
       setShopifyStatus(shopifyData);
-      setWooStatus(wooData);
       setSqStatus(sqData);
-      setWixStatus(wixData);
       setStripeStatus(stripeData);
       setStripeLoading(false);
 
       // Fetch unmapped count if any ecommerce connection exists
-      if (shopifyData.connected || wooData.connected || sqData.connected || wixData.connected) {
+      if (shopifyData.connected || sqData.connected) {
         try {
           const mappingsRes = await fetch(
             "/api/integrations/ecommerce/product-mappings"
@@ -353,10 +336,6 @@ export function IntegrationsPage() {
       setTimeout(() => setSuccessMessage(null), 5000);
     } else if (successParam === "shopify") {
       setSuccessMessage("Shopify connected successfully!");
-      window.history.replaceState({}, "", window.location.pathname);
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } else if (successParam === "wix") {
-      setSuccessMessage("Wix connected successfully!");
       window.history.replaceState({}, "", window.location.pathname);
       setTimeout(() => setSuccessMessage(null), 5000);
     }
@@ -678,14 +657,14 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleEcomDisconnect(provider: "shopify" | "woocommerce" | "squarespace" | "wix") {
-    const label = provider === "shopify" ? "Shopify" : provider === "woocommerce" ? "WooCommerce" : provider === "squarespace" ? "Squarespace" : "Wix";
+  async function handleEcomDisconnect(provider: "shopify" | "squarespace") {
+    const label = provider === "shopify" ? "Shopify" : "Squarespace";
     if (!confirm(`Disconnect ${label}? This will stop all ecommerce syncing and remove webhooks.`))
       return;
     setEcomDisconnecting(provider);
     try {
       await fetch(`/api/integrations/${provider}/disconnect`, { method: "POST" });
-      const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : provider === "squarespace" ? setSqStatus : setWixStatus;
+      const setter = provider === "shopify" ? setShopifyStatus : setSqStatus;
       setter({ connected: false });
     } finally {
       setEcomDisconnecting(null);
@@ -693,10 +672,10 @@ export function IntegrationsPage() {
   }
 
   async function handleEcomToggleSync(
-    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
+    provider: "shopify" | "squarespace",
     key: "sync_products" | "sync_orders" | "sync_stock"
   ) {
-    const status = provider === "shopify" ? shopifyStatus : provider === "woocommerce" ? wooStatus : provider === "squarespace" ? sqStatus : wixStatus;
+    const status = provider === "shopify" ? shopifyStatus : sqStatus;
     if (!status?.connected) return;
     setEcomToggling(`${provider}-${key}`);
     try {
@@ -707,50 +686,11 @@ export function IntegrationsPage() {
         body: JSON.stringify({ [key]: newValue }),
       });
       if (res.ok) {
-        const setter = provider === "shopify" ? setShopifyStatus : provider === "woocommerce" ? setWooStatus : provider === "squarespace" ? setSqStatus : setWixStatus;
+        const setter = provider === "shopify" ? setShopifyStatus : setSqStatus;
         setter((prev) => (prev ? { ...prev, [key]: newValue } : prev));
       }
     } finally {
       setEcomToggling(null);
-    }
-  }
-
-  async function handleWooConnect() {
-    if (!wooStoreUrl || !wooConsumerKey || !wooConsumerSecret) {
-      setWooError("All fields are required.");
-      return;
-    }
-    setWooConnecting(true);
-    setWooError(null);
-    try {
-      const res = await fetch("/api/integrations/woocommerce/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          store_url: wooStoreUrl,
-          consumer_key: wooConsumerKey,
-          consumer_secret: wooConsumerSecret,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setWooError(data.error || "Connection failed.");
-        return;
-      }
-      setSuccessMessage("WooCommerce connected successfully!");
-      setTimeout(() => setSuccessMessage(null), 5000);
-      setShowWooForm(false);
-      setWooStoreUrl("");
-      setWooConsumerKey("");
-      setWooConsumerSecret("");
-      // Reload ecommerce status
-      const wooRes = await fetch("/api/integrations/woocommerce/status");
-      const wooData = await wooRes.json();
-      setWooStatus(wooData);
-    } catch {
-      setWooError("Could not connect. Please check your details and try again.");
-    } finally {
-      setWooConnecting(false);
     }
   }
 
@@ -829,7 +769,7 @@ export function IntegrationsPage() {
   }
 
   async function handleOpenImportModal(
-    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
+    provider: "shopify" | "squarespace",
     connectionId: string
   ) {
     setImportModalProvider(provider);
@@ -937,7 +877,7 @@ export function IntegrationsPage() {
   }
 
   async function handleOpenExportModal(
-    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
+    provider: "shopify" | "squarespace",
     connectionId: string
   ) {
     setExportModalProvider(provider);
@@ -991,7 +931,7 @@ export function IntegrationsPage() {
     }
   }
 
-  async function handleRegisterWebhooks(provider: "shopify" | "woocommerce" | "squarespace" | "wix") {
+  async function handleRegisterWebhooks(provider: "shopify" | "squarespace") {
     setRegisteringWebhooks(provider);
     try {
       const res = await fetch(`/api/integrations/${provider}/register-webhooks`, {
@@ -1399,7 +1339,7 @@ export function IntegrationsPage() {
   }
 
   function renderEcommerceCard(
-    provider: "shopify" | "woocommerce" | "squarespace" | "wix",
+    provider: "shopify" | "squarespace",
     status: EcommerceStatus | null,
     config: {
       label: string;
@@ -1736,106 +1676,6 @@ export function IntegrationsPage() {
               </div>
             )}
 
-            {provider === "woocommerce" && !showWooForm && (
-              <>
-                <button
-                  onClick={() => setShowWooForm(true)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Connect {config.label}
-                </button>
-                <p className="text-xs text-slate-400 mt-2">
-                  Enter your WooCommerce REST API credentials to connect.
-                </p>
-              </>
-            )}
-
-            {provider === "woocommerce" && showWooForm && (
-              <div className="space-y-3">
-                {wooError && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{wooError}</span>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Store URL
-                  </label>
-                  <input
-                    type="text"
-                    value={wooStoreUrl}
-                    onChange={(e) => setWooStoreUrl(e.target.value)}
-                    placeholder="mystore.com"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Consumer Key
-                  </label>
-                  <input
-                    type="text"
-                    value={wooConsumerKey}
-                    onChange={(e) => setWooConsumerKey(e.target.value)}
-                    placeholder="ck_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Consumer Secret
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={wooShowSecret ? "text" : "password"}
-                      value={wooConsumerSecret}
-                      onChange={(e) => setWooConsumerSecret(e.target.value)}
-                      placeholder="cs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                      className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setWooShowSecret(!wooShowSecret)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {wooShowSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    onClick={handleWooConnect}
-                    disabled={wooConnecting}
-                    className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors disabled:opacity-50`}
-                  >
-                    {wooConnecting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4" />
-                    )}
-                    {wooConnecting ? "Connecting..." : "Test & Connect"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowWooForm(false);
-                      setWooStoreUrl("");
-                      setWooConsumerKey("");
-                      setWooConsumerSecret("");
-                      setWooError(null);
-                    }}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                <p className="text-xs text-slate-400">
-                  Generate API keys in WooCommerce &rarr; Settings &rarr; Advanced &rarr; REST API. Use &ldquo;Read/Write&rdquo; permissions.
-                </p>
-              </div>
-            )}
-
             {provider === "squarespace" && !showSqForm && (
               <>
                 <button
@@ -1910,20 +1750,6 @@ export function IntegrationsPage() {
               </div>
             )}
 
-            {provider === "wix" && (
-              <>
-                <a
-                  href="/api/integrations/wix/connect"
-                  className={`inline-flex items-center gap-2 px-4 py-2 ${config.bgColor} text-white rounded-lg text-sm font-semibold ${config.hoverColor} transition-colors`}
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Connect {config.label}
-                </a>
-                <p className="text-xs text-slate-400 mt-2">
-                  You&apos;ll be redirected to Wix to authorise access.
-                </p>
-              </>
-            )}
           </div>
         )}
       </div>
@@ -2287,15 +2113,6 @@ export function IntegrationsPage() {
               icon: <ShoppingCart className="w-6 h-6 text-white" />,
             })}
 
-            {renderEcommerceCard("woocommerce", wooStatus, {
-              label: "WooCommerce",
-              description:
-                "Sync products, orders, and stock levels with your WooCommerce store.",
-              bgColor: "bg-[#7F54B3]",
-              hoverColor: "hover:bg-[#6b479a]",
-              icon: <Store className="w-6 h-6 text-white" />,
-            })}
-
             {renderEcommerceCard("squarespace", sqStatus, {
               label: "Squarespace",
               description:
@@ -2304,19 +2121,10 @@ export function IntegrationsPage() {
               hoverColor: "hover:bg-[#111111]",
               icon: <Store className="w-6 h-6 text-white" />,
             })}
-
-            {renderEcommerceCard("wix", wixStatus, {
-              label: "Wix",
-              description:
-                "Sync products, orders, and stock levels with your Wix store.",
-              bgColor: "bg-[#0C6EFC]",
-              hoverColor: "hover:bg-[#0a5dd4]",
-              icon: <Store className="w-6 h-6 text-white" />,
-            })}
           </div>
 
           {/* Product Mapping link — shown when any ecommerce connection exists */}
-          {(shopifyStatus?.connected || wooStatus?.connected || sqStatus?.connected || wixStatus?.connected) && (
+          {(shopifyStatus?.connected || sqStatus?.connected) && (
             <div className="mt-4">
               <Link
                 href="/settings/integrations/product-mapping"
@@ -2625,7 +2433,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Import Products from{" "}
-                  {importModalProvider === "shopify" ? "Shopify" : importModalProvider === "woocommerce" ? "WooCommerce" : importModalProvider === "squarespace" ? "Squarespace" : "Wix"}
+                  {importModalProvider === "shopify" ? "Shopify" : "Squarespace"}
                 </h2>
                 {!importResult && !importLoading && importProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -2990,7 +2798,7 @@ export function IntegrationsPage() {
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
                   Export Products to{" "}
-                  {exportModalProvider === "shopify" ? "Shopify" : exportModalProvider === "woocommerce" ? "WooCommerce" : exportModalProvider === "squarespace" ? "Squarespace" : "Wix"}
+                  {exportModalProvider === "shopify" ? "Shopify" : "Squarespace"}
                 </h2>
                 {!exportResult && !exportLoading && exportProducts.length > 0 && (
                   <p className="text-xs text-slate-500 mt-0.5">

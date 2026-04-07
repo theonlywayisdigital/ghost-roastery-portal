@@ -1,5 +1,5 @@
-import { NewAutomationPage } from "../../../../marketing/automations/new/NewAutomationPage";
+import { redirect } from "next/navigation";
 
 export default function AdminNewAutomationPage() {
-  return <NewAutomationPage />;
+  redirect("/admin/marketing");
 }

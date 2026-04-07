@@ -1,5 +1,5 @@
-import { AIStudioClient } from "../../../marketing/ai/AIStudioClient";
+import { redirect } from "next/navigation";
 
 export default function AdminAIStudioPage() {
-  return <AIStudioClient />;
+  redirect("/admin/marketing");
 }

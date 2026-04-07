@@ -19,12 +19,10 @@ import {
   Megaphone,
   BarChart3,
   Contact,
-  Bell,
   Building2,
   LifeBuoy,
   BookOpen,
   Wallet,
-  ScrollText,
   Sliders,
   Users,
   PoundSterling,
@@ -37,7 +35,6 @@ import {
   CalendarDays,
   Send,
   Share2,
-  Zap,
   Ticket,
   FileText,
   Globe,
@@ -46,7 +43,6 @@ import {
   Flame,
   TestTube,
   ShieldCheck,
-  Funnel,
   Handshake,
   Archive,
   Mail,
@@ -173,7 +169,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/wholesale-portal", icon: Store },
       { label: "Contacts", href: "/contacts", icon: Contact },
-      { label: "Pipeline", href: "/contacts/pipeline", icon: Funnel, requiredFeature: "pipeline" },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
     activePrefixes: ["/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
@@ -187,11 +182,9 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Campaigns", href: "/marketing/campaigns", icon: Send },
       { label: "Content Calendar", href: "/marketing", icon: CalendarDays, requiredFeature: "contentCalendar", exact: true },
       { label: "Social", href: "/marketing/social", icon: Share2, requiredFeature: "socialScheduling" },
-      { label: "Automations", href: "/marketing/automations", icon: Zap, requiredFeature: "automations" },
       ...(RETAIL_ENABLED ? [{ label: "Discount Codes", href: "/marketing/discount-codes", icon: Ticket }] : []),
       { label: "Forms", href: "/marketing/forms", icon: FileText },
       ...(RETAIL_ENABLED ? [{ label: "Blog", href: "/marketing/blog", icon: BookOpen }] : []),
-      { label: "AI Studio", href: "/marketing/ai", icon: Sparkles, requiredMinLimit: "aiCreditsPerMonth" as LimitKey },
     ],
     activePrefixes: ["/marketing"],
   };
@@ -206,7 +199,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       { label: "Design", href: "/website/design", icon: Palette },
       { label: "Preview", href: "/website/preview", icon: Eye },
       { label: "Domain", href: "/website/domain", icon: Link2 },
-      { label: "Settings", href: "/website/settings", icon: Settings },
     ],
     activePrefixes: ["/website"],
   };
@@ -266,7 +258,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         { label: "All Orders", href: "/admin/orders", icon: ShoppingCart },
         { label: "All Contacts", href: "/admin/contacts", icon: Contact },
         { label: "All Businesses", href: "/admin/businesses", icon: Store },
-        { label: "Pipeline", href: "/admin/contacts/pipeline", icon: Funnel },
         { label: "All Users", href: "/admin/users", icon: Users },
         { label: "All Roasters", href: "/admin/roasters", icon: Building2 },
         { label: "Products", href: "/admin/products", icon: Package },
@@ -279,14 +270,12 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       items: [
         { label: "Support & Disputes", href: "/admin/support", icon: LifeBuoy },
         { label: "Finance & Payouts", href: "/admin/finance", icon: Wallet },
-        { label: "Notification Centre", href: "/admin/notifications", icon: Bell },
       ],
     });
     sections.push({
       title: "Growth",
       items: [
         { label: "Marketing Suite", href: "/admin/marketing", icon: Megaphone },
-        { label: "Revenue & Analytics", href: "/admin/analytics", icon: BarChart3 },
       ],
     });
     sections.push({
@@ -296,7 +285,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         { label: "Builder Config", href: "/admin/builder-config", icon: Package },
         { label: "Branding", href: "/admin/settings/branding", icon: Palette },
         { label: "Platform Settings", href: "/admin/settings", icon: Sliders },
-        { label: "Audit Logs", href: "/admin/audit-logs", icon: ScrollText },
       ],
     });
   }

@@ -163,7 +163,7 @@ export function PipelineStagesPage() {
       />
 
       <div className="space-y-6">
-        {/* Upgrade banner for free plan */}
+        {/* Upgrade banner for Growth plan */}
         {!canCustomise && (
           <div className="bg-brand-50 border border-brand-200 rounded-xl p-5 flex items-start gap-4">
             <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center flex-shrink-0">

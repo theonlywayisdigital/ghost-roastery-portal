@@ -551,7 +551,7 @@ export async function sendStorefrontOrderConfirmation(params: {
     </p>
 
     ${params.slug ? `<p style="color:#64748b;font-size:13px;margin-top:24px;text-align:center;">
-      Want to track your orders and reorder easily? <a href="${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${params.slug}/register" style="color:#0083dc;text-decoration:underline;">Create a free account</a>
+      Want to track your orders and reorder easily? <a href="${process.env.NEXT_PUBLIC_PORTAL_URL}/s/${params.slug}/register" style="color:#0083dc;text-decoration:underline;">Create an account</a>
     </p>` : ""}`;
 
   await resend.emails.send({

@@ -817,7 +817,7 @@ function BrandingPanel({
       <div className="flex items-center justify-between">
         <div>
           <span className="text-sm text-slate-700">Powered by badge</span>
-          <p className="text-xs text-slate-500">Cannot be removed on free tier</p>
+          <p className="text-xs text-slate-500">Cannot be removed on Growth tier</p>
         </div>
         <div className="w-10 h-6 rounded-full bg-brand-600 opacity-50 cursor-not-allowed">
           <div className="w-5 h-5 bg-white rounded-full shadow-sm translate-x-[18px]" />

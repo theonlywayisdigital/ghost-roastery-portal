@@ -132,7 +132,6 @@ const colorMap: Record<string, Record<string, string>> = {
     store_credit: "bg-purple-50 text-purple-700",
   },
   subscriptionTier: {
-    free: "bg-slate-100 text-slate-600",
     growth: "bg-purple-50 text-purple-700",
     pro: "bg-amber-50 text-amber-700",
     scale: "bg-green-50 text-green-700",
@@ -270,7 +269,6 @@ const labelMap: Record<string, Record<string, string>> = {
     store_credit: "Store Credit",
   },
   subscriptionTier: {
-    free: "Free",
     growth: "Growth",
     pro: "Pro",
     scale: "Scale",

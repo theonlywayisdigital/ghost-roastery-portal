@@ -260,7 +260,7 @@ function SuccessContent() {
               href={`/s/${slug}/register?email=${encodeURIComponent(customerEmail)}${customerName ? `&name=${encodeURIComponent(customerName)}` : ""}`}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-200 transition-colors"
             >
-              Create a Free Account
+              Create an Account
             </Link>
           </div>
         )}

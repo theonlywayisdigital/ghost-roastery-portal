@@ -69,10 +69,10 @@ export function WelcomeModal({ onGetStarted }: WelcomeModalProps) {
           className="h-10 mx-auto mb-6"
         />
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-3">
-          Welcome to The Roastery Platform
+          Welcome to Roastery Platform
         </h1>
         <p className="text-slate-600 text-base sm:text-lg mb-8">
-          Use our Setup Guide to help get you familiarised and set up with The
+          Use our Setup Guide to help get you familiarised and set up with
           Roastery Platform.
         </p>
         <button

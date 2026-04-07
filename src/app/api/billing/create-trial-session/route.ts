@@ -23,6 +23,14 @@ export async function POST() {
     );
   }
 
+  // If already has an active sales subscription, skip trial
+  if (roaster.stripe_sales_subscription_id) {
+    return NextResponse.json(
+      { error: "You already have an active subscription", redirect: "/settings/billing?tab=subscription" },
+      { status: 409 }
+    );
+  }
+
   const supabase = createServerClient();
   const priceId = getStripePriceId("sales", "growth", "monthly");
   if (!priceId) {
@@ -32,6 +40,19 @@ export async function POST() {
   try {
     // Ensure Stripe Customer exists
     let stripeCustomerId = roaster.stripe_customer_id as string | null;
+    if (stripeCustomerId) {
+      // Verify the customer still exists in Stripe
+      try {
+        const existingCustomer = await stripe.customers.retrieve(stripeCustomerId);
+        if (existingCustomer.deleted) {
+          stripeCustomerId = null;
+        }
+      } catch {
+        // Customer doesn't exist in Stripe anymore
+        stripeCustomerId = null;
+      }
+    }
+
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: (roaster.billing_email as string) || (roaster.email as string),
@@ -76,10 +97,16 @@ export async function POST() {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error) {
-    console.error("Trial checkout session error:", error);
+  } catch (error: unknown) {
+    const stripeError = error as { type?: string; message?: string; code?: string };
+    console.error("Trial checkout session error:", {
+      type: stripeError.type,
+      message: stripeError.message,
+      code: stripeError.code,
+      full: error,
+    });
     return NextResponse.json(
-      { error: "Failed to create trial checkout session" },
+      { error: stripeError.message || "Failed to create trial checkout session" },
       { status: 500 }
     );
   }

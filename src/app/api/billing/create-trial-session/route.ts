@@ -4,6 +4,8 @@ import { createServerClient } from "@/lib/supabase";
 import { stripe } from "@/lib/stripe";
 import { getStripePriceId } from "@/lib/tier-config";
 
+export const maxDuration = 30;
+
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) {
@@ -40,19 +42,6 @@ export async function POST() {
   try {
     // Ensure Stripe Customer exists
     let stripeCustomerId = roaster.stripe_customer_id as string | null;
-    if (stripeCustomerId) {
-      // Verify the customer still exists in Stripe
-      try {
-        const existingCustomer = await stripe.customers.retrieve(stripeCustomerId);
-        if (existingCustomer.deleted) {
-          stripeCustomerId = null;
-        }
-      } catch {
-        // Customer doesn't exist in Stripe anymore
-        stripeCustomerId = null;
-      }
-    }
-
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: (roaster.billing_email as string) || (roaster.email as string),
@@ -98,13 +87,13 @@ export async function POST() {
 
     return NextResponse.json({ url: session.url });
   } catch (error: unknown) {
-    const stripeError = error as { type?: string; message?: string; code?: string };
-    console.error("Trial checkout session error:", {
+    const stripeError = error as { type?: string; message?: string; code?: string; statusCode?: number };
+    console.error("Trial checkout session error:", JSON.stringify({
       type: stripeError.type,
       message: stripeError.message,
       code: stripeError.code,
-      full: error,
-    });
+      statusCode: stripeError.statusCode,
+    }));
     return NextResponse.json(
       { error: stripeError.message || "Failed to create trial checkout session" },
       { status: 500 }

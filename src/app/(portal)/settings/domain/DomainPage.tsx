@@ -21,7 +21,6 @@ import {
   Crown,
   ArrowRight,
   ExternalLink,
-  Sparkles,
 } from "lucide-react";
 
 interface EmailDomain {
@@ -732,35 +731,6 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
           </div>
         </section>
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* Section 4: Custom Domain (Coming Soon)         */}
-        {/* ═══════════════════════════════════════════════ */}
-        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden opacity-75">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Custom Domain</h2>
-              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                <Sparkles className="w-3 h-3" />
-                Coming soon
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              Use your own domain (e.g. wholesale.yourbrand.com) for your wholesale portal and storefront.
-            </p>
-          </div>
-
-          <div className="p-6">
-            <div className="text-center py-4">
-              <p className="text-sm text-slate-500">
-                Custom domain support for your wholesale portal and storefront is coming soon.
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                You&apos;ll be able to point your own domain to your Roastery Platform portal.
-              </p>
-            </div>
-          </div>
-        </section>
       </div>
     </>
   );

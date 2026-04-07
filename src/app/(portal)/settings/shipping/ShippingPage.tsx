@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  MapPin,
   Package,
 } from "@/components/icons";
 import { SettingsHeader } from "@/components/SettingsHeader";
@@ -536,27 +535,6 @@ export function ShippingPage() {
           </div>
         </section>
 
-        {/* ─── Section 3: Shipping Zones (Placeholder) ─── */}
-        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Shipping Zones</h2>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="text-center py-6">
-              <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <MapPin className="w-6 h-6 text-slate-400" />
-              </div>
-              <h3 className="text-base font-medium text-slate-900 mb-1">Coming Soon</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                Shipping zones will let you set different rates for UK mainland, Highlands &
-                Islands, Northern Ireland, Channel Islands, and international destinations.
-              </p>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

@@ -43,7 +43,6 @@ export type SalesFeatureKey =
 export type MarketingFeatureKey =
   | "contentCalendar"
   | "socialScheduling"
-  | "automations"
   | "integrationsSocial";
 
 export type ToolsFeatureKey =
@@ -67,11 +66,11 @@ export function isHigherTier(a: TierLevel, b: TierLevel): boolean {
 // ─── Sales Suite Limits ───
 
 const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
-  products:                { growth: 20,   pro: 50,    scale: Infinity },
-  wholesaleOrdersPerMonth: { growth: 400,  pro: 800,   scale: Infinity },
-  wholesaleAccounts:       { growth: 50,   pro: 200,   scale: Infinity },
+  products:                { growth: 5,    pro: 25,    scale: Infinity },
+  wholesaleOrdersPerMonth: { growth: 100,  pro: 250,   scale: Infinity },
+  wholesaleAccounts:       { growth: 30,   pro: 100,   scale: Infinity },
   crmContacts:             { growth: 1500, pro: 5000,  scale: Infinity },
-  teamMembers:             { growth: 3,    pro: 5,     scale: 10 },
+  teamMembers:             { growth: 1,    pro: 3,     scale: 10 },
 };
 
 // ─── Sales Suite Features ───
@@ -82,7 +81,7 @@ const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
   customPipelineStages:    { growth: true,  pro: true,  scale: true },
   customEmailDomain:       { growth: true,  pro: true,  scale: true },
   integrationsAccounting:  { growth: false, pro: true,  scale: true },
-  integrationsEcommerce:   { growth: true,  pro: true,  scale: true },
+  integrationsEcommerce:   { growth: false, pro: true,  scale: true },
   orderExtraction:         { growth: true,  pro: true,  scale: true },
 };
 
@@ -90,15 +89,15 @@ const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
 
 const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
   emailSendsPerMonth: { growth: 5000,  pro: 15000, scale: Infinity },
-  embeddedForms:      { growth: 10,    pro: Infinity, scale: Infinity },
+  embeddedForms:      { growth: 3,     pro: Infinity, scale: Infinity },
   aiCreditsPerMonth:  { growth: 150,   pro: 500,   scale: 1500 },
 };
 
 // ─── Tools Suite Limits (gated via Sales Suite tier) ───
 
 const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
-  greenBeans:              { growth: 50,       pro: Infinity, scale: Infinity },
-  roastedStock:            { growth: 50,       pro: Infinity, scale: Infinity },
+  greenBeans:              { growth: Infinity, pro: Infinity, scale: Infinity },
+  roastedStock:            { growth: Infinity, pro: Infinity, scale: Infinity },
   roastLogsPerMonth:       { growth: Infinity, pro: Infinity, scale: Infinity },
   cuppingSessionsPerMonth: { growth: Infinity, pro: Infinity, scale: Infinity },
   certifications:          { growth: Infinity, pro: Infinity, scale: Infinity },
@@ -116,7 +115,6 @@ const TOOLS_FEATURES: Record<ToolsFeatureKey, Record<TierLevel, boolean>> = {
 const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>> = {
   contentCalendar:         { growth: true,  pro: true,  scale: true },
   socialScheduling:        { growth: true,  pro: true,  scale: true },
-  automations:             { growth: true,  pro: true,  scale: true },
   integrationsSocial:      { growth: true,  pro: true,  scale: true },
 };
 
@@ -141,9 +139,9 @@ const SALES_PRICING: Record<TierLevel, TierPricing> = {
 };
 
 const MARKETING_PRICING: Record<TierLevel, TierPricing> = {
-  growth: { monthly: 2900, annual: 2400 },
-  pro:    { monthly: 5900, annual: 4900 },
-  scale:  { monthly: 9900, annual: 8300 },
+  growth: { monthly: 1900, annual: 1600 },
+  pro:    { monthly: 3900, annual: 3300 },
+  scale:  { monthly: 6900, annual: 5800 },
 };
 
 // ─── Website Pricing (single product, no tiers) ───
@@ -203,7 +201,6 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     // Marketing features
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
-    automations: MARKETING_FEATURES.automations[marketingTier],
     integrationsSocial: MARKETING_FEATURES.integrationsSocial[marketingTier],
     // Tools features (gated via sales tier)
     toolsProductionPlanner: TOOLS_FEATURES.toolsProductionPlanner[salesTier],
@@ -343,7 +340,6 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   orderExtraction: "AI Order Extraction",
   contentCalendar: "Content Calendar",
   socialScheduling: "Social Scheduling",
-  automations: "Automations",
   integrationsSocial: "Social Integrations",
   toolsProductionPlanner: "Production Planner",
   toolsBreakeven: "Break-even Calculator",
@@ -417,9 +413,9 @@ export const STRIPE_PRICE_IDS: Record<TieredProductType, Record<PaidTierLevel, R
     scale:  { monthly: "price_1TGlrfQuDE0YnEyUnPARPTe8", annual: "price_1TGlrfQuDE0YnEyUMqoYkhFc" },
   },
   marketing: {
-    growth: { monthly: "price_1TGlrdQuDE0YnEyUlRz4FKYq", annual: "price_1TGlreQuDE0YnEyUVg1DtHWs" },
-    pro:    { monthly: "price_1TGlrfQuDE0YnEyUlaoBndf6", annual: "price_1TGlrfQuDE0YnEyUqNS4J2QL" },
-    scale:  { monthly: "price_1TGlrgQuDE0YnEyUZL7axIWe", annual: "price_1TGlrgQuDE0YnEyU8gRQjZAA" },
+    growth: { monthly: "price_1TJfD3QuDE0YnEyUDjKKZOx5", annual: "price_1TJfD3QuDE0YnEyUv8F4CA6e" },
+    pro:    { monthly: "price_1TJfD4QuDE0YnEyUrko1WOSz", annual: "price_1TJfD4QuDE0YnEyUPuFjpqbL" },
+    scale:  { monthly: "price_1TJfD4QuDE0YnEyUAc1PwFJf", annual: "price_1TJfD4QuDE0YnEyU5MBnac0A" },
   },
 };
 
@@ -462,6 +458,13 @@ const LEGACY_PRICE_MAP: Record<string, { product: ProductType; tier: PaidTierLev
   "price_1T7yoyQuDE0YnEyUiZj6XoKK": { product: "sales", tier: "scale", billingCycle: "annual" },
   "price_1T7yozQuDE0YnEyU3HN7dSjY": { product: "marketing", tier: "scale", billingCycle: "monthly" },
   "price_1T7yozQuDE0YnEyUUEVm2pLW": { product: "marketing", tier: "scale", billingCycle: "annual" },
+  // Old Marketing prices (amounts reduced ~30%, April 2026)
+  "price_1TGlrdQuDE0YnEyUlRz4FKYq": { product: "marketing", tier: "growth", billingCycle: "monthly" },
+  "price_1TGlreQuDE0YnEyUVg1DtHWs": { product: "marketing", tier: "growth", billingCycle: "annual" },
+  "price_1TGlrfQuDE0YnEyUlaoBndf6": { product: "marketing", tier: "pro", billingCycle: "monthly" },
+  "price_1TGlrfQuDE0YnEyUqNS4J2QL": { product: "marketing", tier: "pro", billingCycle: "annual" },
+  "price_1TGlrgQuDE0YnEyUZL7axIWe": { product: "marketing", tier: "scale", billingCycle: "monthly" },
+  "price_1TGlrgQuDE0YnEyU8gRQjZAA": { product: "marketing", tier: "scale", billingCycle: "annual" },
 };
 
 export function getTierFromPriceId(priceId: string): { product: ProductType; tier: PaidTierLevel; billingCycle: BillingCycle } | null {

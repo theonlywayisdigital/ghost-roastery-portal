@@ -88,9 +88,9 @@ const SALES_FEATURES: Record<SalesFeatureKey, Record<TierLevel, boolean>> = {
 // ─── Marketing Suite Limits ───
 
 const MARKETING_LIMITS: Record<MarketingLimitKey, Record<TierLevel, number>> = {
-  emailSendsPerMonth: { growth: 5000,  pro: 15000, scale: Infinity },
-  embeddedForms:      { growth: 3,     pro: Infinity, scale: Infinity },
-  aiCreditsPerMonth:  { growth: 150,   pro: 500,   scale: 1500 },
+  emailSendsPerMonth: { growth: 5000,  pro: 25000, scale: 50000 },
+  embeddedForms:      { growth: 3,     pro: 10,    scale: 25 },
+  aiCreditsPerMonth:  { growth: 150,   pro: 500,   scale: 2000 },
 };
 
 // ─── Tools Suite Limits (gated via Sales Suite tier) ───
@@ -139,9 +139,9 @@ const SALES_PRICING: Record<TierLevel, TierPricing> = {
 };
 
 const MARKETING_PRICING: Record<TierLevel, TierPricing> = {
-  growth: { monthly: 1900, annual: 1600 },
-  pro:    { monthly: 3900, annual: 3300 },
-  scale:  { monthly: 6900, annual: 5800 },
+  growth: { monthly: 900,  annual: 800 },
+  pro:    { monthly: 2400, annual: 2000 },
+  scale:  { monthly: 4900, annual: 4200 },
 };
 
 // ─── Website Pricing (single product, no tiers) ───
@@ -413,9 +413,9 @@ export const STRIPE_PRICE_IDS: Record<TieredProductType, Record<PaidTierLevel, R
     scale:  { monthly: "price_1TGlrfQuDE0YnEyUnPARPTe8", annual: "price_1TGlrfQuDE0YnEyUMqoYkhFc" },
   },
   marketing: {
-    growth: { monthly: "price_1TJfD3QuDE0YnEyUDjKKZOx5", annual: "price_1TJfD3QuDE0YnEyUv8F4CA6e" },
-    pro:    { monthly: "price_1TJfD4QuDE0YnEyUrko1WOSz", annual: "price_1TJfD4QuDE0YnEyUPuFjpqbL" },
-    scale:  { monthly: "price_1TJfD4QuDE0YnEyUAc1PwFJf", annual: "price_1TJfD4QuDE0YnEyU5MBnac0A" },
+    growth: { monthly: "price_1TJxwfQuDE0YnEyUiMroAVRS", annual: "price_1TJxwgQuDE0YnEyUNoxRBUmi" },
+    pro:    { monthly: "price_1TJxwgQuDE0YnEyUBvEgAyhG", annual: "price_1TJxwgQuDE0YnEyUNJFWIc8b" },
+    scale:  { monthly: "price_1TJxwhQuDE0YnEyUnez7qPi7", annual: "price_1TJxwhQuDE0YnEyUcgCEnpM6" },
   },
 };
 
@@ -465,6 +465,13 @@ const LEGACY_PRICE_MAP: Record<string, { product: ProductType; tier: PaidTierLev
   "price_1TGlrfQuDE0YnEyUqNS4J2QL": { product: "marketing", tier: "pro", billingCycle: "annual" },
   "price_1TGlrgQuDE0YnEyUZL7axIWe": { product: "marketing", tier: "scale", billingCycle: "monthly" },
   "price_1TGlrgQuDE0YnEyU8gRQjZAA": { product: "marketing", tier: "scale", billingCycle: "annual" },
+  // Old Marketing prices (£19/£39/£69 → £9/£24/£49, April 2026)
+  "price_1TJfD3QuDE0YnEyUDjKKZOx5": { product: "marketing", tier: "growth", billingCycle: "monthly" },
+  "price_1TJfD3QuDE0YnEyUv8F4CA6e": { product: "marketing", tier: "growth", billingCycle: "annual" },
+  "price_1TJfD4QuDE0YnEyUrko1WOSz": { product: "marketing", tier: "pro", billingCycle: "monthly" },
+  "price_1TJfD4QuDE0YnEyUPuFjpqbL": { product: "marketing", tier: "pro", billingCycle: "annual" },
+  "price_1TJfD4QuDE0YnEyUAc1PwFJf": { product: "marketing", tier: "scale", billingCycle: "monthly" },
+  "price_1TJfD4QuDE0YnEyU5MBnac0A": { product: "marketing", tier: "scale", billingCycle: "annual" },
 };
 
 export function getTierFromPriceId(priceId: string): { product: ProductType; tier: PaidTierLevel; billingCycle: BillingCycle } | null {

@@ -26,9 +26,9 @@ const SALES_PRICING: Record<TierLevel, { monthly: number; annual: number }> = {
 };
 
 const MARKETING_PRICING: Record<TierLevel, { monthly: number; annual: number }> = {
-  growth: { monthly: 1900, annual: 1600 },
-  pro: { monthly: 3900, annual: 3300 },
-  scale: { monthly: 6900, annual: 5800 },
+  growth: { monthly: 900, annual: 800 },
+  pro: { monthly: 2400, annual: 2000 },
+  scale: { monthly: 4900, annual: 4200 },
 };
 
 async function main() {

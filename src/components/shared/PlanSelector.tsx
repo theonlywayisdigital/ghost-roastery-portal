@@ -50,6 +50,7 @@ export function PlanSelector({
   highlightLabel = "Recommended",
 }: PlanSelectorProps) {
   return (
+    <div>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {TIERS.map((tier) => {
         const isCurrent = tier === currentTier;
@@ -189,6 +190,13 @@ export function PlanSelector({
           </div>
         );
       })}
+    </div>
+    <p className="text-center text-sm text-slate-500 mt-4">
+      Need more?{" "}
+      <a href="mailto:hello@roasteryplatform.com" className="text-brand-600 font-medium hover:underline">
+        Contact us for custom Enterprise pricing
+      </a>
+    </p>
     </div>
   );
 }

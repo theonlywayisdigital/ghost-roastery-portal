@@ -30,6 +30,9 @@ interface PlanSelectorProps {
   billingCycle?: BillingCycle;
   loading?: boolean;
   pendingTier?: TierLevel | null;
+  ctaOverride?: (tier: TierLevel) => string;
+  highlightTier?: TierLevel;
+  highlightLabel?: string;
 }
 
 const TIERS: TierLevel[] = ["growth", "pro", "scale"];
@@ -42,12 +45,16 @@ export function PlanSelector({
   billingCycle = "monthly",
   loading,
   pendingTier,
+  ctaOverride,
+  highlightTier,
+  highlightLabel = "Recommended",
 }: PlanSelectorProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {TIERS.map((tier) => {
         const isCurrent = tier === currentTier;
         const isPending = tier === pendingTier;
+        const isHighlighted = tier === highlightTier;
         const pricing = productType === "sales"
           ? getSalesPricing(tier)
           : getMarketingPricing(tier);
@@ -76,7 +83,9 @@ export function PlanSelector({
         const isDowngrade = tierIndex(tier) < tierIndex(currentTier);
 
         let ctaText = "Select Plan";
-        if (isCurrent) {
+        if (ctaOverride) {
+          ctaText = ctaOverride(tier);
+        } else if (isCurrent) {
           ctaText = "Current Plan";
         } else if (isUpgrade) {
           ctaText = "Upgrade";
@@ -91,15 +100,15 @@ export function PlanSelector({
           <div
             key={tier}
             className={`relative bg-white rounded-xl border-2 p-5 transition-all ${
-              isCurrent
+              isCurrent || isHighlighted
                 ? "border-brand-600 shadow-sm"
                 : "border-slate-200 hover:border-slate-300"
             }`}
           >
-            {isCurrent && (
+            {(isCurrent || isHighlighted) && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-brand-600 text-white text-xs font-medium px-3 py-0.5 rounded-full">
-                  Current
+                <span className="bg-brand-600 text-white text-xs font-medium px-3 py-0.5 rounded-full whitespace-nowrap">
+                  {isHighlighted ? highlightLabel : "Current"}
                 </span>
               </div>
             )}
@@ -157,11 +166,11 @@ export function PlanSelector({
             {onSelect && !disabled ? (
               <button
                 onClick={() => onSelect(tier)}
-                disabled={isCurrent || (loading && isPending)}
+                disabled={(isCurrent && !ctaOverride) || (loading && isPending)}
                 className={`w-full mt-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isCurrent
+                  isCurrent && !ctaOverride
                     ? "bg-slate-100 text-slate-400 cursor-default"
-                    : isDowngrade
+                    : isDowngrade && !ctaOverride
                     ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     : "bg-brand-600 text-white hover:bg-brand-700"
                 } disabled:opacity-50`}

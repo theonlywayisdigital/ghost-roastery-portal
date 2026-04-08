@@ -6,7 +6,7 @@ import { getStripePriceId } from "@/lib/tier-config";
 
 export const maxDuration = 30;
 
-export async function POST() {
+export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,8 +33,16 @@ export async function POST() {
     );
   }
 
+  let billingCycle: "monthly" | "annual" = "monthly";
+  try {
+    const body = await request.json();
+    if (body.billingCycle === "annual") billingCycle = "annual";
+  } catch {
+    // No body or invalid JSON — default to monthly
+  }
+
   const supabase = createServerClient();
-  const priceId = getStripePriceId("sales", "growth", "monthly");
+  const priceId = getStripePriceId("sales", "growth", billingCycle);
   if (!priceId) {
     return NextResponse.json({ error: "Price configuration error" }, { status: 500 });
   }
@@ -70,7 +78,7 @@ export async function POST() {
           roaster_id: roaster.id as string,
           product_type: "sales",
           tier: "growth",
-          billing_cycle: "monthly",
+          billing_cycle: billingCycle,
           is_trial: "true",
         },
       },

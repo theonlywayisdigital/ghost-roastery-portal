@@ -3,8 +3,8 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createServerClient } from "@/lib/supabase";
-import { getTierFromPriceId, getEffectivePlatformFee } from "@/lib/tier-config";
-import type { TierLevel, ProductType } from "@/lib/tier-config";
+import { getTierFromPriceId, getEffectivePlatformFee, getStripePriceId } from "@/lib/tier-config";
+import type { TierLevel, ProductType, BillingCycle } from "@/lib/tier-config";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -189,6 +189,54 @@ async function handleCheckoutCompleted(
     new_tier: tier || null,
     metadata: { subscription_id: subscriptionId, billing_cycle: billingCycle, is_trial: isTrial },
   });
+
+  // Handle piggy-backed Marketing subscription from wizard flow
+  const marketingTier = session.metadata?.marketing_tier as TierLevel | undefined;
+  const marketingBillingCycle = (session.metadata?.marketing_billing_cycle || billingCycle) as BillingCycle;
+
+  if (marketingTier && productType === "sales") {
+    const marketingPriceId = getStripePriceId("marketing", marketingTier, marketingBillingCycle);
+    if (marketingPriceId) {
+      try {
+        const customerId = session.customer as string;
+        const marketingSub = await stripe.subscriptions.create({
+          customer: customerId,
+          items: [{ price: marketingPriceId }],
+          metadata: {
+            roaster_id: roasterId,
+            product_type: "marketing",
+            tier: marketingTier,
+            billing_cycle: marketingBillingCycle,
+          },
+        });
+
+        await supabase
+          .from("roasters")
+          .update({
+            marketing_tier: marketingTier,
+            stripe_marketing_subscription_id: marketingSub.id,
+            marketing_billing_cycle: marketingBillingCycle,
+          })
+          .eq("id", roasterId);
+
+        await supabase.from("subscription_events").insert({
+          roaster_id: roasterId,
+          stripe_event_id: `${eventId}_marketing`,
+          event_type: "checkout_completed",
+          product_type: "marketing",
+          new_tier: marketingTier,
+          metadata: {
+            subscription_id: marketingSub.id,
+            billing_cycle: marketingBillingCycle,
+            created_via: "wizard_piggyback",
+          },
+        });
+      } catch (err) {
+        console.error("Failed to create marketing subscription from wizard:", err);
+        // Non-fatal — user can add marketing later from billing page
+      }
+    }
+  }
 
   // Scaffold default website pages on first website subscription
   if (productType === "website") {

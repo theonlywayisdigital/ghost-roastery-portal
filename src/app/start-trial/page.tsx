@@ -15,10 +15,10 @@ function StartTrialFallback() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
           <Loader2 className="w-10 h-10 text-brand-600 animate-spin mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-slate-900 mb-2">
-            Setting up your free trial...
+            Loading...
           </h2>
           <p className="text-sm text-slate-500">
-            Please wait while we prepare your account.
+            Please wait while we load your plans.
           </p>
         </div>
       </div>

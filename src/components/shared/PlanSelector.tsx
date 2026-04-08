@@ -24,7 +24,7 @@ import {
 
 interface PlanSelectorProps {
   productType: ProductType;
-  currentTier: TierLevel;
+  currentTier?: TierLevel | null;
   onSelect?: (tier: TierLevel) => void;
   disabled?: boolean;
   billingCycle?: BillingCycle;
@@ -79,8 +79,8 @@ export function PlanSelector({
           : (["contentCalendar", "socialScheduling", "integrationsSocial"] as MarketingFeatureKey[]);
 
         // Determine CTA text
-        const isUpgrade = tierIndex(tier) > tierIndex(currentTier);
-        const isDowngrade = tierIndex(tier) < tierIndex(currentTier);
+        const isUpgrade = currentTier ? tierIndex(tier) > tierIndex(currentTier) : false;
+        const isDowngrade = currentTier ? tierIndex(tier) < tierIndex(currentTier) : false;
 
         let ctaText = "Select Plan";
         if (ctaOverride) {

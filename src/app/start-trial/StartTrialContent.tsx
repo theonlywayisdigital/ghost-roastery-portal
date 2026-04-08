@@ -250,7 +250,6 @@ export function StartTrialContent() {
           </div>
           <PlanSelector
             productType="sales"
-            currentTier="growth"
             billingCycle={billingCycle}
             onSelect={(tier) => handleSelectPlan("sales", tier)}
             loading={loading && pendingAction?.productType === "sales"}
@@ -280,7 +279,6 @@ export function StartTrialContent() {
           </div>
           <PlanSelector
             productType="marketing"
-            currentTier="growth"
             billingCycle={billingCycle}
             onSelect={(tier) => handleSelectPlan("marketing", tier)}
             loading={loading && pendingAction?.productType === "marketing"}

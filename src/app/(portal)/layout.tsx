@@ -32,7 +32,14 @@ export default async function PortalLayout({
       const isAllowedPath = allowedPaths.some((p) => pathname.startsWith(p));
 
       if (!isAllowedPath && !pathname.startsWith("/settings/billing")) {
-        redirect("/settings/billing?tab=subscription&subscribe=true");
+        // New users who haven't used their trial → send to pricing/trial page
+        // Users who already used their trial → send to billing to subscribe
+        const trialUsed = user.roaster?.trial_used;
+        if (!trialUsed) {
+          redirect("/start-trial");
+        } else {
+          redirect("/settings/billing?tab=subscription&subscribe=true");
+        }
       }
     }
   }

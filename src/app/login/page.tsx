@@ -32,7 +32,7 @@ export default function LoginPage() {
             href="/signup"
             className="text-brand-600 font-medium hover:underline"
           >
-            Sign up free
+            Start free trial
           </Link>
         </p>
       </div>

@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "@/components/icons";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -48,7 +50,9 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      // Redirect to next path (e.g. /start-trial after email verification) or dashboard
+      const destination = nextPath && nextPath.startsWith("/") ? nextPath : "/dashboard";
+      router.push(destination);
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

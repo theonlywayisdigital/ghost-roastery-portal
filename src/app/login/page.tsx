@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Logo } from "@/components/Logo";
 import { LoginForm } from "./LoginForm";
 import Link from "next/link";
@@ -19,7 +20,9 @@ export default function LoginPage() {
           <h2 className="text-lg font-semibold text-slate-900 mb-6">
             Sign in to your account
           </h2>
-          <LoginForm />
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </div>
 
         {/* Signup link */}

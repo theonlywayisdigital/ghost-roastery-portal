@@ -10,6 +10,7 @@ export function StartTrialContent() {
   const searchParams = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
   const [error, setError] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const [redirect, setRedirect] = useState<string | null>(null);
   const initiatedRef = useRef(false);
 
@@ -21,11 +22,34 @@ export function StartTrialContent() {
       try {
         const res = await fetch("/api/billing/create-trial-session", {
           method: "POST",
+          redirect: "manual", // Don't follow 307 redirects from middleware
         });
 
-        const data = await res.json();
+        // If middleware redirected to login (no session), status will be 0 or opaqueredirect
+        if (res.type === "opaqueredirect" || res.status === 0) {
+          setNeedsLogin(true);
+          return;
+        }
+
+        // If redirected to login (3xx), we need to sign in first
+        if (res.redirected || res.status === 307 || res.status === 302) {
+          setNeedsLogin(true);
+          return;
+        }
 
         if (!res.ok) {
+          let data;
+          try {
+            data = await res.json();
+          } catch {
+            // Response wasn't JSON (e.g. HTML from redirect)
+            setNeedsLogin(true);
+            return;
+          }
+          if (res.status === 401) {
+            setNeedsLogin(true);
+            return;
+          }
           if (data.redirect) {
             setRedirect(data.redirect);
           }
@@ -33,6 +57,7 @@ export function StartTrialContent() {
           return;
         }
 
+        const data = await res.json();
         if (data.url) {
           window.location.href = data.url;
         }
@@ -54,7 +79,25 @@ export function StartTrialContent() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
-          {cancelled ? (
+          {needsLogin ? (
+            <>
+              <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-7 h-7 text-amber-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                Sign in to continue
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Please sign in with your email and password to start your free trial.
+              </p>
+              <Link
+                href="/login?next=/start-trial"
+                className="inline-flex items-center justify-center w-full py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              >
+                Sign In
+              </Link>
+            </>
+          ) : cancelled ? (
             <>
               <div className="w-14 h-14 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle className="w-7 h-7 text-amber-600" />

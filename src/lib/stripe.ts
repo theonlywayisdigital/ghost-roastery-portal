@@ -4,7 +4,10 @@ let _stripe: Stripe | null = null;
 
 export function getStripe(): Stripe {
   if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      maxNetworkRetries: 2,
+      timeout: 20000, // 20s — fits within Vercel function limits
+    });
   }
   return _stripe;
 }

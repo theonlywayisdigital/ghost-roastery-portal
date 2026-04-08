@@ -358,27 +358,43 @@ export function StartTrialContent() {
           <div>
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                Need integrations?
+                Sell everywhere, manage in one place
               </h1>
               <p className="text-sm text-slate-500 max-w-lg mx-auto">
-                Pro and Scale plans include powerful integrations to sync your business tools automatically.
+                Connect your online stores and accounting tools — Roastery Platform becomes your single source of truth.
               </p>
             </div>
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8">
                 {/* E-commerce section */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
                     <ShoppingCart className="w-5 h-5 text-brand-600" />
-                    <h3 className="font-semibold text-slate-900">E-commerce</h3>
+                    <h3 className="font-semibold text-slate-900">Online Store Sync</h3>
                   </div>
-                  <p className="text-sm text-slate-500 mb-3">Sync orders, products, and inventory</p>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Already selling on Shopify or WooCommerce? Connect your store and manage everything from one dashboard.
+                  </p>
+                  <div className="space-y-1.5 mb-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Two-way product sync — update once, publish everywhere</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Automatic order import — no more copy-pasting from emails</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Real-time inventory tracking across all channels</span>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {["Shopify", "WooCommerce", "Squarespace"].map((name) => (
+                    {["Shopify", "WooCommerce", "Squarespace", "Wix"].map((name) => (
                       <div
                         key={name}
-                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700"
                       >
                         {name}
                       </div>
@@ -387,17 +403,33 @@ export function StartTrialContent() {
                 </div>
 
                 {/* Accounting section */}
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="bg-slate-50 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
                     <Receipt className="w-5 h-5 text-brand-600" />
-                    <h3 className="font-semibold text-slate-900">Accounting</h3>
+                    <h3 className="font-semibold text-slate-900">Accounting Sync</h3>
                   </div>
-                  <p className="text-sm text-slate-500 mb-3">Sync invoices and payments</p>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Stop juggling spreadsheets. Connect to your accounting software and let invoices and payments flow automatically.
+                  </p>
+                  <div className="space-y-1.5 mb-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Invoices sent from Roastery Platform appear in Xero, Sage, or QuickBooks instantly</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Payments reconciled automatically — no manual data entry</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">Your accountant gets clean, up-to-date books without chasing you</span>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {["Xero", "Sage", "QuickBooks"].map((name) => (
                       <div
                         key={name}
-                        className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700"
+                        className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700"
                       >
                         {name}
                       </div>
@@ -408,7 +440,7 @@ export function StartTrialContent() {
                 {/* Price callout */}
                 <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 mb-6 text-center">
                   <p className="text-sm text-brand-800">
-                    Upgrade to <span className="font-semibold">Sales Pro</span> for just{" "}
+                    Unlock all integrations with <span className="font-semibold">Sales Pro</span> — just{" "}
                     <span className="font-semibold">
                       {formatPrice(
                         (billingCycle === "annual"
@@ -438,7 +470,7 @@ export function StartTrialContent() {
                     onClick={() => goNext()}
                     className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors text-sm"
                   >
-                    No thanks — continue with Growth
+                    Continue without integrations
                   </button>
                 </div>
               </div>
@@ -464,64 +496,64 @@ export function StartTrialContent() {
           <div>
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                Grow your customer base with marketing tools
+                Let your coffee do the talking
               </h1>
               <p className="text-sm text-slate-500 max-w-lg mx-auto">
-                Optional add-on — email campaigns, social scheduling, and AI-powered content creation.
+                Reach more customers, fill more bags. Marketing tools built for roasters, not marketing agencies.
               </p>
             </div>
 
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8">
-                {/* Feature highlights */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Mail className="w-4.5 h-4.5 text-brand-600" />
+                {/* Feature highlights — stacked list */}
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start gap-4 bg-slate-50 rounded-lg p-4">
+                    <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-5 h-5 text-brand-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-900">Branded Emails</p>
-                      <p className="text-xs text-slate-500">Send newsletters and campaigns</p>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">Branded Email Campaigns</p>
+                      <p className="text-sm text-slate-600">
+                        Design beautiful emails that match your brand. Announce new roasts, share brew tips, and drive repeat orders — all from your Roastery Platform dashboard.
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-4.5 h-4.5 text-brand-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Social Scheduling</p>
-                      <p className="text-xs text-slate-500">Plan and publish to social channels</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-4.5 h-4.5 text-brand-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">AI Content Generation</p>
-                      <p className="text-xs text-slate-500">Generate emails, captions, and more</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-4.5 h-4.5 text-brand-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">AI Order Extraction</p>
-                      <p className="text-xs text-slate-500">Convert email orders effortlessly</p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* AI callout */}
-                <div className="bg-gradient-to-r from-violet-50 to-brand-50 border border-violet-100 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-medium text-violet-900">AI-Powered</span>
+                  <div className="flex items-start gap-4 bg-slate-50 rounded-lg p-4">
+                    <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Calendar className="w-5 h-5 text-brand-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">Social Media Scheduling</p>
+                      <p className="text-sm text-slate-600">
+                        Plan a week of Instagram, Facebook, and TikTok posts in minutes. Schedule once, publish automatically — so you can focus on roasting.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-violet-700">
-                    Use AI to generate emails, social posts, and convert email orders effortlessly.
-                  </p>
+
+                  <div className="flex items-start gap-4 bg-slate-50 rounded-lg p-4">
+                    <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-brand-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">AI Content Generation</p>
+                      <p className="text-sm text-slate-600">
+                        Stuck for words? AI writes email copy, social captions, and product descriptions for you. Just review, tweak, and hit send.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4 bg-slate-50 rounded-lg p-4">
+                    <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-5 h-5 text-brand-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 mb-1">AI Order Extraction</p>
+                      <p className="text-sm text-slate-600">
+                        Customers still emailing orders? AI reads the email, pulls out the order details, and creates the order for you — no typing required.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Growth limits */}
@@ -575,7 +607,7 @@ export function StartTrialContent() {
                     }}
                     className="flex-1 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors text-sm"
                   >
-                    Add Marketing Growth — {formatPrice(marketingPrice)}/mo
+                    Add Marketing — {formatPrice(marketingPrice)}/mo
                   </button>
                   <button
                     onClick={() => {
@@ -584,7 +616,7 @@ export function StartTrialContent() {
                     }}
                     className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors text-sm"
                   >
-                    No thanks — skip
+                    Not right now — skip
                   </button>
                 </div>
               </div>

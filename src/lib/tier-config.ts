@@ -66,10 +66,10 @@ export function isHigherTier(a: TierLevel, b: TierLevel): boolean {
 // ─── Sales Suite Limits ───
 
 const SALES_LIMITS: Record<SalesLimitKey, Record<TierLevel, number>> = {
-  products:                { growth: 5,    pro: 25,    scale: Infinity },
-  wholesaleOrdersPerMonth: { growth: 100,  pro: 250,   scale: Infinity },
-  wholesaleAccounts:       { growth: 30,   pro: 100,   scale: Infinity },
-  crmContacts:             { growth: 1500, pro: 5000,  scale: Infinity },
+  products:                { growth: 5,    pro: 25,    scale: 100 },
+  wholesaleOrdersPerMonth: { growth: 100,  pro: 250,   scale: 1000 },
+  wholesaleAccounts:       { growth: 30,   pro: 100,   scale: 500 },
+  crmContacts:             { growth: 1500, pro: 5000,  scale: 25000 },
   teamMembers:             { growth: 1,    pro: 3,     scale: 10 },
 };
 

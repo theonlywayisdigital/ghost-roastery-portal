@@ -167,6 +167,14 @@ async function handleCheckoutCompleted(
     updates.stripe_sales_subscription_id = subscriptionId;
     updates.sales_billing_cycle = billingCycle;
     updates.platform_fee_percent = getEffectivePlatformFee(tier as TierLevel);
+
+    // Check if marketing was bundled in the same subscription (wizard flow)
+    const marketingTier = session.metadata?.marketing_tier as TierLevel | undefined;
+    if (marketingTier) {
+      updates.marketing_tier = marketingTier;
+      updates.stripe_marketing_subscription_id = subscriptionId;
+      updates.marketing_billing_cycle = billingCycle;
+    }
   } else {
     updates.marketing_tier = tier;
     updates.stripe_marketing_subscription_id = subscriptionId;
@@ -189,54 +197,6 @@ async function handleCheckoutCompleted(
     new_tier: tier || null,
     metadata: { subscription_id: subscriptionId, billing_cycle: billingCycle, is_trial: isTrial },
   });
-
-  // Handle piggy-backed Marketing subscription from wizard flow
-  const marketingTier = session.metadata?.marketing_tier as TierLevel | undefined;
-  const marketingBillingCycle = (session.metadata?.marketing_billing_cycle || billingCycle) as BillingCycle;
-
-  if (marketingTier && productType === "sales") {
-    const marketingPriceId = getStripePriceId("marketing", marketingTier, marketingBillingCycle);
-    if (marketingPriceId) {
-      try {
-        const customerId = session.customer as string;
-        const marketingSub = await stripe.subscriptions.create({
-          customer: customerId,
-          items: [{ price: marketingPriceId }],
-          metadata: {
-            roaster_id: roasterId,
-            product_type: "marketing",
-            tier: marketingTier,
-            billing_cycle: marketingBillingCycle,
-          },
-        });
-
-        await supabase
-          .from("roasters")
-          .update({
-            marketing_tier: marketingTier,
-            stripe_marketing_subscription_id: marketingSub.id,
-            marketing_billing_cycle: marketingBillingCycle,
-          })
-          .eq("id", roasterId);
-
-        await supabase.from("subscription_events").insert({
-          roaster_id: roasterId,
-          stripe_event_id: `${eventId}_marketing`,
-          event_type: "checkout_completed",
-          product_type: "marketing",
-          new_tier: marketingTier,
-          metadata: {
-            subscription_id: marketingSub.id,
-            billing_cycle: marketingBillingCycle,
-            created_via: "wizard_piggyback",
-          },
-        });
-      } catch (err) {
-        console.error("Failed to create marketing subscription from wizard:", err);
-        // Non-fatal — user can add marketing later from billing page
-      }
-    }
-  }
 
   // Scaffold default website pages on first website subscription
   if (productType === "website") {
@@ -344,25 +304,32 @@ async function handleSubscriptionUpdated(
     return;
   }
 
-  // Detect price change
-  const currentPriceId = subscription.items.data[0]?.price?.id;
-  const tierInfo = currentPriceId ? getTierFromPriceId(currentPriceId) : null;
-
+  // Detect price changes across all items (subscription may bundle sales + marketing)
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
 
-  if (tierInfo) {
-    if (productType === "website") {
+  let tierChanged = false;
+  for (const item of subscription.items.data) {
+    const priceId = item.price?.id;
+    if (!priceId) continue;
+    const tierInfo = getTierFromPriceId(priceId);
+    if (!tierInfo) continue;
+
+    tierChanged = true;
+    if (tierInfo.product === "website") {
       updates.website_billing_cycle = tierInfo.billingCycle;
-    } else if (productType === "sales") {
+    } else if (tierInfo.product === "sales") {
       updates.sales_tier = tierInfo.tier;
       updates.sales_billing_cycle = tierInfo.billingCycle;
       updates.platform_fee_percent = getEffectivePlatformFee(tierInfo.tier);
-    } else {
+    } else if (tierInfo.product === "marketing") {
       updates.marketing_tier = tierInfo.tier;
       updates.marketing_billing_cycle = tierInfo.billingCycle;
     }
+  }
+
+  if (tierChanged) {
     updates.tier_changed_at = new Date().toISOString();
     updates.tier_override_by = null;
   }
@@ -381,16 +348,20 @@ async function handleSubscriptionUpdated(
     .update(updates)
     .eq("id", roasterId);
 
+  // Extract primary tier for event log
+  const primaryPriceId = subscription.items.data[0]?.price?.id;
+  const primaryTierInfo = primaryPriceId ? getTierFromPriceId(primaryPriceId) : null;
+
   await supabase.from("subscription_events").insert({
     roaster_id: roasterId,
     stripe_event_id: eventId,
     event_type: "subscription_updated",
     product_type: productType,
-    new_tier: tierInfo?.tier || null,
+    new_tier: primaryTierInfo?.tier || null,
     metadata: {
       subscription_id: subscription.id,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      billing_cycle: tierInfo?.billingCycle || null,
+      billing_cycle: primaryTierInfo?.billingCycle || null,
     },
   });
 }
@@ -425,8 +396,14 @@ async function handleSubscriptionDeleted(
     updates.stripe_sales_subscription_id = null;
     updates.sales_billing_cycle = null;
     updates.platform_fee_percent = getEffectivePlatformFee("growth");
+    // If marketing was bundled on the same subscription, clear it too
+    if (subscription.metadata?.marketing_tier) {
+      updates.marketing_tier = null;
+      updates.stripe_marketing_subscription_id = null;
+      updates.marketing_billing_cycle = null;
+    }
   } else {
-    updates.marketing_tier = "growth";
+    updates.marketing_tier = null;
     updates.stripe_marketing_subscription_id = null;
     updates.marketing_billing_cycle = null;
   }

@@ -93,10 +93,20 @@ export async function POST(request: Request) {
       sessionMetadata.marketing_billing_cycle = billingCycle;
     }
 
+    // Build line items — always include marketing if selected
+    const lineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
+
+    if (marketingTier) {
+      const marketingPriceId = getStripePriceId("marketing", marketingTier, billingCycle);
+      if (marketingPriceId) {
+        lineItems.push({ price: marketingPriceId, quantity: 1 });
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       subscription_data: {
         ...(isTrialEligible ? { trial_period_days: 14 } : {}),
         metadata: {
@@ -105,6 +115,7 @@ export async function POST(request: Request) {
           tier: salesTier,
           billing_cycle: billingCycle,
           is_trial: isTrialEligible ? "true" : "false",
+          ...(marketingTier ? { marketing_tier: marketingTier } : {}),
         },
       },
       success_url: `${portalUrl}/dashboard?trial=started`,

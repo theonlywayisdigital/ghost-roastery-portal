@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { CheckCircle2, XCircle, Loader2 } from "@/components/icons";
 
 export function VerifyEmailContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -43,68 +43,69 @@ export function VerifyEmailContent() {
     verify();
   }, [token]);
 
-  // Auto-redirect to login after successful verification
-  useEffect(() => {
-    if (status !== "success") return;
-    const timer = setTimeout(() => {
-      router.push("/login?next=/start-trial");
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [status, router]);
-
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
-      {status === "loading" && (
-        <>
-          <Loader2 className="w-10 h-10 text-brand-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">
-            Verifying your email...
-          </h2>
-          <p className="text-sm text-slate-500">
-            Please wait while we confirm your email address.
-          </p>
-        </>
-      )}
-
-      {status === "success" && (
-        <>
-          <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-7 h-7 text-green-600" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Logo height={150} className="h-[150px] w-auto" />
           </div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">
-            Email verified!
-          </h2>
-          <p className="text-sm text-slate-500 mb-6">
-            Your email has been confirmed. Redirecting you to sign in...
-          </p>
-          <Link
-            href="/login?next=/start-trial"
-            className="inline-flex items-center justify-center w-full py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-          >
-            Sign In to Start Your Free Trial
-          </Link>
-        </>
-      )}
+        </div>
 
-      {status === "error" && (
-        <>
-          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-7 h-7 text-red-600" />
-          </div>
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">
-            Verification failed
-          </h2>
-          <p className="text-sm text-slate-500 mb-6">
-            {errorMessage}
-          </p>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center w-full py-2.5 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-          >
-            Back to Sign In
-          </Link>
-        </>
-      )}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+          {status === "loading" && (
+            <>
+              <Loader2 className="w-10 h-10 text-brand-600 animate-spin mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                Verifying your email...
+              </h2>
+              <p className="text-sm text-slate-500">
+                Please wait while we confirm your email address.
+              </p>
+            </>
+          )}
+
+          {status === "success" && (
+            <>
+              <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-7 h-7 text-green-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                Email verified!
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Your email has been confirmed. Sign in to choose your plan and start your free trial.
+              </p>
+              <Link
+                href="/login?next=/start-trial"
+                className="inline-flex items-center justify-center w-full py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              >
+                Sign In & Choose Your Plan
+              </Link>
+            </>
+          )}
+
+          {status === "error" && (
+            <>
+              <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <XCircle className="w-7 h-7 text-red-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                Verification failed
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                {errorMessage}
+              </p>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center w-full py-2.5 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+              >
+                Back to Sign In
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

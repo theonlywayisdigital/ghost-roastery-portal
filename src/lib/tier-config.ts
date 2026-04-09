@@ -139,9 +139,9 @@ const SALES_PRICING: Record<TierLevel, TierPricing> = {
 };
 
 const MARKETING_PRICING: Record<TierLevel, TierPricing> = {
-  growth: { monthly: 900,  annual: 800 },
-  pro:    { monthly: 2400, annual: 2000 },
-  scale:  { monthly: 4900, annual: 4200 },
+  growth: { monthly: 1900,  annual: 1600 },
+  pro:    { monthly: 4900, annual: 4200 },
+  scale:  { monthly: 9900, annual: 8400 },
 };
 
 // ─── Website Pricing (single product, no tiers) ───
@@ -413,9 +413,9 @@ export const STRIPE_PRICE_IDS: Record<TieredProductType, Record<PaidTierLevel, R
     scale:  { monthly: "price_1TGlrfQuDE0YnEyUnPARPTe8", annual: "price_1TGlrfQuDE0YnEyUMqoYkhFc" },
   },
   marketing: {
-    growth: { monthly: "price_1TJxwfQuDE0YnEyUiMroAVRS", annual: "price_1TJxwgQuDE0YnEyUNoxRBUmi" },
-    pro:    { monthly: "price_1TJxwgQuDE0YnEyUBvEgAyhG", annual: "price_1TJxwgQuDE0YnEyUNJFWIc8b" },
-    scale:  { monthly: "price_1TJxwhQuDE0YnEyUnez7qPi7", annual: "price_1TJxwhQuDE0YnEyUcgCEnpM6" },
+    growth: { monthly: "price_1TKNV5QuDE0YnEyUmDXO9fvt", annual: "price_1TKNVHQuDE0YnEyUcmNeBqvw" },
+    pro:    { monthly: "price_1TKNVIQuDE0YnEyUtSD4oAUV", annual: "price_1TKNVIQuDE0YnEyUltGdlOuY" },
+    scale:  { monthly: "price_1TKNVJQuDE0YnEyUvoU6469e", annual: "price_1TKNVKQuDE0YnEyUZZ7qaM3L" },
   },
 };
 
@@ -472,6 +472,13 @@ const LEGACY_PRICE_MAP: Record<string, { product: ProductType; tier: PaidTierLev
   "price_1TJfD4QuDE0YnEyUPuFjpqbL": { product: "marketing", tier: "pro", billingCycle: "annual" },
   "price_1TJfD4QuDE0YnEyUAc1PwFJf": { product: "marketing", tier: "scale", billingCycle: "monthly" },
   "price_1TJfD4QuDE0YnEyU5MBnac0A": { product: "marketing", tier: "scale", billingCycle: "annual" },
+  // Old Marketing prices (£9/£24/£49 → £19/£49/£99, April 2026)
+  "price_1TJxwfQuDE0YnEyUiMroAVRS": { product: "marketing", tier: "growth", billingCycle: "monthly" },
+  "price_1TJxwgQuDE0YnEyUNoxRBUmi": { product: "marketing", tier: "growth", billingCycle: "annual" },
+  "price_1TJxwgQuDE0YnEyUBvEgAyhG": { product: "marketing", tier: "pro", billingCycle: "monthly" },
+  "price_1TJxwgQuDE0YnEyUNJFWIc8b": { product: "marketing", tier: "pro", billingCycle: "annual" },
+  "price_1TJxwhQuDE0YnEyUnez7qPi7": { product: "marketing", tier: "scale", billingCycle: "monthly" },
+  "price_1TJxwhQuDE0YnEyUcgCEnpM6": { product: "marketing", tier: "scale", billingCycle: "annual" },
 };
 
 export function getTierFromPriceId(priceId: string): { product: ProductType; tier: PaidTierLevel; billingCycle: BillingCycle } | null {

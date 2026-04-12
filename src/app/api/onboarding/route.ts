@@ -28,7 +28,16 @@ export async function GET() {
   const supabase = createServerClient();
 
   // Parallel count queries
-  const [productsRes, roastedStockRes, greenBeansRes, wholesaleAccessRes, integrationsRes, campaignsRes] = await Promise.all([
+  const [
+    productsRes,
+    roastedStockRes,
+    greenBeansRes,
+    wholesaleAccessRes,
+    integrationsRes,
+    campaignsRes,
+    contactsRes,
+    socialConnectionsRes,
+  ] = await Promise.all([
     supabase
       .from("products")
       .select("id", { count: "exact", head: true })
@@ -54,6 +63,14 @@ export async function GET() {
       .from("campaigns")
       .select("id", { count: "exact", head: true })
       .eq("roaster_id", roasterId),
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("roaster_id", roasterId),
+    supabase
+      .from("social_connections")
+      .select("id", { count: "exact", head: true })
+      .eq("roaster_id", roasterId),
   ]);
 
   const productCount = productsRes.count ?? 0;
@@ -62,32 +79,41 @@ export async function GET() {
   const wholesaleAccessCount = wholesaleAccessRes.count ?? 0;
   const integrationCount = integrationsRes.count ?? 0;
   const campaignCount = campaignsRes.count ?? 0;
+  const contactsCount = contactsRes.count ?? 0;
+  const socialConnectionsCount = socialConnectionsRes.count ?? 0;
 
   // Completion checks keyed by step key
   const completionMap: Record<string, boolean> = {
-    logo: !!(roaster as Record<string, unknown>).brand_logo_url,
+    business_profile: !!(roaster as Record<string, unknown>).business_name,
+    branding: !!(roaster as Record<string, unknown>).brand_logo_url,
     domain: !!(roaster as Record<string, unknown>).storefront_slug,
-    stock: (roastedStockCount + greenBeansCount) > 0,
+    inventory: (roastedStockCount + greenBeansCount) > 0,
     product: productCount > 0,
     wholesale: !!(roaster as Record<string, unknown>).storefront_setup_complete,
     wholesale_buyers: wholesaleAccessCount > 0,
-    integrations: integrationCount > 0,
-    stripe: !!roaster.stripe_account_id,
+    ecommerce: integrationCount > 0,
+    accounting: integrationCount > 0,
+    import_contacts: contactsCount > 0,
     campaigns: campaignCount > 0,
+    connect_socials: socialConnectionsCount > 0,
   };
 
   // Feature gating
   const features = getEffectiveFeatures(salesTier, marketingTier);
+  const hasMarketing = !!(roaster as Record<string, unknown>).stripe_marketing_subscription_id;
 
   const steps: OnboardingStepStatus[] = ONBOARDING_STEPS.map((step) => {
     let gated: OnboardingStepStatus["gated"] = false;
 
-    if (step.gatedFeature && !features[step.gatedFeature]) {
+    if (step.gatedSubscription === "marketing" && !hasMarketing) {
+      gated = { subscription: "marketing", ctaLabel: "Add Marketing Suite" };
+    } else if (step.gatedFeature && !features[step.gatedFeature]) {
       const min = getMinimumTierForFeature(step.gatedFeature);
       gated = {
         feature: step.gatedFeature,
         requiredTier: min.tier,
         product: min.product,
+        ctaLabel: `Upgrade to ${TIER_NAMES[min.tier]}`,
       };
     }
 

@@ -9,11 +9,19 @@ export interface OnboardingStep {
   href: string;
   iconName: string;
   gatedFeature?: FeatureKey;
+  gatedSubscription?: "marketing";
 }
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
-    key: "logo",
+    key: "business_profile",
+    label: "Business Profile",
+    description: "Add your business name and details.",
+    href: "/settings/business",
+    iconName: "Building2",
+  },
+  {
+    key: "branding",
     label: "Set Up Your Branding",
     description: "Add your logo, colours, and brand assets.",
     href: "/settings/branding",
@@ -27,7 +35,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     iconName: "Globe",
   },
   {
-    key: "stock",
+    key: "inventory",
     label: "Add Your Stock",
     description: "Add your roasted stock or green beans to track inventory.",
     href: "/tools/inventory",
@@ -55,26 +63,43 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     iconName: "Users",
   },
   {
-    key: "integrations",
-    label: "Explore Integrations",
-    description: "Connect accounting, ecommerce, and other tools.",
-    href: "/settings/integrations",
-    iconName: "Link2",
+    key: "ecommerce",
+    label: "Connect Ecommerce",
+    description: "Link your ecommerce platform.",
+    href: "/settings/integrations?tab=ecommerce",
+    iconName: "ShoppingBag",
+    gatedFeature: "integrationsEcommerce",
+  },
+  {
+    key: "accounting",
+    label: "Connect Accounting",
+    description: "Link your accounting software.",
+    href: "/settings/integrations?tab=accounting",
+    iconName: "Landmark",
     gatedFeature: "integrationsAccounting",
   },
   {
-    key: "stripe",
-    label: "Connect Stripe",
-    description: "Link your Stripe account to accept payments.",
-    href: "/settings/integrations?tab=payments",
-    iconName: "CreditCard",
+    key: "import_contacts",
+    label: "Import Contacts",
+    description: "Import your customer and contact list.",
+    href: "/contacts/import",
+    iconName: "Upload",
   },
   {
     key: "campaigns",
-    label: "Send Your First Campaign",
+    label: "Create First Campaign",
     description: "Create an email campaign to reach your customers.",
     href: "/marketing/campaigns/new",
-    iconName: "Send",
+    iconName: "Megaphone",
+    gatedSubscription: "marketing",
+  },
+  {
+    key: "connect_socials",
+    label: "Connect Socials",
+    description: "Link your social media accounts.",
+    href: "/settings/integrations?tab=social",
+    iconName: "Share2",
+    gatedSubscription: "marketing",
   },
 ];
 
@@ -82,7 +107,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 
 export interface OnboardingStepStatus extends OnboardingStep {
   completed: boolean;
-  gated: false | { feature: FeatureKey; requiredTier: TierLevel; product: ProductType };
+  gated: false | {
+    feature?: FeatureKey;
+    requiredTier?: TierLevel;
+    product?: ProductType;
+    subscription?: "marketing";
+    ctaLabel: string;
+  };
 }
 
 export interface OnboardingState {

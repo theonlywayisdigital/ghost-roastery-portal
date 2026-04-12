@@ -11,15 +11,17 @@ import {
   Palette,
   Package,
   Globe,
-  CreditCard,
   Store,
-  Link2,
   Archive,
   Users,
-  Send,
+  Building2,
+  ShoppingBag,
+  Landmark,
+  Upload,
+  Megaphone,
+  Share2,
 } from "@/components/icons";
 import type { OnboardingResponse, OnboardingStepStatus } from "@/lib/onboarding";
-import { TIER_NAMES, type TierLevel } from "@/lib/tier-config";
 
 interface OnboardingPanelProps {
   open: boolean;
@@ -32,12 +34,15 @@ const STEP_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   Palette,
   Package,
   Globe,
-  CreditCard,
   Store,
-  Link2,
   Archive,
   Users,
-  Send,
+  Building2,
+  ShoppingBag,
+  Landmark,
+  Upload,
+  Megaphone,
+  Share2,
 };
 
 export function OnboardingPanel({ open, onClose, salesTier, marketingTier }: OnboardingPanelProps) {
@@ -107,7 +112,7 @@ export function OnboardingPanel({ open, onClose, salesTier, marketingTier }: Onb
   if (!mounted || !open) return null;
 
   const completedCount = data?.completedCount ?? 0;
-  const totalCount = data?.totalCount ?? 8;
+  const totalCount = data?.totalCount ?? 12;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return createPortal(
@@ -207,8 +212,7 @@ export function OnboardingPanel({ open, onClose, salesTier, marketingTier }: Onb
                       {isGated && step.gated ? (
                         <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                           <Lock className="w-3 h-3" />
-                          Requires {TIER_NAMES[step.gated.requiredTier]}{" "}
-                          {step.gated.product === "marketing" ? "Marketing" : "Sales"}
+                          {step.gated.ctaLabel}
                         </p>
                       ) : !isComplete ? (
                         <p className="text-xs text-slate-500 mt-0.5">{step.description}</p>

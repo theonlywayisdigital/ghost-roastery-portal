@@ -217,7 +217,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     activePrefixes: ["/tools"],
   };
 
-  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(RETAIL_ENABLED && user.websiteSubscriptionActive ? [websiteSuiteConfig] : []), roasterToolsSuiteConfig];
+  const suiteConfigs = [roasterToolsSuiteConfig, salesSuiteConfig, marketingSuiteConfig, ...(RETAIL_ENABLED && user.websiteSubscriptionActive ? [websiteSuiteConfig] : [])];
 
   function isSuiteActive(suite: SuiteConfig): boolean {
     return suite.activePrefixes.some(

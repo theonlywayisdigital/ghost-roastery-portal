@@ -67,6 +67,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
   // Branding
   const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
   const [brandPrimaryColour, setBrandPrimaryColour] = useState<string | null>(null);
+  const [brandBackgroundColour, setBrandBackgroundColour] = useState<string | null>(null);
   const [brandButtonColour, setBrandButtonColour] = useState<string | null>(null);
   const [brandButtonTextColour, setBrandButtonTextColour] = useState<string | null>(null);
   const [brandButtonStyle, setBrandButtonStyle] = useState<"sharp" | "rounded" | "pill" | null>(null);
@@ -124,6 +125,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
       .then((data) => {
         if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
         if (data?.brand_primary_colour) setBrandPrimaryColour(data.brand_primary_colour);
+        if (data?.storefront_bg_colour) setBrandBackgroundColour(data.storefront_bg_colour);
         if (data?.storefront_button_colour) setBrandButtonColour(data.storefront_button_colour);
         if (data?.storefront_button_text_colour) setBrandButtonTextColour(data.storefront_button_text_colour);
         if (data?.storefront_button_style) setBrandButtonStyle(data.storefront_button_style);
@@ -474,6 +476,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
               brandLogoSize={brandLogoSize}
               brandPrimaryColour={brandPrimaryColour}
               brandAccentColour={brandAccentColour}
+              brandBackgroundColour={brandBackgroundColour}
               brandButtonColour={brandButtonColour}
               brandButtonTextColour={brandButtonTextColour}
               brandButtonStyle={brandButtonStyle}
@@ -871,7 +874,7 @@ function ReviewStep({
   customRecipients, content, scheduledAt, setScheduledAt,
   onSendTest, sendingTest, onSend, sending,
   brandBusinessName, brandLogoUrl, brandLogoSize,
-  brandPrimaryColour, brandAccentColour, brandButtonColour, brandButtonTextColour, brandButtonStyle,
+  brandPrimaryColour, brandAccentColour, brandBackgroundColour, brandButtonColour, brandButtonTextColour, brandButtonStyle,
 }: {
   name: string; subject: string; previewText: string;
   fromName: string; replyTo: string; audienceType: AudienceType;
@@ -880,7 +883,7 @@ function ReviewStep({
   onSendTest: () => void; sendingTest: boolean;
   onSend: () => void; sending: boolean;
   brandBusinessName: string; brandLogoUrl: string | null; brandLogoSize: "small" | "medium" | "large";
-  brandPrimaryColour: string | null; brandAccentColour: string | null;
+  brandPrimaryColour: string | null; brandAccentColour: string | null; brandBackgroundColour: string | null;
   brandButtonColour: string | null; brandButtonTextColour: string | null;
   brandButtonStyle: "sharp" | "rounded" | "pill" | null;
 }) {
@@ -961,7 +964,7 @@ function ReviewStep({
         {/* Right: Email Preview */}
         <div>
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Preview</p>
-          <EmailPreview blocks={content} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
+          <EmailPreview blocks={content} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} backgroundColour={brandBackgroundColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
         </div>
       </div>
     </div>

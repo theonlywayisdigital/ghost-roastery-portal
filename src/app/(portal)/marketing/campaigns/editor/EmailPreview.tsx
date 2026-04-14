@@ -12,14 +12,15 @@ interface EmailPreviewProps {
   logoSize?: "small" | "medium" | "large";
   primaryColour?: string | null;
   accentColour?: string | null;
+  backgroundColour?: string | null;
   buttonColour?: string | null;
   buttonTextColour?: string | null;
   buttonStyle?: "sharp" | "rounded" | "pill" | null;
 }
 
-export function EmailPreview({ blocks, businessName, logoUrl, logoSize, primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle }: EmailPreviewProps) {
+export function EmailPreview({ blocks, businessName, logoUrl, logoSize, primaryColour, accentColour, backgroundColour, buttonColour, buttonTextColour, buttonStyle }: EmailPreviewProps) {
   const [view, setView] = useState<"desktop" | "mobile">("desktop");
-  const branding: MarketingEmailBranding = { primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
+  const branding: MarketingEmailBranding = { primaryColour, accentColour, backgroundColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
   const html = renderEmailHtml(blocks, businessName || "Your Business", "", undefined, undefined, undefined, undefined, branding);
 
   return (

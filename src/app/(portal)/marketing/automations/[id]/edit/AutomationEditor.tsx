@@ -80,6 +80,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
   const [brandBusinessName, setBrandBusinessName] = useState<string>("");
   const [brandPrimaryColour, setBrandPrimaryColour] = useState<string | null>(null);
   const [brandAccentColour, setBrandAccentColour] = useState<string | null>(null);
+  const [brandBackgroundColour, setBrandBackgroundColour] = useState<string | null>(null);
   const [brandButtonColour, setBrandButtonColour] = useState<string | null>(null);
   const [brandButtonTextColour, setBrandButtonTextColour] = useState<string | null>(null);
   const [brandButtonStyle, setBrandButtonStyle] = useState<"sharp" | "rounded" | "pill" | null>(null);
@@ -93,6 +94,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
         if (data?.business_name) setBrandBusinessName(data.business_name);
         if (data?.brand_primary_colour) setBrandPrimaryColour(data.brand_primary_colour);
         if (data?.brand_accent_colour) setBrandAccentColour(data.brand_accent_colour);
+        if (data?.storefront_bg_colour) setBrandBackgroundColour(data.storefront_bg_colour);
         if (data?.storefront_button_colour) setBrandButtonColour(data.storefront_button_colour);
         if (data?.storefront_button_text_colour) setBrandButtonTextColour(data.storefront_button_text_colour);
         if (data?.storefront_button_style) setBrandButtonStyle(data.storefront_button_style);
@@ -487,6 +489,7 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
                       brandLogoSize={brandLogoSize}
                       brandPrimaryColour={brandPrimaryColour}
                       brandAccentColour={brandAccentColour}
+                      brandBackgroundColour={brandBackgroundColour}
                       brandButtonColour={brandButtonColour}
                       brandButtonTextColour={brandButtonTextColour}
                       brandButtonStyle={brandButtonStyle}
@@ -935,6 +938,7 @@ function StepConfigEditor({
   brandLogoSize,
   brandPrimaryColour,
   brandAccentColour,
+  brandBackgroundColour,
   brandButtonColour,
   brandButtonTextColour,
   brandButtonStyle,
@@ -947,6 +951,7 @@ function StepConfigEditor({
   brandLogoSize: "small" | "medium" | "large";
   brandPrimaryColour: string | null;
   brandAccentColour: string | null;
+  brandBackgroundColour: string | null;
   brandButtonColour: string | null;
   brandButtonTextColour: string | null;
   brandButtonStyle: "sharp" | "rounded" | "pill" | null;
@@ -955,7 +960,7 @@ function StepConfigEditor({
 
   switch (step.step_type) {
     case "email":
-      return <EmailStepConfig config={config} onChange={onChange} brandBusinessName={brandBusinessName} brandLogoUrl={brandLogoUrl} brandLogoSize={brandLogoSize} brandPrimaryColour={brandPrimaryColour} brandAccentColour={brandAccentColour} brandButtonColour={brandButtonColour} brandButtonTextColour={brandButtonTextColour} brandButtonStyle={brandButtonStyle} />;
+      return <EmailStepConfig config={config} onChange={onChange} brandBusinessName={brandBusinessName} brandLogoUrl={brandLogoUrl} brandLogoSize={brandLogoSize} brandPrimaryColour={brandPrimaryColour} brandAccentColour={brandAccentColour} brandBackgroundColour={brandBackgroundColour} brandButtonColour={brandButtonColour} brandButtonTextColour={brandButtonTextColour} brandButtonStyle={brandButtonStyle} />;
     case "delay":
       return <DelayStepConfig config={config} onChange={onChange} />;
     case "condition":
@@ -973,6 +978,7 @@ function EmailStepConfig({
   brandLogoSize,
   brandPrimaryColour,
   brandAccentColour,
+  brandBackgroundColour,
   brandButtonColour,
   brandButtonTextColour,
   brandButtonStyle,
@@ -984,6 +990,7 @@ function EmailStepConfig({
   brandLogoSize: "small" | "medium" | "large";
   brandPrimaryColour: string | null;
   brandAccentColour: string | null;
+  brandBackgroundColour: string | null;
   brandButtonColour: string | null;
   brandButtonTextColour: string | null;
   brandButtonStyle: "sharp" | "rounded" | "pill" | null;
@@ -1056,7 +1063,7 @@ function EmailStepConfig({
         <label className="block text-xs font-medium text-slate-600 mb-2">Email Content</label>
         {hasContent ? (
           <div className="space-y-2">
-            <EmailMiniPreview blocks={contentBlocks} emailBgColor={emailBgColor} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
+            <EmailMiniPreview blocks={contentBlocks} emailBgColor={emailBgColor} businessName={brandBusinessName} logoUrl={brandLogoUrl} logoSize={brandLogoSize} primaryColour={brandPrimaryColour} accentColour={brandAccentColour} backgroundColour={brandBackgroundColour} buttonColour={brandButtonColour} buttonTextColour={brandButtonTextColour} buttonStyle={brandButtonStyle} />
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-500">
                 {`${contentBlocks.length} block${contentBlocks.length !== 1 ? "s" : ""}`}

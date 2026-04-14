@@ -82,12 +82,16 @@ export function wrapEmailWithBranding(options: {
     <!-- Body card -->
     <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:40px;">
       <!-- Logo / business name -->
-      <div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;">
-        ${logoUrl
-          ? `<img src="${logoUrl}" alt="${businessName}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />`
-          : `<p style="margin:0;color:${primary};font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;">${businessName}</p>`
-        }
-      </div>
+      ${logoUrl
+        ? `<div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;">
+            <div style="display:inline-block;background-color:${primary};border-radius:10px;padding:16px 24px;">
+              <img src="${logoUrl}" alt="${businessName}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;display:block;" />
+            </div>
+          </div>`
+        : `<div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #e2e8f0;">
+            <p style="margin:0;color:${primary};font-size:18px;font-weight:700;font-family:'${headingFamily}',sans-serif;">${businessName}</p>
+          </div>`
+      }
       ${body}
     </div>
 

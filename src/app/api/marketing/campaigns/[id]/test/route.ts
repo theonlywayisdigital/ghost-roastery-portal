@@ -39,13 +39,14 @@ export async function POST(
     if (owner.owner_id) {
       const { data: roaster } = await supabase
         .from("roasters")
-        .select("brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style")
+        .select("brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_bg_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style")
         .eq("id", owner.owner_id)
         .single();
       if (roaster) {
         emailBranding = {
           primaryColour: (roaster.brand_primary_colour as string) || null,
           accentColour: (roaster.brand_accent_colour as string) || null,
+          backgroundColour: (roaster.storefront_bg_colour as string) || null,
           buttonColour: (roaster.storefront_button_colour as string) || null,
           buttonTextColour: (roaster.storefront_button_text_colour as string) || null,
           buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || null,

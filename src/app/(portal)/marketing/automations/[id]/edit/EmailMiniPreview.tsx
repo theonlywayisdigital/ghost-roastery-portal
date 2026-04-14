@@ -11,6 +11,7 @@ export function EmailMiniPreview({
   logoSize,
   primaryColour,
   accentColour,
+  backgroundColour,
   buttonColour,
   buttonTextColour,
   buttonStyle,
@@ -22,11 +23,12 @@ export function EmailMiniPreview({
   logoSize?: "small" | "medium" | "large";
   primaryColour?: string | null;
   accentColour?: string | null;
+  backgroundColour?: string | null;
   buttonColour?: string | null;
   buttonTextColour?: string | null;
   buttonStyle?: "sharp" | "rounded" | "pill" | null;
 }) {
-  const branding: MarketingEmailBranding = { primaryColour, accentColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
+  const branding: MarketingEmailBranding = { primaryColour, accentColour, backgroundColour, buttonColour, buttonTextColour, buttonStyle, logoUrl, logoSize };
   const html = renderEmailHtml(blocks, businessName || "", "", emailBgColor, undefined, undefined, undefined, branding);
 
   return (

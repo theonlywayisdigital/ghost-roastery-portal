@@ -8,6 +8,7 @@ const BTN_RADIUS: Record<string, string> = { sharp: "0px", rounded: "6px", pill:
 export interface MarketingEmailBranding {
   primaryColour?: string | null;
   accentColour?: string | null;
+  backgroundColour?: string | null;
   buttonColour?: string | null;
   buttonTextColour?: string | null;
   buttonStyle?: "sharp" | "rounded" | "pill" | null;
@@ -26,6 +27,7 @@ export function renderEmailHtml(
   branding?: MarketingEmailBranding | null
 ): string {
   const primary = branding?.primaryColour || DEFAULT_PRIMARY;
+  const headerBg = branding?.backgroundColour || primary;
   const accent = branding?.accentColour || brandAccentColour || DEFAULT_ACCENT;
   const btnColour = branding?.buttonColour || accent;
   const btnText = branding?.buttonTextColour || "#ffffff";
@@ -37,8 +39,10 @@ export function renderEmailHtml(
   const logoMaxHeight = LOGO_SIZE_PX[effectiveLogoSize || "medium"] || LOGO_SIZE_PX.medium;
 
   const logoHeader = effectiveLogoUrl
-    ? `<div style="background-color:${primary};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
-        <img src="${escapeHtml(effectiveLogoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;" />
+    ? `<div style="background-color:${headerBg};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
+        <div style="display:inline-block;background-color:${primary};border-radius:10px;padding:16px 24px;">
+          <img src="${escapeHtml(effectiveLogoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;display:block;" />
+        </div>
       </div>`
     : "";
 

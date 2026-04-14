@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Find active enrollments that are due for their next step
     const { data: dueEnrollments } = await supabase
       .from("automation_enrollments")
-      .select("*, automations(*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style))")
+      .select("*, automations(*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_bg_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style))")
       .eq("status", "active")
       .lte("next_step_at", new Date().toISOString())
       .limit(100);
@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
           const mBranding: MarketingEmailBranding = {
             primaryColour: (roaster.brand_primary_colour as string) || null,
             accentColour: (roaster.brand_accent_colour as string) || null,
+            backgroundColour: (roaster.storefront_bg_colour as string) || null,
             buttonColour: (roaster.storefront_button_colour as string) || null,
             buttonTextColour: (roaster.storefront_button_text_colour as string) || null,
             buttonStyle: (roaster.storefront_button_style as "sharp" | "rounded" | "pill") || null,

@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   // Find scheduled campaigns that are due
   const { data: dueCampaigns, error } = await supabase
     .from("campaigns")
-    .select("*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style)")
+    .select("*, roasters(id, business_name, email, brand_logo_url, brand_primary_colour, brand_accent_colour, storefront_bg_colour, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style)")
     .eq("status", "scheduled")
     .lte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true })
@@ -46,6 +46,7 @@ export async function GET(request: Request) {
       brand_logo_url: string | null;
       brand_primary_colour: string | null;
       brand_accent_colour: string | null;
+      storefront_bg_colour: string | null;
       storefront_logo_size: string | null;
       storefront_button_colour: string | null;
       storefront_button_text_colour: string | null;
@@ -160,6 +161,7 @@ export async function GET(request: Request) {
       const mBranding: MarketingEmailBranding | null = roaster ? {
         primaryColour: roaster.brand_primary_colour,
         accentColour: roaster.brand_accent_colour,
+        backgroundColour: roaster.storefront_bg_colour,
         buttonColour: roaster.storefront_button_colour,
         buttonTextColour: roaster.storefront_button_text_colour,
         buttonStyle: roaster.storefront_button_style as "sharp" | "rounded" | "pill" | null,

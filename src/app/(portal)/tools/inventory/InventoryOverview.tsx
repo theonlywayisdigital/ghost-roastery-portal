@@ -141,28 +141,55 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
   if (!data || data.roastedStock.length === 0) {
     return (
       <div className="space-y-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <Archive className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No inventory to show yet</h3>
-          <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
-            Create roast profiles to start tracking your inventory. You can add profiles manually
-            via the Roast Profiles tab, or they will be created automatically when you complete a roast log.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link
-              href="/tools/inventory/roasted/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-            >
-              <Archive className="w-4 h-4" />
-              New Roast Profile
-            </Link>
-            <Link
-              href="/tools/inventory/roast-log"
-              className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-            >
-              <Flame className="w-4 h-4" />
-              Roast Log
-            </Link>
+        <div className="bg-white rounded-xl border border-slate-200 p-12">
+          <div className="max-w-lg mx-auto">
+            <Archive className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-5 text-center">Let&apos;s get your inventory set up</h3>
+
+            <ol className="space-y-4 mb-6">
+              <li className="flex gap-3">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">1</span>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Receive your green beans</p>
+                  <p className="text-sm text-slate-500">Log the green bean stock you have on hand using the <strong>Receive Beans</strong> button above.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">2</span>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Create roast profiles</p>
+                  <p className="text-sm text-slate-500">Head to the <strong>Roast Profiles</strong> tab to set up your roasts and map them to your green beans. Add your current roasted stock here too.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">3</span>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">Log roasts and watch your stock update</p>
+                  <p className="text-sm text-slate-500">When you roast, log it and we&apos;ll automatically deduct from your green stock and add to your roasted stock, accounting for weight loss.</p>
+                </div>
+              </li>
+            </ol>
+
+            <p className="text-xs text-slate-400 text-center mb-6">
+              Once you&apos;re selling products through your wholesale portal or a connected storefront, your inventory will update automatically with every order.
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <Link
+                href="/tools/inventory/roasted"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              >
+                <Archive className="w-4 h-4" />
+                Go to Roast Profiles
+              </Link>
+              <Link
+                href="/tools/inventory/roast-log"
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+              >
+                <Flame className="w-4 h-4" />
+                Log a Roast
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -32,9 +32,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!bean) return NextResponse.json({ error: "Green bean not found" }, { status: 404 });
 
   const currentStock = parseFloat(bean.current_stock_kg) || 0;
-  // For purchases and returns, qty should be positive (adds stock)
-  // For deductions, waste, adjustment can be negative (removes stock)
-  const effectiveQty = ["purchase", "return"].includes(movement_type) ? Math.abs(qty) : -Math.abs(qty);
+  // For purchases and returns, qty is always positive (adds stock)
+  // For deductions and waste, qty is always negative (removes stock)
+  // For adjustments, qty sign is preserved as-is (can add or remove)
+  const effectiveQty = ["purchase", "return"].includes(movement_type)
+    ? Math.abs(qty)
+    : movement_type === "adjustment"
+    ? qty
+    : -Math.abs(qty);
   const newBalance = Math.max(0, currentStock + effectiveQty);
 
   // Create movement + update stock in a transaction-like fashion

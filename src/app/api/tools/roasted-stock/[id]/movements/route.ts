@@ -33,9 +33,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!stock) return NextResponse.json({ error: "Roasted stock not found" }, { status: 404 });
 
   const currentStock = parseFloat(String(stock.current_stock_kg)) || 0;
-  // roast_addition and cancellation_return add stock; order_deduction, waste, adjustment remove stock
+  // roast_addition and cancellation_return add stock; order_deduction and waste remove stock
+  // adjustments preserve sign as-is (can add or remove)
   const effectiveQty = ["roast_addition", "cancellation_return"].includes(movement_type)
     ? Math.abs(qty)
+    : movement_type === "adjustment"
+    ? qty
     : -Math.abs(qty);
   const newBalance = Math.max(0, currentStock + effectiveQty);
 

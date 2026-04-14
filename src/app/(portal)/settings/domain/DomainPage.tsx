@@ -75,6 +75,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
   const [wizardStep, setWizardStep] = useState<"intro" | "provider" | "delegate" | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [delegateMessageCopied, setDelegateMessageCopied] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ domainId: string; status: string } | null>(null);
 
   // ─── Inbox ───
   const [inboxCopied, setInboxCopied] = useState(false);
@@ -185,6 +186,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
   async function handleVerifyEmailDomain(domainId: string) {
     setEmailVerifying(domainId);
     setEmailError(null);
+    setVerifyResult(null);
     try {
       const res = await fetch("/api/settings/email-domain/verify", {
         method: "POST",
@@ -194,11 +196,14 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
       const data = await res.json();
       if (!res.ok) {
         setEmailError(data.error || "Verification failed");
+        setVerifyResult({ domainId, status: "error" });
         return;
       }
       setEmailDomains((prev) => prev.map((d) => (d.id === domainId ? data.domain : d)));
+      setVerifyResult({ domainId, status: data.domain.status });
     } catch {
       setEmailError("Verification failed");
+      setVerifyResult({ domainId, status: "error" });
     } finally {
       setEmailVerifying(null);
     }
@@ -747,11 +752,72 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                           ))}
                         </div>
 
-                        {/* Propagation note */}
-                        <div className="flex items-start gap-2 mt-3 p-3 bg-slate-50 rounded-lg">
-                          <AlertCircle className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          <p className="text-xs text-slate-500">
-                            DNS changes can take up to 48 hours to propagate. Once you&apos;ve added the records above, click the <RefreshCw className="w-3 h-3 inline" /> refresh button next to your domain to check the verification status.
+                        {/* Verify CTA */}
+                        <div className="mt-4 pt-4 border-t border-slate-100">
+                          <button
+                            onClick={() => handleVerifyEmailDomain(domain.id)}
+                            disabled={emailVerifying === domain.id}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {emailVerifying === domain.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Checking...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="w-4 h-4" />
+                                I&apos;ve added the records — verify now
+                              </>
+                            )}
+                          </button>
+
+                          {/* Inline verification result */}
+                          {verifyResult && verifyResult.domainId === domain.id && !emailVerifying && (
+                            <div className={`flex items-start gap-2 mt-3 p-3 rounded-lg ${
+                              verifyResult.status === "verified"
+                                ? "bg-green-50 border border-green-200"
+                                : verifyResult.status === "pending"
+                                ? "bg-amber-50 border border-amber-200"
+                                : "bg-red-50 border border-red-200"
+                            }`}>
+                              {verifyResult.status === "verified" ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-medium text-green-800">Domain verified!</p>
+                                    <p className="text-xs text-green-700 mt-0.5">
+                                      Your emails will now be sent from <strong>{domain.sender_prefix}@{domain.domain}</strong>.
+                                    </p>
+                                  </div>
+                                </>
+                              ) : verifyResult.status === "pending" ? (
+                                <>
+                                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-medium text-amber-800">Not verified yet</p>
+                                    <p className="text-xs text-amber-700 mt-0.5">
+                                      The DNS records haven&apos;t been detected yet. This is normal — changes can take up to 48 hours to propagate. Wait a little longer and try again.
+                                    </p>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-sm font-medium text-red-800">Verification failed</p>
+                                    <p className="text-xs text-red-700 mt-0.5">
+                                      We couldn&apos;t verify the DNS records. Double-check that you&apos;ve added all the records above exactly as shown, then try again. DNS changes can take up to 48 hours.
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Propagation reminder */}
+                          <p className="text-xs text-slate-400 mt-3">
+                            DNS changes can take up to 48 hours. If verification fails, wait a little longer and try again.
                           </p>
                         </div>
                       </div>

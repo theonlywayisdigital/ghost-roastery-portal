@@ -34,7 +34,7 @@ export default async function BrandingSettingsPage() {
         initialValues={{
           brand_logo_url: roaster.brand_logo_url || "",
           brand_primary_colour: roaster.brand_primary_colour || "#1A1A1A",
-          brand_accent_colour: roaster.brand_accent_colour || "#D97706",
+          brand_accent_colour: roaster.brand_accent_colour || "#2563EB",
           brand_heading_font: roaster.brand_heading_font || "inter",
           brand_body_font: roaster.brand_body_font || "inter",
           brand_tagline: roaster.brand_tagline || "",

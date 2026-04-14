@@ -73,7 +73,7 @@ export function BrandingEditor({
   const [textColour, setTextColour] = useState(initialValues.storefront_text_colour);
   const [buttonStyle, setButtonStyle] = useState<"sharp" | "rounded" | "pill">(initialValues.storefront_button_style);
   const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">(initialValues.storefront_logo_size);
-  const [heroImageUrl, setHeroImageUrl] = useState(initialValues.brand_hero_image_url);
+  const [heroImageUrl] = useState(initialValues.brand_hero_image_url);
   const [instagram, setInstagram] = useState(initialValues.brand_instagram);
   const [facebook, setFacebook] = useState(initialValues.brand_facebook);
   const [tiktok, setTiktok] = useState(initialValues.brand_tiktok);
@@ -83,9 +83,7 @@ export function BrandingEditor({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingHero, setUploadingHero] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const heroInputRef = useRef<HTMLInputElement>(null);
 
   // Resolve font families for preview
   const headingFamily = resolveFamily(headingFont);
@@ -96,7 +94,7 @@ export function BrandingEditor({
   const effectiveButtonTextColour = buttonTextColour || "#ffffff";
   const buttonRadius = { sharp: "0px", rounded: "6px", pill: "9999px" }[buttonStyle];
   const logoHeight = { small: 80, medium: 120, large: 160 }[logoSize];
-  const previewLogoHeight = Math.round(logoHeight * 0.25);
+  const previewLogoHeight = Math.round(logoHeight * 0.6);
 
   // Load selected fonts for preview
   useEffect(() => {
@@ -410,67 +408,6 @@ export function BrandingEditor({
             placeholder="e.g. Specialty coffee, roasted fresh daily"
             className={inputClassName}
           />
-        </div>
-
-        {/* Hero Image */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="text-sm font-semibold text-slate-900 mb-1">Hero Image</h3>
-          <p className="text-xs text-slate-500 mb-4">
-            Banner image displayed at the top of your wholesale portal
-          </p>
-          <input
-            ref={heroInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleUpload(file, setHeroImageUrl, setUploadingHero);
-              e.target.value = "";
-            }}
-            className="hidden"
-          />
-          {heroImageUrl ? (
-            <div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={heroImageUrl}
-                alt="Hero"
-                className="w-full h-40 object-cover rounded-lg border border-slate-200"
-              />
-              <div className="mt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => heroInputRef.current?.click()}
-                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-                >
-                  Replace
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHeroImageUrl("")}
-                  className="text-sm text-slate-400 hover:text-slate-600"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => heroInputRef.current?.click()}
-              disabled={uploadingHero}
-              className="w-full border-2 border-dashed border-slate-300 rounded-lg py-6 flex flex-col items-center gap-1.5 text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-colors disabled:opacity-50"
-            >
-              {uploadingHero ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <ImageIcon className="w-6 h-6" />
-              )}
-              <span className="text-sm font-medium">
-                {uploadingHero ? "Uploading…" : "Upload hero image"}
-              </span>
-            </button>
-          )}
         </div>
 
         {/* Social Links */}

@@ -36,7 +36,7 @@ export default async function AdminBrandingSettingsPage() {
         initialValues={{
           brand_logo_url: settings?.brand_logo_url || "",
           brand_primary_colour: settings?.brand_primary_colour || "#1A1A1A",
-          brand_accent_colour: settings?.brand_accent_colour || "#D97706",
+          brand_accent_colour: settings?.brand_accent_colour || "#2563EB",
           brand_heading_font: settings?.brand_heading_font || "inter",
           brand_body_font: settings?.brand_body_font || "inter",
           brand_tagline: settings?.brand_tagline || "",

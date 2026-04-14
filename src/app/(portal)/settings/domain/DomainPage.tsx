@@ -446,7 +446,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                       </button>
                     </div>
                     <p className="text-xs text-slate-400 mt-2">
-                      Share this address with your wholesale buyers. When they email you here, the message lands in your Roastery Platform inbox where you can reply and convert enquiries into orders.
+                      Share this email with your customers. When they email you here, the message lands in your Roastery Platform inbox where you can reply and convert enquiries into orders. You can also forward emails to this address yourself — got a WhatsApp message or an order request on the go? Forward it here and convert it to an order later.
                     </p>
                   </div>
                 )}

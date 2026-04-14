@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
   Check,
-  X,
   ImageIcon,
   ExternalLink,
   Copy,
@@ -33,22 +32,14 @@ interface RoasterData {
   stripe_account_id: string;
 }
 
-// When retail is disabled, skip step 2 (type selection) and step 5 (Stripe Connect)
-// Full steps: 1=slug, 2=type, 3=branding, 4=about, 5=stripe, 6=launch
-// Wholesale-only steps: 1=slug, 2=branding, 3=about, 4=launch
-const ALL_STEPS = RETAIL_ENABLED ? [1, 2, 3, 4, 5, 6] : [1, 3, 4, 6];
+// Subdomain (step 1) is managed in Settings > Domain & Identity.
+// Full steps: 2=type, 3=branding, 4=about, 5=stripe, 6=launch
+// Wholesale-only steps: 3=branding, 4=about, 6=launch
+const ALL_STEPS = RETAIL_ENABLED ? [2, 3, 4, 5, 6] : [3, 4, 6];
 const TOTAL_STEPS = ALL_STEPS.length;
 
 const inputClassName =
   "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 30);
-}
 
 export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   const router = useRouter();
@@ -56,14 +47,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Step 1 — Slug
-  const [slug, setSlug] = useState(
-    roaster.storefront_slug || slugify(roaster.business_name)
-  );
-  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
-  const [checkingSlug, setCheckingSlug] = useState(false);
-  const slugTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Step 2 — Type (skipped when retail disabled; defaults to wholesale)
   const [storefrontType, setStorefrontType] = useState(
@@ -122,35 +105,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     }
   }, [searchParams, checkStripeStatus]);
 
-  // Slug availability check with debounce
-  useEffect(() => {
-    if (slugTimerRef.current) clearTimeout(slugTimerRef.current);
-
-    if (!slug || slug.length < 3) {
-      setSlugAvailable(null);
-      return;
-    }
-
-    setCheckingSlug(true);
-    slugTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/wholesale-portal/check-slug?slug=${encodeURIComponent(slug)}`
-        );
-        const data = await res.json();
-        setSlugAvailable(data.available);
-      } catch {
-        setSlugAvailable(null);
-      } finally {
-        setCheckingSlug(false);
-      }
-    }, 500);
-
-    return () => {
-      if (slugTimerRef.current) clearTimeout(slugTimerRef.current);
-    };
-  }, [slug]);
-
   // Check stripe status on mount if account exists
   useEffect(() => {
     if (roaster.stripe_account_id) {
@@ -189,9 +143,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     let stepData: Record<string, unknown> = {};
 
     switch (step) {
-      case 1:
-        stepData = { storefront_slug: slug };
-        break;
       case 2:
         stepData = { storefront_type: storefrontType };
         break;
@@ -249,11 +200,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
   const isLastStep = step === ALL_STEPS[ALL_STEPS.length - 1];
 
   async function handleNext() {
-    if (step === 1 && !slugAvailable) {
-      setError("Please choose an available subdomain");
-      return;
-    }
-
     // Step 5 (Stripe) doesn't save to our setup endpoint
     if (step !== 5) {
       const success = await saveStep();
@@ -304,12 +250,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
     }
   }
 
-  function copyUrl() {
-    navigator.clipboard.writeText(`${slug}.roasteryplatform.com`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
   const progressPercent = (displayStep / TOTAL_STEPS) * 100;
 
   return (
@@ -329,63 +269,6 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
-        {/* Step 1: Choose subdomain */}
-        {step === 1 && (
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              Choose your subdomain
-            </h2>
-            <p className="text-sm text-slate-500 mb-6">
-              {`This will be your ${RETAIL_ENABLED ? "storefront" : "wholesale portal"} URL. Choose carefully — this cannot be changed after going live.`}
-            </p>
-
-            <div className="flex items-center gap-0">
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => {
-                  const val = e.target.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9-]/g, "");
-                  setSlug(val);
-                }}
-                placeholder="your-roastery"
-                maxLength={30}
-                className="flex-1 px-3.5 py-2.5 border border-slate-300 rounded-l-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
-              <span className="px-4 py-2.5 bg-slate-100 border border-l-0 border-slate-300 rounded-r-lg text-sm text-slate-500 whitespace-nowrap">
-                .roasteryplatform.com
-              </span>
-            </div>
-
-            {/* Availability indicator */}
-            <div className="mt-2 h-5">
-              {checkingSlug && (
-                <span className="text-sm text-slate-400 flex items-center gap-1">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Checking…
-                </span>
-              )}
-              {!checkingSlug && slugAvailable === true && slug.length >= 3 && (
-                <span className="text-sm text-green-600 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  Available
-                </span>
-              )}
-              {!checkingSlug && slugAvailable === false && slug.length >= 3 && (
-                <span className="text-sm text-red-600 flex items-center gap-1">
-                  <X className="w-3.5 h-3.5" />
-                  Not available
-                </span>
-              )}
-            </div>
-
-            <p className="text-xs text-slate-400 mt-2">
-              3–30 characters. Lowercase letters, numbers, and hyphens only.
-            </p>
-          </div>
-        )}
-
         {/* Step 2: Storefront type */}
         {step === 2 && (
           <div>
@@ -815,12 +698,14 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
 
             {/* Summary */}
             <div className="space-y-3 mb-6">
+              {roaster.storefront_slug && (
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Subdomain</span>
                 <span className="text-sm font-medium text-slate-900">
-                  {slug}.roasteryplatform.com
+                  {roaster.storefront_slug}.roasteryplatform.com
                 </span>
               </div>
+              )}
               {RETAIL_ENABLED && (
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <span className="text-sm text-slate-500">Type</span>
@@ -869,15 +754,20 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
             </div>
 
             {/* Storefront URL */}
+            {roaster.storefront_slug && (
             <div className="bg-slate-50 rounded-lg p-4 mb-6">
               <p className="text-xs text-slate-500 mb-1">{RETAIL_ENABLED ? "Your storefront URL" : "Your wholesale portal URL"}</p>
               <div className="flex items-center gap-2">
                 <p className="text-base font-semibold text-slate-900">
-                  {slug}.roasteryplatform.com
+                  {roaster.storefront_slug}.roasteryplatform.com
                 </p>
                 <button
                   type="button"
-                  onClick={copyUrl}
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${roaster.storefront_slug}.roasteryplatform.com`);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
                   className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
                   title="Copy URL"
                 >
@@ -889,6 +779,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
                 </button>
               </div>
             </div>
+            )}
 
             {/* Go live toggle */}
             <div className="flex items-center gap-3">
@@ -944,7 +835,7 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               <button
                 type="button"
                 onClick={handleNext}
-                disabled={saving || (step === 1 && (!slugAvailable || slug.length < 3))}
+                disabled={saving}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}

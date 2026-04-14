@@ -81,8 +81,9 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
   const [inboxCopied, setInboxCopied] = useState(false);
 
   // ─── Slug availability check ───
+  const isSettingSlug = editingSlug || !currentSlug;
   useEffect(() => {
-    if (!editingSlug) return;
+    if (!isSettingSlug) return;
     if (slugTimerRef.current) clearTimeout(slugTimerRef.current);
 
     if (!slugInput || slugInput.length < 3 || slugInput === currentSlug) {
@@ -108,7 +109,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
     return () => {
       if (slugTimerRef.current) clearTimeout(slugTimerRef.current);
     };
-  }, [slugInput, editingSlug, currentSlug]);
+  }, [slugInput, isSettingSlug, currentSlug]);
 
   // ─── Save slug ───
   async function handleSaveSlug() {
@@ -269,7 +270,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
 
       <div className="space-y-6">
         {/* ═══════════════════════════════════════════════ */}
-        {/* Section 1: Subdomain                           */}
+        {/* Section 1: Subdomain & Inbox                   */}
         {/* ═══════════════════════════════════════════════ */}
         <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
@@ -418,18 +419,106 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                     Change subdomain
                   </button>
                 )}
+
+                {/* Inbox address (derived from subdomain) */}
+                {inboxAddress && (
+                  <div className="mt-5 pt-5 border-t border-slate-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Inbox className="w-4 h-4 text-slate-400" />
+                      <span className="text-sm font-medium text-slate-700">Platform Inbox</span>
+                    </div>
+                    <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 font-mono truncate">
+                          {inboxAddress}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(inboxAddress);
+                          setInboxCopied(true);
+                          setTimeout(() => setInboxCopied(false), 2000);
+                        }}
+                        className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600"
+                        title="Copy address"
+                      >
+                        {inboxCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                      Share this address with your wholesale buyers. When they email you here, the message lands in your Roastery Platform inbox where you can reply and convert enquiries into orders.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
-              <div className="text-center py-6">
-                <Globe className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No subdomain configured yet.</p>
-                <Link
-                  href="/wholesale-portal/setup"
-                  className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-600 hover:text-brand-700"
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Choose your subdomain
+                </label>
+                <div className="flex items-center gap-0 mb-2">
+                  <input
+                    type="text"
+                    value={slugInput}
+                    onChange={(e) => {
+                      const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                      setSlugInput(val);
+                    }}
+                    placeholder="your-roastery"
+                    maxLength={30}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-l-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                  <span className="px-3 py-2 bg-slate-100 border border-l-0 border-slate-300 rounded-r-lg text-sm text-slate-500 whitespace-nowrap">
+                    .roasteryplatform.com
+                  </span>
+                </div>
+
+                {/* Availability */}
+                <div className="h-5 mb-3">
+                  {checkingSlug && (
+                    <span className="text-sm text-slate-400 flex items-center gap-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Checking...
+                    </span>
+                  )}
+                  {!checkingSlug && slugAvailable === true && slugInput.length >= 3 && (
+                    <span className="text-sm text-green-600 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" />
+                      Available
+                    </span>
+                  )}
+                  {!checkingSlug && slugAvailable === false && slugInput.length >= 3 && (
+                    <span className="text-sm text-red-600 flex items-center gap-1">
+                      <X className="w-3.5 h-3.5" />
+                      Not available
+                    </span>
+                  )}
+                </div>
+
+                {slugError && (
+                  <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg mb-3 text-sm text-red-700">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{slugError}</span>
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-400 mb-4">
+                  3-30 characters. Lowercase letters, numbers, and hyphens only. This will also create your platform inbox address.
+                </p>
+
+                <button
+                  onClick={handleSaveSlug}
+                  disabled={
+                    savingSlug ||
+                    !slugInput ||
+                    slugInput.length < 3 ||
+                    slugAvailable !== true
+                  }
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Set up your wholesale portal
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+                  {savingSlug ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Save subdomain
+                </button>
               </div>
             )}
           </div>
@@ -1105,58 +1194,6 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                     </div>
                   );
                 })}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ═══════════════════════════════════════════════ */}
-        {/* Section 3: Inbox Address                       */}
-        {/* ═══════════════════════════════════════════════ */}
-        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Inbox className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Platform Inbox Address</h2>
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              Your dedicated email address on Roastery Platform. Emails sent to this address by your buyers will appear in your Inbox and can be converted into orders.
-            </p>
-          </div>
-
-          <div className="p-6">
-            {inboxAddress ? (
-              <>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
-                  <Inbox className="w-5 h-5 text-slate-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 font-mono truncate">
-                      {inboxAddress}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(inboxAddress);
-                      setInboxCopied(true);
-                      setTimeout(() => setInboxCopied(false), 2000);
-                    }}
-                    className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600"
-                    title="Copy address"
-                  >
-                    {inboxCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-400 mt-3">
-                  Share this address with your wholesale buyers. When they email you here, the message lands in your Roastery Platform inbox where you can reply and convert enquiries into orders.
-                </p>
-              </>
-            ) : (
-              <div className="text-center py-6">
-                <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-700">Inbox address not available yet</p>
-                <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
-                  Your inbox address is created automatically when you set up a subdomain. Head to the Subdomain section above to get started.
-                </p>
               </div>
             )}
           </div>

@@ -150,8 +150,8 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
               <li className="flex gap-3">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">1</span>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Receive your green beans</p>
-                  <p className="text-sm text-slate-500">Log the green bean stock you have on hand using the <strong>Receive Beans</strong> button above.</p>
+                  <p className="text-sm font-medium text-slate-900">Add your green beans</p>
+                  <p className="text-sm text-slate-500">Use the <strong>Add Bean</strong> button below to log the green bean stock you have on hand, including origin, cost, and quantity.</p>
                 </div>
               </li>
               <li className="flex gap-3">
@@ -176,11 +176,18 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
 
             <div className="flex items-center justify-center gap-3">
               <Link
-                href="/tools/inventory/roasted"
+                href="/tools/inventory/green/new"
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
               >
+                <Package className="w-4 h-4" />
+                Add Bean
+              </Link>
+              <Link
+                href="/tools/inventory/roasted"
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+              >
                 <Archive className="w-4 h-4" />
-                Go to Roast Profiles
+                Add Roast Profile
               </Link>
               <Link
                 href="/tools/inventory/roast-log"

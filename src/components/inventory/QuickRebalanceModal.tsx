@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Scale, Check, X, Loader2 } from "@/components/icons";
 
 interface RebalanceItem {
@@ -29,6 +29,65 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Fresh stock values fetched from the DB
+  const [loading, setLoading] = useState(false);
+  const [liveKg, setLiveKg] = useState<number | null>(null);
+  const [liveGreenKg, setLiveGreenKg] = useState<number | null>(null);
+
+  // Fetch fresh stock values whenever the modal opens
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setLiveKg(null);
+    setLiveGreenKg(null);
+
+    async function fetchFreshData() {
+      try {
+        if (item.type === "green") {
+          const res = await fetch(`/api/tools/green-beans/${item.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (!cancelled) {
+              setLiveKg(parseFloat(String(data.greenBean.current_stock_kg)) || 0);
+            }
+          }
+        } else {
+          const res = await fetch(`/api/tools/roasted-stock/${item.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (!cancelled) {
+              setLiveKg(parseFloat(String(data.roastedStock.current_stock_kg)) || 0);
+              // If linked green bean, fetch its fresh data too
+              const greenId = data.roastedStock.green_bean_id || item.linkedGreenBeanId;
+              if (greenId) {
+                const greenRes = await fetch(`/api/tools/green-beans/${greenId}`);
+                if (greenRes.ok) {
+                  const greenData = await greenRes.json();
+                  if (!cancelled) {
+                    setLiveGreenKg(parseFloat(String(greenData.greenBean.current_stock_kg)) || 0);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // Fall back to props values silently
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchFreshData();
+    return () => { cancelled = true; };
+  }, [open, item.id, item.type, item.linkedGreenBeanId]);
+
+  // Use live values if available, fall back to props
+  const currentKg = liveKg ?? item.currentKg;
+  const currentGreenKg = liveGreenKg ?? (item.linkedGreenBeanKg || 0);
+
   function handleClose() {
     setNewKg("");
     setUpdateGreen(false);
@@ -45,38 +104,47 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
       setError("Enter a new stock level");
       return;
     }
+
+    const targetKg = parseFloat(newKg);
+    if (isNaN(targetKg) || targetKg < 0) {
+      setError("Enter a valid stock level");
+      return;
+    }
+
+    // Check if main stock actually changed
+    if (targetKg === currentKg && !(updateGreen && newGreenKg)) {
+      setError("No changes to save");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     const promises: Promise<Response>[] = [];
 
     if (item.type === "green") {
-      // Green bean direct set
-      const diff = parseFloat(newKg) - item.currentKg;
-      if (diff !== 0) {
+      if (targetKg !== currentKg) {
         promises.push(
           fetch(`/api/tools/green-beans/${item.id}/movements`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               movement_type: "adjustment",
-              quantity_kg: diff,
+              set_to_kg: targetKg,
               notes: notes || "Stock rebalance",
             }),
           })
         );
       }
     } else {
-      // Roasted stock direct set
-      const diff = parseFloat(newKg) - item.currentKg;
-      if (diff !== 0) {
+      if (targetKg !== currentKg) {
         promises.push(
           fetch(`/api/tools/roasted-stock/${item.id}/movements`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               movement_type: "adjustment",
-              quantity_kg: diff,
+              set_to_kg: targetKg,
               notes: notes || "Stock rebalance",
             }),
           })
@@ -85,15 +153,15 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
 
       // Optional linked green bean update
       if (updateGreen && newGreenKg && item.linkedGreenBeanId) {
-        const greenDiff = parseFloat(newGreenKg) - (item.linkedGreenBeanKg || 0);
-        if (greenDiff !== 0) {
+        const greenTarget = parseFloat(newGreenKg);
+        if (!isNaN(greenTarget) && greenTarget !== currentGreenKg) {
           promises.push(
             fetch(`/api/tools/green-beans/${item.linkedGreenBeanId}/movements`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 movement_type: "adjustment",
-                quantity_kg: greenDiff,
+                set_to_kg: greenTarget,
                 notes: notes || "Stock rebalance",
               }),
             })
@@ -155,7 +223,12 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
 
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
 
-        {success ? (
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-slate-400">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm">Loading current stock...</span>
+          </div>
+        ) : success ? (
           <div className="flex items-center justify-center gap-2 py-8 text-green-600">
             <Check className="w-5 h-5" />
             <span className="font-medium">Stock levels updated</span>
@@ -169,7 +242,7 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
                   Set new stock level (kg)
                 </label>
                 <span className="text-xs text-slate-400">
-                  Current: {item.currentKg.toFixed(2)} kg
+                  Current: {currentKg.toFixed(2)} kg
                 </span>
               </div>
               <input
@@ -179,13 +252,13 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
                 className={inputClass}
                 min="0"
                 step="0.001"
-                placeholder={item.currentKg.toFixed(2)}
+                placeholder={currentKg.toFixed(2)}
                 autoFocus
               />
               {newKg && (
                 <p className="text-xs mt-1 text-slate-500">
                   {(() => {
-                    const diff = parseFloat(newKg) - item.currentKg;
+                    const diff = parseFloat(newKg) - currentKg;
                     if (diff === 0) return "No change";
                     return `${diff > 0 ? "+" : ""}${diff.toFixed(3)} kg adjustment`;
                   })()}
@@ -216,7 +289,7 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
                         {item.linkedGreenBeanName}
                       </label>
                       <span className="text-xs text-slate-400">
-                        Current: {(item.linkedGreenBeanKg || 0).toFixed(2)} kg
+                        Current: {currentGreenKg.toFixed(2)} kg
                       </span>
                     </div>
                     <input
@@ -226,12 +299,12 @@ export function QuickRebalanceModal({ open, onClose, onSuccess, item }: QuickReb
                       className={inputClass}
                       min="0"
                       step="0.001"
-                      placeholder={(item.linkedGreenBeanKg || 0).toFixed(2)}
+                      placeholder={currentGreenKg.toFixed(2)}
                     />
                     {newGreenKg && (
                       <p className="text-xs mt-1 text-slate-500">
                         {(() => {
-                          const diff = parseFloat(newGreenKg) - (item.linkedGreenBeanKg || 0);
+                          const diff = parseFloat(newGreenKg) - currentGreenKg;
                           if (diff === 0) return "No change";
                           return `${diff > 0 ? "+" : ""}${diff.toFixed(3)} kg adjustment`;
                         })()}

@@ -9,16 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await request.json();
-  const { movement_type, quantity_kg, unit_cost, notes, deduct_green_bean_kg } = body;
-
-  if (!movement_type || !quantity_kg) {
-    return NextResponse.json({ error: "Movement type and quantity are required" }, { status: 400 });
-  }
-
-  const qty = parseFloat(quantity_kg);
-  if (isNaN(qty) || qty === 0) {
-    return NextResponse.json({ error: "Quantity must be a non-zero number" }, { status: 400 });
-  }
+  const { movement_type, quantity_kg, unit_cost, notes, deduct_green_bean_kg, set_to_kg } = body;
 
   const supabase = createServerClient();
 
@@ -33,14 +24,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!stock) return NextResponse.json({ error: "Roasted stock not found" }, { status: 404 });
 
   const currentStock = parseFloat(String(stock.current_stock_kg)) || 0;
-  // roast_addition and cancellation_return add stock; order_deduction and waste remove stock
-  // adjustments preserve sign as-is (can add or remove)
-  const effectiveQty = ["roast_addition", "cancellation_return"].includes(movement_type)
-    ? Math.abs(qty)
-    : movement_type === "adjustment"
-    ? qty
-    : -Math.abs(qty);
-  const newBalance = Math.max(0, currentStock + effectiveQty);
+
+  let effectiveQty: number;
+  let newBalance: number;
+
+  if (movement_type === "adjustment" && set_to_kg !== undefined) {
+    // Direct set: overwrite stock to exact value
+    newBalance = Math.max(0, parseFloat(set_to_kg));
+    effectiveQty = newBalance - currentStock;
+    if (effectiveQty === 0) {
+      return NextResponse.json({ balance: currentStock }, { status: 200 });
+    }
+  } else {
+    // Standard movement: delta-based
+    if (!quantity_kg) {
+      return NextResponse.json({ error: "quantity_kg is required" }, { status: 400 });
+    }
+    const qty = parseFloat(quantity_kg);
+    if (isNaN(qty) || qty === 0) {
+      return NextResponse.json({ error: "Quantity must be a non-zero number" }, { status: 400 });
+    }
+    // roast_addition and cancellation_return add stock; order_deduction and waste remove stock
+    // adjustments without set_to_kg preserve sign as-is
+    effectiveQty = ["roast_addition", "cancellation_return"].includes(movement_type)
+      ? Math.abs(qty)
+      : movement_type === "adjustment"
+      ? qty
+      : -Math.abs(qty);
+    newBalance = Math.max(0, currentStock + effectiveQty);
+  }
+
+  if (!movement_type) {
+    return NextResponse.json({ error: "Movement type is required" }, { status: 400 });
+  }
 
   // Create movement record
   const { error: moveError } = await supabase.from("roasted_stock_movements").insert({
@@ -55,8 +71,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (moveError) return NextResponse.json({ error: "Failed to record movement" }, { status: 500 });
 
-  // Update running balance using RPC for additions, direct update for deductions
-  if (effectiveQty > 0) {
+  // Update running balance — direct set for adjustments, RPC for other types
+  if (set_to_kg !== undefined) {
+    // Direct overwrite — bypasses RPC to avoid any drift
+    await supabase
+      .from("roasted_stock")
+      .update({ current_stock_kg: newBalance })
+      .eq("id", id);
+  } else if (effectiveQty > 0) {
     await supabase.rpc("replenish_roasted_stock", { stock_id: id, qty_kg: effectiveQty });
   } else {
     await supabase.rpc("deduct_roasted_stock", { stock_id: id, qty_kg: Math.abs(effectiveQty) });

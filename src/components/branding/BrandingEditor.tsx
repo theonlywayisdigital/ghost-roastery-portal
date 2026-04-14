@@ -500,18 +500,19 @@ export function BrandingEditor({
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                   {logoUrl ? (
-                    <div
-                      className="flex items-center justify-center rounded-md"
-                      style={{ backgroundColor: primaryColour, padding: "6px 10px" }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={logoUrl}
-                        alt=""
-                        className="object-contain"
-                        style={{ height: previewLogoHeight, width: "auto" }}
-                      />
-                    </div>
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logoUrl}
+                      alt=""
+                      className="object-contain"
+                      style={{
+                        height: previewLogoHeight,
+                        width: "auto",
+                        backgroundColor: primaryColour,
+                        borderRadius: 6,
+                        padding: "6px 10px",
+                      }}
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center">
                       <span className="text-[10px] text-slate-400">Logo</span>

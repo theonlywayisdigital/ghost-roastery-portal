@@ -248,22 +248,22 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Domain & Identity</h1>
         <p className="text-slate-500 mt-1">
-          Manage your portal URL, email domain, and inbox address.
+          Configure your portal subdomain, custom email domain, and platform inbox.
         </p>
       </div>
 
       <div className="space-y-6">
         {/* ═══════════════════════════════════════════════ */}
-        {/* Section 1: Wholesale Portal URL                */}
+        {/* Section 1: Subdomain                           */}
         {/* ═══════════════════════════════════════════════ */}
         <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Wholesale Portal URL</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Subdomain</h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Your subdomain on roasteryplatform.com. This is used for your wholesale portal and storefront.
+              Your address on Roastery Platform. This is the URL for your wholesale portal where buyers browse products and place orders. Setting up a subdomain also enables your platform inbox.
             </p>
           </div>
 
@@ -421,35 +421,20 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
         </section>
 
         {/* ═══════════════════════════════════════════════ */}
-        {/* Section 2: Email Domain                        */}
+        {/* Section 2: Custom Email Domain                 */}
         {/* ═══════════════════════════════════════════════ */}
         <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Mail className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Email Domain</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Custom Email Domain</h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Emails are sent from your configured domain. Add a custom domain for better deliverability and branding.
+              By default, emails to your customers are sent from <span className="font-mono text-slate-600">noreply@roasteryplatform.com</span>. Add your own domain so emails display as <span className="font-mono text-slate-600">noreply@yourdomain.com</span> for better branding and deliverability.
             </p>
           </div>
 
           <div className="p-6">
-            {/* Default domain info */}
-            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg mb-6">
-              <Mail className="w-5 h-5 text-slate-400" />
-              <div>
-                <p className="text-sm font-medium text-slate-700">Default sending domain</p>
-                <p className="text-sm text-slate-500 font-mono">noreply@roasteryplatform.com</p>
-              </div>
-              <div className="ml-auto">
-                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-green-50 text-green-700">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Active
-                </span>
-              </div>
-            </div>
-
             {/* Upgrade required */}
             {emailUpgradeRequired && (
               <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
@@ -491,7 +476,6 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
             {/* Add custom domain form */}
             {!emailDomainsLoading && !emailUpgradeRequired && (
               <>
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">Add Custom Domain</h3>
                 <div className="flex gap-3 mb-6">
                   <div className="flex-1">
                     <input
@@ -545,7 +529,7 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                           onClick={() => handleVerifyEmailDomain(domain.id)}
                           disabled={emailVerifying === domain.id || domain.status === "verified"}
                           className="p-1.5 text-slate-400 hover:text-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Verify DNS"
+                          title="Check verification status"
                         >
                           {emailVerifying === domain.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -612,45 +596,74 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
                     {/* DNS records */}
                     {domain.dns_records && domain.dns_records.length > 0 && domain.status !== "verified" && (
                       <div className="px-4 py-3 border-t border-slate-100">
+                        {/* Setup guide */}
+                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-4">
+                          <p className="text-xs font-medium text-blue-800 mb-1">What are DNS records?</p>
+                          <p className="text-xs text-blue-700">
+                            DNS records prove you own this domain. You need to add the records below in the DNS settings of your domain provider — this is usually where you bought your domain (e.g. GoDaddy, Cloudflare, Namecheap).
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1.5">
+                            Not sure who manages your domain? Check where you originally purchased or registered it.
+                          </p>
+                        </div>
+
                         <div className="flex items-center gap-2 mb-3">
                           <Shield className="w-4 h-4 text-slate-400" />
                           <span className="text-xs font-semibold text-slate-700 uppercase tracking-wide">DNS Records</span>
                         </div>
-                        <p className="text-xs text-slate-500 mb-3">
-                          Add these records to your domain&apos;s DNS settings, then click the refresh button above to verify.
-                        </p>
                         <div className="space-y-2">
                           {domain.dns_records.map((record, idx) => (
-                            <div key={idx} className="flex items-start gap-2 p-2 bg-slate-50 rounded text-xs font-mono">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-semibold uppercase">
-                                    {record.type}
-                                  </span>
-                                  {record.priority !== undefined && (
-                                    <span className="text-slate-400">Priority: {record.priority}</span>
-                                  )}
+                            <div key={idx} className="p-3 bg-slate-50 rounded-lg text-xs font-mono">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-semibold uppercase">
+                                  {record.type}
+                                </span>
+                                {record.priority !== undefined && (
+                                  <span className="text-slate-400">Priority: {record.priority}</span>
+                                )}
+                              </div>
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-slate-400 shrink-0 w-10">Name</span>
+                                  <span className="flex-1 text-slate-700 truncate" title={record.name}>{record.name}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(record.name, `${domain.id}-${idx}-name`)}
+                                    className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
+                                    title="Copy name"
+                                  >
+                                    {emailCopied === `${domain.id}-${idx}-name` ? (
+                                      <Check className="w-3.5 h-3.5 text-green-500" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
                                 </div>
-                                <div className="text-slate-600 truncate" title={record.name}>
-                                  <span className="text-slate-400">Name: </span>{record.name}
-                                </div>
-                                <div className="text-slate-600 break-all" title={record.value}>
-                                  <span className="text-slate-400">Value: </span>{record.value}
+                                <div className="flex items-start gap-2">
+                                  <span className="text-slate-400 shrink-0 w-10 mt-0.5">Value</span>
+                                  <span className="flex-1 text-slate-700 break-all" title={record.value}>{record.value}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(record.value, `${domain.id}-${idx}-value`)}
+                                    className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
+                                    title="Copy value"
+                                  >
+                                    {emailCopied === `${domain.id}-${idx}-value` ? (
+                                      <Check className="w-3.5 h-3.5 text-green-500" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
                                 </div>
                               </div>
-                              <button
-                                onClick={() => copyToClipboard(record.value, `${domain.id}-${idx}`)}
-                                className="shrink-0 p-1 text-slate-400 hover:text-slate-600"
-                                title="Copy value"
-                              >
-                                {emailCopied === `${domain.id}-${idx}` ? (
-                                  <Check className="w-3.5 h-3.5 text-green-500" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
                             </div>
                           ))}
+                        </div>
+
+                        {/* Propagation note */}
+                        <div className="flex items-start gap-2 mt-3 p-3 bg-slate-50 rounded-lg">
+                          <AlertCircle className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                          <p className="text-xs text-slate-500">
+                            DNS changes can take up to 48 hours to propagate. Once you&apos;ve added the records above, click the <RefreshCw className="w-3 h-3 inline" /> refresh button next to your domain to check the verification status.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -673,11 +686,9 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
 
             {/* Empty state */}
             {!emailDomainsLoading && emailDomains.length === 0 && !emailUpgradeRequired && (
-              <div className="text-center py-6">
-                <Mail className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No custom domains configured.</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Add your own domain above for branded email sending.
+              <div className="text-center py-4">
+                <p className="text-xs text-slate-400">
+                  Your emails are currently sent from <span className="font-mono">noreply@roasteryplatform.com</span>. Add a domain above to use your own.
                 </p>
               </div>
             )}
@@ -691,41 +702,46 @@ export function DomainPage({ slug, businessName }: DomainPageProps) {
           <div className="px-6 py-4 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <Inbox className="w-5 h-5 text-slate-600" />
-              <h2 className="text-lg font-semibold text-slate-900">Inbox Address</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Platform Inbox Address</h2>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Emails sent to this address appear in your inbox on the platform.
+              Your dedicated email address on Roastery Platform. Emails sent to this address by your buyers will appear in your Inbox and can be converted into orders.
             </p>
           </div>
 
           <div className="p-6">
             {inboxAddress ? (
-              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
-                <Inbox className="w-5 h-5 text-slate-400 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 font-mono truncate">
-                    {inboxAddress}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Forward emails here or give this address to contacts.
-                  </p>
+              <>
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                  <Inbox className="w-5 h-5 text-slate-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 font-mono truncate">
+                      {inboxAddress}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(inboxAddress);
+                      setInboxCopied(true);
+                      setTimeout(() => setInboxCopied(false), 2000);
+                    }}
+                    className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600"
+                    title="Copy address"
+                  >
+                    {inboxCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(inboxAddress);
-                    setInboxCopied(true);
-                    setTimeout(() => setInboxCopied(false), 2000);
-                  }}
-                  className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600"
-                  title="Copy address"
-                >
-                  {inboxCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
+                <p className="text-xs text-slate-400 mt-3">
+                  Share this address with your wholesale buyers. When they email you here, the message lands in your Roastery Platform inbox where you can reply and convert enquiries into orders.
+                </p>
+              </>
             ) : (
               <div className="text-center py-6">
-                <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">Set up your subdomain first to get an inbox address.</p>
+                <Inbox className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-700">Inbox address not available yet</p>
+                <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                  Your inbox address is created automatically when you set up a subdomain. Head to the Subdomain section above to get started.
+                </p>
               </div>
             )}
           </div>

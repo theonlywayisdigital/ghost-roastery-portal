@@ -299,9 +299,11 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
-  // Option types & variant cells (unified for all categories)
-  const [optionTypes, setOptionTypes] = useState<OptionType[]>([]);
-  const [otherVariantCells, setOtherVariantCells] = useState<OtherVariantCell[]>([]);
+  // Per-channel option types & variant cells
+  const [retailOptionTypes, setRetailOptionTypes] = useState<OptionType[]>([]);
+  const [retailVariantCells, setRetailVariantCells] = useState<OtherVariantCell[]>([]);
+  const [wholesaleOptionTypes, setWholesaleOptionTypes] = useState<OptionType[]>([]);
+  const [wholesaleVariantCells, setWholesaleVariantCells] = useState<OtherVariantCell[]>([]);
 
   // Storefront integration detection
   const [hasStorefrontIntegration, setHasStorefrontIntegration] = useState<boolean | null>(null);
@@ -359,44 +361,58 @@ export function ProductForm({ product }: { product?: Product }) {
       .catch(() => {});
   }, [isEditing, product?.id]);
 
-  // Fetch existing variants when editing — reconstruct option types + variant cells
+  // Fetch existing variants when editing — split option types + variant cells by channel
   useEffect(() => {
     if (isEditing) {
       fetch(`/api/products/${product.id}`)
         .then((res) => res.json())
         .then((data) => {
-          // Reconstruct option types + variant cells (universal for all categories)
+          // Split option types by channel
           if (data.option_types && data.option_types.length > 0) {
-            const loadedTypes: OptionType[] = data.option_types.map(
-              (ot: { id: string; name: string; is_weight?: boolean; values: { id: string; value: string; weight_grams?: number | null }[] }) => ({
-                id: ot.id,
-                name: ot.name,
-                isWeight: ot.is_weight ?? false,
-                values: ot.values.map((v) => ({ id: v.id, value: v.value, weightGrams: v.weight_grams ?? undefined })),
-              })
-            );
-            setOptionTypes(loadedTypes);
+            const toOptionType = (ot: { id: string; name: string; is_weight?: boolean; channel?: string; values: { id: string; value: string; weight_grams?: number | null }[] }): OptionType => ({
+              id: ot.id,
+              name: ot.name,
+              isWeight: ot.is_weight ?? false,
+              values: ot.values.map((v) => ({ id: v.id, value: v.value, weightGrams: v.weight_grams ?? undefined })),
+            });
 
-            // Reconstruct variant cells from variants with option_value_ids
+            const retailTypes = data.option_types
+              .filter((ot: { channel?: string }) => (ot.channel || "retail") === "retail")
+              .map(toOptionType);
+            const wholesaleTypes = data.option_types
+              .filter((ot: { channel?: string }) => ot.channel === "wholesale")
+              .map(toOptionType);
+
+            if (retailTypes.length > 0) setRetailOptionTypes(retailTypes);
+            if (wholesaleTypes.length > 0) setWholesaleOptionTypes(wholesaleTypes);
+
+            // Split variant cells by channel
             if (data.variants && data.variants.length > 0) {
-              const cells: OtherVariantCell[] = data.variants.map(
-                (v: Variant & { option_value_ids?: string[] }) => ({
-                  id: v.id,
-                  label: v.unit || "",
-                  optionValueIds: v.option_value_ids || [],
-                  retailPrice: v.retail_price?.toString() || "",
-                  wholesalePrice: v.wholesale_price?.toString() || "",
-                  sku: v.sku || "",
-                  trackStock: v.track_stock,
-                  stockCount: v.retail_stock_count?.toString() || "",
-                  isActive: v.is_active,
-                })
-              );
-              setOtherVariantCells(cells);
+              const toCell = (v: Variant & { option_value_ids?: string[] }): OtherVariantCell => ({
+                id: v.id,
+                label: v.unit || "",
+                optionValueIds: v.option_value_ids || [],
+                retailPrice: v.retail_price?.toString() || "",
+                wholesalePrice: v.wholesale_price?.toString() || "",
+                sku: v.sku || "",
+                trackStock: v.track_stock,
+                stockCount: v.retail_stock_count?.toString() || "",
+                isActive: v.is_active,
+              });
+
+              const retailVars = data.variants
+                .filter((v: Variant) => (v.channel || "retail") === "retail")
+                .map(toCell);
+              const wholesaleVars = data.variants
+                .filter((v: Variant) => v.channel === "wholesale")
+                .map(toCell);
+
+              if (retailVars.length > 0) setRetailVariantCells(retailVars);
+              if (wholesaleVars.length > 0) setWholesaleVariantCells(wholesaleVars);
             }
           } else if (data.variants && data.variants.length > 0) {
             // Fallback for pre-migration coffee products: reconstruct option types
-            // from weight_grams and grind_type_id on variants
+            // from weight_grams and grind_type_id on variants — all go to retail
             const variants: Variant[] = data.variants;
             const weightValues = new Map<number, string>();
             const grindValues = new Map<string, string>();
@@ -429,8 +445,8 @@ export function ProductForm({ product }: { product?: Product }) {
               });
             }
             if (types.length > 0) {
-              setOptionTypes(types);
-              // Variant cells will be auto-generated by the otherVariantCombos effect
+              setRetailOptionTypes(types);
+              // Variant cells will be auto-generated by the retailVariantCombos effect
             }
           }
 
@@ -558,10 +574,16 @@ export function ProductForm({ product }: { product?: Product }) {
     useSensor(KeyboardSensor)
   );
 
-  // ─── Option Type Helpers ───
-  function handleAddOptionType() {
+  // ─── Channel-aware Option Type Helpers ───
+  function getOptionState(channel: "retail" | "wholesale") {
+    return channel === "retail"
+      ? { optionTypes: retailOptionTypes, setOptionTypes: setRetailOptionTypes }
+      : { optionTypes: wholesaleOptionTypes, setOptionTypes: setWholesaleOptionTypes };
+  }
+
+  function handleAddOptionType(channel: "retail" | "wholesale") {
+    const { optionTypes, setOptionTypes } = getOptionState(channel);
     if (optionTypes.length >= 3) return;
-    // For coffee products, default first option type to "Weight" with isWeight
     const isFirstCoffee = category === "coffee" && optionTypes.length === 0;
     setOptionTypes((prev) => [...prev, {
       name: isFirstCoffee ? "Weight" : "",
@@ -570,21 +592,23 @@ export function ProductForm({ product }: { product?: Product }) {
     }]);
   }
 
-  function handleRemoveOptionType(idx: number) {
+  function handleRemoveOptionType(channel: "retail" | "wholesale", idx: number) {
+    const { setOptionTypes } = getOptionState(channel);
     setOptionTypes((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function handleOptionTypeName(idx: number, name: string) {
+  function handleOptionTypeName(channel: "retail" | "wholesale", idx: number, name: string) {
+    const { setOptionTypes } = getOptionState(channel);
     const isWeight = /weight/i.test(name);
     setOptionTypes((prev) => prev.map((ot, i) => (i === idx ? { ...ot, name, isWeight } : ot)));
   }
 
-  function handleAddOptionValue(typeIdx: number, rawValue: string) {
+  function handleAddOptionValue(channel: "retail" | "wholesale", typeIdx: number, rawValue: string) {
     if (!rawValue.trim()) return;
+    const { optionTypes, setOptionTypes } = getOptionState(channel);
     const ot = optionTypes[typeIdx];
     let val: OptionValue;
     if (ot?.isWeight) {
-      // Parse weight input: "250g", "1kg", "0.25kg", or just "250" (assume grams)
       const trimmed = rawValue.trim().toLowerCase();
       let grams: number | undefined;
       const kgMatch = trimmed.match(/^([\d.]+)\s*kg$/);
@@ -611,7 +635,8 @@ export function ProductForm({ product }: { product?: Product }) {
     );
   }
 
-  function handleRemoveOptionValue(typeIdx: number, valIdx: number) {
+  function handleRemoveOptionValue(channel: "retail" | "wholesale", typeIdx: number, valIdx: number) {
+    const { setOptionTypes } = getOptionState(channel);
     setOptionTypes((prev) =>
       prev.map((ot, i) =>
         i === typeIdx ? { ...ot, values: ot.values.filter((_, vi) => vi !== valIdx) } : ot
@@ -619,11 +644,10 @@ export function ProductForm({ product }: { product?: Product }) {
     );
   }
 
-  // Compute cartesian product combos from option types (always up-to-date via useMemo)
-  const otherVariantCombos = useMemo(() => {
-    const validTypes = optionTypes.filter((ot) => ot.name.trim() && ot.values.length > 0);
+  // Compute cartesian product combos per channel
+  function computeCombos(types: OptionType[]) {
+    const validTypes = types.filter((ot) => ot.name.trim() && ot.values.length > 0);
     if (validTypes.length === 0) return [];
-
     let combos: { label: string; optionValueIds: string[] }[] = [{ label: "", optionValueIds: [] }];
     for (const ot of validTypes) {
       const next: { label: string; optionValueIds: string[] }[] = [];
@@ -638,37 +662,47 @@ export function ProductForm({ product }: { product?: Product }) {
       combos = next;
     }
     return combos;
-  }, [optionTypes]);
+  }
 
-  // Sync variant cells whenever combos change — preserves user-entered data by label
+  const retailVariantCombos = useMemo(() => computeCombos(retailOptionTypes), [retailOptionTypes]);
+  const wholesaleVariantCombos = useMemo(() => computeCombos(wholesaleOptionTypes), [wholesaleOptionTypes]);
+
+  // Sync retail variant cells
   useEffect(() => {
-    setOtherVariantCells((prev) => {
-      if (otherVariantCombos.length === 0) return prev.length === 0 ? prev : [];
+    setRetailVariantCells((prev) => {
+      if (retailVariantCombos.length === 0) return prev.length === 0 ? prev : [];
       const existingByLabel = new Map(prev.map((c) => [c.label, c]));
-      return otherVariantCombos.map((combo) => {
+      return retailVariantCombos.map((combo) => {
         const existing = existingByLabel.get(combo.label);
         return existing
           ? { ...existing, optionValueIds: combo.optionValueIds }
-          : {
-              label: combo.label,
-              optionValueIds: combo.optionValueIds,
-              retailPrice: "",
-              wholesalePrice: "",
-              sku: "",
-              trackStock: false,
-              stockCount: "",
-              isActive: false,
-            };
+          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", sku: "", trackStock: false, stockCount: "", isActive: false };
       });
     });
-  }, [otherVariantCombos]);
+  }, [retailVariantCombos]);
 
-  function updateOtherVariantCell(idx: number, updates: Partial<OtherVariantCell>) {
-    setOtherVariantCells((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
+  // Sync wholesale variant cells
+  useEffect(() => {
+    setWholesaleVariantCells((prev) => {
+      if (wholesaleVariantCombos.length === 0) return prev.length === 0 ? prev : [];
+      const existingByLabel = new Map(prev.map((c) => [c.label, c]));
+      return wholesaleVariantCombos.map((combo) => {
+        const existing = existingByLabel.get(combo.label);
+        return existing
+          ? { ...existing, optionValueIds: combo.optionValueIds }
+          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", sku: "", trackStock: false, stockCount: "", isActive: false };
+      });
+    });
+  }, [wholesaleVariantCombos]);
+
+  function updateVariantCell(channel: "retail" | "wholesale", idx: number, updates: Partial<OtherVariantCell>) {
+    const setter = channel === "retail" ? setRetailVariantCells : setWholesaleVariantCells;
+    setter((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
   }
 
-  // ─── Option Builder Renderer ───
-  function renderOptionBuilder() {
+  // ─── Option Builder Renderer (per-channel) ───
+  function renderOptionBuilder(channel: "retail" | "wholesale") {
+    const { optionTypes } = getOptionState(channel);
     return (
       <div className={sectionClassName}>
         <div className="flex items-center justify-between">
@@ -676,7 +710,7 @@ export function ProductForm({ product }: { product?: Product }) {
           {optionTypes.length < 3 && (
             <button
               type="button"
-              onClick={handleAddOptionType}
+              onClick={() => handleAddOptionType(channel)}
               className="text-sm text-brand-600 hover:text-brand-700 font-medium"
             >
               + Add option type
@@ -694,7 +728,7 @@ export function ProductForm({ product }: { product?: Product }) {
               <input
                 type="text"
                 value={ot.name}
-                onChange={(e) => handleOptionTypeName(typeIdx, e.target.value)}
+                onChange={(e) => handleOptionTypeName(channel, typeIdx, e.target.value)}
                 placeholder={category === "coffee" && typeIdx === 0 ? "e.g. Weight" : "e.g. Size, Colour, Grind"}
                 className={`${inputClassName} flex-1`}
               />
@@ -705,7 +739,7 @@ export function ProductForm({ product }: { product?: Product }) {
               )}
               <button
                 type="button"
-                onClick={() => handleRemoveOptionType(typeIdx)}
+                onClick={() => handleRemoveOptionType(channel, typeIdx)}
                 className="p-1.5 text-slate-400 hover:text-red-500"
               >
                 <X className="w-4 h-4" />
@@ -723,7 +757,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   )}
                   <button
                     type="button"
-                    onClick={() => handleRemoveOptionValue(typeIdx, valIdx)}
+                    onClick={() => handleRemoveOptionValue(channel, typeIdx, valIdx)}
                     className="text-slate-400 hover:text-red-500"
                   >
                     <X className="w-3 h-3" />
@@ -738,7 +772,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   if (e.key === "Enter") {
                     e.preventDefault();
                     const input = e.currentTarget;
-                    handleAddOptionValue(typeIdx, input.value);
+                    handleAddOptionValue(channel, typeIdx, input.value);
                     input.value = "";
                   }
                 }}
@@ -750,66 +784,50 @@ export function ProductForm({ product }: { product?: Product }) {
     );
   }
 
-  // ─── Other Variant Grid Renderer ───
-  function renderOtherVariantGrid(channel: "retail" | "wholesale" | "both") {
-    if (otherVariantCells.length === 0) return null;
+  // ─── Variant Grid Renderer (per-channel) ───
+  function renderVariantGrid(channel: "retail" | "wholesale") {
+    const cells = channel === "retail" ? retailVariantCells : wholesaleVariantCells;
+    if (cells.length === 0) return null;
+
+    const priceLabel = channel === "retail" ? "Retail £" : "Wholesale £";
+    const priceField = channel === "retail" ? "retailPrice" : "wholesalePrice";
 
     return (
       <div className={sectionClassName}>
         <h4 className="text-sm font-semibold text-slate-800">
-          {`Variant Combinations (${otherVariantCells.length})`}
+          {`Variant Combinations (${cells.length})`}
         </h4>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200">
                 <th className="text-left py-2 pr-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Variant</th>
-                {(channel === "retail" || channel === "both") && (
-                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Retail £</th>
-                )}
-                {(channel === "wholesale" || channel === "both") && (
-                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Wholesale £</th>
-                )}
+                <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{priceLabel}</th>
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Stock</th>
                 <th className="text-center py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Active</th>
               </tr>
             </thead>
             <tbody>
-              {otherVariantCells.map((cell, idx) => (
+              {cells.map((cell, idx) => (
                 <tr key={cell.label} className="border-b border-slate-100 last:border-0">
                   <td className="py-2.5 pr-3 font-medium text-slate-900 whitespace-nowrap">{cell.label}</td>
-                  {(channel === "retail" || channel === "both") && (
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={cell.retailPrice}
-                        onChange={(e) => updateOtherVariantCell(idx, { retailPrice: e.target.value })}
-                        placeholder="0.00"
-                        className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      />
-                    </td>
-                  )}
-                  {(channel === "wholesale" || channel === "both") && (
-                    <td className="py-2.5 px-3">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={cell.wholesalePrice}
-                        onChange={(e) => updateOtherVariantCell(idx, { wholesalePrice: e.target.value })}
-                        placeholder="0.00"
-                        className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      />
-                    </td>
-                  )}
+                  <td className="py-2.5 px-3">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={cell[priceField as keyof OtherVariantCell] as string}
+                      onChange={(e) => updateVariantCell(channel, idx, { [priceField]: e.target.value })}
+                      placeholder="0.00"
+                      className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                  </td>
                   <td className="py-2.5 px-3">
                     <input
                       type="text"
                       value={cell.sku}
-                      onChange={(e) => updateOtherVariantCell(idx, { sku: e.target.value })}
+                      onChange={(e) => updateVariantCell(channel, idx, { sku: e.target.value })}
                       placeholder="SKU"
                       className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
@@ -818,7 +836,7 @@ export function ProductForm({ product }: { product?: Product }) {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => updateOtherVariantCell(idx, { trackStock: !cell.trackStock, stockCount: cell.trackStock ? "" : cell.stockCount })}
+                        onClick={() => updateVariantCell(channel, idx, { trackStock: !cell.trackStock, stockCount: cell.trackStock ? "" : cell.stockCount })}
                         className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
                           cell.trackStock ? "bg-brand-600" : "bg-slate-200"
                         }`}
@@ -834,7 +852,7 @@ export function ProductForm({ product }: { product?: Product }) {
                           type="number"
                           min="0"
                           value={cell.stockCount}
-                          onChange={(e) => updateOtherVariantCell(idx, { stockCount: e.target.value })}
+                          onChange={(e) => updateVariantCell(channel, idx, { stockCount: e.target.value })}
                           placeholder="0"
                           className="w-16 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                         />
@@ -844,7 +862,7 @@ export function ProductForm({ product }: { product?: Product }) {
                   <td className="py-2.5 px-3 text-center">
                     <button
                       type="button"
-                      onClick={() => updateOtherVariantCell(idx, { isActive: !cell.isActive })}
+                      onClick={() => updateVariantCell(channel, idx, { isActive: !cell.isActive })}
                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
                         cell.isActive ? "bg-brand-600" : "bg-slate-200"
                       }`}
@@ -863,6 +881,34 @@ export function ProductForm({ product }: { product?: Product }) {
         </div>
       </div>
     );
+  }
+
+  // ─── Copy Variants Between Channels ───
+  function copyVariantsFrom(sourceChannel: "retail" | "wholesale") {
+    const targetChannel = sourceChannel === "retail" ? "wholesale" : "retail";
+    const sourceTypes = sourceChannel === "retail" ? retailOptionTypes : wholesaleOptionTypes;
+    const sourceCells = sourceChannel === "retail" ? retailVariantCells : wholesaleVariantCells;
+    const setTargetTypes = targetChannel === "retail" ? setRetailOptionTypes : setWholesaleOptionTypes;
+    const setTargetCells = targetChannel === "retail" ? setRetailVariantCells : setWholesaleVariantCells;
+
+    // Clone option types (strip IDs so they're created fresh for the target channel)
+    setTargetTypes(sourceTypes.map((ot) => ({
+      name: ot.name,
+      isWeight: ot.isWeight,
+      values: ot.values.map((v) => ({ value: v.value, weightGrams: v.weightGrams })),
+    })));
+
+    // Clone cells with cleared prices (prices are independent per channel)
+    setTargetCells(sourceCells.map((cell) => ({
+      label: cell.label,
+      optionValueIds: cell.optionValueIds,
+      retailPrice: "",
+      wholesalePrice: "",
+      sku: cell.sku,
+      trackStock: cell.trackStock,
+      stockCount: cell.stockCount,
+      isActive: cell.isActive,
+    })));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -929,14 +975,18 @@ export function ProductForm({ product }: { product?: Product }) {
       subscription_frequency: isRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
     };
 
-    // Build variants from option-based cells (unified for all categories)
+    // Build variants from both channels
     const flatVariants: Record<string, unknown>[] = [];
 
-    if (otherVariantCells.length > 0) {
-      otherVariantCells.forEach((cell, idx) => {
-        // Find weight_grams from cell's option value IDs
+    function buildVariantsFromChannel(
+      channel: "retail" | "wholesale",
+      cells: OtherVariantCell[],
+      types: OptionType[],
+      startIdx: number,
+    ) {
+      cells.forEach((cell, idx) => {
         let weightGrams: number | null = null;
-        for (const ot of optionTypes) {
+        for (const ot of types) {
           if (ot.isWeight) {
             const matchingValue = ot.values.find((v) =>
               cell.optionValueIds.includes(v.id || v.value)
@@ -953,16 +1003,23 @@ export function ProductForm({ product }: { product?: Product }) {
           unit: cell.label,
           grind_type_id: null,
           sku: cell.sku || null,
-          retail_price: cell.retailPrice ? parseFloat(cell.retailPrice) : null,
-          wholesale_price: cell.wholesalePrice ? parseFloat(cell.wholesalePrice) : null,
+          retail_price: channel === "retail" && cell.retailPrice ? parseFloat(cell.retailPrice) : null,
+          wholesale_price: channel === "wholesale" && cell.wholesalePrice ? parseFloat(cell.wholesalePrice) : null,
           retail_stock_count: cell.trackStock ? parseInt(cell.stockCount) || 0 : null,
           track_stock: cell.trackStock,
           is_active: cell.isActive,
-          sort_order: idx,
-          channel: "retail",
+          sort_order: startIdx + idx,
+          channel,
           option_value_ids: cell.optionValueIds,
         });
       });
+    }
+
+    if (isRetail && retailVariantCells.length > 0) {
+      buildVariantsFromChannel("retail", retailVariantCells, retailOptionTypes, 0);
+    }
+    if (isWholesale && wholesaleVariantCells.length > 0) {
+      buildVariantsFromChannel("wholesale", wholesaleVariantCells, wholesaleOptionTypes, retailVariantCells.length);
     }
 
     // Only send variants when there are actual variants to submit.
@@ -973,22 +1030,31 @@ export function ProductForm({ product }: { product?: Product }) {
       body.variants = flatVariants;
     }
 
-    // Attach option types for ALL categories
-    if (optionTypes.length > 0) {
-      body.option_types = optionTypes
+    // Attach option types from both channels
+    const allOptionTypes: Record<string, unknown>[] = [];
+    function collectOptionTypes(types: OptionType[], channel: "retail" | "wholesale") {
+      types
         .filter((ot) => ot.name.trim() && ot.values.length > 0)
-        .map((ot, idx) => ({
-          id: ot.id || undefined,
-          name: ot.name.trim(),
-          sort_order: idx,
-          is_weight: ot.isWeight,
-          values: ot.values.map((v, vi) => ({
-            id: v.id || undefined,
-            value: v.value,
-            sort_order: vi,
-            weight_grams: v.weightGrams ?? null,
-          })),
-        }));
+        .forEach((ot, idx) => {
+          allOptionTypes.push({
+            id: ot.id || undefined,
+            name: ot.name.trim(),
+            sort_order: idx,
+            is_weight: ot.isWeight,
+            channel,
+            values: ot.values.map((v, vi) => ({
+              id: v.id || undefined,
+              value: v.value,
+              sort_order: vi,
+              weight_grams: v.weightGrams ?? null,
+            })),
+          });
+        });
+    }
+    if (isRetail) collectOptionTypes(retailOptionTypes, "retail");
+    if (isWholesale) collectOptionTypes(wholesaleOptionTypes, "wholesale");
+    if (allOptionTypes.length > 0) {
+      body.option_types = allOptionTypes;
     }
 
     try {
@@ -1765,10 +1831,10 @@ export function ProductForm({ product }: { product?: Product }) {
                         value={retailPrice}
                         onChange={(e) => setRetailPrice(e.target.value)}
                         placeholder="8.50"
-                        disabled={otherVariantCells.length > 0}
-                        className={`${inputClassName} max-w-[200px] ${otherVariantCells.length > 0 ? "opacity-50 bg-slate-50" : ""}`}
+                        disabled={retailVariantCells.length > 0}
+                        className={`${inputClassName} max-w-[200px] ${retailVariantCells.length > 0 ? "opacity-50 bg-slate-50" : ""}`}
                       />
-                      {otherVariantCells.length > 0 && (
+                      {retailVariantCells.length > 0 && (
                         <p className="text-xs text-slate-400 mt-1">
                           Price is set per variant when variants are enabled
                         </p>
@@ -1844,11 +1910,22 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                 </div>
 
-                {/* Product Options & Variants */}
+                {/* Retail Options & Variants */}
                 <div className="space-y-5">
-                  <h3 className="text-sm font-semibold text-slate-800">Product Options &amp; Variants</h3>
-                  {renderOptionBuilder()}
-                  {renderOtherVariantGrid(isWholesale ? "both" : "retail")}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-800">Retail Options &amp; Variants</h3>
+                    {isWholesale && wholesaleOptionTypes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => copyVariantsFrom("wholesale")}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                      >
+                        Copy from Wholesale
+                      </button>
+                    )}
+                  </div>
+                  {renderOptionBuilder("retail")}
+                  {renderVariantGrid("retail")}
                 </div>
               </div>
             )}
@@ -1924,16 +2001,22 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                 </div>
 
-                {/* Wholesale Variants */}
+                {/* Wholesale Options & Variants */}
                 <div className="space-y-5">
-                  <h3 className="text-sm font-semibold text-slate-800">Wholesale Variants</h3>
-                  {optionTypes.length === 0 ? (
-                    <p className="text-sm text-slate-500">
-                      Add option types on the Retail tab to configure wholesale variant pricing.
-                    </p>
-                  ) : (
-                    renderOtherVariantGrid("wholesale")
-                  )}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-slate-800">Wholesale Options &amp; Variants</h3>
+                    {isRetail && retailOptionTypes.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => copyVariantsFrom("retail")}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+                      >
+                        Copy from Retail
+                      </button>
+                    )}
+                  </div>
+                  {renderOptionBuilder("wholesale")}
+                  {renderVariantGrid("wholesale")}
                 </div>
               </div>
             )}

@@ -139,6 +139,7 @@ export async function POST(request: Request) {
             name: ot.name,
             sort_order: ot.sort_order ?? 0,
             is_weight: ot.is_weight ?? false,
+            channel: ot.channel || "retail",
           })
           .select()
           .single();

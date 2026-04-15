@@ -46,10 +46,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }));
 
   // Fetch option types with values for ALL products
-  let option_types: { id: string; name: string; sort_order: number; is_weight: boolean; values: { id: string; value: string; sort_order: number; weight_grams: number | null }[] }[] = [];
+  let option_types: { id: string; name: string; sort_order: number; is_weight: boolean; channel: string; values: { id: string; value: string; sort_order: number; weight_grams: number | null }[] }[] = [];
   const { data: types } = await supabase
     .from("product_option_types")
-    .select("id, name, sort_order, is_weight")
+    .select("id, name, sort_order, is_weight, channel")
     .eq("product_id", id)
     .eq("roaster_id", roaster.id)
     .order("sort_order", { ascending: true });
@@ -197,7 +197,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
           // Update existing type
           await supabase
             .from("product_option_types")
-            .update({ name: ot.name, sort_order: ot.sort_order ?? 0, is_weight: ot.is_weight ?? false })
+            .update({ name: ot.name, sort_order: ot.sort_order ?? 0, is_weight: ot.is_weight ?? false, channel: ot.channel || "retail" })
             .eq("id", ot.id)
             .eq("roaster_id", roaster.id);
         } else {
@@ -210,6 +210,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
               name: ot.name,
               sort_order: ot.sort_order ?? 0,
               is_weight: ot.is_weight ?? false,
+              channel: ot.channel || "retail",
             })
             .select("id")
             .single();

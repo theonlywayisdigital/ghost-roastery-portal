@@ -753,7 +753,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 >
                   {val.value}
                   {val.weightGrams != null && (
-                    <span className="text-slate-400 text-xs">({val.weightGrams}g)</span>
+                    <span className="text-slate-400 text-xs">({parseFloat((val.weightGrams / 1000).toPrecision(4))}kg)</span>
                   )}
                   <button
                     type="button"

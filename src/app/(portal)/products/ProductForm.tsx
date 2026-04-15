@@ -574,6 +574,22 @@ export function ProductForm({ product }: { product?: Product }) {
     useSensor(KeyboardSensor)
   );
 
+  // Auto-seed Weight option type on coffee products (new products only)
+  const hasSeededWeight = useRef(false);
+  useEffect(() => {
+    if (isEditing || category !== "coffee" || hasSeededWeight.current) return;
+    hasSeededWeight.current = true;
+    const weightType: OptionType = { name: "Weight", isWeight: true, values: [] };
+    setRetailOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
+    setWholesaleOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
+  }, [category, isEditing]);
+
+  // Derived: does this product have a roast profile linked?
+  const hasRoastProfile = category === "coffee" && (
+    (!isBlend && !!roastedStockId) ||
+    (isBlend && blendComponents.some((c) => c.roasted_stock_id))
+  );
+
   // ─── Channel-aware Option Type Helpers ───
   function getOptionState(channel: "retail" | "wholesale") {
     return channel === "retail"
@@ -593,7 +609,9 @@ export function ProductForm({ product }: { product?: Product }) {
   }
 
   function handleRemoveOptionType(channel: "retail" | "wholesale", idx: number) {
-    const { setOptionTypes } = getOptionState(channel);
+    const { optionTypes, setOptionTypes } = getOptionState(channel);
+    // Prevent removing Weight option type on coffee products
+    if (category === "coffee" && optionTypes[idx]?.isWeight) return;
     setOptionTypes((prev) => prev.filter((_, i) => i !== idx));
   }
 
@@ -722,7 +740,9 @@ export function ProductForm({ product }: { product?: Product }) {
             Add option types (e.g. Weight, Grind, Size) to create product variants. Max 3.
           </p>
         )}
-        {optionTypes.map((ot, typeIdx) => (
+        {optionTypes.map((ot, typeIdx) => {
+          const isLockedWeight = category === "coffee" && ot.isWeight;
+          return (
           <div key={typeIdx} className="border border-slate-200 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <input
@@ -730,20 +750,23 @@ export function ProductForm({ product }: { product?: Product }) {
                 value={ot.name}
                 onChange={(e) => handleOptionTypeName(channel, typeIdx, e.target.value)}
                 placeholder={category === "coffee" && typeIdx === 0 ? "e.g. Weight" : "e.g. Size, Colour, Grind"}
-                className={`${inputClassName} flex-1`}
+                readOnly={isLockedWeight}
+                className={`${inputClassName} flex-1 ${isLockedWeight ? "bg-slate-50 text-slate-500" : ""}`}
               />
               {ot.isWeight && (
                 <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs font-medium whitespace-nowrap">
                   Weight
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => handleRemoveOptionType(channel, typeIdx)}
-                className="p-1.5 text-slate-400 hover:text-red-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {!isLockedWeight && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOptionType(channel, typeIdx)}
+                  className="p-1.5 text-slate-400 hover:text-red-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               {ot.values.map((val, valIdx) => (
@@ -778,8 +801,14 @@ export function ProductForm({ product }: { product?: Product }) {
                 }}
               />
             </div>
+            {ot.isWeight && (
+              <p className="text-xs text-slate-400">
+                Enter weight as displayed to buyers e.g. 250g, 1kg. Stock will be tracked in kg.
+              </p>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -791,12 +820,18 @@ export function ProductForm({ product }: { product?: Product }) {
 
     const priceLabel = channel === "retail" ? "Retail £" : "Wholesale £";
     const priceField = channel === "retail" ? "retailPrice" : "wholesalePrice";
+    const showManualStock = !hasRoastProfile;
 
     return (
       <div className={sectionClassName}>
         <h4 className="text-sm font-semibold text-slate-800">
           {`Variant Combinations (${cells.length})`}
         </h4>
+        {showManualStock && category === "coffee" && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            No roast profile linked — you can set manual stock counts per variant below. To track stock automatically, link a roast profile in the Track Stock field on the Overview tab.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -804,7 +839,9 @@ export function ProductForm({ product }: { product?: Product }) {
                 <th className="text-left py-2 pr-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Variant</th>
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{priceLabel}</th>
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
-                <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Stock</th>
+                {showManualStock && (
+                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Manual Stock</th>
+                )}
                 <th className="text-center py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Active</th>
               </tr>
             </thead>
@@ -832,33 +869,35 @@ export function ProductForm({ product }: { product?: Product }) {
                       className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </td>
-                  <td className="py-2.5 px-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => updateVariantCell(channel, idx, { trackStock: !cell.trackStock, stockCount: cell.trackStock ? "" : cell.stockCount })}
-                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                          cell.trackStock ? "bg-brand-600" : "bg-slate-200"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
-                            cell.trackStock ? "translate-x-4" : "translate-x-0"
+                  {showManualStock && (
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => updateVariantCell(channel, idx, { trackStock: !cell.trackStock, stockCount: cell.trackStock ? "" : cell.stockCount })}
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                            cell.trackStock ? "bg-brand-600" : "bg-slate-200"
                           }`}
-                        />
-                      </button>
-                      {cell.trackStock && (
-                        <input
-                          type="number"
-                          min="0"
-                          value={cell.stockCount}
-                          onChange={(e) => updateVariantCell(channel, idx, { stockCount: e.target.value })}
-                          placeholder="0"
-                          className="w-16 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                        />
-                      )}
-                    </div>
-                  </td>
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform ${
+                              cell.trackStock ? "translate-x-4" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                        {cell.trackStock && (
+                          <input
+                            type="number"
+                            min="0"
+                            value={cell.stockCount}
+                            onChange={(e) => updateVariantCell(channel, idx, { stockCount: e.target.value })}
+                            placeholder="0"
+                            className="w-16 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                          />
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className="py-2.5 px-3 text-center">
                     <button
                       type="button"
@@ -920,6 +959,22 @@ export function ProductForm({ product }: { product?: Product }) {
       setError("SKU is required when Retail is selected.");
       setIsLoading(false);
       return;
+    }
+
+    // Coffee products must have at least one weight variant per enabled channel
+    if (category === "coffee") {
+      const retailWeightValues = retailOptionTypes.find((ot) => ot.isWeight)?.values ?? [];
+      const wholesaleWeightValues = wholesaleOptionTypes.find((ot) => ot.isWeight)?.values ?? [];
+      if (isRetail && retailWeightValues.length === 0) {
+        setError("Coffee products need at least one weight variant on the Retail tab (e.g. 250g, 1kg).");
+        setIsLoading(false);
+        return;
+      }
+      if (isWholesale && wholesaleWeightValues.length === 0) {
+        setError("Coffee products need at least one weight variant on the Wholesale tab (e.g. 250g, 1kg).");
+        setIsLoading(false);
+        return;
+      }
     }
 
     if (category === "coffee" && isBlend) {

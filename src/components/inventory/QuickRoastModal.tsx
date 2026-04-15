@@ -331,25 +331,10 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>Weight Loss</label>
-                <div className="mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
-                  {weightLossPercent != null ? `${weightLossPercent}%` : "--"}
-                </div>
-              </div>
-              <div>
-                <label className={labelClass}>Roast Level</label>
-                <select
-                  value={roastLevel}
-                  onChange={(e) => setRoastLevel(e.target.value)}
-                  className={`${inputClass} mt-1 ${roastLevel ? "" : "text-slate-400"}`}
-                >
-                  <option value="">Select level</option>
-                  {ROAST_LEVELS.map((l) => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
+            <div>
+              <label className={labelClass}>Weight Loss</label>
+              <div className="mt-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
+                {weightLossPercent != null ? `${weightLossPercent}%` : "--"}
               </div>
             </div>
 
@@ -432,15 +417,28 @@ export function QuickRoastModal({ open, onClose, onSuccess, preselectedBeanId, p
             >
               {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               More details
-              {(batchNumber || roastTime || chargeTemp || qualityRating) && (
+              {(roastLevel || batchNumber || roastTime || chargeTemp || qualityRating) && (
                 <span className="text-xs text-brand-600 ml-auto">
-                  {[batchNumber && `#${batchNumber}`, roastTime && `${roastTime}s`, chargeTemp && `${chargeTemp}°C`, qualityRating && `${qualityRating}★`].filter(Boolean).join(", ")}
+                  {[roastLevel, batchNumber && `#${batchNumber}`, roastTime && `${roastTime}s`, chargeTemp && `${chargeTemp}°C`, qualityRating && `${qualityRating}★`].filter(Boolean).join(", ")}
                 </span>
               )}
             </button>
 
             {showDetails && (
               <div className="space-y-3 border border-slate-200 rounded-lg p-4">
+                <div>
+                  <label className={labelClass}>Roast Level</label>
+                  <select
+                    value={roastLevel}
+                    onChange={(e) => setRoastLevel(e.target.value)}
+                    className={`${inputClass} mt-1 ${roastLevel ? "" : "text-slate-400"}`}
+                  >
+                    <option value="">Select level</option>
+                    {ROAST_LEVELS.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelClass}>Batch Number</label>

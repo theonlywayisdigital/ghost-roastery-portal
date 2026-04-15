@@ -10,6 +10,7 @@ import {
   Coffee as CoffeeIcon,
   Package,
   Archive,
+  Sparkles,
 } from "@/components/icons";
 import Link from "next/link";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
@@ -302,11 +303,30 @@ export function ProductForm({ product }: { product?: Product }) {
   const [optionTypes, setOptionTypes] = useState<OptionType[]>([]);
   const [otherVariantCells, setOtherVariantCells] = useState<OtherVariantCell[]>([]);
 
+  // Storefront integration detection
+  const [hasStorefrontIntegration, setHasStorefrontIntegration] = useState<boolean | null>(null);
+
+  function generateSku() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    setSku(`RP-${code}`);
+  }
+
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch active storefront integrations
+  useEffect(() => {
+    fetch("/api/integrations/ecommerce/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setHasStorefrontIntegration(data.hasActiveConnection === true);
+      })
+      .catch(() => setHasStorefrontIntegration(false));
+  }, []);
 
   // Fetch roasted stock and green bean records for coffee products
   useEffect(() => {
@@ -850,6 +870,12 @@ export function ProductForm({ product }: { product?: Product }) {
     setIsLoading(true);
     setError(null);
 
+    if (isRetail && !sku.trim()) {
+      setError("SKU is required when Retail is selected.");
+      setIsLoading(false);
+      return;
+    }
+
     if (category === "coffee" && isBlend) {
       const validComponents = blendComponents.filter((c) => c.roasted_stock_id);
       if (validComponents.length < 2) {
@@ -1133,6 +1159,70 @@ export function ProductForm({ product }: { product?: Product }) {
           </span>
         </div>
       )}
+
+      {/* ─── Channel Selection ─── */}
+      <div className="max-w-2xl mb-4">
+        <label className="block text-sm font-medium text-slate-700 mb-2">Where will this product be sold?</label>
+        <div className="flex gap-3">
+          {/* Retail checkbox */}
+          {(() => {
+            const retailDisabled = hasStorefrontIntegration === false;
+            return (
+              <div>
+                <label
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border transition-colors ${
+                    retailDisabled
+                      ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                      : isRetail
+                        ? "border-brand-500 bg-brand-50 text-brand-700 cursor-pointer"
+                        : "border-slate-300 text-slate-600 hover:border-slate-400 cursor-pointer"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isRetail}
+                    onChange={() => {
+                      if (!retailDisabled) setIsRetail(!isRetail);
+                    }}
+                    disabled={retailDisabled}
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
+                  />
+                  <span className="text-sm font-medium">Retail</span>
+                </label>
+                {retailDisabled && (
+                  <p className="text-xs text-slate-400 mt-1.5 max-w-[220px]">
+                    Requires a connected storefront &mdash;{" "}
+                    <Link href="/settings/integrations" className="text-brand-600 hover:text-brand-700 font-medium">
+                      set up in Integrations &rarr;
+                    </Link>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+          {/* Wholesale checkbox */}
+          <label
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors self-start ${
+              isWholesale
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-slate-300 text-slate-600 hover:border-slate-400"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isWholesale}
+              onChange={() => setIsWholesale(!isWholesale)}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm font-medium">Wholesale</span>
+          </label>
+        </div>
+        {!isRetail && !isWholesale && (
+          <p className="text-xs text-amber-600 mt-1.5">
+            At least one channel should be selected.
+          </p>
+        )}
+      </div>
 
       <div className="bg-white rounded-xl border border-slate-200 max-w-2xl">
         {/* ─── Tab Navigation ─── */}
@@ -1425,48 +1515,6 @@ export function ProductForm({ product }: { product?: Product }) {
                     </p>
                   </div>
 
-                  {/* Channel Toggles */}
-                  <div>
-                    <label className={labelClassName}>Channels</label>
-                    <div className="flex gap-4">
-                      <label
-                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                          isRetail
-                            ? "border-brand-500 bg-brand-50 text-brand-700"
-                            : "border-slate-300 text-slate-600 hover:border-slate-400"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isRetail}
-                          onChange={() => setIsRetail(!isRetail)}
-                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                        <span className="text-sm font-medium">Retail</span>
-                      </label>
-                      <label
-                        className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                          isWholesale
-                            ? "border-brand-500 bg-brand-50 text-brand-700"
-                            : "border-slate-300 text-slate-600 hover:border-slate-400"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isWholesale}
-                          onChange={() => setIsWholesale(!isWholesale)}
-                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                        <span className="text-sm font-medium">Wholesale</span>
-                      </label>
-                    </div>
-                    {!isRetail && !isWholesale && (
-                      <p className="text-xs text-amber-600 mt-1.5">
-                        At least one channel should be selected.
-                      </p>
-                    )}
-                  </div>
-
                   {/* Product Images */}
                   <div>
                     <label className={labelClassName}>
@@ -1535,15 +1583,32 @@ export function ProductForm({ product }: { product?: Product }) {
                     <div>
                       <label className={labelClassName}>
                         SKU{" "}
-                        <span className="text-slate-400 font-normal">(optional)</span>
+                        {isRetail ? (
+                          <span className="text-red-500 font-normal">*</span>
+                        ) : (
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        )}
                       </label>
-                      <input
-                        type="text"
-                        value={sku}
-                        onChange={(e) => setSku(e.target.value)}
-                        placeholder="GR-ETH-250"
-                        className={inputClassName}
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={sku}
+                          onChange={(e) => setSku(e.target.value)}
+                          placeholder="GR-ETH-250"
+                          className={`${inputClassName} flex-1`}
+                        />
+                        <button
+                          type="button"
+                          onClick={generateSku}
+                          className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors whitespace-nowrap"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Generate
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Already have a SKU from another platform? Enter it here.
+                      </p>
                     </div>
                     <div>
                       <label className={labelClassName}>VAT Rate</label>

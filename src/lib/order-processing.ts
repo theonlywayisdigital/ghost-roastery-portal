@@ -103,15 +103,15 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
   const productIds = Array.from(new Set(normalizedItems.map((item) => item.productId)));
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, unit, roasted_stock_id, green_bean_id, weight_grams, is_blend")
+    .select("id, name, unit, roasted_stock_id, weight_grams, is_blend")
     .in("id", productIds);
 
-  const productMap: Record<string, { name: string; unit: string; roasted_stock_id: string | null; green_bean_id: string | null; weight_grams: number | null; is_blend: boolean }> = {};
+  const productMap: Record<string, { name: string; unit: string; roasted_stock_id: string | null; weight_grams: number | null; is_blend: boolean }> = {};
   // Fetch blend components for any blend products
   const blendComponentMap: Record<string, { roasted_stock_id: string; percentage: number }[]> = {};
   if (products) {
     for (const p of products) {
-      productMap[p.id] = { name: p.name, unit: p.unit, roasted_stock_id: p.roasted_stock_id, green_bean_id: p.green_bean_id, weight_grams: p.weight_grams, is_blend: p.is_blend ?? false };
+      productMap[p.id] = { name: p.name, unit: p.unit, roasted_stock_id: p.roasted_stock_id, weight_grams: p.weight_grams, is_blend: p.is_blend ?? false };
     }
     const blendProductIds = products.filter((p) => p.is_blend).map((p) => p.id);
     if (blendProductIds.length > 0) {
@@ -203,7 +203,6 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       : productInfo?.weight_grams ?? null;
     const isBlend = productInfo?.is_blend ?? false;
     const roastedStockId = !isBlend ? (productInfo?.roasted_stock_id ?? null) : null;
-    const greenBeanId = productInfo?.green_bean_id ?? null;
     const blendComponents = isBlend ? (blendComponentMap[item.productId] || []) : undefined;
 
     return {
@@ -216,7 +215,6 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       ...(item.variantLabel ? { variantLabel: item.variantLabel } : {}),
       ...(weightGrams != null ? { weightGrams } : {}),
       ...(roastedStockId ? { roastedStockId } : {}),
-      ...(greenBeanId ? { greenBeanId } : {}),
       ...(blendComponents && blendComponents.length > 0 ? { blendComponents } : {}),
     };
   });
@@ -385,19 +383,57 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
     }
   }
 
-  // 7c. Green bean stock deduction — deduct KG based on item weight × quantity
+  // 7c. Green bean stock deduction — follows roasted_stock.green_bean_id
+  // Collect all roasted stock IDs involved in deductions
+  const roastedStockIdsForGreen = new Set<string>();
+  const greenDeductions: { roastedStockId: string; deductKg: number; itemName: string; itemQty: number }[] = [];
   for (const item of orderItems) {
-    const greenBeanId = (item as Record<string, unknown>).greenBeanId as string | undefined;
-    const weightGrams = (item as Record<string, unknown>).weightGrams as number | undefined;
-    if (greenBeanId && weightGrams && weightGrams > 0) {
-      const deductKg = (weightGrams / 1000) * item.quantity;
+    const itemData = item as Record<string, unknown>;
+    const weightGrams = itemData.weightGrams as number | undefined;
+    if (!weightGrams || weightGrams <= 0) continue;
+    const itemBlendComponents = itemData.blendComponents as { roasted_stock_id: string; percentage: number }[] | undefined;
+    if (itemBlendComponents && itemBlendComponents.length > 0) {
+      const totalKg = (weightGrams / 1000) * item.quantity;
+      for (const comp of itemBlendComponents) {
+        roastedStockIdsForGreen.add(comp.roasted_stock_id);
+        greenDeductions.push({ roastedStockId: comp.roasted_stock_id, deductKg: totalKg * (comp.percentage / 100), itemName: item.name, itemQty: item.quantity });
+      }
+    } else {
+      const rsId = itemData.roastedStockId as string | undefined;
+      if (rsId) {
+        roastedStockIdsForGreen.add(rsId);
+        greenDeductions.push({ roastedStockId: rsId, deductKg: (weightGrams / 1000) * item.quantity, itemName: item.name, itemQty: item.quantity });
+      }
+    }
+  }
+  if (roastedStockIdsForGreen.size > 0) {
+    const { data: rsGreenLinks } = await supabase
+      .from("roasted_stock")
+      .select("id, green_bean_id")
+      .in("id", Array.from(roastedStockIdsForGreen));
+    const rsToGreen: Record<string, string> = {};
+    if (rsGreenLinks) {
+      for (const rs of rsGreenLinks) {
+        if (rs.green_bean_id) rsToGreen[rs.id] = rs.green_bean_id;
+      }
+    }
+    // Aggregate deductions per green bean
+    const greenBeanAgg: Record<string, { totalKg: number; notes: string[] }> = {};
+    for (const d of greenDeductions) {
+      const greenBeanId = rsToGreen[d.roastedStockId];
+      if (!greenBeanId) continue;
+      if (!greenBeanAgg[greenBeanId]) greenBeanAgg[greenBeanId] = { totalKg: 0, notes: [] };
+      greenBeanAgg[greenBeanId].totalKg += d.deductKg;
+      greenBeanAgg[greenBeanId].notes.push(`${d.itemName} × ${d.itemQty}`);
+    }
+    for (const [greenBeanId, agg] of Object.entries(greenBeanAgg)) {
       const { data: bean } = await supabase
         .from("green_beans")
         .select("current_stock_kg")
         .eq("id", greenBeanId)
         .single();
       if (bean) {
-        const newStock = Math.max(0, (bean.current_stock_kg || 0) - deductKg);
+        const newStock = Math.max(0, (bean.current_stock_kg || 0) - agg.totalKg);
         await supabase
           .from("green_beans")
           .update({ current_stock_kg: newStock })
@@ -406,11 +442,11 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
           roaster_id: roasterId,
           green_bean_id: greenBeanId,
           movement_type: "order_deduction",
-          quantity_kg: -deductKg,
+          quantity_kg: -agg.totalKg,
           balance_after_kg: newStock,
           reference_id: order.id,
           reference_type: "order",
-          notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} × ${item.quantity}`,
+          notes: `Order ${order.id.slice(0, 8).toUpperCase()} — ${agg.notes.join(", ")}`,
         });
       }
     }

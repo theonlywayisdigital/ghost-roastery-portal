@@ -167,7 +167,6 @@ export async function processEcommerceOrder(
       unit: string;
       weight_grams: number | null;
       roasted_stock_id: string | null;
-      green_bean_id: string | null;
     }
   > = {};
 
@@ -175,7 +174,7 @@ export async function processEcommerceOrder(
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, unit, weight_grams, roasted_stock_id, green_bean_id"
+        "id, name, unit, weight_grams, roasted_stock_id"
       )
       .in("id", mappedProductIds);
 
@@ -216,7 +215,6 @@ export async function processEcommerceOrder(
     variantLabel: string | null;
     weightGrams?: number;
     roastedStockId?: string;
-    greenBeanId?: string;
     unmapped?: boolean;
   }[] = [];
 
@@ -274,7 +272,6 @@ export async function processEcommerceOrder(
       variantLabel: null,
       weightGrams: weightGrams ?? undefined,
       roastedStockId: product?.roasted_stock_id ?? undefined,
-      greenBeanId: product?.green_bean_id ?? undefined,
     });
 
     subtotalPence += unitAmountPence * item.quantity;
@@ -420,20 +417,39 @@ export async function processEcommerceOrder(
       affectedStockIds.add(roastedStockId);
     }
 
-    // Green bean stock
-    const greenBeanId = item.greenBeanId;
-    if (greenBeanId && weightGrams && weightGrams > 0) {
-      const deductKg = (weightGrams / 1000) * item.quantity;
+  }
+
+  // Green bean stock deduction — follows roasted_stock.green_bean_id
+  if (affectedStockIds.size > 0) {
+    const { data: rsGreenLinks } = await supabase
+      .from("roasted_stock")
+      .select("id, green_bean_id")
+      .in("id", Array.from(affectedStockIds));
+    const rsToGreen: Record<string, string> = {};
+    if (rsGreenLinks) {
+      for (const rs of rsGreenLinks) {
+        if (rs.green_bean_id) rsToGreen[rs.id] = rs.green_bean_id;
+      }
+    }
+    // Aggregate deductions per green bean from order items
+    const greenBeanAgg: Record<string, { totalKg: number; notes: string[] }> = {};
+    for (const item of orderItems) {
+      if (item.unmapped || !item.roastedStockId || !item.weightGrams || item.weightGrams <= 0) continue;
+      const greenBeanId = rsToGreen[item.roastedStockId];
+      if (!greenBeanId) continue;
+      const deductKg = (item.weightGrams / 1000) * item.quantity;
+      if (!greenBeanAgg[greenBeanId]) greenBeanAgg[greenBeanId] = { totalKg: 0, notes: [] };
+      greenBeanAgg[greenBeanId].totalKg += deductKg;
+      greenBeanAgg[greenBeanId].notes.push(`${item.name} x ${item.quantity}`);
+    }
+    for (const [greenBeanId, agg] of Object.entries(greenBeanAgg)) {
       const { data: bean } = await supabase
         .from("green_beans")
         .select("current_stock_kg")
         .eq("id", greenBeanId)
         .single();
       if (bean) {
-        const newStock = Math.max(
-          0,
-          (bean.current_stock_kg || 0) - deductKg
-        );
+        const newStock = Math.max(0, (bean.current_stock_kg || 0) - agg.totalKg);
         await supabase
           .from("green_beans")
           .update({ current_stock_kg: newStock })
@@ -442,11 +458,11 @@ export async function processEcommerceOrder(
           roaster_id: roasterId,
           green_bean_id: greenBeanId,
           movement_type: "order_deduction",
-          quantity_kg: -deductKg,
+          quantity_kg: -agg.totalKg,
           balance_after_kg: newStock,
           reference_id: createdOrder.id,
           reference_type: "order",
-          notes: `${sourceLabel} order #${order.order_number} \u2014 ${item.name} x ${item.quantity}`,
+          notes: `${sourceLabel} order #${order.order_number} \u2014 ${agg.notes.join(", ")}`,
         });
       }
     }

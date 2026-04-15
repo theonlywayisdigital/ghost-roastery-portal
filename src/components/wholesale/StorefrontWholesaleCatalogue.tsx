@@ -52,13 +52,13 @@ type CatalogueContext =
   | { type: "storefront"; slug: string }
   | { type: "website"; domain: string };
 
-/** Get the bottleneck stock pool KG (minimum across linked pools), or null if no pools linked */
+/** Get total available stock KG (roasted + green bean combined), or null if no pools linked */
 function getAvailableKg(product: Product): number | null {
-  const pools: StockPool[] = [];
-  if (product.roasted_stock) pools.push(product.roasted_stock);
-  if (product.green_beans) pools.push(product.green_beans);
-  if (pools.length === 0) return null;
-  return Math.min(...pools.map((p) => Number(p.current_stock_kg)));
+  if (!product.roasted_stock && !product.green_beans) return null;
+  let totalKg = 0;
+  if (product.roasted_stock) totalKg += Number(product.roasted_stock.current_stock_kg);
+  if (product.green_beans) totalKg += Number(product.green_beans.current_stock_kg);
+  return totalKg;
 }
 
 /** Convert available KG to available units for a given weight */

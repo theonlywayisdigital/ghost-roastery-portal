@@ -13,16 +13,28 @@ export async function pushStockToChannels(
 ): Promise<void> {
   const supabase = createServerClient();
 
-  // Get current stock level
+  // Get current stock level + linked green bean stock
   const { data: stock } = await supabase
     .from("roasted_stock")
-    .select("current_stock_kg")
+    .select("current_stock_kg, green_bean_id")
     .eq("id", roastedStockId)
     .single();
 
   if (!stock) return;
 
-  const stockKg = stock.current_stock_kg || 0;
+  let stockKg = stock.current_stock_kg || 0;
+
+  // Add linked green bean stock to total
+  if (stock.green_bean_id) {
+    const { data: greenBean } = await supabase
+      .from("green_beans")
+      .select("current_stock_kg")
+      .eq("id", stock.green_bean_id)
+      .single();
+    if (greenBean) {
+      stockKg += greenBean.current_stock_kg || 0;
+    }
+  }
 
   // Find all channel mappings linked to this roasted stock
   const { data: mappings } = await supabase

@@ -255,14 +255,7 @@ export function ProductForm({ product }: { product?: Product }) {
   const [vatRate, setVatRate] = useState(product?.vat_rate?.toString() || "0");
   const [roastedStockId, setRoastedStockId] = useState(product?.roasted_stock_id || "");
   const [roastedStocks, setRoastedStocks] = useState<RoastedStockOption[]>([]);
-  const [greenBeanId, setGreenBeanId] = useState(product?.green_bean_id || "");
   const [greenBeans, setGreenBeans] = useState<GreenBeanOption[]>([]);
-  // Unified stock selector: "roasted:<id>" or "green:<id>" or ""
-  const [stockSelection, setStockSelection] = useState(() => {
-    if (product?.roasted_stock_id) return `roasted:${product.roasted_stock_id}`;
-    if (product?.green_bean_id) return `green:${product.green_bean_id}`;
-    return "";
-  });
   const [isBlend, setIsBlend] = useState(product?.is_blend ?? false);
   const [blendComponents, setBlendComponents] = useState<BlendComponent[]>([]);
 
@@ -314,21 +307,6 @@ export function ProductForm({ product }: { product?: Product }) {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
-  // Sync unified stock selection to individual state vars
-  function handleStockSelectionChange(value: string) {
-    setStockSelection(value);
-    if (value.startsWith("roasted:")) {
-      setRoastedStockId(value.replace("roasted:", ""));
-      setGreenBeanId("");
-    } else if (value.startsWith("green:")) {
-      setGreenBeanId(value.replace("green:", ""));
-      setRoastedStockId("");
-    } else {
-      setRoastedStockId("");
-      setGreenBeanId("");
-    }
-  }
 
   // Fetch roasted stock and green bean records for coffee products
   useEffect(() => {
@@ -906,7 +884,7 @@ export function ProductForm({ product }: { product?: Product }) {
       sku: sku || null,
       weight_grams: weightKg ? Math.round(parseFloat(weightKg) * 1000) : null,
       roasted_stock_id: category === "coffee" && !isBlend && roastedStockId ? roastedStockId : null,
-      green_bean_id: category === "coffee" && greenBeanId ? greenBeanId : null,
+      green_bean_id: null,
       is_blend: category === "coffee" ? isBlend : false,
       blend_components: category === "coffee" && isBlend ? blendComponents.filter((c) => c.roasted_stock_id).map((c) => ({
         id: c.id || undefined,
@@ -1248,58 +1226,35 @@ export function ProductForm({ product }: { product?: Product }) {
                         <span className="text-slate-400 font-normal">(optional)</span>
                       </label>
                       <select
-                        value={stockSelection}
-                        onChange={(e) => handleStockSelectionChange(e.target.value)}
+                        value={roastedStockId}
+                        onChange={(e) => setRoastedStockId(e.target.value)}
                         className={inputClassName}
                       >
                         <option value="">Not linked to stock</option>
-                        {roastedStocks.length > 0 && (
-                          <optgroup label="Roast Profiles">
-                            {roastedStocks.map((s) => (
-                              <option key={`roasted:${s.id}`} value={`roasted:${s.id}`}>
-                                {s.name} ({Number(s.current_stock_kg).toFixed(1)} kg)
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {greenBeans.length > 0 && (
-                          <optgroup label="Green Bean Stock">
-                            {greenBeans.map((b) => (
-                              <option key={`green:${b.id}`} value={`green:${b.id}`}>
-                                {b.name} ({Number(b.current_stock_kg).toFixed(1)} kg)
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
+                        {roastedStocks.map((s) => {
+                          const linkedBean = s.green_bean_id ? greenBeans.find((b) => b.id === s.green_bean_id) : null;
+                          const label = linkedBean
+                            ? `${s.name} (Roasted: ${Number(s.current_stock_kg).toFixed(1)}kg | Green: ${Number(linkedBean.current_stock_kg).toFixed(1)}kg)`
+                            : `${s.name} (Roasted: ${Number(s.current_stock_kg).toFixed(1)}kg)`;
+                          return (
+                            <option key={s.id} value={s.id}>{label}</option>
+                          );
+                        })}
                       </select>
                       {roastedStockId && (() => {
                         const linkedStock = roastedStocks.find((s) => s.id === roastedStockId);
                         if (!linkedStock) return null;
-                        const stockKg = Number(linkedStock.current_stock_kg);
-                        const isOut = stockKg <= 0;
-                        const isLow = linkedStock.low_stock_threshold_kg && stockKg <= Number(linkedStock.low_stock_threshold_kg);
+                        const roastedKg = Number(linkedStock.current_stock_kg);
+                        const linkedBean = linkedStock.green_bean_id ? greenBeans.find((b) => b.id === linkedStock.green_bean_id) : null;
+                        const totalKg = roastedKg + (linkedBean ? Number(linkedBean.current_stock_kg) : 0);
+                        const isOut = totalKg <= 0;
+                        const isLow = linkedStock.low_stock_threshold_kg && totalKg <= Number(linkedStock.low_stock_threshold_kg);
                         const statusColor = isOut ? "text-red-600 bg-red-50 border-red-200" : isLow ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
                         const statusLabel = isOut ? "Out of stock" : isLow ? "Low stock" : "In stock";
                         return (
                           <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${statusColor}`}>
                             <Archive className="w-4 h-4" />
-                            <span className="font-medium">{stockKg.toFixed(1)} kg available</span>
-                            <span className="text-xs opacity-75">({statusLabel})</span>
-                          </div>
-                        );
-                      })()}
-                      {greenBeanId && (() => {
-                        const linkedBean = greenBeans.find((b) => b.id === greenBeanId);
-                        if (!linkedBean) return null;
-                        const stockKg = Number(linkedBean.current_stock_kg);
-                        const isOut = stockKg <= 0;
-                        const isLow = linkedBean.low_stock_threshold_kg && stockKg <= Number(linkedBean.low_stock_threshold_kg);
-                        const statusColor = isOut ? "text-red-600 bg-red-50 border-red-200" : isLow ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
-                        const statusLabel = isOut ? "Out of stock" : isLow ? "Low stock" : "In stock";
-                        return (
-                          <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${statusColor}`}>
-                            <Archive className="w-4 h-4" />
-                            <span className="font-medium">{stockKg.toFixed(1)} kg available</span>
+                            <span className="font-medium">{totalKg.toFixed(1)} kg total</span>
                             <span className="text-xs opacity-75">({statusLabel})</span>
                           </div>
                         );
@@ -1317,8 +1272,6 @@ export function ProductForm({ product }: { product?: Product }) {
                           setIsBlend(next);
                           if (next) {
                             setRoastedStockId("");
-                            setGreenBeanId("");
-                            setStockSelection("");
                             if (blendComponents.length === 0) {
                               setBlendComponents([{ roasted_stock_id: "", percentage: "" }]);
                             }

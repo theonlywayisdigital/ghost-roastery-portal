@@ -18,12 +18,21 @@ interface ProductVariant {
   is_active: boolean | null;
 }
 
+interface GreenBeanRecord {
+  id: string;
+  name: string;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+  is_active: boolean;
+}
+
 interface StockRecord {
   id: string;
   name: string;
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
   is_active: boolean;
+  green_beans?: GreenBeanRecord | null;
 }
 
 interface ProductImageRef {
@@ -45,10 +54,11 @@ interface Product {
   is_retail?: boolean;
   is_wholesale?: boolean;
   retail_price: number | null;
+  retail_stock_count?: number | null;
+  track_stock?: boolean;
   product_variants: ProductVariant[] | null;
   product_images?: ProductImageRef[] | null;
   roasted_stock: StockRecord | null;
-  green_beans: StockRecord | null;
   blend_components?: {
     id: string;
     roasted_stock_id: string;
@@ -117,41 +127,34 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     return formatRange(prices) || "—";
   }
 
-  function getStockLevel(stock: StockRecord | null): "none" | "out" | "low" | "in" {
-    if (!stock) return "none";
-    const kg = Number(stock.current_stock_kg);
-    if (kg <= 0) return "out";
-    if (stock.low_stock_threshold_kg && kg <= Number(stock.low_stock_threshold_kg)) return "low";
-    return "in";
-  }
-
-  function getStockBadge(product: Product): { label: string; className: string } | null {
-    // Blend products: check all component stocks
+  function getStockDisplay(product: Product): { roastedKg: number; greenKg: number } | null {
+    // Blend products: sum roasted stock across all blend components, sum green beans
     if (product.is_blend && product.blend_components && product.blend_components.length > 0) {
-      const levels = product.blend_components
-        .map((bc) => getStockLevel(bc.roasted_stock))
-        .filter((l) => l !== "none");
-      if (levels.length === 0) return null;
-      const worst = levels.includes("out") ? "out" : levels.includes("low") ? "low" : "in";
-      if (worst === "out") return { label: "Out of stock", className: "bg-red-50 text-red-700" };
-      if (worst === "low") return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
-      return { label: "In stock", className: "bg-green-50 text-green-700" };
+      let roastedTotal = 0;
+      let greenTotal = 0;
+      let hasAny = false;
+      for (const bc of product.blend_components) {
+        if (bc.roasted_stock) {
+          hasAny = true;
+          roastedTotal += Number(bc.roasted_stock.current_stock_kg);
+          if (bc.roasted_stock.green_beans) {
+            greenTotal += Number(bc.roasted_stock.green_beans.current_stock_kg);
+          }
+        }
+      }
+      return hasAny ? { roastedKg: roastedTotal, greenKg: greenTotal } : null;
     }
 
-    // Non-blend: original logic
-    const roastedLevel = getStockLevel(product.roasted_stock);
-    const greenBeanLevel = getStockLevel(product.green_beans);
+    // Non-blend: use roasted_stock and its linked green_beans
+    if (product.roasted_stock) {
+      const roastedKg = Number(product.roasted_stock.current_stock_kg);
+      const greenKg = product.roasted_stock.green_beans
+        ? Number(product.roasted_stock.green_beans.current_stock_kg)
+        : 0;
+      return { roastedKg, greenKg };
+    }
 
-    // If neither is linked, no badge
-    if (roastedLevel === "none" && greenBeanLevel === "none") return null;
-
-    // Show worst status across both pools
-    const levels = [roastedLevel, greenBeanLevel].filter((l) => l !== "none");
-    const worst = levels.includes("out") ? "out" : levels.includes("low") ? "low" : "in";
-
-    if (worst === "out") return { label: "Out of stock", className: "bg-red-50 text-red-700" };
-    if (worst === "low") return { label: "Low stock", className: "bg-amber-50 text-amber-700" };
-    return { label: "In stock", className: "bg-green-50 text-green-700" };
+    return null;
   }
 
   function getUnitDisplay(product: Product): string {
@@ -359,13 +362,20 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell">
                       {(() => {
-                        const badge = getStockBadge(product);
-                        if (!badge) return <span className="text-xs text-slate-300">—</span>;
-                        return (
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${badge.className}`}>
-                            {badge.label}
-                          </span>
-                        );
+                        const stock = getStockDisplay(product);
+                        if (stock) {
+                          return (
+                            <div className="text-xs leading-relaxed">
+                              <div className="text-slate-700">Roasted: <span className="font-medium">{stock.roastedKg.toFixed(1)}kg</span></div>
+                              <div className="text-slate-500">Green: <span className="font-medium">{stock.greenKg.toFixed(1)}kg</span></div>
+                            </div>
+                          );
+                        }
+                        // Fallback: manual retail_stock_count
+                        if (product.track_stock && product.retail_stock_count != null) {
+                          return <span className="text-xs text-slate-600">{product.retail_stock_count} units</span>;
+                        }
+                        return <span className="text-xs text-slate-300">&mdash;</span>;
                       })()}
                     </td>
                     <td className="px-6 py-4">

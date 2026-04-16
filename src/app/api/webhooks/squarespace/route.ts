@@ -56,34 +56,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unknown store" }, { status: 404 });
   }
 
-  // Verify webhook signature if the secret is available
+  // Verify webhook signature — reject if invalid
   const signatureHeader = request.headers.get("x-squarespace-signature");
-  let connection = connections[0]; // default to first
+  let connection: (typeof connections)[number] | null = null;
 
-  // Try to match by verifying HMAC against each connection's access_token
-  if (signatureHeader) {
-    let verified = false;
-    for (const conn of connections) {
-      if (!conn.access_token) continue;
-      const computed = crypto
-        .createHmac("sha256", conn.access_token)
-        .update(body, "utf8")
-        .digest("base64");
+  if (!signatureHeader) {
+    console.error("[squarespace-webhook] Missing x-squarespace-signature header");
+    return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+  }
 
-      if (computed === signatureHeader) {
-        connection = conn;
-        verified = true;
-        break;
-      }
+  for (const conn of connections) {
+    if (!conn.access_token) continue;
+    const computed = crypto
+      .createHmac("sha256", conn.access_token)
+      .update(body, "utf8")
+      .digest("base64");
+
+    if (computed === signatureHeader) {
+      connection = conn;
+      break;
     }
+  }
 
-    if (!verified) {
-      console.log(
-        "[squarespace-webhook] Signature verification failed — proceeding with first connection"
-      );
-      // Squarespace webhook signatures may use a different signing secret
-      // Proceed anyway since we still want to process valid webhooks
-    }
+  if (!connection) {
+    console.error("[squarespace-webhook] Signature verification failed — no matching connection");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   // ─── Handle product updates ───────────────────────────────────

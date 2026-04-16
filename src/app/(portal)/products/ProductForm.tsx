@@ -840,6 +840,11 @@ export function ProductForm({ product }: { product?: Product }) {
             No roast profile linked — you can set manual stock counts per variant below. To track stock automatically, link a roast profile in the Track Stock field on the Overview tab.
           </p>
         )}
+        {showManualStock && (
+          <p className="text-xs text-slate-400">
+            Manual stock tracking — use this to track individual unit counts per variant. Only needed if you are not using roast profile stock tracking above.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -1890,8 +1895,11 @@ export function ProductForm({ product }: { product?: Product }) {
             {/* ═══════════════ RETAIL TAB ═══════════════ */}
             {activeTab === "retail" && isRetail && (
               <div className="space-y-6">
+                <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+                  Your product will sync to your connected storefronts. Stock levels update automatically based on your roast profile. To pause sales, deactivate the product from the Overview tab.
+                </p>
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Pricing</h3>
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Settings</h3>
                   <div className={sectionClassName}>
                     {/* Retail Price — hidden for coffee (set per variant instead) */}
                     {category !== "coffee" && (

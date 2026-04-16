@@ -127,10 +127,7 @@ export async function sendWholesaleApplicationReceived(
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Thanks for applying for a wholesale account with <strong>${roasterName}</strong>. Your application is now being reviewed.
-    </p>
-    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      We&rsquo;ll be in touch once your application has been processed. This usually takes 1&ndash;2 business days.
+      Thanks for applying. We&rsquo;ve received your application and will be in touch once it&rsquo;s been reviewed.
     </p>
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
@@ -140,7 +137,7 @@ export async function sendWholesaleApplicationReceived(
   await resend.emails.send({
     from: getFromEmail(branding, customDomain),
     to: email,
-    subject: `Wholesale application received — ${roasterName}`,
+    subject: `Your wholesale application to ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }
@@ -208,7 +205,7 @@ export async function sendWholesaleApproved(
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Great news &mdash; your wholesale application with <strong>${roasterName}</strong> has been approved. You can now browse the wholesale catalogue and place orders.
+      Great news &mdash; <strong>${roasterName}</strong> has approved your wholesale account. You can now browse the catalogue and place orders.
     </p>
 
     <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
@@ -225,7 +222,7 @@ export async function sendWholesaleApproved(
   await resend.emails.send({
     from: getFromEmail(branding, customDomain),
     to: email,
-    subject: `Wholesale account approved — ${roasterName}`,
+    subject: `Your wholesale application has been approved — ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }
@@ -246,7 +243,7 @@ export async function sendWholesaleRejected(
       Hi ${contactName},
     </p>
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      Unfortunately, your wholesale application with <strong>${roasterName}</strong> was not approved at this time.
+      Thank you for your interest. Unfortunately your application has not been successful at this time.
     </p>
     ${reason ? `
     <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
@@ -254,7 +251,7 @@ export async function sendWholesaleRejected(
     </div>
     ` : ""}
     <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
-      If you believe this was in error or would like to discuss further, please get in touch with the roaster directly.
+      Please get in touch if you have any questions.
     </p>
 
     <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
@@ -264,7 +261,7 @@ export async function sendWholesaleRejected(
   await resend.emails.send({
     from: getFromEmail(branding, customDomain),
     to: email,
-    subject: `Wholesale application update — ${roasterName}`,
+    subject: `Your wholesale application to ${roasterName}`,
     html: wrapEmailWithBranding({ body, businessName: roasterName, branding }),
   });
 }

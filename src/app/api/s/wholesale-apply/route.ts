@@ -554,8 +554,8 @@ export async function POST(request: Request) {
     };
 
     try {
-      // For new users, send account setup email (with password link) instead
-      // of the plain "application received" email
+      // Always send the "application received" email to the buyer
+      // For new users, also send account setup email so they can set their password
       if (isNewUser && userId) {
         const token = crypto.randomBytes(32).toString("hex");
         const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); // 48 hours
@@ -570,6 +570,7 @@ export async function POST(request: Request) {
         const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
 
         await Promise.all([
+          sendWholesaleApplicationReceived(email, name, roaster.business_name, stdBranding),
           sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, stdBranding),
           sendWholesaleApplicationNotification(
             roaster.email,

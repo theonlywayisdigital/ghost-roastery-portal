@@ -82,8 +82,8 @@ type TabValue = "all" | "retail" | "wholesale";
 
 const allTabs: { value: TabValue; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "retail", label: "Retail" },
   { value: "wholesale", label: "Wholesale" },
+  { value: "retail", label: "Retail" },
 ];
 
 const tabs = allTabs;
@@ -117,8 +117,9 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
     const prices = variants.map((v) => v.retail_price).filter((p): p is number => p != null && p > 0);
     const range = formatRange(prices);
     if (range) return range;
-    // Fallback to product-level retail_price then price
-    return getBasePriceDisplay(product);
+    // Fallback to product-level retail_price
+    if (product.retail_price != null && product.retail_price > 0) return `£${product.retail_price.toFixed(2)}`;
+    return "—";
   }
 
   function getWholesalePriceDisplay(product: Product): string {
@@ -282,10 +283,10 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                   {activeTab === "all" ? (
                     <>
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
-                        Retail Price
+                        Wholesale Price
                       </th>
                       <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">
-                        Wholesale Price
+                        Retail Price
                       </th>
                     </>
                   ) : (
@@ -339,19 +340,19 @@ export function ProductsTable({ products: initial }: { products: Product[] }) {
                       <>
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
-                            {getRetailPriceDisplay(product)}
+                            {getWholesalePriceDisplay(product)}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-slate-900">
-                            {getWholesalePriceDisplay(product)}
+                            {getRetailPriceDisplay(product)}
                           </span>
                         </td>
                       </>
                     ) : (
                       <td className="px-6 py-4">
                         <span className="text-sm text-slate-900">
-                          {activeTab === "retail" ? getRetailPriceDisplay(product) : getWholesalePriceDisplay(product)}
+                          {activeTab === "wholesale" ? getWholesalePriceDisplay(product) : getRetailPriceDisplay(product)}
                         </span>
                       </td>
                     )}

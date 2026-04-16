@@ -13,6 +13,7 @@ import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -369,8 +370,8 @@ export async function POST(request: Request) {
 
     // Send emails
     try {
-      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-      const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
+      const inviteSlug = roaster.storefront_slug || "";
+      const wholesaleUrl = getStorefrontUrl(inviteSlug, "/wholesale/login");
 
       const branding: EmailBranding = {
         logoUrl: roaster.brand_logo_url,
@@ -397,7 +398,7 @@ export async function POST(request: Request) {
           roaster_slug: roaster.storefront_slug || null,
         });
 
-        const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
+        const setupUrl = getStorefrontUrl(inviteSlug, `/setup-password?token=${token}`);
 
         await sendWholesaleAccountSetup(email, fullName, roaster.business_name, setupUrl, wholesaleUrl, branding);
       } else {

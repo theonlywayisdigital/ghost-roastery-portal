@@ -12,6 +12,7 @@ import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
 import { splitName } from "@/lib/people";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 
 export async function PATCH(
   request: Request,
@@ -178,7 +179,6 @@ export async function PATCH(
       // Send approval email
       if (contactEmail) {
         try {
-          const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
           const { data: roasterData } = await supabase
             .from("roasters")
             .select("storefront_slug, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
@@ -186,8 +186,8 @@ export async function PATCH(
             .single();
 
           const catalogueUrl = roasterData?.storefront_slug
-            ? `${portalUrl}/s/${roasterData.storefront_slug}/wholesale`
-            : `${portalUrl}/wholesale`;
+            ? getStorefrontUrl(roasterData.storefront_slug, "/wholesale")
+            : `${process.env.NEXT_PUBLIC_PORTAL_URL || ""}/wholesale`;
 
           const branding: EmailBranding | undefined = roasterData
             ? {

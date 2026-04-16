@@ -18,6 +18,7 @@ import {
   type WholesaleField,
   type WholesaleImportResult,
 } from "@/lib/wholesale-import";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -88,8 +89,8 @@ export async function POST(request: Request) {
     tagline: roaster.brand_tagline || undefined,
   };
 
-  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-  const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
+  const importSlug = roaster.storefront_slug || "";
+  const wholesaleUrl = getStorefrontUrl(importSlug, "/wholesale/login");
 
   // Get existing wholesale emails for dedup
   const { data: existingAccess } = await supabase
@@ -393,7 +394,7 @@ export async function POST(request: Request) {
             roaster_slug: roaster.storefront_slug || null,
           });
 
-          const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
+          const setupUrl = getStorefrontUrl(importSlug, `/setup-password?token=${token}`);
 
           await sendWholesaleAccountSetup(
             buyer.email,

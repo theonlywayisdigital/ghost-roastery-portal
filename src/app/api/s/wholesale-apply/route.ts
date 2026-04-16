@@ -14,6 +14,7 @@ import { dispatchWebhook } from "@/lib/webhooks";
 import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 
 export async function POST(request: Request) {
   try {
@@ -380,9 +381,9 @@ export async function POST(request: Request) {
 
       // Send approval email + account setup for new users
       try {
-        const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-        const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
-        const catalogueUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale`;
+        const slug = roaster.storefront_slug || "";
+        const wholesaleUrl = getStorefrontUrl(slug, "/wholesale/login");
+        const catalogueUrl = getStorefrontUrl(slug, "/wholesale");
 
         const branding: EmailBranding = {
           logoUrl: roaster.brand_logo_url,
@@ -409,7 +410,7 @@ export async function POST(request: Request) {
             roaster_slug: roaster.storefront_slug || null,
           });
 
-          const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
+          const setupUrl = getStorefrontUrl(slug, `/setup-password?token=${token}`);
 
           await Promise.all([
             sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay", catalogueUrl, branding),
@@ -537,7 +538,8 @@ export async function POST(request: Request) {
 
     // Standard flow: send notification emails
     const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-    const wholesaleUrl = `${portalUrl}/s/${roaster.storefront_slug}/wholesale/login`;
+    const stdSlug = roaster.storefront_slug || "";
+    const wholesaleUrl = getStorefrontUrl(stdSlug, "/wholesale/login");
 
     const stdBranding: EmailBranding = {
       logoUrl: roaster.brand_logo_url,
@@ -567,7 +569,7 @@ export async function POST(request: Request) {
           roaster_slug: roaster.storefront_slug || null,
         });
 
-        const setupUrl = `${portalUrl}/s/${roaster.storefront_slug}/setup-password?token=${token}`;
+        const setupUrl = getStorefrontUrl(stdSlug, `/setup-password?token=${token}`);
 
         await Promise.all([
           sendWholesaleApplicationReceived(email, name, roaster.business_name, stdBranding),

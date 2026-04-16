@@ -71,6 +71,29 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(rewriteUrl);
     }
 
+    // Redirect /s/[slug]/* on the portal domain to the proper subdomain
+    // Skip: localhost/dev, API routes, embed paths (loaded in iframes)
+    if (
+      !hostname.includes("localhost") &&
+      !hostname.includes("127.0.0.1") &&
+      pathname.startsWith("/s/")
+    ) {
+      const segments = pathname.split("/"); // ["", "s", slug, ...rest]
+      const slug = segments[2];
+      if (slug) {
+        const rest = "/" + segments.slice(3).join("/"); // e.g. "/wholesale" or "/"
+        const isEmbed = rest.startsWith("/embed");
+
+        if (!isEmbed) {
+          const redirectUrl = new URL(
+            `https://${slug}.${platformMatch}${rest === "/" ? "" : rest}`
+          );
+          redirectUrl.search = request.nextUrl.search;
+          return NextResponse.redirect(redirectUrl, 301);
+        }
+      }
+    }
+
     // Otherwise it's the portal app itself (app., www., bare domain) — fall through
   } else if (!isPortalHost && !isDevHost) {
     // Custom domain rewriting — hostname is not a platform domain,

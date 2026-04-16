@@ -12,6 +12,7 @@ import { syncToXero, pushContactToXero } from "@/lib/xero";
 import { syncToSage, pushContactToSage } from "@/lib/sage";
 import { syncToQuickBooks, pushContactToQuickBooks } from "@/lib/quickbooks";
 import { splitName } from "@/lib/people";
+import { getStorefrontUrl } from "@/lib/storefront-url";
 
 export async function GET(
   _request: Request,
@@ -135,7 +136,6 @@ export async function PATCH(
       // Send approval email
       if (contactEmail) {
         try {
-          const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
           const { data: grRoaster } = await supabase
             .from("roasters")
             .select("storefront_slug")
@@ -143,8 +143,8 @@ export async function PATCH(
             .single();
 
           const catalogueUrl = grRoaster?.storefront_slug
-            ? `${portalUrl}/s/${grRoaster.storefront_slug}/wholesale`
-            : `${portalUrl}/wholesale`;
+            ? getStorefrontUrl(grRoaster.storefront_slug, "/wholesale")
+            : `${process.env.NEXT_PUBLIC_PORTAL_URL || ""}/wholesale`;
 
           await sendWholesaleApproved(
             contactEmail,

@@ -582,13 +582,22 @@ export function ProductForm({ product }: { product?: Product }) {
   );
 
   // Auto-seed Weight option type on coffee products (new products only)
+  // and remove it when switching away from coffee
   const hasSeededWeight = useRef(false);
   useEffect(() => {
-    if (isEditing || category !== "coffee" || hasSeededWeight.current) return;
-    hasSeededWeight.current = true;
-    const weightType: OptionType = { name: "Weight", isWeight: true, values: [] };
-    setRetailOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
-    setWholesaleOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
+    if (isEditing) return;
+    if (category === "coffee") {
+      if (hasSeededWeight.current) return;
+      hasSeededWeight.current = true;
+      const weightType: OptionType = { name: "Weight", isWeight: true, values: [] };
+      setRetailOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
+      setWholesaleOptionTypes((prev) => prev.some((ot) => ot.isWeight) ? prev : [weightType, ...prev]);
+    } else {
+      // Non-coffee: remove any auto-seeded Weight option types that have no values
+      hasSeededWeight.current = false;
+      setRetailOptionTypes((prev) => prev.filter((ot) => !(ot.isWeight && ot.values.length === 0)));
+      setWholesaleOptionTypes((prev) => prev.filter((ot) => !(ot.isWeight && ot.values.length === 0)));
+    }
   }, [category, isEditing]);
 
   // Derived: does this product have a roast profile linked?
@@ -2066,18 +2075,20 @@ export function ProductForm({ product }: { product?: Product }) {
                     {/* Min Qty & Order Multiples */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className={labelClassName}>Minimum Order (kg)</label>
+                        <label className={labelClassName}>{category === "coffee" ? "Minimum Order (kg)" : "Minimum Order Qty"}</label>
                         <input
                           type="number"
                           min="0"
-                          step="0.1"
+                          step={category === "coffee" ? "0.1" : "1"}
                           value={minWholesaleQty}
                           onChange={(e) => setMinWholesaleQty(e.target.value)}
                           placeholder="1"
                           className={inputClassName}
                         />
                         <p className="text-xs text-slate-400 mt-1">
-                          Buyers must order at least this total weight in kg.
+                          {category === "coffee"
+                            ? "Buyers must order at least this total weight in kg."
+                            : "Buyers must order at least this many units."}
                         </p>
                       </div>
                       <div>

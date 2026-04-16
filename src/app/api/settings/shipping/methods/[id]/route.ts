@@ -14,7 +14,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, price, free_threshold, estimated_days, is_active } = body;
+    const { name, price, free_threshold, estimated_days, is_active, max_weight_kg } = body;
 
     const supabase = createServerClient();
     const { error } = await supabase
@@ -25,6 +25,7 @@ export async function PUT(
         free_threshold: free_threshold || null,
         estimated_days: estimated_days || null,
         is_active: is_active ?? true,
+        max_weight_kg: max_weight_kg != null ? parseFloat(max_weight_kg) : null,
       })
       .eq("id", id)
       .eq("roaster_id", roaster.id);

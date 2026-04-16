@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, price, free_threshold, estimated_days, is_active } = body;
+    const { name, price, free_threshold, estimated_days, is_active, max_weight_kg } = body;
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json(
@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         estimated_days: estimated_days || null,
         is_active: is_active ?? true,
         sort_order: nextOrder,
+        max_weight_kg: max_weight_kg != null ? parseFloat(max_weight_kg) : null,
       })
       .select()
       .single();

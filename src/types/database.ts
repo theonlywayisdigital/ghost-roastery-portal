@@ -6389,6 +6389,7 @@ export type Database = {
           free_threshold: number | null
           id: string
           is_active: boolean | null
+          max_weight_kg: number | null
           name: string
           price: number
           roaster_id: string
@@ -6400,6 +6401,7 @@ export type Database = {
           free_threshold?: number | null
           id?: string
           is_active?: boolean | null
+          max_weight_kg?: number | null
           name: string
           price?: number
           roaster_id: string
@@ -6411,6 +6413,7 @@ export type Database = {
           free_threshold?: number | null
           id?: string
           is_active?: boolean | null
+          max_weight_kg?: number | null
           name?: string
           price?: number
           roaster_id?: string

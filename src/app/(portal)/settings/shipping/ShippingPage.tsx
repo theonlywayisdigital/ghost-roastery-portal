@@ -43,6 +43,7 @@ interface ShippingMethod {
   price: number;
   free_threshold: number | null;
   estimated_days: string | null;
+  max_weight_kg: number | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -142,6 +143,7 @@ export function ShippingPage() {
           price: editingMethod.price ?? 0,
           free_threshold: editingMethod.free_threshold || null,
           estimated_days: editingMethod.estimated_days || null,
+          max_weight_kg: editingMethod.max_weight_kg ?? null,
           is_active: editingMethod.is_active ?? true,
         }),
       });
@@ -330,6 +332,7 @@ export function ShippingPage() {
                     price: 0,
                     free_threshold: null,
                     estimated_days: "",
+                    max_weight_kg: null,
                     is_active: true,
                   })
                 }
@@ -376,6 +379,7 @@ export function ShippingPage() {
                         {method.estimated_days && (
                           <span>{`${method.estimated_days} days`}</span>
                         )}
+                        <span>{method.max_weight_kg != null ? `Up to ${Number(method.max_weight_kg)}kg` : "No weight limit"}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -496,21 +500,51 @@ export function ShippingPage() {
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Estimated Delivery Days
-                      </label>
-                      <input
-                        type="text"
-                        value={editingMethod.estimated_days || ""}
-                        onChange={(e) =>
-                          setEditingMethod((prev) =>
-                            prev ? { ...prev, estimated_days: e.target.value } : null
-                          )
-                        }
-                        placeholder='e.g. "2-3"'
-                        className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          Estimated Delivery Days
+                        </label>
+                        <input
+                          type="text"
+                          value={editingMethod.estimated_days || ""}
+                          onChange={(e) =>
+                            setEditingMethod((prev) =>
+                              prev ? { ...prev, estimated_days: e.target.value } : null
+                            )
+                          }
+                          placeholder='e.g. "2-3"'
+                          className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          Max weight (kg)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={editingMethod.max_weight_kg ?? ""}
+                          onChange={(e) =>
+                            setEditingMethod((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    max_weight_kg: e.target.value
+                                      ? parseFloat(e.target.value)
+                                      : null,
+                                  }
+                                : null
+                            )
+                          }
+                          placeholder="No limit"
+                          className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Orders heavier than this won&apos;t see this option. Leave blank for no limit.
+                        </p>
+                      </div>
                     </div>
                   </div>
 

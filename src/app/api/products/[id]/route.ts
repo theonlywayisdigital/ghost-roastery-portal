@@ -308,6 +308,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
           sku: v.sku || null,
           retail_price: v.retail_price != null ? parseFloat(v.retail_price) : null,
           wholesale_price: v.wholesale_price != null ? parseFloat(v.wholesale_price) : null,
+          rrp: v.rrp != null ? parseFloat(v.rrp) : null,
           retail_stock_count: v.retail_stock_count != null ? parseInt(v.retail_stock_count) : null,
           track_stock: v.track_stock ?? false,
           is_active: v.is_active ?? true,

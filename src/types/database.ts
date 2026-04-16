@@ -4752,6 +4752,7 @@ export type Database = {
           retail_price: number | null
           retail_stock_count: number | null
           roaster_id: string
+          rrp: number | null
           sku: string | null
           sort_order: number | null
           track_stock: boolean | null
@@ -4772,6 +4773,7 @@ export type Database = {
           retail_price?: number | null
           retail_stock_count?: number | null
           roaster_id: string
+          rrp?: number | null
           sku?: string | null
           sort_order?: number | null
           track_stock?: boolean | null
@@ -4792,6 +4794,7 @@ export type Database = {
           retail_price?: number | null
           retail_stock_count?: number | null
           roaster_id?: string
+          rrp?: number | null
           sku?: string | null
           sort_order?: number | null
           track_stock?: boolean | null

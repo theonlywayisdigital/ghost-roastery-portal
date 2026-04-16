@@ -122,6 +122,7 @@ interface OtherVariantCell {
   optionValueIds: string[];
   retailPrice: string;
   wholesalePrice: string;
+  rrp: string;
   sku: string;
   trackStock: boolean;
   stockCount: string;
@@ -137,6 +138,7 @@ interface Variant {
   sku: string | null;
   retail_price: number | null;
   wholesale_price: number | null;
+  rrp: number | null;
   retail_stock_count: number | null;
   track_stock: boolean;
   is_active: boolean;
@@ -394,6 +396,7 @@ export function ProductForm({ product }: { product?: Product }) {
                 optionValueIds: v.option_value_ids || [],
                 retailPrice: v.retail_price?.toString() || "",
                 wholesalePrice: v.wholesale_price?.toString() || "",
+                rrp: v.rrp?.toString() || "",
                 sku: v.sku || "",
                 trackStock: v.track_stock,
                 stockCount: v.retail_stock_count?.toString() || "",
@@ -694,7 +697,7 @@ export function ProductForm({ product }: { product?: Product }) {
         const existing = existingByLabel.get(combo.label);
         return existing
           ? { ...existing, optionValueIds: combo.optionValueIds }
-          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", sku: "", trackStock: false, stockCount: "", isActive: false };
+          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", rrp: "", sku: "", trackStock: false, stockCount: "", isActive: false };
       });
     });
   }, [retailVariantCombos]);
@@ -708,7 +711,7 @@ export function ProductForm({ product }: { product?: Product }) {
         const existing = existingByLabel.get(combo.label);
         return existing
           ? { ...existing, optionValueIds: combo.optionValueIds }
-          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", sku: "", trackStock: false, stockCount: "", isActive: false };
+          : { label: combo.label, optionValueIds: combo.optionValueIds, retailPrice: "", wholesalePrice: "", rrp: "", sku: "", trackStock: false, stockCount: "", isActive: false };
       });
     });
   }, [wholesaleVariantCombos]);
@@ -934,6 +937,7 @@ export function ProductForm({ product }: { product?: Product }) {
     const priceLabel = channel === "retail" ? "Retail £" : "Wholesale £";
     const priceField = channel === "retail" ? "retailPrice" : "wholesalePrice";
     const showManualStock = !hasRoastProfile;
+    const showRrp = category === "coffee";
 
     return (
       <div className={sectionClassName}>
@@ -951,6 +955,9 @@ export function ProductForm({ product }: { product?: Product }) {
               <tr className="border-b border-slate-200">
                 <th className="text-left py-2 pr-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Variant</th>
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{priceLabel}</th>
+                {showRrp && (
+                  <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">RRP £</th>
+                )}
                 <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">SKU</th>
                 {showManualStock && (
                   <th className="text-left py-2 px-3 font-medium text-slate-500 text-xs uppercase tracking-wide">Manual Stock</th>
@@ -973,6 +980,19 @@ export function ProductForm({ product }: { product?: Product }) {
                       className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
                   </td>
+                  {showRrp && (
+                    <td className="py-2.5 px-3">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={cell.rrp}
+                        onChange={(e) => updateVariantCell(channel, idx, { rrp: e.target.value })}
+                        placeholder="0.00"
+                        className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </td>
+                  )}
                   <td className="py-2.5 px-3">
                     <input
                       type="text"
@@ -1056,6 +1076,7 @@ export function ProductForm({ product }: { product?: Product }) {
       optionValueIds: cell.optionValueIds,
       retailPrice: "",
       wholesalePrice: "",
+      rrp: "",
       sku: cell.sku,
       trackStock: cell.trackStock,
       stockCount: cell.stockCount,
@@ -1173,6 +1194,7 @@ export function ProductForm({ product }: { product?: Product }) {
           sku: cell.sku || null,
           retail_price: channel === "retail" && cell.retailPrice ? parseFloat(cell.retailPrice) : null,
           wholesale_price: channel === "wholesale" && cell.wholesalePrice ? parseFloat(cell.wholesalePrice) : null,
+          rrp: cell.rrp ? parseFloat(cell.rrp) : null,
           retail_stock_count: cell.trackStock ? parseInt(cell.stockCount) || 0 : null,
           track_stock: cell.trackStock,
           is_active: cell.isActive,
@@ -1970,25 +1992,27 @@ export function ProductForm({ product }: { product?: Product }) {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Pricing</h3>
                   <div className={sectionClassName}>
-                    {/* Retail Price */}
-                    <div>
-                      <label className={labelClassName}>Retail Price (£)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={retailPrice}
-                        onChange={(e) => setRetailPrice(e.target.value)}
-                        placeholder="8.50"
-                        disabled={retailVariantCells.length > 0}
-                        className={`${inputClassName} max-w-[200px] ${retailVariantCells.length > 0 ? "opacity-50 bg-slate-50" : ""}`}
-                      />
-                      {retailVariantCells.length > 0 && (
-                        <p className="text-xs text-slate-400 mt-1">
-                          Price is set per variant when variants are enabled
-                        </p>
-                      )}
-                    </div>
+                    {/* Retail Price — hidden for coffee (set per variant instead) */}
+                    {category !== "coffee" && (
+                      <div>
+                        <label className={labelClassName}>Retail Price (£)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={retailPrice}
+                          onChange={(e) => setRetailPrice(e.target.value)}
+                          placeholder="8.50"
+                          disabled={retailVariantCells.length > 0}
+                          className={`${inputClassName} max-w-[200px] ${retailVariantCells.length > 0 ? "opacity-50 bg-slate-50" : ""}`}
+                        />
+                        {retailVariantCells.length > 0 && (
+                          <p className="text-xs text-slate-400 mt-1">
+                            Price is set per variant when variants are enabled
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Brand & GTIN */}
                     <div className="grid grid-cols-2 gap-4">
@@ -2092,36 +2116,38 @@ export function ProductForm({ product }: { product?: Product }) {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-800 mb-4">Wholesale Pricing</h3>
                   <div className={sectionClassName}>
-                    {/* Wholesale Price & RRP */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClassName}>Wholesale Price (£)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={wholesalePrice}
-                          onChange={(e) => setWholesalePrice(e.target.value)}
-                          placeholder="6.00"
-                          className={inputClassName}
-                        />
+                    {/* Wholesale Price & RRP — hidden for coffee (set per variant instead) */}
+                    {category !== "coffee" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClassName}>Wholesale Price (£)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={wholesalePrice}
+                            onChange={(e) => setWholesalePrice(e.target.value)}
+                            placeholder="6.00"
+                            className={inputClassName}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelClassName}>
+                            RRP (£){" "}
+                            <span className="text-slate-400 font-normal">(optional)</span>
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={rrp}
+                            onChange={(e) => setRrp(e.target.value)}
+                            placeholder="9.99"
+                            className={inputClassName}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className={labelClassName}>
-                          RRP (£){" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={rrp}
-                          onChange={(e) => setRrp(e.target.value)}
-                          placeholder="9.99"
-                          className={inputClassName}
-                        />
-                      </div>
-                    </div>
+                    )}
 
                     {/* Min Qty & Order Multiples */}
                     <div className="grid grid-cols-2 gap-4">

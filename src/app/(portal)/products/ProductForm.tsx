@@ -1312,8 +1312,8 @@ export function ProductForm({ product }: { product?: Product }) {
   // Tabs to show
   const tabs: { key: Tab; label: string; show: boolean }[] = [
     { key: "overview", label: "Overview", show: true },
-    { key: "retail", label: "Retail", show: isRetail },
     { key: "wholesale", label: "Wholesale", show: isWholesale },
+    { key: "retail", label: "Retail", show: isRetail },
   ];
 
   // Reset to overview if current tab becomes hidden
@@ -1398,6 +1398,22 @@ export function ProductForm({ product }: { product?: Product }) {
       <div className="max-w-2xl mb-4">
         <label className="block text-sm font-medium text-slate-700 mb-2">Where will this product be sold?</label>
         <div className="flex gap-3">
+          {/* Wholesale checkbox */}
+          <label
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors self-start ${
+              isWholesale
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-slate-300 text-slate-600 hover:border-slate-400"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isWholesale}
+              onChange={() => setIsWholesale(!isWholesale)}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm font-medium">Wholesale</span>
+          </label>
           {/* Retail checkbox */}
           {(() => {
             const retailDisabled = hasStorefrontIntegration === false;
@@ -1434,22 +1450,6 @@ export function ProductForm({ product }: { product?: Product }) {
               </div>
             );
           })()}
-          {/* Wholesale checkbox */}
-          <label
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors self-start ${
-              isWholesale
-                ? "border-brand-500 bg-brand-50 text-brand-700"
-                : "border-slate-300 text-slate-600 hover:border-slate-400"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={isWholesale}
-              onChange={() => setIsWholesale(!isWholesale)}
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-            />
-            <span className="text-sm font-medium">Wholesale</span>
-          </label>
         </div>
         {!isRetail && !isWholesale && (
           <p className="text-xs text-amber-600 mt-1.5">

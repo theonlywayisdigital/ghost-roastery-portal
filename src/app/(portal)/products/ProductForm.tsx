@@ -721,136 +721,7 @@ export function ProductForm({ product }: { product?: Product }) {
     setter((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
   }
 
-  // ─── Simplified Weight Sizes Renderer (coffee only) ───
-  function renderWeightSizes(channel: "retail" | "wholesale") {
-    const { optionTypes } = getOptionState(channel);
-    const weightIdx = optionTypes.findIndex((ot) => ot.isWeight);
-    if (weightIdx === -1) return null;
-    const weightType = optionTypes[weightIdx];
-
-    return (
-      <div className={sectionClassName}>
-        <h4 className="text-sm font-semibold text-slate-800">Sizes</h4>
-        <p className="text-xs text-slate-400">
-          Add the bag sizes you sell. Enter weight as displayed to buyers e.g. 250g, 1kg.
-        </p>
-        <div className="flex flex-wrap gap-2 items-center">
-          {weightType.values.map((val, valIdx) => (
-            <span
-              key={valIdx}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium"
-            >
-              {val.value}
-              <button
-                type="button"
-                onClick={() => handleRemoveOptionValue(channel, weightIdx, valIdx)}
-                className="text-slate-400 hover:text-red-500"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-          <input
-            type="text"
-            placeholder="e.g. 250g, 1kg"
-            className="px-3 py-1.5 border border-dashed border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-500 min-w-[120px]"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                const input = e.currentTarget;
-                handleAddOptionValue(channel, weightIdx, input.value);
-                input.value = "";
-              }
-            }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Non-weight Option Types Renderer (coffee products) ───
-  function renderNonWeightOptionBuilder(channel: "retail" | "wholesale") {
-    const { optionTypes } = getOptionState(channel);
-    const nonWeightTypes = optionTypes
-      .map((ot, idx) => ({ ot, idx }))
-      .filter(({ ot }) => !ot.isWeight);
-    // Count total option types to enforce max 3
-    const canAdd = optionTypes.length < 3;
-
-    return (
-      <div className={sectionClassName}>
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate-800">Other Options</h4>
-          {canAdd && (
-            <button
-              type="button"
-              onClick={() => handleAddOptionType(channel)}
-              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
-            >
-              + Add option
-            </button>
-          )}
-        </div>
-        {nonWeightTypes.length === 0 && (
-          <p className="text-sm text-slate-500">
-            Add options like Grind to create additional variants.
-          </p>
-        )}
-        {nonWeightTypes.map(({ ot, idx: typeIdx }) => (
-          <div key={typeIdx} className="border border-slate-200 rounded-lg p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={ot.name}
-                onChange={(e) => handleOptionTypeName(channel, typeIdx, e.target.value)}
-                placeholder="e.g. Grind, Size"
-                className={`${inputClassName} flex-1`}
-              />
-              <button
-                type="button"
-                onClick={() => handleRemoveOptionType(channel, typeIdx)}
-                className="p-1.5 text-slate-400 hover:text-red-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {ot.values.map((val, valIdx) => (
-                <span
-                  key={valIdx}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-sm"
-                >
-                  {val.value}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveOptionValue(channel, typeIdx, valIdx)}
-                    className="text-slate-400 hover:text-red-500"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-              <input
-                type="text"
-                placeholder="Type a value & press Enter"
-                className="px-2.5 py-1 border border-dashed border-slate-300 rounded-md text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-500 min-w-[160px]"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    const input = e.currentTarget;
-                    handleAddOptionValue(channel, typeIdx, input.value);
-                    input.value = "";
-                  }
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // ─── Generic Option Builder Renderer (non-coffee products) ───
+  // ─── Option Builder Renderer (per-channel) ───
   function renderOptionBuilder(channel: "retail" | "wholesale") {
     const { optionTypes } = getOptionState(channel);
     return (
@@ -869,26 +740,36 @@ export function ProductForm({ product }: { product?: Product }) {
         </div>
         {optionTypes.length === 0 && (
           <p className="text-sm text-slate-500">
-            Add option types (e.g. Size, Colour) to create product variants. Max 3.
+            Add option types (e.g. Weight, Grind, Size) to create product variants. Max 3.
           </p>
         )}
-        {optionTypes.map((ot, typeIdx) => (
+        {optionTypes.map((ot, typeIdx) => {
+          const isLockedWeight = category === "coffee" && ot.isWeight;
+          return (
           <div key={typeIdx} className="border border-slate-200 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 value={ot.name}
                 onChange={(e) => handleOptionTypeName(channel, typeIdx, e.target.value)}
-                placeholder="e.g. Size, Colour, Grind"
-                className={`${inputClassName} flex-1`}
+                placeholder={category === "coffee" && typeIdx === 0 ? "e.g. Weight" : "e.g. Size, Colour, Grind"}
+                readOnly={isLockedWeight}
+                className={`${inputClassName} flex-1 ${isLockedWeight ? "bg-slate-50 text-slate-500" : ""}`}
               />
-              <button
-                type="button"
-                onClick={() => handleRemoveOptionType(channel, typeIdx)}
-                className="p-1.5 text-slate-400 hover:text-red-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              {ot.isWeight && (
+                <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs font-medium whitespace-nowrap">
+                  Weight
+                </span>
+              )}
+              {!isLockedWeight && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOptionType(channel, typeIdx)}
+                  className="p-1.5 text-slate-400 hover:text-red-500"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               {ot.values.map((val, valIdx) => (
@@ -923,8 +804,14 @@ export function ProductForm({ product }: { product?: Product }) {
                 }}
               />
             </div>
+            {ot.isWeight && (
+              <p className="text-xs text-slate-400">
+                Enter weight as displayed to buyers e.g. 250g, 1kg. Stock will be tracked in kg.
+              </p>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -2097,14 +1984,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       </button>
                     )}
                   </div>
-                  {category === "coffee" ? (
-                    <>
-                      {renderWeightSizes("retail")}
-                      {renderNonWeightOptionBuilder("retail")}
-                    </>
-                  ) : (
-                    renderOptionBuilder("retail")
-                  )}
+                  {renderOptionBuilder("retail")}
                   {renderVariantGrid("retail")}
                 </div>
               </div>
@@ -2201,14 +2081,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       </button>
                     )}
                   </div>
-                  {category === "coffee" ? (
-                    <>
-                      {renderWeightSizes("wholesale")}
-                      {renderNonWeightOptionBuilder("wholesale")}
-                    </>
-                  ) : (
-                    renderOptionBuilder("wholesale")
-                  )}
+                  {renderOptionBuilder("wholesale")}
                   {renderVariantGrid("wholesale")}
                 </div>
               </div>

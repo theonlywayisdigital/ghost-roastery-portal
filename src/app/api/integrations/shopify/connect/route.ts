@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
     "write_inventory",
     "read_orders",
     "read_customers",
+    "read_shipping",
+    "write_shipping",
   ].join(",");
 
   const authUrl = `https://${normalizedShop}/admin/oauth/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;

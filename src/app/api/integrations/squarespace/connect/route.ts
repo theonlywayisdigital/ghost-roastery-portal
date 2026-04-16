@@ -218,6 +218,11 @@ export async function POST(request: Request) {
       );
     }
 
+    // NOTE: Squarespace has no shipping rate management API. The Commerce API
+    // covers products, inventory, orders, and transactions — but not shipping zones
+    // or rates. Roasters must configure shipping rates manually in the Squarespace
+    // Commerce dashboard under: Commerce > Shipping > Shipping Rates.
+
     return NextResponse.json({ success: true, shop_name: shopName });
   } catch (err) {
     console.error("[squarespace] Connection test error:", err);

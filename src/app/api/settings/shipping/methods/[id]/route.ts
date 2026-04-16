@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushShippingToChannels } from "@/lib/ecommerce-shipping-sync";
 
 export async function PUT(
   request: Request,
@@ -38,6 +39,11 @@ export async function PUT(
       );
     }
 
+    // Push updated shipping to connected storefronts (fire-and-forget)
+    pushShippingToChannels(roaster.id).catch((err) =>
+      console.error("[shipping-sync] Post-update sync failed:", err)
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Shipping method update error:", error);
@@ -73,6 +79,11 @@ export async function DELETE(
         { status: 500 }
       );
     }
+
+    // Push updated shipping to connected storefronts (fire-and-forget)
+    pushShippingToChannels(roaster.id).catch((err) =>
+      console.error("[shipping-sync] Post-delete sync failed:", err)
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

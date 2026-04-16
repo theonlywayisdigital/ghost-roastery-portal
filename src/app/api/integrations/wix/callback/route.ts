@@ -187,6 +187,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // NOTE: Wix does not support pushing static shipping rates via API.
+    // Wix uses a callback SPI model where the platform calls your endpoint at checkout
+    // to get dynamic rates. Roasters must configure shipping manually in the Wix dashboard.
+
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?success=wix`
     );

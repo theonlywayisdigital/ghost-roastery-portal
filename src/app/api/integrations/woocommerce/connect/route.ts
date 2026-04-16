@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { checkFeature } from "@/lib/feature-gates";
+import { pushShippingToChannels } from "@/lib/ecommerce-shipping-sync";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -142,6 +143,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Push existing shipping methods to the newly connected WooCommerce store (fire-and-forget)
+    pushShippingToChannels(user.roaster.id).catch((err) =>
+      console.error("[shipping-sync] Post-connect WooCommerce sync failed:", err)
+    );
 
     return NextResponse.json({ success: true, shop_name: shopName });
   } catch (err) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushShippingToChannels } from "@/lib/ecommerce-shipping-sync";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -77,6 +78,11 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // Push updated shipping to connected storefronts (fire-and-forget)
+    pushShippingToChannels(roaster.id).catch((err) =>
+      console.error("[shipping-sync] Post-create sync failed:", err)
+    );
 
     return NextResponse.json({ method: data });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { pushShippingToChannels } from "@/lib/ecommerce-shipping-sync";
 
 export async function GET(request: NextRequest) {
   const portalUrl = process.env.PORTAL_URL || process.env.NEXT_PUBLIC_PORTAL_URL || "";
@@ -197,6 +198,11 @@ export async function GET(request: NextRequest) {
         `${portalUrl}/settings/integrations?error=save_failed`
       );
     }
+
+    // Push existing shipping methods to the newly connected Shopify store (fire-and-forget)
+    pushShippingToChannels(roasterId).catch((err) =>
+      console.error("[shipping-sync] Post-connect Shopify sync failed:", err)
+    );
 
     return NextResponse.redirect(
       `${portalUrl}/settings/integrations?success=shopify`

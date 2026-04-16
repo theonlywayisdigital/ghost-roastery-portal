@@ -1412,7 +1412,7 @@ export function ProductForm({ product }: { product?: Product }) {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Ethiopian Yirgacheffe"
+                      placeholder={category === "coffee" ? "e.g. Ethiopian Yirgacheffe" : "e.g. Roastery Tote Bag"}
                       required
                       className={inputClassName}
                     />
@@ -1632,7 +1632,7 @@ export function ProductForm({ product }: { product?: Product }) {
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Tell the story behind this coffee..."
+                      placeholder={category === "coffee" ? "Tell the story behind this coffee..." : "Tell the story behind this product..."}
                       rows={3}
                       className={inputClassName}
                     />
@@ -1746,7 +1746,7 @@ export function ProductForm({ product }: { product?: Product }) {
                           type="text"
                           value={sku}
                           onChange={(e) => setSku(e.target.value)}
-                          placeholder="GR-ETH-250"
+                          placeholder={category === "coffee" ? "GR-ETH-250" : "GR-TOTE-001"}
                           className={`${inputClassName} flex-1`}
                         />
                         <button
@@ -1931,26 +1931,35 @@ export function ProductForm({ product }: { product?: Product }) {
                         )}
                       </div>
 
-                      <div className="space-y-3">
-                        <Toggle
-                          enabled={trackStock}
-                          onToggle={() => setTrackStock(!trackStock)}
-                          label={trackStock ? "Stock tracking enabled" : "Stock tracking disabled"}
-                        />
-                        {trackStock && (
-                          <div>
-                            <label className={labelClassName}>Stock Count</label>
-                            <input
-                              type="number"
-                              min="0"
-                              value={stockCount}
-                              onChange={(e) => setStockCount(e.target.value)}
-                              placeholder="0"
-                              className={`${inputClassName} max-w-[120px]`}
-                            />
-                          </div>
-                        )}
-                      </div>
+                      {retailVariantCells.length > 0 ? (
+                        <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                          Stock is tracked per variant below.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          <Toggle
+                            enabled={trackStock}
+                            onToggle={() => setTrackStock(!trackStock)}
+                            label="Track stock for this product"
+                          />
+                          <p className="text-xs text-slate-400">
+                            Enable to track how many units you have. If you add variants below, stock is tracked per variant instead.
+                          </p>
+                          {trackStock && (
+                            <div>
+                              <label className={labelClassName}>Stock Count</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={stockCount}
+                                onChange={(e) => setStockCount(e.target.value)}
+                                placeholder="0"
+                                className={`${inputClassName} max-w-[120px]`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Loader2,
   Check,
@@ -32,10 +33,10 @@ interface RoasterData {
   stripe_account_id: string;
 }
 
-// Subdomain (step 1) is managed in Settings > Domain & Identity.
-// Full steps: 2=type, 3=branding, 4=about, 5=stripe, 6=launch
-// Wholesale-only steps: 3=branding, 4=about, 6=launch
-const ALL_STEPS = RETAIL_ENABLED ? [2, 3, 4, 5, 6] : [3, 4, 6];
+// Step 1: Subdomain confirmation (read-only — editing is in Settings > Domain)
+// Full steps: 1=subdomain, 2=type, 3=branding, 4=about, 5=stripe, 6=launch
+// Wholesale-only steps: 1=subdomain, 3=branding, 4=about, 6=launch
+const ALL_STEPS = RETAIL_ENABLED ? [1, 2, 3, 4, 5, 6] : [1, 3, 4, 6];
 const TOTAL_STEPS = ALL_STEPS.length;
 
 const inputClassName =
@@ -269,6 +270,63 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
+        {/* Step 1: Subdomain confirmation */}
+        {step === 1 && (
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-1">
+              Your wholesale portal address
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              This is how buyers will find your wholesale portal online.
+            </p>
+
+            {roaster.storefront_slug ? (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">
+                      {roaster.storefront_slug}.roasteryplatform.com
+                    </p>
+                    <p className="text-sm text-green-700 mt-1">
+                      This is your wholesale portal address. You can update your
+                      subdomain in{" "}
+                      <Link
+                        href="/settings/domain"
+                        className="font-medium underline hover:text-green-800"
+                      >
+                        Domain Settings
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">
+                      No subdomain configured
+                    </p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      You need to set up a subdomain before continuing. Head to{" "}
+                      <Link
+                        href="/settings/domain"
+                        className="font-medium underline hover:text-amber-800"
+                      >
+                        Domain Settings
+                      </Link>{" "}
+                      to choose your subdomain, then come back here.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Step 2: Storefront type */}
         {step === 2 && (
           <div>
@@ -835,8 +893,9 @@ export function SetupWizard({ roaster }: { roaster: RoasterData }) {
               <button
                 type="button"
                 onClick={handleNext}
-                disabled={saving}
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                disabled={saving || (step === 1 && !roaster.storefront_slug)}
+                title={step === 1 && !roaster.storefront_slug ? "Set up your subdomain in Domain Settings first." : undefined}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 Next

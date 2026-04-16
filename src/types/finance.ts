@@ -153,6 +153,7 @@ export interface InvoiceFull {
   subtotal: number;
   discount_amount: number;
   discount_code: string | null;
+  shipping_amount: number;
   tax_rate: number;
   tax_amount: number;
   total: number;

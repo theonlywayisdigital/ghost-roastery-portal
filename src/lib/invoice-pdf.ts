@@ -79,6 +79,7 @@ export interface InvoicePdfParams {
   taxRate: number;
   taxAmount: number;
   discountAmount: number;
+  shippingAmount?: number;
   total: number;
   amountPaid: number;
   notes: string | null;
@@ -337,6 +338,7 @@ function InvoiceDocument(props: InvoicePdfParams) {
     taxRate,
     taxAmount,
     discountAmount,
+    shippingAmount = 0,
     total,
     amountPaid,
     notes,
@@ -559,6 +561,24 @@ function InvoiceDocument(props: InvoicePdfParams) {
               )
             : null,
 
+          // Shipping
+          shippingAmount > 0
+            ? React.createElement(
+                View,
+                { style: styles.totalsRow },
+                React.createElement(
+                  Text,
+                  { style: styles.totalsLabel },
+                  "Shipping"
+                ),
+                React.createElement(
+                  Text,
+                  { style: styles.totalsValue },
+                  formatCurrency(shippingAmount, currency)
+                )
+              )
+            : null,
+
           // Tax
           taxRate > 0
             ? React.createElement(
@@ -749,6 +769,7 @@ export function generateInvoiceHtml(params: {
   taxRate: number;
   taxAmount: number;
   discountAmount: number;
+  shippingAmount?: number;
   total: number;
   amountPaid: number;
   notes: string | null;
@@ -769,6 +790,7 @@ export function generateInvoiceHtml(params: {
     taxRate,
     taxAmount,
     discountAmount,
+    shippingAmount = 0,
     total,
     amountPaid,
     notes,
@@ -891,6 +913,11 @@ export function generateInvoiceHtml(params: {
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#64748b;font-family:'${bodyFamily}',sans-serif;">
           <span>Discount</span>
           <span>-${formatCurrency(discountAmount, currency)}</span>
+        </div>` : ""}
+        ${shippingAmount > 0 ? `
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#64748b;font-family:'${bodyFamily}',sans-serif;">
+          <span>Shipping</span>
+          <span>${formatCurrency(shippingAmount, currency)}</span>
         </div>` : ""}
         ${taxRate > 0 ? `
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#64748b;font-family:'${bodyFamily}',sans-serif;">

@@ -3071,6 +3071,7 @@ export type Database = {
           reminder_sent_at: string | null
           roaster_id: string | null
           sent_at: string | null
+          shipping_amount: number | null
           status: string
           stripe_payment_intent_id: string | null
           stripe_payment_link_id: string | null
@@ -3113,6 +3114,7 @@ export type Database = {
           reminder_sent_at?: string | null
           roaster_id?: string | null
           sent_at?: string | null
+          shipping_amount?: number | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_payment_link_id?: string | null
@@ -3155,6 +3157,7 @@ export type Database = {
           reminder_sent_at?: string | null
           roaster_id?: string | null
           sent_at?: string | null
+          shipping_amount?: number | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_payment_link_id?: string | null
@@ -3534,6 +3537,8 @@ export type Database = {
           refund_total: number | null
           roaster_id: string
           roaster_payout: number
+          shipping_cost: number | null
+          shipping_method_id: string | null
           status: string | null
           stripe_payment_id: string | null
           subtotal: number
@@ -3573,6 +3578,8 @@ export type Database = {
           refund_total?: number | null
           roaster_id: string
           roaster_payout: number
+          shipping_cost?: number | null
+          shipping_method_id?: string | null
           status?: string | null
           stripe_payment_id?: string | null
           subtotal: number
@@ -3612,6 +3619,8 @@ export type Database = {
           refund_total?: number | null
           roaster_id?: string
           roaster_payout?: number
+          shipping_cost?: number | null
+          shipping_method_id?: string | null
           status?: string | null
           stripe_payment_id?: string | null
           subtotal?: number
@@ -3633,6 +3642,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "ghost_roastery_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_shipping_method_id_fkey"
+            columns: ["shipping_method_id"]
+            isOneToOne: false
+            referencedRelation: "shipping_methods"
             referencedColumns: ["id"]
           },
           {

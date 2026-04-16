@@ -156,6 +156,7 @@ export async function GET(
       taxRate: Number(invoice.tax_rate || 0),
       taxAmount: Number(invoice.tax_amount || 0),
       discountAmount: Number(invoice.discount_amount || 0),
+      shippingAmount: Number(invoice.shipping_amount || 0),
       total: Number(invoice.total),
       amountPaid: Number(invoice.amount_paid || 0),
       notes: invoice.notes || null,

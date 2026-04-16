@@ -45,6 +45,8 @@ export interface ProcessOrderParams {
   discountAmountPence: number;
   isWholesaleChannel: boolean;
   orderNotes?: string | null;
+  shippingMethodId?: string | null;
+  shippingCostPence?: number;
 }
 
 export interface ProcessOrderResult {
@@ -242,6 +244,8 @@ export async function processOrder(params: ProcessOrderParams): Promise<ProcessO
       discount_code: discountCode,
       order_channel: isWholesaleChannel ? "wholesale" : "storefront",
       notes: params.orderNotes || null,
+      shipping_method_id: params.shippingMethodId || null,
+      shipping_cost: (params.shippingCostPence || 0) / 100,
     })
     .select("id")
     .single();

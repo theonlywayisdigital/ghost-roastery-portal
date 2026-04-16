@@ -10,6 +10,15 @@ import { Footer } from "../../_components/Footer";
 import { Minus, Plus, Trash2 } from "@/components/icons";
 import { Star } from "lucide-react";
 
+interface ShippingMethod {
+  id: string;
+  name: string;
+  price: number;
+  free_threshold: number | null;
+  estimated_days: string | null;
+  max_weight_kg: number | null;
+}
+
 interface OrderItem {
   productId: string;
   variantId?: string;
@@ -72,6 +81,9 @@ export default function WholesaleCheckoutPage() {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
+  const [shippingLoading, setShippingLoading] = useState(true);
 
   // Load checkout data from sessionStorage
   useEffect(() => {
@@ -117,6 +129,25 @@ export default function WholesaleCheckoutPage() {
     loadAddresses();
   }, [checkout]);
 
+  // Fetch shipping methods for this roaster
+  useEffect(() => {
+    if (!checkout) return;
+
+    async function loadShipping() {
+      try {
+        const res = await fetch(`/api/s/shipping-methods?roasterId=${checkout!.roasterId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setShippingMethods(data.methods || []);
+        }
+      } finally {
+        setShippingLoading(false);
+      }
+    }
+
+    loadShipping();
+  }, [checkout]);
+
   function updateQuantity(itemKey: string, quantity: number) {
     const item = items.find((i) => i.productId === itemKey);
     if (!item) return;
@@ -133,10 +164,32 @@ export default function WholesaleCheckoutPage() {
     setItems((prev) => prev.filter((i) => i.productId !== itemKey));
   }
 
-  const orderTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const orderCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || null;
-  const canPlaceOrder = items.length > 0 && selectedAddress !== null;
+
+  // Calculate total order weight in kg
+  const totalWeightKg = items.reduce(
+    (sum, item) => sum + (item.weightGrams / 1000) * item.quantity,
+    0
+  );
+
+  // Filter shipping methods by weight limit
+  const availableMethods = shippingMethods.filter(
+    (m) => m.max_weight_kg === null || m.max_weight_kg >= totalWeightKg
+  );
+
+  // Get selected shipping method and calculate cost
+  const selectedShipping = availableMethods.find((m) => m.id === selectedShippingId) || null;
+  const shippingCost = selectedShipping
+    ? selectedShipping.free_threshold && subtotal >= selectedShipping.free_threshold
+      ? 0
+      : selectedShipping.price
+    : 0;
+  const orderTotal = subtotal + shippingCost;
+
+  const hasShippingOptions = shippingMethods.length > 0;
+  const canPlaceOrder = items.length > 0 && selectedAddress !== null && (!hasShippingOptions || selectedShippingId !== null);
 
   async function handlePlaceOrder() {
     if (!checkout || !canPlaceOrder || !selectedAddress) return;
@@ -175,6 +228,7 @@ export default function WholesaleCheckoutPage() {
           cancelUrl: checkout.cancelUrl,
           deliveryAddress,
           orderNotes: notes || undefined,
+          ...(selectedShippingId ? { shippingMethodId: selectedShippingId, shippingCost } : {}),
         }),
       });
 
@@ -311,12 +365,28 @@ export default function WholesaleCheckoutPage() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-center pt-4 border-t border-slate-200 mt-2">
-            <span className="text-sm text-slate-500">
-              {`${orderCount} item${orderCount !== 1 ? "s" : ""}`}
-            </span>
-            <div className="text-right">
-              <span className="text-sm text-slate-500 mr-3">Subtotal</span>
+          <div className="pt-4 border-t border-slate-200 mt-2 space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">
+                {`${orderCount} item${orderCount !== 1 ? "s" : ""}`}
+              </span>
+              <div className="text-right">
+                <span className="text-sm text-slate-500 mr-3">Subtotal</span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {`\u00a3${subtotal.toFixed(2)}`}
+                </span>
+              </div>
+            </div>
+            {selectedShipping && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Shipping</span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {shippingCost === 0 ? "Free" : `\u00a3${shippingCost.toFixed(2)}`}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span className="text-sm font-medium text-slate-700">Total</span>
               <span className="text-lg font-bold" style={{ color: "var(--sf-text)" }}>
                 {`\u00a3${orderTotal.toFixed(2)}`}
               </span>
@@ -387,6 +457,83 @@ export default function WholesaleCheckoutPage() {
             </div>
           )}
         </section>
+
+        {/* ─── Shipping Method ─── */}
+        {shippingLoading ? (
+          <section className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+              Shipping
+            </h2>
+            <p className="text-sm text-slate-400">Loading shipping options...</p>
+          </section>
+        ) : hasShippingOptions ? (
+          <section className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
+              Shipping
+            </h2>
+            {availableMethods.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No shipping methods available for this order weight ({totalWeightKg.toFixed(1)}kg).
+                Please contact the roaster.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {availableMethods.map((method) => {
+                  const isFree = method.free_threshold !== null && subtotal >= method.free_threshold;
+                  return (
+                    <label
+                      key={method.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedShippingId === method.id
+                          ? "border-slate-400 bg-slate-50"
+                          : "border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="shippingMethod"
+                        checked={selectedShippingId === method.id}
+                        onChange={() => setSelectedShippingId(method.id)}
+                        className="mt-0.5 accent-slate-900"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900">{method.name}</span>
+                          {method.estimated_days && (
+                            <span className="text-xs text-slate-400">
+                              ({method.estimated_days})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {isFree ? (
+                            <>
+                              <span className="text-sm font-semibold text-green-600">Free</span>
+                              <span className="text-xs text-slate-400 line-through">
+                                {`\u00a3${method.price.toFixed(2)}`}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-semibold text-slate-700">
+                                {`\u00a3${method.price.toFixed(2)}`}
+                              </span>
+                              {method.free_threshold && (
+                                <span className="text-xs text-slate-400">
+                                  {`Free over \u00a3${method.free_threshold.toFixed(2)}`}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {/* ─── Order Notes ─── */}
         <section className="bg-white rounded-xl border border-slate-200 p-6 mb-6">

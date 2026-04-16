@@ -27,6 +27,8 @@ export async function POST(request: Request) {
       embedded,
       successUrl: customSuccessUrl,
       cancelUrl: customCancelUrl,
+      shippingMethodId,
+      shippingCost: clientShippingCost,
     } = body as {
       roasterId: string;
       items: CheckoutItem[];
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
       embedded?: boolean;
       successUrl?: string;
       cancelUrl?: string;
+      shippingMethodId?: string;
+      shippingCost?: number;
     };
 
     const isWholesale = !!wholesaleAccessId;
@@ -409,8 +413,45 @@ export async function POST(request: Request) {
       }
     }
 
-    // Calculate Stripe processing fee on discounted subtotal (1.5% + 20p)
-    const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
+    // ─── Server-side shipping validation ───
+    let validatedShippingCostPence = 0;
+    let validatedShippingMethodId: string | null = null;
+
+    if (shippingMethodId && isWholesale) {
+      const { data: shippingMethod } = await supabase
+        .from("shipping_methods")
+        .select("id, name, price, free_threshold, max_weight_kg")
+        .eq("id", shippingMethodId)
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true)
+        .single();
+
+      if (shippingMethod) {
+        validatedShippingMethodId = shippingMethod.id;
+        const totalWeightKg = lineItems.reduce((sum, item) => {
+          const variant = items.find((i) => i.productId === item.productId && i.variantId === item.variantId);
+          const wg = (variant?.variantId && variantMap[variant.variantId]?.weight_grams) || products!.find((p) => p.id === item.productId)?.weight_grams || 0;
+          return sum + (wg / 1000) * item.quantity;
+        }, 0);
+
+        if (shippingMethod.max_weight_kg && totalWeightKg > Number(shippingMethod.max_weight_kg)) {
+          return NextResponse.json(
+            { error: "Order exceeds the weight limit for the selected shipping method." },
+            { status: 400 }
+          );
+        }
+
+        const effectiveSubtotalForShipping = (subtotalPence - validatedDiscountPence) / 100;
+        if (shippingMethod.free_threshold && effectiveSubtotalForShipping >= Number(shippingMethod.free_threshold)) {
+          validatedShippingCostPence = 0;
+        } else {
+          validatedShippingCostPence = Math.round(Number(shippingMethod.price) * 100);
+        }
+      }
+    }
+
+    // Calculate Stripe processing fee on discounted subtotal + shipping (1.5% + 20p)
+    const effectiveSubtotalPence = subtotalPence - validatedDiscountPence + validatedShippingCostPence;
     const platformFeePence = calculateStripeProcessingFee(effectiveSubtotalPence);
 
     // Create Stripe checkout session
@@ -427,18 +468,32 @@ export async function POST(request: Request) {
     const sessionOptions: Record<string, unknown> = {
       mode: "payment",
       customer_email: effectiveEmail,
-      line_items: lineItems.map((item) => ({
-        price_data: {
-          currency: "gbp",
-          product_data: {
-            name: item.variantLabel
-              ? `${item.name} (${item.variantLabel})`
-              : item.name,
+      line_items: [
+        ...lineItems.map((item) => ({
+          price_data: {
+            currency: "gbp",
+            product_data: {
+              name: item.variantLabel
+                ? `${item.name} (${item.variantLabel})`
+                : item.name,
+            },
+            unit_amount: item.unitAmount,
           },
-          unit_amount: item.unitAmount,
-        },
-        quantity: item.quantity,
-      })),
+          quantity: item.quantity,
+        })),
+        ...(validatedShippingCostPence > 0
+          ? [
+              {
+                price_data: {
+                  currency: "gbp",
+                  product_data: { name: "Shipping" },
+                  unit_amount: validatedShippingCostPence,
+                },
+                quantity: 1,
+              },
+            ]
+          : []),
+      ],
       payment_intent_data: {
         ...(platformFeePence > 0 ? { application_fee_amount: platformFeePence } : {}),
         transfer_data: {
@@ -478,6 +533,7 @@ export async function POST(request: Request) {
         platform_fee_pence: platformFeePence.toString(),
         ...(body.orderNotes ? { order_notes: body.orderNotes.slice(0, 490) } : {}),
         ...(isWholesale ? { wholesale: "true", wholesale_access_id: wholesaleAccessId } : {}),
+        ...(validatedShippingMethodId ? { shipping_method_id: validatedShippingMethodId, shipping_cost_pence: validatedShippingCostPence.toString() } : {}),
         ...(validatedDiscountCodeId
           ? {
               discount_code_id: validatedDiscountCodeId,

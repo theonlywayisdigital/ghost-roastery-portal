@@ -350,6 +350,19 @@ export function InvoiceDetail({
                         {formatCurrency(invoice.subtotal)}
                       </td>
                     </tr>
+                    {invoice.shipping_amount > 0 && (
+                      <tr>
+                        <td
+                          colSpan={3}
+                          className="px-6 py-2 text-sm text-slate-500 text-right"
+                        >
+                          Shipping
+                        </td>
+                        <td className="px-6 py-2 text-sm text-slate-700 text-right">
+                          {formatCurrency(invoice.shipping_amount)}
+                        </td>
+                      </tr>
+                    )}
                     {invoice.tax_amount > 0 && (
                       <tr>
                         <td

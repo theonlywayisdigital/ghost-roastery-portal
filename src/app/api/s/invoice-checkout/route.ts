@@ -44,6 +44,8 @@ export async function POST(request: Request) {
       wholesaleAccessId,
       discountCodeId,
       discountCode,
+      shippingMethodId,
+      shippingCost: clientShippingCost,
       // discountType and discountAmountPence sent by client but re-validated server-side
     } = body as {
       roasterId: string;
@@ -65,6 +67,8 @@ export async function POST(request: Request) {
       discountCode?: string;
       discountType?: string;
       discountAmountPence?: number;
+      shippingMethodId?: string;
+      shippingCost?: number;
     };
 
     // Invoice checkout is wholesale-only
@@ -343,7 +347,50 @@ export async function POST(request: Request) {
     // Invoice orders: no platform fee — roaster keeps full subtotal
     const effectiveSubtotalPence = subtotalPence - validatedDiscountPence;
     const platformFeePence = 0;
-    const roasterPayoutPence = effectiveSubtotalPence;
+
+    // ─── Server-side shipping validation ───
+    let validatedShippingCost = 0;
+    let validatedShippingMethodId: string | null = null;
+
+    if (shippingMethodId) {
+      const { data: shippingMethod } = await supabase
+        .from("shipping_methods")
+        .select("id, name, price, free_threshold, max_weight_kg")
+        .eq("id", shippingMethodId)
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true)
+        .single();
+
+      if (shippingMethod) {
+        validatedShippingMethodId = shippingMethod.id;
+        // Calculate total order weight for threshold/limit checks
+        const totalWeightKg = lineItems.reduce((sum, item, idx) => {
+          const variant = items[idx].variantId ? variantMap[items[idx].variantId!] : null;
+          const product = products!.find((p) => p.id === item.productId);
+          const wg = variant?.weight_grams ?? product?.weight_grams ?? 0;
+          return sum + (wg / 1000) * item.quantity;
+        }, 0);
+
+        // Check weight limit
+        if (shippingMethod.max_weight_kg && totalWeightKg > shippingMethod.max_weight_kg) {
+          return NextResponse.json(
+            { error: "Order exceeds the weight limit for the selected shipping method." },
+            { status: 400 }
+          );
+        }
+
+        // Apply free threshold
+        const effectiveSubtotal = effectiveSubtotalPence / 100;
+        if (shippingMethod.free_threshold && effectiveSubtotal >= Number(shippingMethod.free_threshold)) {
+          validatedShippingCost = 0;
+        } else {
+          validatedShippingCost = Number(shippingMethod.price);
+        }
+      }
+    }
+
+    const shippingCostPence = Math.round(validatedShippingCost * 100);
+    const roasterPayoutPence = effectiveSubtotalPence + shippingCostPence;
 
     // ─── Find or create user account ───
     let userId: string | null = null;
@@ -468,6 +515,8 @@ export async function POST(request: Request) {
         wholesale_access_id: wholesaleAccessId,
         order_channel: "wholesale",
         notes: body.orderNotes || null,
+        shipping_method_id: validatedShippingMethodId,
+        shipping_cost: validatedShippingCost,
       })
       .select("id")
       .single();
@@ -661,7 +710,8 @@ export async function POST(request: Request) {
 
     // ─── Common totals for invoice / Xero / Sage ───
     const invoiceSubtotal = effectiveSubtotalPence / 100;
-    const invoiceTotal = invoiceSubtotal;
+    const invoiceShippingAmount = validatedShippingCost;
+    const invoiceTotal = invoiceSubtotal + invoiceShippingAmount;
 
     // Calculate due date based on payment terms
     const dueDate = new Date();
@@ -716,6 +766,7 @@ export async function POST(request: Request) {
           order_ids: [order.id],
           subtotal: invoiceSubtotal,
           discount_amount: validatedDiscountPence / 100,
+          shipping_amount: invoiceShippingAmount,
           tax_rate: 0,
           tax_amount: 0,
           total: invoiceTotal,
@@ -760,6 +811,18 @@ export async function POST(request: Request) {
         total: (item.unitAmount * item.quantity) / 100,
         sort_order: index,
       }));
+
+      // Add shipping as a line item if applicable
+      if (invoiceShippingAmount > 0) {
+        invoiceLineItems.push({
+          invoice_id: invoice.id,
+          description: "Shipping",
+          quantity: 1,
+          unit_price: invoiceShippingAmount,
+          total: invoiceShippingAmount,
+          sort_order: lineItems.length,
+        });
+      }
 
       const { error: lineItemsError } = await supabase
         .from("invoice_line_items")
@@ -844,6 +907,15 @@ export async function POST(request: Request) {
           total: (item.unitAmount * item.quantity) / 100,
         }));
 
+        if (invoiceShippingAmount > 0) {
+          invoiceLineItemsForEmail.push({
+            description: "Shipping",
+            quantity: 1,
+            unit_price: invoiceShippingAmount,
+            total: invoiceShippingAmount,
+          });
+        }
+
         const branding = {
           logoUrl: roaster.brand_logo_url || null,
           logoSize: (roaster.storefront_logo_size as "small" | "medium" | "large") || "medium",
@@ -873,6 +945,7 @@ export async function POST(request: Request) {
           taxRate: 0,
           taxAmount: 0,
           discountAmount: validatedDiscountPence / 100,
+          shippingAmount: invoiceShippingAmount,
           total: invoiceTotal,
           amountPaid: 0,
           notes: `Wholesale order - ${paymentTerms} payment terms`,

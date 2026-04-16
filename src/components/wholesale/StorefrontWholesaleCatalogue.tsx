@@ -173,7 +173,6 @@ export function StorefrontWholesaleCatalogue({
 
   function addToOrder(product: Product, variant?: ProductVariant) {
     const price = variant?.wholesale_price ?? product.wholesale_price ?? product.price;
-    const min = product.minimum_wholesale_quantity || 1;
     const itemKey = variant ? `${product.id}:${variant.id}` : product.id;
     const unitLabel = variant?.unit || product.unit;
     const variantLabel = variant
@@ -187,7 +186,7 @@ export function StorefrontWholesaleCatalogue({
     if (available !== null) {
       const existing = order.find((item) => item.productId === itemKey);
       const currentQty = existing ? existing.quantity : 0;
-      if (currentQty + min > available) {
+      if (currentQty + 1 > available) {
         setError(
           available <= 0
             ? `${product.name} is out of stock`
@@ -203,7 +202,7 @@ export function StorefrontWholesaleCatalogue({
       if (existing) {
         return prev.map((item) =>
           item.productId === itemKey
-            ? { ...item, quantity: item.quantity + min }
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
@@ -215,8 +214,8 @@ export function StorefrontWholesaleCatalogue({
           name: displayName,
           price,
           unit: unitLabel,
-          quantity: min,
-          minimum: min,
+          quantity: 1,
+          minimum: 1,
           weightGrams,
         },
       ];
@@ -265,6 +264,29 @@ export function StorefrontWholesaleCatalogue({
 
   function handleReviewOrder() {
     if (order.length === 0) return;
+
+    // Validate minimum order weight (kg) per product
+    for (const product of products) {
+      const minKg = product.minimum_wholesale_quantity;
+      if (!minKg || minKg <= 0) continue;
+
+      // Sum total weight in cart for this product (across all variants)
+      const productItems = order.filter(
+        (item) => item.productId === product.id || item.productId.startsWith(`${product.id}:`)
+      );
+      if (productItems.length === 0) continue;
+
+      const totalKg = productItems.reduce(
+        (sum, item) => sum + (item.weightGrams / 1000) * item.quantity,
+        0
+      );
+      if (totalKg < minKg) {
+        setError(
+          `${product.name} requires a minimum order of ${minKg}kg (currently ${totalKg.toFixed(2)}kg in cart).`
+        );
+        return;
+      }
+    }
 
     // Persist cart and checkout metadata to sessionStorage
     const checkoutUrl = context.type === "storefront"
@@ -495,12 +517,12 @@ export function StorefrontWholesaleCatalogue({
                             {`/ ${product.unit}`}
                           </span>
                         </div>
-                        {product.minimum_wholesale_quantity > 1 && (
+                        {product.minimum_wholesale_quantity > 0 && (
                           <span
                             className="text-xs"
                             style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
                           >
-                            {`Min ${product.minimum_wholesale_quantity}`}
+                            {`Min ${product.minimum_wholesale_quantity}kg`}
                           </span>
                         )}
                       </div>

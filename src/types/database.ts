@@ -4593,6 +4593,7 @@ export type Database = {
       }
       product_option_types: {
         Row: {
+          channel: string
           created_at: string | null
           id: string
           is_weight: boolean
@@ -4602,6 +4603,7 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          channel?: string
           created_at?: string | null
           id?: string
           is_weight?: boolean
@@ -4611,6 +4613,7 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          channel?: string
           created_at?: string | null
           id?: string
           is_weight?: boolean

@@ -157,7 +157,6 @@ export function WholesaleProductDetail({
 
   function addToOrder(variant?: ProductVariant) {
     const price = variant?.wholesale_price ?? product.wholesale_price ?? product.price;
-    const min = product.minimum_wholesale_quantity || 1;
     const itemKey = variant ? `${product.id}:${variant.id}` : product.id;
     const unitLabel = variant?.unit || product.unit;
     const variantLabel = variant
@@ -170,7 +169,7 @@ export function WholesaleProductDetail({
     if (available !== null) {
       const existing = order.find((item) => item.productId === itemKey);
       const currentQty = existing ? existing.quantity : 0;
-      if (currentQty + min > available) {
+      if (currentQty + 1 > available) {
         setError(
           available <= 0
             ? `${product.name} is out of stock`
@@ -186,7 +185,7 @@ export function WholesaleProductDetail({
       if (existing) {
         return prev.map((item) =>
           item.productId === itemKey
-            ? { ...item, quantity: item.quantity + min }
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
@@ -198,8 +197,8 @@ export function WholesaleProductDetail({
           name: displayName,
           price,
           unit: unitLabel,
-          quantity: min,
-          minimum: min,
+          quantity: 1,
+          minimum: 1,
           weightGrams,
         },
       ];
@@ -238,6 +237,22 @@ export function WholesaleProductDetail({
 
   function handleReviewOrder() {
     if (order.length === 0) return;
+
+    // Validate minimum order weight (kg) for this product
+    const minKg = product.minimum_wholesale_quantity;
+    if (minKg && minKg > 0) {
+      const totalKg = order.reduce(
+        (sum, item) => sum + (item.weightGrams / 1000) * item.quantity,
+        0
+      );
+      if (totalKg < minKg) {
+        setError(
+          `${product.name} requires a minimum order of ${minKg}kg (currently ${totalKg.toFixed(2)}kg in cart).`
+        );
+        return;
+      }
+    }
+
     const checkoutUrl = `/s/${slug}/wholesale/checkout`;
     const successUrl = `/s/${slug}/wholesale/success`;
     const cancelUrl = `/s/${slug}/wholesale`;
@@ -392,12 +407,12 @@ export function WholesaleProductDetail({
             )}
 
             {/* Minimum order */}
-            {product.minimum_wholesale_quantity > 1 && (
+            {product.minimum_wholesale_quantity > 0 && (
               <p
                 className="text-sm mb-4"
                 style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}
               >
-                {`Minimum order: ${product.minimum_wholesale_quantity} units`}
+                {`Minimum order: ${product.minimum_wholesale_quantity}kg`}
               </p>
             )}
 

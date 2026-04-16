@@ -1898,11 +1898,11 @@ export function ProductForm({ product }: { product?: Product }) {
                 <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
                   Your product will sync to your connected storefronts. Stock levels update automatically based on your roast profile. To pause sales, deactivate the product from the Overview tab.
                 </p>
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Settings</h3>
-                  <div className={sectionClassName}>
-                    {/* Retail Price — hidden for coffee (set per variant instead) */}
-                    {category !== "coffee" && (
+                {/* Retail Settings — only for non-coffee (coffee sets price per variant, stock via roast profile) */}
+                {category !== "coffee" && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-4">Retail Settings</h3>
+                    <div className={sectionClassName}>
                       <div>
                         <label className={labelClassName}>Retail Price (£)</label>
                         <input
@@ -1921,10 +1921,7 @@ export function ProductForm({ product }: { product?: Product }) {
                           </p>
                         )}
                       </div>
-                    )}
 
-                    {/* Stock Tracking — non-coffee only */}
-                    {category !== "coffee" && (
                       <div className="space-y-3">
                         <Toggle
                           enabled={trackStock}
@@ -1945,9 +1942,9 @@ export function ProductForm({ product }: { product?: Product }) {
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Retail Options & Variants */}
                 <div className="space-y-5">

@@ -197,10 +197,11 @@ export default function WholesaleCheckoutPage() {
     setError(null);
 
     try {
-      const isInvoiceCheckout = checkout.paymentTerms !== "prepay";
-      const endpoint = isInvoiceCheckout
-        ? "/api/s/invoice-checkout"
-        : "/api/s/checkout";
+      // HIDDEN: Stripe Connect - restore when storefront/online payments feature is launched
+      // const isInvoiceCheckout = checkout.paymentTerms !== "prepay";
+      // const endpoint = isInvoiceCheckout ? "/api/s/invoice-checkout" : "/api/s/checkout";
+      const isInvoiceCheckout = true; // All orders use invoice checkout
+      const endpoint = "/api/s/invoice-checkout";
 
       const deliveryAddress = {
         label: selectedAddress.label || undefined,
@@ -551,6 +552,8 @@ export default function WholesaleCheckoutPage() {
         </section>
 
         {/* ─── Payment ─── */}
+        {/* HIDDEN: Stripe Connect - restore when storefront/online payments feature is launched */}
+        {/* Card/prepay option hidden — all orders use invoice/bank transfer */}
         <section className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Payment
@@ -559,9 +562,7 @@ export default function WholesaleCheckoutPage() {
             {PAYMENT_TERMS_LABELS[checkout.paymentTerms] || checkout.paymentTerms}
           </p>
           <p className="text-xs text-slate-500">
-            {checkout.paymentTerms === "prepay"
-              ? "You'll be redirected to pay by card."
-              : `An invoice will be sent to your email with ${checkout.paymentTerms.replace("net", "")} day payment terms.`}
+            An invoice will be sent to your email{checkout.paymentTerms !== "prepay" ? ` with ${checkout.paymentTerms.replace("net", "")} day payment terms` : ""}.
           </p>
         </section>
 

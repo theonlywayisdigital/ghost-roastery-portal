@@ -310,11 +310,15 @@ export function ProductForm({ product }: { product?: Product }) {
   // Storefront integration detection
   const [hasStorefrontIntegration, setHasStorefrontIntegration] = useState<boolean | null>(null);
 
-  function generateSku() {
+  function generateSkuCode() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let code = "";
     for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    setSku(`RP-${code}`);
+    return `RP-${code}`;
+  }
+
+  function generateSku() {
+    setSku(generateSkuCode());
   }
 
   const [isLoading, setIsLoading] = useState(false);
@@ -881,13 +885,23 @@ export function ProductForm({ product }: { product?: Product }) {
                     </td>
                   )}
                   <td className="py-2.5 px-3">
-                    <input
-                      type="text"
-                      value={cell.sku}
-                      onChange={(e) => updateVariantCell(channel, idx, { sku: e.target.value })}
-                      placeholder="SKU"
-                      className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={cell.sku}
+                        onChange={(e) => updateVariantCell(channel, idx, { sku: e.target.value })}
+                        placeholder="SKU"
+                        className="w-24 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => updateVariantCell(channel, idx, { sku: generateSkuCode() })}
+                        title="Generate SKU"
+                        className="p-1 text-slate-400 hover:text-brand-600 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                      </button>
+                    </div>
                   </td>
                   {showManualStock && (
                     <td className="py-2.5 px-3">

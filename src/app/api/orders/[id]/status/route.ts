@@ -8,6 +8,7 @@ import {
   sendOrderDeliveredEmail,
 } from "@/lib/email";
 import type { EmailBranding } from "@/lib/email";
+import { pushDispatchToChannels } from "@/lib/ecommerce-dispatch-sync";
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending: ["confirmed", "cancelled"],
@@ -200,6 +201,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           }).catch((err) => console.error(`Failed to send ${templateKey} email:`, err));
         }
       }
+    }
+
+    // Push dispatch to connected ecommerce channel (fire-and-forget)
+    if (newStatus === "dispatched") {
+      pushDispatchToChannels(id).catch((err) =>
+        console.error("[dispatch-sync] Post-dispatch sync failed:", err)
+      );
     }
 
     // Fire automation trigger for order status change

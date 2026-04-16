@@ -6,6 +6,7 @@ import {
   sendOrderDeliveredEmail,
 } from "@/lib/email";
 import type { EmailBranding } from "@/lib/email";
+import { pushDispatchToChannels } from "@/lib/ecommerce-dispatch-sync";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -268,6 +269,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         }).catch((err) => console.error(`Failed to send ${templateKey} email:`, err));
       }
     }
+  }
+
+  // Push dispatch to connected ecommerce channel (fire-and-forget)
+  // Only for non-ghost orders that are being dispatched
+  if (!isGhost && (status === "dispatched")) {
+    pushDispatchToChannels(id).catch((err) =>
+      console.error("[dispatch-sync] Admin post-dispatch sync failed:", err)
+    );
   }
 
   return NextResponse.json({ success: true });

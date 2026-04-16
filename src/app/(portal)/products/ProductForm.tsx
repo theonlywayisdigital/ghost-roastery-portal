@@ -1923,72 +1923,29 @@ export function ProductForm({ product }: { product?: Product }) {
                       </div>
                     )}
 
-                    {/* Brand & GTIN */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelClassName}>
-                          Brand{" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={brand}
-                          onChange={(e) => setBrand(e.target.value)}
-                          placeholder="Your brand name"
-                          className={inputClassName}
+                    {/* Stock Tracking — non-coffee only */}
+                    {category !== "coffee" && (
+                      <div className="space-y-3">
+                        <Toggle
+                          enabled={trackStock}
+                          onToggle={() => setTrackStock(!trackStock)}
+                          label={trackStock ? "Stock tracking enabled" : "Stock tracking disabled"}
                         />
+                        {trackStock && (
+                          <div>
+                            <label className={labelClassName}>Stock Count</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={stockCount}
+                              onChange={(e) => setStockCount(e.target.value)}
+                              placeholder="0"
+                              className={`${inputClassName} max-w-[120px]`}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <label className={labelClassName}>
-                          GTIN / Barcode{" "}
-                          <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={gtin}
-                          onChange={(e) => setGtin(e.target.value)}
-                          placeholder="0123456789012"
-                          className={inputClassName}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Google Product Category */}
-                    <div>
-                      <label className={labelClassName}>
-                        Google Product Category{" "}
-                        <span className="text-slate-400 font-normal">(for feeds)</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={googleProductCategory}
-                        onChange={(e) => setGoogleProductCategory(e.target.value)}
-                        placeholder="Food, Beverages & Tobacco > Beverages > Coffee & Tea"
-                        className={inputClassName}
-                      />
-                    </div>
-
-                    {/* Stock Tracking */}
-                    <div className="space-y-3">
-                      <Toggle
-                        enabled={trackStock}
-                        onToggle={() => setTrackStock(!trackStock)}
-                        label={trackStock ? "Stock tracking enabled" : "Stock tracking disabled"}
-                      />
-                      {trackStock && (
-                        <div>
-                          <label className={labelClassName}>Stock Count</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={stockCount}
-                            onChange={(e) => setStockCount(e.target.value)}
-                            placeholder="0"
-                            className={`${inputClassName} max-w-[120px]`}
-                          />
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
 
@@ -2008,6 +1965,64 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                   {renderOptionBuilder("retail")}
                   {renderVariantGrid("retail")}
+                </div>
+
+                {/* Feed & Marketplace Settings */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4">Feed &amp; Marketplace Settings</h3>
+                  <div className={sectionClassName}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClassName}>
+                          Brand{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          placeholder="Your brand name"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Your brand or roastery name. Used by some storefronts and Google Shopping feeds.
+                        </p>
+                      </div>
+                      <div>
+                        <label className={labelClassName}>
+                          GTIN / Barcode{" "}
+                          <span className="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={gtin}
+                          onChange={(e) => setGtin(e.target.value)}
+                          placeholder="0123456789012"
+                          className={inputClassName}
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Global Trade Item Number — the barcode on your packaging. Optional but improves visibility on Google Shopping and some marketplaces.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelClassName}>
+                        Google Product Category{" "}
+                        <span className="text-slate-400 font-normal">(for feeds)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={googleProductCategory}
+                        onChange={(e) => setGoogleProductCategory(e.target.value)}
+                        placeholder="Food, Beverages & Tobacco > Beverages > Coffee & Tea"
+                        className={inputClassName}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Used for Google Shopping feeds. The default covers most coffee products — only change this if you sell non-coffee items on this storefront.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

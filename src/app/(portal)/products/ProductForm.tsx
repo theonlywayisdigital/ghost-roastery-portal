@@ -1415,41 +1415,22 @@ export function ProductForm({ product }: { product?: Product }) {
             <span className="text-sm font-medium">Wholesale</span>
           </label>
           {/* Retail checkbox */}
-          {(() => {
-            const retailDisabled = hasStorefrontIntegration === false;
-            return (
-              <div>
-                <label
-                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border transition-colors ${
-                    retailDisabled
-                      ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
-                      : isRetail
-                        ? "border-brand-500 bg-brand-50 text-brand-700 cursor-pointer"
-                        : "border-slate-300 text-slate-600 hover:border-slate-400 cursor-pointer"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isRetail}
-                    onChange={() => {
-                      if (!retailDisabled) setIsRetail(!isRetail);
-                    }}
-                    disabled={retailDisabled}
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 disabled:opacity-50"
-                  />
-                  <span className="text-sm font-medium">Retail</span>
-                </label>
-                {retailDisabled && (
-                  <p className="text-xs text-slate-400 mt-1.5 max-w-[220px]">
-                    Requires a connected storefront &mdash;{" "}
-                    <Link href="/settings/integrations" className="text-brand-600 hover:text-brand-700 font-medium">
-                      set up in Integrations &rarr;
-                    </Link>
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+          {/* TODO: Restore integration gate before launch */}
+          <label
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors self-start ${
+              isRetail
+                ? "border-brand-500 bg-brand-50 text-brand-700"
+                : "border-slate-300 text-slate-600 hover:border-slate-400"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isRetail}
+              onChange={() => setIsRetail(!isRetail)}
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-sm font-medium">Retail</span>
+          </label>
         </div>
         {!isRetail && !isWholesale && (
           <p className="text-xs text-amber-600 mt-1.5">

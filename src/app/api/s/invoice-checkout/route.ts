@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { createAuthServerClient, createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import {
   fireAutomationTrigger,
@@ -103,6 +103,16 @@ export async function POST(request: Request) {
     if (!access) {
       return NextResponse.json(
         { error: "Wholesale access not found or not approved." },
+        { status: 403 }
+      );
+    }
+
+    // Verify the authenticated user owns this wholesale_access record
+    const authClient = await createAuthServerClient();
+    const { data: { user: authUser } } = await authClient.auth.getUser();
+    if (!authUser || authUser.id !== access.user_id) {
+      return NextResponse.json(
+        { error: "Forbidden — access record does not belong to authenticated user." },
         { status: 403 }
       );
     }

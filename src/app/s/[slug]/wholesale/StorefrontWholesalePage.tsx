@@ -291,13 +291,16 @@ export function StorefrontWholesalePage({
             >
               Apply for Wholesale Account
             </Link>
-            <Link
-              href={`/s/${slug}/wholesale/login`}
-              className="px-6 py-3 font-semibold text-sm border transition-colors hover:bg-slate-50"
-              style={{ borderColor: accent, color: accent, borderRadius: "var(--sf-btn-radius)" }}
-            >
-              Already have an account? Sign in
-            </Link>
+            {/* Only show login CTA if user is NOT already authenticated */}
+            {!isAuthenticated && (
+              <Link
+                href={`/s/${slug}/wholesale/login`}
+                className="px-6 py-3 font-semibold text-sm border transition-colors hover:bg-slate-50"
+                style={{ borderColor: accent, color: accent, borderRadius: "var(--sf-btn-radius)" }}
+              >
+                Already have an account? Sign in
+              </Link>
+            )}
           </div>
         </div>
 

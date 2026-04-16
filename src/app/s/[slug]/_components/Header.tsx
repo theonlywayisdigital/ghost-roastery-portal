@@ -13,6 +13,12 @@ interface AuthUser {
   email: string;
 }
 
+interface WholesaleAccess {
+  id: string;
+  status: string;
+  paymentTerms: string;
+}
+
 export function Header() {
   const { roaster, slug, primary, accent, accentText, showRetail, showWholesale, embedded } =
     useStorefront();
@@ -23,21 +29,36 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [wholesaleAccess, setWholesaleAccess] = useState<WholesaleAccess | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Auth state detection
+  // Auth state detection — also fetches wholesale_access for this roaster
   useEffect(() => {
-    const supabase = createBrowserClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+    async function checkAuth() {
+      const supabase = createBrowserClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser?.email) {
         setUser({ id: authUser.id, email: authUser.email });
+        // Fetch wholesale access for this specific roaster
+        try {
+          const res = await fetch(`/api/s/wholesale-access?roasterId=${roaster.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.access) {
+              setWholesaleAccess(data.access);
+            }
+          }
+        } catch {
+          // Silently fail — treat as no access
+        }
       }
       setAuthLoading(false);
-    });
-  }, []);
+    }
+    checkAuth();
+  }, [roaster.id]);
 
   // Scroll detection
   useEffect(() => {
@@ -95,7 +116,11 @@ export function Header() {
     }
   }
 
-  const displayName = user
+  // Only show as "logged in" if user has a wholesale_access record for THIS roaster
+  const isLoggedInForRoaster = !!user && !!wholesaleAccess;
+  const accessStatus = wholesaleAccess?.status || null;
+
+  const displayName = isLoggedInForRoaster
     ? user.email.split("@")[0]
     : null;
 
@@ -107,6 +132,7 @@ export function Header() {
     setDropdownOpen(false);
     await fetch(`/api/auth/logout?redirect=/s/${slug}`, { method: "POST" });
     setUser(null);
+    setWholesaleAccess(null);
     router.refresh();
   }
 
@@ -203,7 +229,7 @@ export function Header() {
 
             {/* Right side: auth buttons + cart */}
             <div className="flex items-center gap-1.5">
-              {!authLoading && !user && (
+              {!authLoading && !isLoggedInForRoaster && (
                 <Link
                   href={`/s/${slug}/login`}
                   className="hidden md:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold border transition-colors"
@@ -225,8 +251,8 @@ export function Header() {
                 </Link>
               )}
 
-              {/* Signed-in user dropdown */}
-              {!authLoading && user && (
+              {/* Signed-in user dropdown — only shown if user has wholesale_access for this roaster */}
+              {!authLoading && isLoggedInForRoaster && (
                 <div className="relative hidden md:block" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen((o) => !o)}
@@ -259,20 +285,34 @@ export function Header() {
 
                   {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50">
-                      <Link
-                        href={`/s/${slug}/orders`}
-                        onClick={() => setDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        My Orders
-                      </Link>
-                      <Link
-                        href={`/s/${slug}/account`}
-                        onClick={() => setDropdownOpen(false)}
-                        className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        My Account
-                      </Link>
+                      {accessStatus === "approved" && (
+                        <>
+                          <Link
+                            href={`/s/${slug}/orders`}
+                            onClick={() => setDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            My Orders
+                          </Link>
+                          <Link
+                            href={`/s/${slug}/account`}
+                            onClick={() => setDropdownOpen(false)}
+                            className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            My Account
+                          </Link>
+                        </>
+                      )}
+                      {accessStatus === "pending" && (
+                        <span className="block px-4 py-2.5 text-sm text-amber-600">
+                          Application under review
+                        </span>
+                      )}
+                      {accessStatus === "rejected" && (
+                        <span className="block px-4 py-2.5 text-sm text-red-500">
+                          Application unsuccessful
+                        </span>
+                      )}
                       <div className="border-t border-slate-100 my-1" />
                       <button
                         onClick={handleSignOut}
@@ -338,7 +378,8 @@ export function Header() {
         onClose={() => setMobileMenuOpen(false)}
         navLinks={navLinks}
         onNavClick={handleNavClick}
-        user={user}
+        user={isLoggedInForRoaster ? user : null}
+        accessStatus={accessStatus}
         onSignOut={handleSignOut}
       />
     </>

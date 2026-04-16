@@ -93,12 +93,13 @@ export async function POST(request: Request) {
 
     const supabase = createServerClient();
 
-    // Verify wholesale access
+    // Verify wholesale access is approved
     const { data: access } = await supabase
       .from("wholesale_access")
       .select("id")
       .eq("user_id", user.id)
       .eq("roaster_id", roasterId)
+      .eq("status", "approved")
       .single();
 
     if (!access) {

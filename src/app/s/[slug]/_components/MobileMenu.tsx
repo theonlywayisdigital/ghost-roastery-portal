@@ -22,6 +22,7 @@ export function MobileMenu({
   navLinks,
   onNavClick,
   user,
+  accessStatus,
   onSignOut,
 }: {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function MobileMenu({
   navLinks: NavLink[];
   onNavClick: (href: string) => void;
   user: AuthUser | null;
+  accessStatus?: string | null;
   onSignOut: () => void;
 }) {
   const { roaster, slug, primary, accent } = useStorefront();
@@ -105,26 +107,46 @@ export function MobileMenu({
                 )
               )}
 
-              {/* Signed-in links */}
+              {/* Signed-in links — scoped to roaster access status */}
               {user && (
                 <>
                   <div className="border-t border-white/10 my-2" />
-                  <Link
-                    href={`/s/${slug}/orders`}
-                    onClick={onClose}
-                    className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
-                    style={{ color: "var(--sf-nav-text)" }}
-                  >
-                    My Orders
-                  </Link>
-                  <Link
-                    href={`/s/${slug}/account`}
-                    onClick={onClose}
-                    className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
-                    style={{ color: "var(--sf-nav-text)" }}
-                  >
-                    My Account
-                  </Link>
+                  {accessStatus === "approved" && (
+                    <>
+                      <Link
+                        href={`/s/${slug}/orders`}
+                        onClick={onClose}
+                        className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                        style={{ color: "var(--sf-nav-text)" }}
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href={`/s/${slug}/account`}
+                        onClick={onClose}
+                        className="block px-4 py-3 opacity-80 hover:opacity-100 hover:bg-white/10 rounded-lg text-base font-medium transition-colors"
+                        style={{ color: "var(--sf-nav-text)" }}
+                      >
+                        My Account
+                      </Link>
+                    </>
+                  )}
+                  {accessStatus === "pending" && (
+                    <span
+                      className="block px-4 py-3 text-sm font-medium opacity-70"
+                      style={{ color: "var(--sf-nav-text)" }}
+                    >
+                      Application under review
+                    </span>
+                  )}
+                  {accessStatus === "rejected" && (
+                    <span
+                      className="block px-4 py-3 text-sm font-medium opacity-70"
+                      style={{ color: "var(--sf-nav-text)" }}
+                    >
+                      Application unsuccessful
+                    </span>
+                  )}
                 </>
               )}
 

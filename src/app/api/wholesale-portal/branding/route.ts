@@ -16,6 +16,7 @@ export async function PUT(request: Request) {
   const updateData: Record<string, unknown> = {};
 
   if ("brand_hero_image_url" in body) updateData.brand_hero_image_url = body.brand_hero_image_url ?? null;
+  if ("hero_overlay_opacity" in body) updateData.hero_overlay_opacity = body.hero_overlay_opacity || "medium";
   if ("brand_about" in body) updateData.brand_about = body.brand_about ?? null;
   if ("brand_instagram" in body) updateData.brand_instagram = body.brand_instagram ?? null;
   if ("brand_facebook" in body) updateData.brand_facebook = body.brand_facebook ?? null;

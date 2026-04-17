@@ -6041,6 +6041,7 @@ export type Database = {
           ghost_roaster_applied_at: string | null
           ghost_roaster_approved_at: string | null
           grace_period_expires_at: string | null
+          hero_overlay_opacity: string
           id: string
           invoice_currency: string | null
           invoice_prefix: string | null
@@ -6166,6 +6167,7 @@ export type Database = {
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null
           grace_period_expires_at?: string | null
+          hero_overlay_opacity?: string
           id?: string
           invoice_currency?: string | null
           invoice_prefix?: string | null
@@ -6291,6 +6293,7 @@ export type Database = {
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null
           grace_period_expires_at?: string | null
+          hero_overlay_opacity?: string
           id?: string
           invoice_currency?: string | null
           invoice_prefix?: string | null

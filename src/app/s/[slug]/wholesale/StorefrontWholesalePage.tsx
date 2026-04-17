@@ -71,6 +71,7 @@ export function StorefrontWholesalePage({
     businessName: string;
     logoUrl: string | null;
     heroImageUrl: string | null;
+    heroOverlayOpacity: "light" | "medium" | "dark";
     slug: string;
     stripeAccountId: string | null;
     platformFeePercent: number | null;
@@ -220,28 +221,46 @@ export function StorefrontWholesalePage({
     >
       <Header />
       <Cart />
-      {/* Hero banner */}
-      {roaster.heroImageUrl && (
-        <section className="relative w-full h-56 md:h-72 lg:h-80 overflow-hidden">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${roaster.heroImageUrl})` }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
-        </section>
-      )}
-
-      <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
-        {/* Hero area */}
-        <div className="text-center mb-12">
+      {/* Hero with overlaid heading + CTAs */}
+      <section
+        className={`relative w-full flex items-center justify-center overflow-hidden ${
+          roaster.heroImageUrl ? "h-72 md:h-96 lg:h-[500px]" : "py-16 md:py-24"
+        }`}
+        style={
+          roaster.heroImageUrl
+            ? undefined
+            : { backgroundColor: primary }
+        }
+      >
+        {roaster.heroImageUrl && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${roaster.heroImageUrl})` }}
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundColor: `rgba(0,0,0,${{ light: 0.3, medium: 0.5, dark: 0.7 }[roaster.heroOverlayOpacity]})`,
+              }}
+            />
+          </>
+        )}
+        {!roaster.heroImageUrl && (
+          <div className="absolute inset-0 bg-black/40" />
+        )}
+        <div className="relative z-10 text-center px-6 max-w-2xl mx-auto">
           <h1
-            className="text-3xl md:text-4xl font-bold mb-3"
-            style={{ color: "var(--sf-text)" }}
+            className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 text-white"
+            style={{ textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
           >
             {`${roaster.businessName} Wholesale`}
           </h1>
           {brandData.brand_about && (
-            <p className="text-base md:text-lg max-w-xl mx-auto mb-6" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
+            <p
+              className="text-base md:text-lg max-w-xl mx-auto mb-6 text-white/80"
+              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}
+            >
               {brandData.brand_about}
             </p>
           )}
@@ -253,18 +272,20 @@ export function StorefrontWholesalePage({
             >
               Apply for Wholesale Account
             </Link>
-            {/* Only show login CTA if user is NOT already authenticated */}
             {!isAuthenticated && (
               <Link
                 href="/wholesale/login"
-                className="px-6 py-3 font-semibold text-sm border transition-colors hover:bg-slate-50"
-                style={{ borderColor: accent, color: accent, borderRadius: "var(--sf-btn-radius)" }}
+                className="px-6 py-3 font-semibold text-sm border border-white/50 text-white transition-colors hover:bg-white/10"
+                style={{ borderRadius: "var(--sf-btn-radius)" }}
               >
                 Already have an account? Sign in
               </Link>
             )}
           </div>
         </div>
+      </section>
+
+      <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
 
         {/* Blurred product preview grid */}
         {displayProducts.length > 0 && (

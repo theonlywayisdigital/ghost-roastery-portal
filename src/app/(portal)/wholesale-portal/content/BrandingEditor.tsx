@@ -37,6 +37,7 @@ interface BrandingData {
   storefront_button_style: "sharp" | "rounded" | "pill";
   storefront_nav_fixed: boolean;
   storefront_nav_transparent: boolean;
+  hero_overlay_opacity: "light" | "medium" | "dark";
 }
 
 const inputClassName =
@@ -59,6 +60,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
 
   // Portal-specific form state
   const [heroImageUrl, setHeroImageUrl] = useState(branding.brand_hero_image_url);
+  const [heroOverlay, setHeroOverlay] = useState<"light" | "medium" | "dark">(branding.hero_overlay_opacity);
   const [about, setAbout] = useState(branding.brand_about);
   const [instagram, setInstagram] = useState(branding.brand_instagram);
   const [facebook, setFacebook] = useState(branding.brand_facebook);
@@ -124,6 +126,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           brand_hero_image_url: heroImageUrl || null,
+          hero_overlay_opacity: heroOverlay,
           brand_about: about || null,
           brand_instagram: instagram || null,
           brand_facebook: facebook || null,
@@ -156,7 +159,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
     } finally {
       setSaving(false);
     }
-  }, [heroImageUrl, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, navFixed, navTransparent, router]);
+  }, [heroImageUrl, heroOverlay, about, instagram, facebook, tiktok, logoSize, enabled, navColour, navTextColour, buttonColour, buttonTextColour, bgColour, textColour, buttonStyle, navFixed, navTransparent, router]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
@@ -505,6 +508,54 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
               )}
             </div>
 
+            {/* Hero overlay opacity */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Hero overlay
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {(
+                  [
+                    { id: "light" as const, label: "Light" },
+                    { id: "medium" as const, label: "Medium" },
+                    { id: "dark" as const, label: "Dark" },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setHeroOverlay(opt.id)}
+                    className={`text-center rounded-lg border-2 p-3 transition-colors ${
+                      heroOverlay === opt.id
+                        ? "border-brand-600 bg-brand-50/50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex justify-center mb-2">
+                      <div
+                        className="h-8 w-full rounded relative overflow-hidden"
+                        style={{
+                          background: `linear-gradient(135deg, ${primaryColour} 0%, ${accentColour} 100%)`,
+                        }}
+                      >
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            backgroundColor: `rgba(0,0,0,${
+                              { light: 0.3, medium: 0.5, dark: 0.7 }[opt.id]
+                            })`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs font-medium text-slate-700">
+                      {opt.label}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* About */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -628,7 +679,7 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
 
             {/* Hero area */}
             <div
-              className="h-40 relative flex items-end"
+              className="h-44 relative flex items-center justify-center"
               style={
                 heroImageUrl
                   ? {
@@ -641,22 +692,42 @@ export function BrandingEditor({ branding }: { branding: BrandingData }) {
                     }
               }
             >
-              <div className="absolute inset-0 bg-black/30" />
-              <div className="relative p-4">
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundColor: `rgba(0,0,0,${{ light: 0.3, medium: 0.5, dark: 0.7 }[heroOverlay]})`,
+                }}
+              />
+              <div className="relative text-center px-4">
                 <h3
                   className="text-white text-sm font-bold"
-                  style={{ fontFamily: `"${headingFamily}", sans-serif` }}
+                  style={{
+                    fontFamily: `"${headingFamily}", sans-serif`,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.4)",
+                  }}
                 >
-                  {branding.business_name}
+                  {branding.business_name} Wholesale
                 </h3>
-                {tagline && (
-                  <p
-                    className="text-white/80 text-xs mt-0.5"
-                    style={{ fontFamily: `"${bodyFamily}", sans-serif` }}
+                <div className="flex items-center justify-center gap-1.5 mt-2">
+                  <span
+                    className="px-2 py-1 text-[8px] font-semibold"
+                    style={{
+                      backgroundColor: buttonColour,
+                      color: buttonTextColour,
+                      borderRadius: { sharp: "0px", rounded: "4px", pill: "9999px" }[buttonStyle],
+                    }}
                   >
-                    {tagline}
-                  </p>
-                )}
+                    Apply
+                  </span>
+                  <span
+                    className="px-2 py-1 text-[8px] font-semibold border border-white/50 text-white"
+                    style={{
+                      borderRadius: { sharp: "0px", rounded: "4px", pill: "9999px" }[buttonStyle],
+                    }}
+                  >
+                    Sign In
+                  </span>
+                </div>
               </div>
             </div>
 

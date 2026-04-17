@@ -219,10 +219,11 @@ export function EmbedCodeGenerator({
     setSettings((prev) => ({ ...prev, ...patch }));
 
   const shopScript = `<script\n  src="${portalUrl}/embed.js"\n  data-roaster="${slug}"\n  data-type="shop">\n</script>`;
-  const shopIframe = `<iframe\n  src="${portalUrl}/s/${slug}/embed/shop"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border:none;overflow:hidden">\n</iframe>`;
+  const shopEmbedUrl = `${storefrontUrl}/embed/shop`;
+  const shopIframe = `<iframe\n  src="${shopEmbedUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border:none;overflow:hidden">\n</iframe>`;
 
   const wholesaleScript = `<script\n  src="${portalUrl}/embed.js"\n  data-roaster="${slug}"\n  data-type="wholesale-apply">\n</script>`;
-  const wholesaleIframe = `<iframe\n  src="${portalUrl}/s/${slug}/embed/wholesale-apply"\n  width="100%"\n  height="800"\n  frameborder="0"\n  style="border:none;overflow:hidden">\n</iframe>`;
+  const wholesaleIframe = `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="800"\n  frameborder="0"\n  style="border:none;overflow:hidden">\n</iframe>`;
 
   const inputClassName =
     "w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent";
@@ -486,10 +487,10 @@ export function EmbedCodeGenerator({
                 Retail Shop (embed)
               </p>
               <p className="text-xs text-slate-500 truncate">
-                {`${portalUrl}/s/${slug}/embed/shop`}
+                {shopEmbedUrl}
               </p>
             </div>
-            <CopyButton text={`${portalUrl}/s/${slug}/embed/shop`} />
+            <CopyButton text={shopEmbedUrl} />
           </div>
           )}
 

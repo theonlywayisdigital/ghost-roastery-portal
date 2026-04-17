@@ -11,6 +11,11 @@ interface EmbedSettings {
   button_colour?: string | null;
   button_text_colour?: string | null;
   corner_style?: "sharp" | "rounded" | "pill";
+  text_colour?: string | null;
+  label_colour?: string | null;
+  input_bg_colour?: string | null;
+  input_border_colour?: string | null;
+  input_text_colour?: string | null;
 }
 
 /* ─── Helpers ─── */
@@ -104,11 +109,16 @@ function FormPreview({ settings, accentColour }: { settings: EmbedSettings; acce
   const btnRadius = borderRadiusFromStyle(cornerStyle);
   const inputRadius = cornerStyle === "sharp" ? "0px" : "8px";
 
-  const inputClassName = "w-full px-3 py-2 border text-sm placeholder:text-slate-400";
+  const labelColour = settings.label_colour || "#374151";
+  const inputBg = settings.input_bg_colour || "#ffffff";
+  const inputBorder = settings.input_border_colour || "#d1d5db";
+  const inputText = settings.input_text_colour || "#111827";
+
+  const inputClassName = "w-full px-3 py-2 border text-sm placeholder:opacity-40";
   const inputStyle: React.CSSProperties = {
-    backgroundColor: "#ffffff",
-    borderColor: "#e2e8f0",
-    color: "#1e293b",
+    backgroundColor: inputBg,
+    borderColor: inputBorder,
+    color: inputText,
     borderRadius: inputRadius,
   };
 
@@ -129,21 +139,21 @@ function FormPreview({ settings, accentColour }: { settings: EmbedSettings; acce
       >
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-medium text-slate-700 mb-1">First Name <span className="text-red-500">*</span></p>
+            <p className="text-xs font-medium mb-1" style={{ color: labelColour }}>First Name <span className="text-red-500">*</span></p>
             <input readOnly placeholder="First name" className={inputClassName} style={inputStyle} />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-700 mb-1">Last Name <span className="text-red-500">*</span></p>
+            <p className="text-xs font-medium mb-1" style={{ color: labelColour }}>Last Name <span className="text-red-500">*</span></p>
             <input readOnly placeholder="Last name" className={inputClassName} style={inputStyle} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="text-xs font-medium text-slate-700 mb-1">Email <span className="text-red-500">*</span></p>
+            <p className="text-xs font-medium mb-1" style={{ color: labelColour }}>Email <span className="text-red-500">*</span></p>
             <input readOnly placeholder="you@example.com" className={inputClassName} style={inputStyle} />
           </div>
           <div>
-            <p className="text-xs font-medium text-slate-700 mb-1">Business Name <span className="text-red-500">*</span></p>
+            <p className="text-xs font-medium mb-1" style={{ color: labelColour }}>Business Name <span className="text-red-500">*</span></p>
             <input readOnly placeholder="Your business" className={inputClassName} style={inputStyle} />
           </div>
         </div>
@@ -190,6 +200,11 @@ export function EmbedCodeGenerator({
     button_colour: (initialSettings.button_colour as string) || accentColour,
     button_text_colour: (initialSettings.button_text_colour as string) || "#ffffff",
     corner_style: (initialSettings.corner_style as EmbedSettings["corner_style"]) || "rounded",
+    text_colour: (initialSettings.text_colour as string) || "#111827",
+    label_colour: (initialSettings.label_colour as string) || "#374151",
+    input_bg_colour: (initialSettings.input_bg_colour as string) || "#ffffff",
+    input_border_colour: (initialSettings.input_border_colour as string) || "#d1d5db",
+    input_text_colour: (initialSettings.input_text_colour as string) || "#111827",
   });
 
   const [saving, setSaving] = useState(false);
@@ -396,6 +411,111 @@ export function EmbedCodeGenerator({
                     type="text"
                     value={settings.button_text_colour || "#ffffff"}
                     onChange={(e) => update({ button_text_colour: e.target.value })}
+                    className={`${inputClassName} max-w-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* Text colour */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Text colour
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.text_colour || "#111827"}
+                    onChange={(e) => update({ text_colour: e.target.value })}
+                    className="w-9 h-9 rounded border border-slate-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={settings.text_colour || "#111827"}
+                    onChange={(e) => update({ text_colour: e.target.value })}
+                    className={`${inputClassName} max-w-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* Label colour */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Label colour
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.label_colour || "#374151"}
+                    onChange={(e) => update({ label_colour: e.target.value })}
+                    className="w-9 h-9 rounded border border-slate-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={settings.label_colour || "#374151"}
+                    onChange={(e) => update({ label_colour: e.target.value })}
+                    className={`${inputClassName} max-w-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* Input background */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Input background
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.input_bg_colour || "#ffffff"}
+                    onChange={(e) => update({ input_bg_colour: e.target.value })}
+                    className="w-9 h-9 rounded border border-slate-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={settings.input_bg_colour || "#ffffff"}
+                    onChange={(e) => update({ input_bg_colour: e.target.value })}
+                    className={`${inputClassName} max-w-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* Input border colour */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Input border colour
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.input_border_colour || "#d1d5db"}
+                    onChange={(e) => update({ input_border_colour: e.target.value })}
+                    className="w-9 h-9 rounded border border-slate-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={settings.input_border_colour || "#d1d5db"}
+                    onChange={(e) => update({ input_border_colour: e.target.value })}
+                    className={`${inputClassName} max-w-[120px]`}
+                  />
+                </div>
+              </div>
+
+              {/* Input text colour */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Input text colour
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.input_text_colour || "#111827"}
+                    onChange={(e) => update({ input_text_colour: e.target.value })}
+                    className="w-9 h-9 rounded border border-slate-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={settings.input_text_colour || "#111827"}
+                    onChange={(e) => update({ input_text_colour: e.target.value })}
                     className={`${inputClassName} max-w-[120px]`}
                   />
                 </div>

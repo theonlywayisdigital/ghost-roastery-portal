@@ -14,6 +14,11 @@ interface EmbedSettings {
   button_colour?: string | null;
   button_text_colour?: string | null;
   corner_style?: "sharp" | "rounded" | "pill";
+  text_colour?: string | null;
+  label_colour?: string | null;
+  input_bg_colour?: string | null;
+  input_border_colour?: string | null;
+  input_text_colour?: string | null;
 }
 
 export function EmbedWholesaleApply({
@@ -72,6 +77,11 @@ export function EmbedWholesaleApply({
           buttonColour: settings.button_colour || undefined,
           buttonTextColour: settings.button_text_colour || undefined,
           cornerStyle: settings.corner_style || undefined,
+          textColour: settings.text_colour || undefined,
+          labelColour: settings.label_colour || undefined,
+          inputBgColour: settings.input_bg_colour || undefined,
+          inputBorderColour: settings.input_border_colour || undefined,
+          inputTextColour: settings.input_text_colour || undefined,
         }}
       />
       <div className="mt-4 text-center">

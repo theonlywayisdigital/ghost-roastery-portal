@@ -28,6 +28,11 @@ interface EmbedStyle {
   buttonColour?: string;
   buttonTextColour?: string;
   cornerStyle?: "sharp" | "rounded" | "pill";
+  textColour?: string;
+  labelColour?: string;
+  inputBgColour?: string;
+  inputBorderColour?: string;
+  inputTextColour?: string;
 }
 
 export function WholesaleApplyForm({
@@ -146,13 +151,13 @@ export function WholesaleApplyForm({
         </div>
         <h3
           className="text-xl font-semibold mb-2"
-          style={{ color: isEmbed ? "#1e293b" : "var(--sf-text)" }}
+          style={{ color: isEmbed ? (embedStyle.textColour || "#111827") : "var(--sf-text)" }}
         >
           {resultStatus === "approved"
             ? "Application Approved!"
             : "Application Submitted"}
         </h3>
-        <p style={{ color: isEmbed ? "#64748b" : "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
+        <p style={{ color: isEmbed ? (embedStyle.textColour || "#111827") : "color-mix(in srgb, var(--sf-text) 55%, transparent)", opacity: isEmbed ? 0.7 : 1 }}>
           {resultStatus === "approved"
             ? "Your wholesale account has been approved. Check your email for details on how to get started."
             : "Thanks for applying! We\u2019ll review your application and get back to you soon."}
@@ -167,9 +172,9 @@ export function WholesaleApplyForm({
 
   const inputStyle: React.CSSProperties = isEmbed
     ? {
-        backgroundColor: "#ffffff",
-        borderColor: "#e2e8f0",
-        color: "#1e293b",
+        backgroundColor: embedStyle.inputBgColour || "#ffffff",
+        borderColor: embedStyle.inputBorderColour || "#d1d5db",
+        color: embedStyle.inputTextColour || "#111827",
         borderRadius: embedInputRadius,
       }
     : {
@@ -181,11 +186,12 @@ export function WholesaleApplyForm({
   const inputClassName =
     "w-full px-4 py-3 border rounded-lg placeholder:opacity-40 focus:outline-none focus:ring-2 focus:border-transparent";
 
+  const embedLabelColour = embedStyle?.labelColour || "#374151";
   const labelStyle: React.CSSProperties = isEmbed
-    ? { color: "#334155" }
+    ? { color: embedLabelColour }
     : { color: "var(--sf-text)" };
   const optionalStyle: React.CSSProperties = isEmbed
-    ? { color: "#94a3b8" }
+    ? { color: embedLabelColour, opacity: 0.6 }
     : { color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" };
 
   return (

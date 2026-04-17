@@ -66,10 +66,10 @@ export default async function WholesaleProductDetailRoute({
     .from("products")
     .select(
       `id, name, category, origin, tasting_notes, description, price, unit, image_url, sort_order,
-       wholesale_price, minimum_wholesale_quantity, weight_grams,
+       wholesale_price, minimum_wholesale_quantity, weight_grams, is_blend,
        product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name)),
-       roasted_stock(id, current_stock_kg, low_stock_threshold_kg),
-       green_beans(id, current_stock_kg, low_stock_threshold_kg),
+       roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg)),
+       blend_components(id, percentage, roasted_stock:roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg))),
        product_images(id, url, sort_order, is_primary)`
     )
     .eq("id", id)
@@ -85,10 +85,10 @@ export default async function WholesaleProductDetailRoute({
     .from("products")
     .select(
       `id, name, category, origin, tasting_notes, description, image_url, unit, price, sort_order,
-       wholesale_price, minimum_wholesale_quantity, weight_grams,
+       wholesale_price, minimum_wholesale_quantity, weight_grams, is_blend,
        product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name)),
-       roasted_stock(id, current_stock_kg, low_stock_threshold_kg),
-       green_beans(id, current_stock_kg, low_stock_threshold_kg),
+       roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg)),
+       blend_components(id, percentage, roasted_stock:roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg))),
        product_images(id, url, sort_order, is_primary)`
     )
     .eq("roaster_id", roaster.id)

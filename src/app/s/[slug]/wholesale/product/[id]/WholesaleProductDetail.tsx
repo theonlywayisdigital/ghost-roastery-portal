@@ -25,6 +25,12 @@ interface StockPool {
   low_stock_threshold_kg: number | null;
 }
 
+interface BlendComponent {
+  id: string;
+  percentage: number;
+  roasted_stock?: (StockPool & { green_beans?: StockPool | null }) | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -38,9 +44,10 @@ interface Product {
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
   weight_grams: number | null;
+  is_blend?: boolean;
   product_variants?: ProductVariant[] | null;
-  roasted_stock?: StockPool | null;
-  green_beans?: StockPool | null;
+  roasted_stock?: (StockPool & { green_beans?: StockPool | null }) | null;
+  blend_components?: BlendComponent[] | null;
   product_images?: { id: string; url: string; sort_order: number; is_primary: boolean }[] | null;
 }
 
@@ -65,10 +72,26 @@ function getProductImages(product: Product): { url: string; id: string }[] {
 }
 
 function getAvailableKg(product: Product): number | null {
-  if (!product.roasted_stock && !product.green_beans) return null;
-  let totalKg = 0;
-  if (product.roasted_stock) totalKg += Number(product.roasted_stock.current_stock_kg);
-  if (product.green_beans) totalKg += Number(product.green_beans.current_stock_kg);
+  // Blend products: sum stock across all blend components
+  if (product.is_blend && product.blend_components && product.blend_components.length > 0) {
+    let totalKg = 0;
+    let hasAny = false;
+    for (const bc of product.blend_components) {
+      if (bc.roasted_stock) {
+        hasAny = true;
+        totalKg += Number(bc.roasted_stock.current_stock_kg);
+        if (bc.roasted_stock.green_beans) {
+          totalKg += Number(bc.roasted_stock.green_beans.current_stock_kg);
+        }
+      }
+    }
+    return hasAny ? totalKg : null;
+  }
+
+  // Non-blend: use roasted_stock and its linked green_beans
+  if (!product.roasted_stock) return null;
+  let totalKg = Number(product.roasted_stock.current_stock_kg);
+  if (product.roasted_stock.green_beans) totalKg += Number(product.roasted_stock.green_beans.current_stock_kg);
   return totalKg;
 }
 
@@ -144,8 +167,15 @@ export function WholesaleProductDetail({
     const units = kgToUnits(totalKg, weightGrams);
     if (units <= 0) return { label: "Out of stock", colour: "red" };
     const pools: StockPool[] = [];
-    if (product.roasted_stock) pools.push(product.roasted_stock);
-    if (product.green_beans) pools.push(product.green_beans);
+    if (product.is_blend && product.blend_components) {
+      for (const bc of product.blend_components) {
+        if (bc.roasted_stock) pools.push(bc.roasted_stock);
+        if (bc.roasted_stock?.green_beans) pools.push(bc.roasted_stock.green_beans);
+      }
+    } else {
+      if (product.roasted_stock) pools.push(product.roasted_stock);
+      if (product.roasted_stock?.green_beans) pools.push(product.roasted_stock.green_beans);
+    }
     const isLow = pools.some(
       (p) =>
         p.low_stock_threshold_kg &&

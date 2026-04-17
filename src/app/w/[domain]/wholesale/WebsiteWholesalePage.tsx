@@ -20,6 +20,12 @@ interface StockPool {
   low_stock_threshold_kg: number | null;
 }
 
+interface BlendComponent {
+  id: string;
+  percentage: number;
+  roasted_stock?: (StockPool & { green_beans?: StockPool | null }) | null;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -31,9 +37,10 @@ interface Product {
   wholesale_price: number | null;
   minimum_wholesale_quantity: number;
   weight_grams: number | null;
+  is_blend?: boolean;
   product_variants?: ProductVariant[] | null;
-  roasted_stock?: StockPool | null;
-  green_beans?: StockPool | null;
+  roasted_stock?: (StockPool & { green_beans?: StockPool | null }) | null;
+  blend_components?: BlendComponent[] | null;
 }
 
 interface AccessResponse {

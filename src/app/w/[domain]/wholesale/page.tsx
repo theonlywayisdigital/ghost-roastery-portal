@@ -75,10 +75,10 @@ export default async function WebsiteWholesalePageRoute({
           .from("products")
           .select(
             `id, name, description, image_url, unit, price, sort_order,
-             wholesale_price, minimum_wholesale_quantity, is_active, weight_grams,
+             wholesale_price, minimum_wholesale_quantity, is_active, weight_grams, is_blend,
              product_variants(id, weight_grams, unit, wholesale_price, is_active, channel, grind_type:roaster_grind_types(id, name)),
-             roasted_stock(id, current_stock_kg, low_stock_threshold_kg),
-             green_beans(id, current_stock_kg, low_stock_threshold_kg),
+             roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg)),
+             blend_components(id, percentage, roasted_stock:roasted_stock(id, current_stock_kg, low_stock_threshold_kg, green_beans:green_bean_id(id, current_stock_kg, low_stock_threshold_kg))),
              product_images(id, url, sort_order, is_primary)`
           )
           .eq("roaster_id", roaster.id)

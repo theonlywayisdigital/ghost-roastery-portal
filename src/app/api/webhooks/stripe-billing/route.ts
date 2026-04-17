@@ -348,20 +348,23 @@ async function handleSubscriptionUpdated(
     .update(updates)
     .eq("id", roasterId);
 
-  // Extract primary tier for event log
-  const primaryPriceId = subscription.items.data[0]?.price?.id;
-  const primaryTierInfo = primaryPriceId ? getTierFromPriceId(primaryPriceId) : null;
+  // Extract tier info from all items for event log
+  const tierChanges: Record<string, string> = {};
+  for (const item of subscription.items.data) {
+    const info = getTierFromPriceId(item.price?.id);
+    if (info) tierChanges[info.product] = info.tier;
+  }
 
   await supabase.from("subscription_events").insert({
     roaster_id: roasterId,
     stripe_event_id: eventId,
     event_type: "subscription_updated",
     product_type: productType,
-    new_tier: primaryTierInfo?.tier || null,
+    new_tier: tierChanges[productType] || null,
     metadata: {
       subscription_id: subscription.id,
       cancel_at_period_end: subscription.cancel_at_period_end,
-      billing_cycle: primaryTierInfo?.billingCycle || null,
+      tier_changes: tierChanges,
     },
   });
 }

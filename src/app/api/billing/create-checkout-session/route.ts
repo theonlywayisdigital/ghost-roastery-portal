@@ -7,6 +7,7 @@ import {
   type ProductType,
   type BillingCycle,
   getStripePriceId,
+  getTierFromPriceId,
 } from "@/lib/tier-config";
 
 export async function POST(request: Request) {
@@ -80,23 +81,37 @@ export async function POST(request: Request) {
         return await createCheckoutSession(stripeCustomerId, priceId, roaster.id as string, productType, tier, billingCycle);
       }
 
-      // Update the subscription price
-      const currentItem = subscription.items.data[0];
-      await stripe.subscriptions.update(existingSubscriptionId, {
-        items: [
-          {
-            id: currentItem.id,
-            price: priceId,
-          },
-        ],
-        metadata: {
-          roaster_id: roaster.id as string,
-          product_type: productType,
-          tier,
-          billing_cycle: billingCycle,
-        },
-        proration_behavior: "create_prorations",
+      // Find the subscription item that matches this product type
+      const matchingItem = subscription.items.data.find((item) => {
+        const tierInfo = getTierFromPriceId(item.price.id);
+        return tierInfo && tierInfo.product === productType;
       });
+
+      if (matchingItem) {
+        // Update the existing item for this product type
+        await stripe.subscriptions.update(existingSubscriptionId, {
+          items: [{ id: matchingItem.id, price: priceId }],
+          metadata: {
+            roaster_id: roaster.id as string,
+            product_type: productType,
+            tier,
+            billing_cycle: billingCycle,
+          },
+          proration_behavior: "create_prorations",
+        });
+      } else {
+        // No item for this product type on the subscription — add a new line item
+        await stripe.subscriptions.update(existingSubscriptionId, {
+          items: [{ price: priceId }],
+          metadata: {
+            roaster_id: roaster.id as string,
+            product_type: productType,
+            tier,
+            billing_cycle: billingCycle,
+          },
+          proration_behavior: "create_prorations",
+        });
+      }
 
       return NextResponse.json({ success: true, action: "updated" });
     }

@@ -458,6 +458,7 @@ function SubscriptionTab({
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [pendingTier, setPendingTier] = useState<{ product: "sales" | "marketing"; tier: TierLevel } | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState<"sales" | "marketing" | "website" | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -494,6 +495,7 @@ function SubscriptionTab({
 
   async function handleSelectPlan(productType: "sales" | "marketing", tier: TierLevel) {
     setCheckoutLoading(true);
+    setCheckoutError(null);
     setPendingTier({ product: productType, tier });
 
     try {
@@ -517,10 +519,10 @@ function SubscriptionTab({
       }
 
       if (data.error) {
-        console.error("Checkout error:", data.error);
+        setCheckoutError(data.error);
       }
-    } catch (error) {
-      console.error("Failed to start checkout:", error);
+    } catch {
+      setCheckoutError("Something went wrong. Please try again or contact support.");
     }
 
     setCheckoutLoading(false);
@@ -541,10 +543,10 @@ function SubscriptionTab({
         return;
       }
       if (data.error) {
-        console.error("Checkout error:", data.error);
+        setCheckoutError(data.error);
       }
-    } catch (error) {
-      console.error("Failed to start checkout:", error);
+    } catch {
+      setCheckoutError("Something went wrong. Please try again or contact support.");
     }
     setCheckoutLoading(false);
   }
@@ -901,6 +903,16 @@ function SubscriptionTab({
           <span className="ml-1.5 text-xs opacity-75">Save ~17%</span>
         </button>
       </div>
+
+      {checkoutError && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{checkoutError}</span>
+          <button onClick={() => setCheckoutError(null)} className="ml-auto text-red-400 hover:text-red-600">
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Plan Comparison — Sales */}
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">

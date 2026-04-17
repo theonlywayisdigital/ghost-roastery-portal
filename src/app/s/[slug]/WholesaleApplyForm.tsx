@@ -22,17 +22,28 @@ const VOLUME_OPTIONS = [
   "50kg+",
 ];
 
+interface EmbedStyle {
+  bgTransparent?: boolean;
+  bgColour?: string;
+  buttonColour?: string;
+  buttonTextColour?: string;
+  cornerStyle?: "sharp" | "rounded" | "pill";
+}
+
 export function WholesaleApplyForm({
   roasterId,
   slug,
   accentColour,
   accentText,
+  embedStyle,
 }: {
   roasterId: string;
   slug: string;
   accentColour: string;
   accentText: string;
+  embedStyle?: EmbedStyle;
 }) {
+  const isEmbed = !!embedStyle;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -99,22 +110,30 @@ export function WholesaleApplyForm({
   }
 
   if (submitted) {
+    const successBtnColour = isEmbed ? (embedStyle.buttonColour || accentColour) : accentColour;
     return (
       <div
         className="rounded-xl border p-8 text-center"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
-          borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
-        }}
+        style={
+          isEmbed
+            ? {
+                backgroundColor: embedStyle?.bgTransparent ? "transparent" : (embedStyle?.bgColour || "#f8fafc"),
+                borderColor: embedStyle?.bgTransparent ? "transparent" : "#e2e8f0",
+              }
+            : {
+                backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+                borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+              }
+        }
       >
         <div
           className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-          style={{ backgroundColor: accentColour + "20" }}
+          style={{ backgroundColor: successBtnColour + "20" }}
         >
           <svg
             className="w-7 h-7"
             fill="none"
-            stroke={accentColour}
+            stroke={successBtnColour}
             viewBox="0 0 24 24"
           >
             <path
@@ -127,13 +146,13 @@ export function WholesaleApplyForm({
         </div>
         <h3
           className="text-xl font-semibold mb-2"
-          style={{ color: "var(--sf-text)" }}
+          style={{ color: isEmbed ? "#1e293b" : "var(--sf-text)" }}
         >
           {resultStatus === "approved"
             ? "Application Approved!"
             : "Application Submitted"}
         </h3>
-        <p style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
+        <p style={{ color: isEmbed ? "#64748b" : "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
           {resultStatus === "approved"
             ? "Your wholesale account has been approved. Check your email for details on how to get started."
             : "Thanks for applying! We\u2019ll review your application and get back to you soon."}
@@ -142,28 +161,49 @@ export function WholesaleApplyForm({
     );
   }
 
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)",
-    borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)",
-    color: "var(--sf-text)",
-  };
+  // Embed mode: use embed settings for form background and button
+  const embedBtnRadius = embedStyle?.cornerStyle === "sharp" ? "0px" : embedStyle?.cornerStyle === "pill" ? "9999px" : "8px";
+  const embedInputRadius = embedStyle?.cornerStyle === "sharp" ? "0px" : "8px";
+
+  const inputStyle: React.CSSProperties = isEmbed
+    ? {
+        backgroundColor: "#ffffff",
+        borderColor: "#e2e8f0",
+        color: "#1e293b",
+        borderRadius: embedInputRadius,
+      }
+    : {
+        backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)",
+        borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)",
+        color: "var(--sf-text)",
+      };
 
   const inputClassName =
     "w-full px-4 py-3 border rounded-lg placeholder:opacity-40 focus:outline-none focus:ring-2 focus:border-transparent";
 
-  const labelStyle: React.CSSProperties = { color: "var(--sf-text)" };
-  const optionalStyle: React.CSSProperties = {
-    color: "color-mix(in srgb, var(--sf-text) 45%, transparent)",
-  };
+  const labelStyle: React.CSSProperties = isEmbed
+    ? { color: "#334155" }
+    : { color: "var(--sf-text)" };
+  const optionalStyle: React.CSSProperties = isEmbed
+    ? { color: "#94a3b8" }
+    : { color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" };
 
   return (
     <form
       onSubmit={handleSubmit}
       className="rounded-xl border p-6 md:p-8 space-y-4"
-      style={{
-        backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
-        borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
-      }}
+      style={
+        isEmbed
+          ? {
+              backgroundColor: embedStyle.bgTransparent ? "transparent" : (embedStyle.bgColour || "#f8fafc"),
+              borderColor: embedStyle.bgTransparent ? "transparent" : "#e2e8f0",
+              borderRadius: embedInputRadius,
+            }
+          : {
+              backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+              borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+            }
+      }
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -391,11 +431,19 @@ export function WholesaleApplyForm({
       <button
         type="submit"
         disabled={submitting}
-        style={{
-          backgroundColor: "var(--sf-btn-colour)",
-          color: "var(--sf-btn-text)",
-          borderRadius: "var(--sf-btn-radius)",
-        }}
+        style={
+          isEmbed
+            ? {
+                backgroundColor: embedStyle.buttonColour || accentColour,
+                color: embedStyle.buttonTextColour || "#ffffff",
+                borderRadius: embedBtnRadius,
+              }
+            : {
+                backgroundColor: "var(--sf-btn-colour)",
+                color: "var(--sf-btn-text)",
+                borderRadius: "var(--sf-btn-radius)",
+              }
+        }
         className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         {submitting ? "Submitting..." : "Apply for Trade Account"}

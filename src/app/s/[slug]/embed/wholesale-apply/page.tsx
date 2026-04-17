@@ -15,7 +15,7 @@ export default async function EmbedWholesaleApplyPage({
   const { data: roaster } = await supabase
     .from("roasters")
     .select(
-      `id, business_name, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type`
+      `id, business_name, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type, embed_settings`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
@@ -29,6 +29,7 @@ export default async function EmbedWholesaleApplyPage({
   }
 
   const accent = roaster.brand_accent_colour || "#0083dc";
+  const embedSettings = (roaster.embed_settings as Record<string, unknown>) || {};
 
   return (
     <EmbedWholesaleApply
@@ -36,6 +37,7 @@ export default async function EmbedWholesaleApplyPage({
       slug={roaster.storefront_slug}
       accentColour={accent}
       accentText={isLightColour(accent) ? "#1e293b" : "#ffffff"}
+      embedSettings={embedSettings}
     />
   );
 }

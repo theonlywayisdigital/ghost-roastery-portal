@@ -8,17 +8,29 @@ function postHeight() {
   window.parent.postMessage({ type: "gr-embed-resize", height }, "*");
 }
 
+interface EmbedSettings {
+  bg_colour?: string | null;
+  bg_transparent?: boolean;
+  button_colour?: string | null;
+  button_text_colour?: string | null;
+  corner_style?: "sharp" | "rounded" | "pill";
+}
+
 export function EmbedWholesaleApply({
   roasterId,
   slug,
   accentColour,
   accentText,
+  embedSettings,
 }: {
   roasterId: string;
   slug: string;
   accentColour: string;
   accentText: string;
+  embedSettings: Record<string, unknown>;
 }) {
+  const settings = embedSettings as unknown as EmbedSettings;
+
   useEffect(() => {
     postHeight();
     const observer = new ResizeObserver(() => postHeight());
@@ -33,6 +45,13 @@ export function EmbedWholesaleApply({
         slug={slug}
         accentColour={accentColour}
         accentText={accentText}
+        embedStyle={{
+          bgTransparent: settings.bg_transparent !== false,
+          bgColour: settings.bg_colour || undefined,
+          buttonColour: settings.button_colour || undefined,
+          buttonTextColour: settings.button_text_colour || undefined,
+          cornerStyle: settings.corner_style || undefined,
+        }}
       />
       <div className="mt-4 text-center">
         <a

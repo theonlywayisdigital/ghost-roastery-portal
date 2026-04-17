@@ -44,6 +44,7 @@ export async function PUT(request: Request) {
   if ("storefront_contact_email" in body) updateData.storefront_contact_email = body.storefront_contact_email ?? null;
   if ("storefront_contact_phone" in body) updateData.storefront_contact_phone = body.storefront_contact_phone ?? null;
   if ("storefront_contact_address" in body) updateData.storefront_contact_address = body.storefront_contact_address ?? null;
+  if ("embed_settings" in body) updateData.embed_settings = body.embed_settings ?? {};
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });

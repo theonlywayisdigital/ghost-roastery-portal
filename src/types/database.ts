@@ -6038,6 +6038,7 @@ export type Database = {
           dispatch_cutoff_time: string | null
           dispatch_days: string[] | null
           email: string
+          embed_settings: Json | null
           ghost_roaster_application_status: string | null
           ghost_roaster_applied_at: string | null
           ghost_roaster_approved_at: string | null
@@ -6165,6 +6166,7 @@ export type Database = {
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
           email: string
+          embed_settings?: Json | null
           ghost_roaster_application_status?: string | null
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null
@@ -6292,6 +6294,7 @@ export type Database = {
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
           email?: string
+          embed_settings?: Json | null
           ghost_roaster_application_status?: string | null
           ghost_roaster_applied_at?: string | null
           ghost_roaster_approved_at?: string | null

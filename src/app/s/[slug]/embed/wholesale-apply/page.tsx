@@ -1,8 +1,13 @@
-import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase";
 import { EmbedWholesaleApply } from "./EmbedWholesaleApply";
 
 export const dynamic = "force-dynamic";
+
+// Renders nothing for embeds when the roaster is missing, inactive, or misconfigured.
+// This prevents a deleted roaster's slug from accidentally rendering a new roaster's form.
+function EmptyEmbed() {
+  return <div />;
+}
 
 export default async function EmbedWholesaleApplyPage({
   params,
@@ -15,17 +20,19 @@ export default async function EmbedWholesaleApplyPage({
   const { data: roaster } = await supabase
     .from("roasters")
     .select(
-      `id, business_name, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type, embed_settings`
+      `id, business_name, brand_accent_colour, storefront_slug, storefront_enabled, storefront_type, is_active, embed_settings`
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
+    .eq("is_active", true)
     .single();
 
-  if (!roaster) notFound();
+  // No roaster, inactive, or storefront disabled — render nothing
+  if (!roaster) return <EmptyEmbed />;
 
   // Only show if storefront is wholesale or both
   if (roaster.storefront_type !== "wholesale" && roaster.storefront_type !== "both") {
-    notFound();
+    return <EmptyEmbed />;
   }
 
   const accent = roaster.brand_accent_colour || "#0083dc";

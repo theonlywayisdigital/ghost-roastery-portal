@@ -146,14 +146,6 @@ const styles = StyleSheet.create({
     gap: 10,
     maxWidth: "55%",
   },
-  logoWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 4,
-  },
   logo: {
     width: 44,
     height: 44,
@@ -382,14 +374,10 @@ function InvoiceDocument(props: InvoicePdfParams) {
           View,
           { style: styles.headerLeft },
           branding?.logoUrl
-            ? React.createElement(
-                View,
-                { style: { ...styles.logoWrap, backgroundColor: primaryColour } },
-                React.createElement(Image, {
-                  src: branding.logoUrl,
-                  style: styles.logo,
-                })
-              )
+            ? React.createElement(Image, {
+                src: branding.logoUrl,
+                style: styles.logo,
+              })
             : null,
           React.createElement(
             View,
@@ -866,7 +854,7 @@ export function generateInvoiceHtml(params: {
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;margin-bottom:40px;position:relative;z-index:1;">
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        ${logoUrl ? `<div style="width:56px;height:56px;background-color:${primaryColour};border-radius:8px;display:flex;align-items:center;justify-content:center;padding:4px;"><img src="${logoUrl}" alt="" style="width:48px;height:48px;object-fit:contain;"></div>` : ""}
+        ${logoUrl ? `<img src="${logoUrl}" alt="" style="width:48px;height:48px;object-fit:contain;">` : ""}
         <div>
           <h2 style="margin:0 0 8px;font-size:18px;font-weight:700;color:${primaryColour};font-family:'${headingFamily}',sans-serif;">${escapeHtml(ownerName)}</h2>
           ${ownerAddress ? `<p style="margin:0;font-size:12px;color:#64748b;white-space:pre-line;line-height:1.6;font-family:'${bodyFamily}',sans-serif;">${escapeHtml(ownerAddress)}</p>` : ""}

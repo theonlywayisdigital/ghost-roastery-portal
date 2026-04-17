@@ -40,9 +40,7 @@ export function renderEmailHtml(
 
   const logoHeader = effectiveLogoUrl
     ? `<div style="background-color:${headerBg};border-radius:12px 12px 0 0;padding:24px;text-align:center;">
-        <div style="display:inline-block;background-color:${primary};border-radius:10px;padding:16px 24px;">
-          <img src="${escapeHtml(effectiveLogoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;display:block;" />
-        </div>
+          <img src="${escapeHtml(effectiveLogoUrl)}" alt="${escapeHtml(businessName)}" style="max-height:${logoMaxHeight}px;max-width:280px;object-fit:contain;display:block;margin:0 auto;" />
       </div>`
     : "";
 

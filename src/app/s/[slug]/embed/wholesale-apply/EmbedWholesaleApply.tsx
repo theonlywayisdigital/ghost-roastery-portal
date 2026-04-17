@@ -30,6 +30,7 @@ export function EmbedWholesaleApply({
   embedSettings: Record<string, unknown>;
 }) {
   const settings = embedSettings as unknown as EmbedSettings;
+  const bgTransparent = settings.bg_transparent !== false;
 
   useEffect(() => {
     postHeight();
@@ -38,8 +39,28 @@ export function EmbedWholesaleApply({
     return () => observer.disconnect();
   }, []);
 
+  // When transparent background is selected, override any parent layout
+  // background so the iframe content shows through cleanly.
+  useEffect(() => {
+    if (bgTransparent) {
+      document.documentElement.style.backgroundColor = "transparent";
+      document.body.style.backgroundColor = "transparent";
+      // The storefront layout wrapper sets backgroundColor via inline style —
+      // walk up from body to clear it on all parent divs within the embed.
+      let el = document.body.firstElementChild as HTMLElement | null;
+      while (el) {
+        el.style.backgroundColor = "transparent";
+        if (el.children.length === 1) {
+          el = el.firstElementChild as HTMLElement | null;
+        } else {
+          break;
+        }
+      }
+    }
+  }, [bgTransparent]);
+
   return (
-    <div className="p-4">
+    <div className="p-4" style={{ backgroundColor: "transparent" }}>
       <WholesaleApplyForm
         roasterId={roasterId}
         slug={slug}

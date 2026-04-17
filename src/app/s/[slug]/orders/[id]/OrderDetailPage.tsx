@@ -100,7 +100,7 @@ export function OrderDetailPage({
   order: Order;
   invoice: Invoice | null;
 }) {
-  const { accent, accentText, embedded } = useStorefront();
+  const { accent, accentText } = useStorefront();
   const [trackingCopied, setTrackingCopied] = useState(false);
 
   const statusColours =
@@ -126,7 +126,6 @@ export function OrderDetailPage({
     >
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         {/* Back link */}

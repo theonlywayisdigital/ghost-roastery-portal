@@ -71,7 +71,7 @@ export default function WholesaleCheckoutPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
-  const { accent, accentText, embedded } = useStorefront();
+  const { accent, accentText } = useStorefront();
 
   const [checkout, setCheckout] = useState<CheckoutData | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
@@ -273,7 +273,6 @@ export default function WholesaleCheckoutPage() {
       <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
         <Header />
         <Cart />
-        {!embedded && <div className="h-16 md:h-20" />}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 text-center">
           <p className="text-slate-500">Loading...</p>
         </div>
@@ -287,7 +286,6 @@ export default function WholesaleCheckoutPage() {
       <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
         <Header />
         <Cart />
-        {!embedded && <div className="h-16 md:h-20" />}
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 text-center">
           <p className="text-slate-600 mb-4">Your order is empty.</p>
           <Link
@@ -307,7 +305,6 @@ export default function WholesaleCheckoutPage() {
     <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 md:py-12">
         <div className="flex items-center justify-between mb-8">

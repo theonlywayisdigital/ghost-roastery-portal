@@ -67,7 +67,7 @@ function OrderDetailsSection({ details }: { details: OrderDetails }) {
 function SuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { primary, embedded } = useStorefront();
+  const { primary } = useStorefront();
   const slug = params.slug as string;
 
   const sessionId = searchParams.get("session_id");
@@ -142,7 +142,6 @@ function SuccessContent() {
     >
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
 
       <div className="min-h-[60vh] flex items-center justify-center px-6">
         <div className="max-w-md w-full text-center">

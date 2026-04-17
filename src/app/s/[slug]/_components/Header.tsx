@@ -34,6 +34,8 @@ export function Header() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
 
   // Auth state detection — also fetches wholesale_access for this roaster
   useEffect(() => {
@@ -59,6 +61,18 @@ export function Header() {
     }
     checkAuth();
   }, [roaster.id]);
+
+  // Measure header height for spacer (fixed nav only)
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header || !navFixed) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setHeaderHeight(entry.contentRect.height);
+    });
+    setHeaderHeight(header.offsetHeight);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [navFixed]);
 
   // Scroll detection
   useEffect(() => {
@@ -146,6 +160,7 @@ export function Header() {
       )}
 
       <header
+        ref={headerRef}
         className={
           navFixed
             ? "fixed top-0 left-0 right-0 z-50 transition-all duration-300"
@@ -371,6 +386,11 @@ export function Header() {
           </div>
         </div>
       </header>
+
+      {/* Spacer to prevent content from being hidden behind the fixed header */}
+      {navFixed && headerHeight > 0 && (
+        <div style={{ height: headerHeight }} />
+      )}
 
       {/* Mobile Menu */}
       <MobileMenu

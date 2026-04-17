@@ -116,7 +116,7 @@ export function AccountPage({
   wholesaleAccess: WholesaleAccess | null;
   addresses: BuyerAddress[];
 }) {
-  const { accent, accentText, embedded } = useStorefront();
+  const { accent, accentText } = useStorefront();
   const router = useRouter();
 
   // ─── Personal Details state ───
@@ -460,8 +460,6 @@ export function AccountPage({
     <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
-
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10">
         <h1
           className="text-2xl font-bold mb-8"

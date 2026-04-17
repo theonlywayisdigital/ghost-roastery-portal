@@ -93,7 +93,6 @@ export function StorefrontWholesalePage({
       >
         <Header />
         <Cart />
-        {!embedded && <div className="h-16 md:h-20" />}
         <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
           <div className="max-w-md mx-auto">
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
@@ -139,7 +138,6 @@ export function StorefrontWholesalePage({
       >
         <Header />
         <Cart />
-        {!embedded && <div className="h-16 md:h-20" />}
         <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
           <div className="max-w-md mx-auto">
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
@@ -182,7 +180,6 @@ export function StorefrontWholesalePage({
       >
         <Header />
         <Cart />
-        {!embedded && <div className="h-16 md:h-20" />}
 
         <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
           <h1

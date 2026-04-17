@@ -62,9 +62,6 @@ export function ShopPage({ products }: { products: Product[] }) {
       <Header />
       <Cart />
 
-      {/* Spacer for fixed header */}
-      {!embedded && <div className="h-16 md:h-20" />}
-
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm mb-6" style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}>

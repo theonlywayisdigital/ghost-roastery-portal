@@ -82,14 +82,12 @@ export function OrdersPage({
   slug: string;
   orders: Order[];
 }) {
-  const { accent, accentText, embedded } = useStorefront();
+  const { accent, accentText } = useStorefront();
 
   return (
     <div style={{ fontFamily: "var(--sf-font)" }} className="min-h-screen">
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
-
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
         <h1 className="text-2xl font-bold mb-8" style={{ color: "var(--sf-text)" }}>My Orders</h1>
 

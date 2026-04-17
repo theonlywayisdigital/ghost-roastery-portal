@@ -176,7 +176,7 @@ export function Header() {
         }
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between py-3 md:py-4">
+          <div className="relative flex items-center justify-between py-3 md:py-4">
             {/* Mobile: Hamburger */}
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -202,7 +202,7 @@ export function Header() {
             {/* Logo / Name */}
             <Link
               href={`/s/${slug}`}
-              className="flex items-center gap-2.5 md:mr-8"
+              className="flex items-center gap-2.5"
             >
               {roaster.brand_logo_url && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -215,8 +215,8 @@ export function Header() {
               )}
             </Link>
 
-            {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
+            {/* Desktop Nav — absolutely positioned to stay truly centred */}
+            <nav className="hidden md:flex items-center gap-1 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               {navLinks.map((link) =>
                 link.href.startsWith("#") ? (
                   <button

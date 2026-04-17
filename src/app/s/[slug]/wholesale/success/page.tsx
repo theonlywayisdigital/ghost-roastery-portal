@@ -138,12 +138,12 @@ function SuccessContent() {
   return (
     <div
       style={{ fontFamily: "var(--sf-font)" }}
-      className="min-h-screen bg-white"
+      className="min-h-screen"
     >
       <Header />
       <Cart />
 
-      <div className="min-h-[60vh] flex items-center justify-center px-6">
+      <div className="min-h-[60vh] flex items-center justify-center px-6 pb-16">
         <div className="max-w-md w-full text-center">
           {status === "loading" && (
             <>

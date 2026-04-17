@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useStorefront } from "../_components/StorefrontProvider";
 import { Header } from "../_components/Header";
 import { Cart } from "../_components/Cart";
 import { Footer } from "../_components/Footer";
 import { Plus, Pencil, Trash2, Star, X, Check } from "lucide-react";
+import { createBrowserClient } from "@/lib/supabase";
 
 interface Profile {
   id: string;
@@ -117,7 +117,6 @@ export function AccountPage({
   addresses: BuyerAddress[];
 }) {
   const { accent, accentText } = useStorefront();
-  const router = useRouter();
 
   // ─── Personal Details state ───
   const { first, last } = splitNameLocal(profile.full_name);
@@ -170,8 +169,9 @@ export function AccountPage({
   const [addrError, setAddrError] = useState<string | null>(null);
 
   async function handleSignOut() {
-    await fetch(`/api/auth/logout?redirect=/s/${slug}`, { method: "POST" });
-    router.push(`/s/${slug}`);
+    const supabase = createBrowserClient();
+    await supabase.auth.signOut();
+    window.location.href = `/s/${slug}`;
   }
 
   // ─── Personal Details save ───

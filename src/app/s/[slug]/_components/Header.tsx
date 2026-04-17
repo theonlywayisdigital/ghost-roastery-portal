@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useStorefront } from "./StorefrontProvider";
 import { useCart } from "./CartProvider";
 import { MobileMenu } from "./MobileMenu";
@@ -25,7 +24,6 @@ export function Header() {
   const navFixed = roaster.storefront_nav_fixed !== false;
   const navTransparent = navFixed && roaster.storefront_nav_transparent !== false;
   const { itemCount, openCart } = useCart();
-  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -144,10 +142,10 @@ export function Header() {
 
   async function handleSignOut() {
     setDropdownOpen(false);
-    await fetch(`/api/auth/logout?redirect=/s/${slug}`, { method: "POST" });
-    setUser(null);
-    setWholesaleAccess(null);
-    router.refresh();
+    const supabase = createBrowserClient();
+    await supabase.auth.signOut();
+    // Hard redirect so all cached state is cleared
+    window.location.href = `/s/${slug}`;
   }
 
   const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";

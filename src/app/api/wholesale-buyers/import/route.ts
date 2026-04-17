@@ -291,7 +291,7 @@ export async function POST(request: Request) {
       }
 
       // 5. Create wholesale_access record (auto-approved)
-      const terms = buyer.payment_terms || "prepay";
+      const terms = buyer.payment_terms || "net30";
       const now = new Date().toISOString();
 
       const { data: wholesaleAccess, error: waError } = await supabase

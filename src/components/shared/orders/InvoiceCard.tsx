@@ -27,7 +27,7 @@ export function InvoiceCard({
   const isInvoiceOrder =
     paymentMethod === "invoice_online" ||
     paymentMethod === "invoice_offline" ||
-    (paymentTerms && paymentTerms !== "prepay");
+    !!paymentTerms;
 
   // Only show this card if there's an invoice or if this is an invoice-type order
   if (!invoice && !isInvoiceOrder) return null;

@@ -24,7 +24,6 @@ const VOLUME_OPTIONS = [
 ];
 
 const TERMS_OPTIONS = [
-  { value: "prepay", label: "Prepay" },
   { value: "net7", label: "Net 7" },
   { value: "net14", label: "Net 14" },
   { value: "net30", label: "Net 30" },
@@ -71,7 +70,7 @@ export function AddWholesaleCustomerModal({
     businessWebsite: "",
     vatNumber: "",
     monthlyVolume: "",
-    paymentTerms: "prepay",
+    paymentTerms: "net30",
     notes: "",
   });
 

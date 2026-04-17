@@ -119,14 +119,6 @@ export async function POST(request: Request) {
 
     const paymentTerms = access.payment_terms as string;
 
-    // If payment_terms is 'prepay', they should use regular Stripe checkout
-    if (paymentTerms === "prepay") {
-      return NextResponse.json(
-        { error: "Prepay accounts must use standard checkout." },
-        { status: 400 }
-      );
-    }
-
     // Validate payment terms
     const dueDays = PAYMENT_TERMS_DAYS[paymentTerms];
     if (!dueDays) {

@@ -191,7 +191,6 @@ export async function sendWholesaleApproved(
     vip: "VIP",
   };
   const termsLabels: Record<string, string> = {
-    prepay: "Prepay",
     net7: "Net 7 days",
     net14: "Net 14 days",
     net30: "Net 30 days",
@@ -330,7 +329,6 @@ export async function sendWholesaleWelcome(
   customDomain?: { domain: string; senderPrefix: string } | null
 ) {
   const termsLabels: Record<string, string> = {
-    prepay: "Prepay",
     net7: "Net 7 days",
     net14: "Net 14 days",
     net30: "Net 30 days",

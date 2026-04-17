@@ -59,7 +59,7 @@ export async function PATCH(
 
   switch (action) {
     case "approve": {
-      const terms = paymentTerms || "prepay";
+      const terms = paymentTerms || "net30";
 
       const { error: updateError } = await supabase
         .from("wholesale_access")

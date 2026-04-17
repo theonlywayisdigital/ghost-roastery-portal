@@ -125,11 +125,7 @@ export function WholesaleCatalogue({
     setError(null);
 
     try {
-      // Use invoice checkout for net payment terms, Stripe for prepay
-      const isInvoiceCheckout = paymentTerms !== "prepay";
-      const endpoint = isInvoiceCheckout
-        ? "/api/s/invoice-checkout"
-        : "/api/s/checkout";
+      const endpoint = "/api/s/invoice-checkout";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -154,7 +150,7 @@ export function WholesaleCatalogue({
 
       const data = await res.json();
 
-      if (isInvoiceCheckout && data.success) {
+      if (data.success) {
         // Redirect to success page with invoice details
         const params = new URLSearchParams({
           invoice_id: data.invoiceId || "",
@@ -163,8 +159,6 @@ export function WholesaleCatalogue({
           ...(data.accessToken ? { access_token: data.accessToken } : {}),
         });
         window.location.href = `/wholesale/${roaster.slug}/success?${params.toString()}`;
-      } else if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -205,7 +199,7 @@ export function WholesaleCatalogue({
                 Wholesale
               </span>
               <span className="text-xs text-slate-500">
-                {paymentTerms === "prepay" ? "Prepay" : `${paymentTerms.replace("net", "Net ")} days`}
+                {`${paymentTerms.replace("net", "Net ")} days`}
               </span>
             </div>
           </div>
@@ -421,9 +415,7 @@ export function WholesaleCatalogue({
                 >
                   {submitting
                     ? "Processing..."
-                    : paymentTerms === "prepay"
-                      ? "Checkout"
-                      : "Place Order on Account"}
+                    : "Place Order on Account"}
                 </button>
               </div>
             </div>

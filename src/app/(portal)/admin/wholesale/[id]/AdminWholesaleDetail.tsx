@@ -42,7 +42,7 @@ export function AdminWholesaleDetail({ accountId }: { accountId: string }) {
 
   // Form state for approve action
   const [priceTier, setPriceTier] = useState("standard");
-  const [paymentTerms, setPaymentTerms] = useState("prepay");
+  const [paymentTerms, setPaymentTerms] = useState("net30");
   const [creditLimit, setCreditLimit] = useState("");
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -248,10 +248,9 @@ export function AdminWholesaleDetail({ accountId }: { accountId: string }) {
                     onChange={(e) => setPaymentTerms(e.target.value)}
                     className={inputClassName}
                   >
-                    <option value="prepay">Prepay</option>
-                    <option value="net_7">Net 7</option>
-                    <option value="net_14">Net 14</option>
-                    <option value="net_30">Net 30</option>
+                    <option value="net7">Net 7</option>
+                    <option value="net14">Net 14</option>
+                    <option value="net30">Net 30</option>
                   </select>
                 </div>
                 <div>
@@ -316,10 +315,9 @@ export function AdminWholesaleDetail({ accountId }: { accountId: string }) {
                       onChange={(e) => setPaymentTerms(e.target.value)}
                       className={inputClassName}
                     >
-                      <option value="prepay">Prepay</option>
-                      <option value="net_7">Net 7</option>
-                      <option value="net_14">Net 14</option>
-                      <option value="net_30">Net 30</option>
+                      <option value="net7">Net 7</option>
+                      <option value="net14">Net 14</option>
+                      <option value="net30">Net 30</option>
                     </select>
                   </div>
                   <div>

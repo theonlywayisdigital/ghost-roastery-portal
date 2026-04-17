@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     // Verify roaster exists and has storefront enabled
     const { data: roaster } = await supabase
       .from("roasters")
-      .select("id, user_id, business_name, email, storefront_slug, storefront_enabled, auto_approve_wholesale, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+      .select("id, user_id, business_name, email, storefront_slug, storefront_enabled, auto_approve_wholesale, auto_approve_payment_terms, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -341,7 +341,7 @@ export async function POST(request: Request) {
         .update({
           status: "approved",
           price_tier: "standard",
-          payment_terms: "prepay",
+          payment_terms: (roaster.auto_approve_payment_terms as string) || "net30",
           approved_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -412,17 +412,19 @@ export async function POST(request: Request) {
 
           const setupUrl = getStorefrontUrl(slug, `/setup-password?token=${token}`);
 
+          const approvedTerms = (roaster.auto_approve_payment_terms as string) || "net30";
           await Promise.all([
-            sendWholesaleApproved(email, name, roaster.business_name, "standard", "prepay", catalogueUrl, branding),
+            sendWholesaleApproved(email, name, roaster.business_name, "standard", approvedTerms, catalogueUrl, branding),
             sendWholesaleAccountSetup(email, name, roaster.business_name, setupUrl, wholesaleUrl, branding),
           ]);
         } else {
+          const approvedTerms = (roaster.auto_approve_payment_terms as string) || "net30";
           await sendWholesaleApproved(
             email,
             name,
             roaster.business_name,
             "standard",
-            "prepay",
+            approvedTerms,
             catalogueUrl,
             branding
           );
@@ -452,7 +454,7 @@ export async function POST(request: Request) {
           business_type: businessType || null,
           business_address: businessAddressText,
           business_website: businessWebsite || null,
-          payment_terms: "prepay",
+          payment_terms: (roaster.auto_approve_payment_terms as string) || "net30",
           price_tier: "standard",
           status: "approved",
           approved_at: new Date().toISOString(),

@@ -6002,6 +6002,7 @@ export type Database = {
           address_line_1: string | null
           address_line_2: string | null
           ai_credits_topup_balance: number
+          auto_approve_payment_terms: string
           auto_approve_wholesale: boolean | null
           auto_create_invoices: boolean
           auto_send_invoices: boolean | null
@@ -6128,6 +6129,7 @@ export type Database = {
           address_line_1?: string | null
           address_line_2?: string | null
           ai_credits_topup_balance?: number
+          auto_approve_payment_terms?: string
           auto_approve_wholesale?: boolean | null
           auto_create_invoices?: boolean
           auto_send_invoices?: boolean | null
@@ -6254,6 +6256,7 @@ export type Database = {
           address_line_1?: string | null
           address_line_2?: string | null
           ai_credits_topup_balance?: number
+          auto_approve_payment_terms?: string
           auto_approve_wholesale?: boolean | null
           auto_create_invoices?: boolean
           auto_send_invoices?: boolean | null

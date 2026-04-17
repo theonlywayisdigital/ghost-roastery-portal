@@ -67,7 +67,6 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 };
 
 const TERMS_OPTIONS = [
-  { value: "prepay", label: "Prepay" },
   { value: "net7", label: "Net 7" },
   { value: "net14", label: "Net 14" },
   { value: "net30", label: "Net 30" },
@@ -104,12 +103,14 @@ export function WholesaleBuyersPage({
   buyers: initial,
   autoApprove,
   wholesaleStripeEnabled,
+  autoApprovePaymentTerms = "net30",
   roasterId,
   hideHeader,
 }: {
   buyers: WholesaleBuyer[];
   autoApprove: boolean;
   wholesaleStripeEnabled: boolean;
+  autoApprovePaymentTerms?: string;
   roasterId: string;
   hideHeader?: boolean;
 }) {
@@ -119,7 +120,7 @@ export function WholesaleBuyersPage({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Approve form state
-  const [approveTerms, setApproveTerms] = useState("prepay");
+  const [approveTerms, setApproveTerms] = useState("net30");
   const [showApproveForm, setShowApproveForm] = useState<string | null>(null);
 
   // Reject form state
@@ -679,7 +680,7 @@ export function WholesaleBuyersPage({
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setApproveTerms("prepay");
+                                          setApproveTerms("net30");
                                           setShowApproveForm(buyer.id);
                                           setShowRejectForm(null);
                                         }}
@@ -981,6 +982,7 @@ export function WholesaleBuyersPage({
           <SettingsSection
             autoApprove={autoApprove}
             wholesaleStripeEnabled={wholesaleStripeEnabled}
+            autoApprovePaymentTerms={autoApprovePaymentTerms}
             roasterId={roasterId}
           />
         </>

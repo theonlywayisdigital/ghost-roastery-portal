@@ -46,7 +46,6 @@ const WS_STATUS_COLOURS: Record<string, { bg: string; text: string }> = {
 };
 
 const PAYMENT_TERMS_LABELS: Record<string, string> = {
-  prepay: "Prepay",
   net7: "Net 7",
   net14: "Net 14",
   net30: "Net 30",

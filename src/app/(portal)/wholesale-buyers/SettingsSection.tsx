@@ -2,17 +2,26 @@
 
 import { useState } from "react";
 
+const TERMS_OPTIONS = [
+  { value: "net7", label: "Net 7" },
+  { value: "net14", label: "Net 14" },
+  { value: "net30", label: "Net 30" },
+];
+
 export function SettingsSection({
   autoApprove: initialAutoApprove,
   wholesaleStripeEnabled: initialStripeEnabled,
+  autoApprovePaymentTerms: initialTerms,
   roasterId,
 }: {
   autoApprove: boolean;
   wholesaleStripeEnabled: boolean;
+  autoApprovePaymentTerms: string;
   roasterId: string;
 }) {
   const [autoApprove, setAutoApprove] = useState(initialAutoApprove);
   const [wholesaleStripeEnabled, setWholesaleStripeEnabled] = useState(initialStripeEnabled);
+  const [paymentTerms, setPaymentTerms] = useState(initialTerms);
   const [saving, setSaving] = useState<string | null>(null);
 
   async function toggleSetting(key: string, newValue: boolean) {
@@ -34,6 +43,21 @@ export function SettingsSection({
     }
   }
 
+  async function updatePaymentTerms(value: string) {
+    setPaymentTerms(value);
+    setSaving("paymentTerms");
+
+    try {
+      await fetch("/api/wholesale-buyers/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoApprovePaymentTerms: value }),
+      });
+    } finally {
+      setSaving(null);
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -43,7 +67,7 @@ export function SettingsSection({
           </p>
           {autoApprove && (
             <p className="text-xs text-slate-500 mt-0.5">
-              New applications will be auto-approved with Standard pricing and Prepay terms.
+              New applications will be auto-approved with Standard pricing.
             </p>
           )}
         </div>
@@ -64,6 +88,29 @@ export function SettingsSection({
         </button>
       </div>
 
+      {autoApprove && (
+        <div className="pl-0.5">
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Default payment terms
+          </label>
+          <select
+            value={paymentTerms}
+            onChange={(e) => updatePaymentTerms(e.target.value)}
+            disabled={saving !== null}
+            className="w-full max-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:opacity-50"
+          >
+            {TERMS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-500 mt-1">
+            Payment terms applied to buyers who are automatically approved.
+          </p>
+        </div>
+      )}
+
       <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-slate-900">
@@ -71,7 +118,7 @@ export function SettingsSection({
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
             {wholesaleStripeEnabled
-              ? "Prepay wholesale buyers will pay via Stripe checkout."
+              ? "Wholesale buyers can pay via Stripe checkout."
               : "Wholesale orders use invoice checkout only (no online payment)."}
           </p>
         </div>

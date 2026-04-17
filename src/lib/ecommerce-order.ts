@@ -69,7 +69,6 @@ export interface ProcessResult {
 }
 
 const PAYMENT_TERMS_DAYS: Record<string, number> = {
-  prepay: 0,
   net7: 7,
   net14: 14,
   net30: 30,
@@ -525,8 +524,7 @@ export async function processEcommerceOrder(
   // ─── Invoice + Accounting sync ────────────────────────────────────
   const invoiceSubtotal = subtotalPence / 100;
   const invoiceTotal = invoiceSubtotal;
-  const paymentTerms = "prepay"; // ecommerce orders are prepaid
-  const dueDays = PAYMENT_TERMS_DAYS[paymentTerms] || 0;
+  const dueDays = 0; // ecommerce orders are prepaid — due immediately
   const paymentDueDate = new Date();
   paymentDueDate.setDate(paymentDueDate.getDate() + dueDays);
 

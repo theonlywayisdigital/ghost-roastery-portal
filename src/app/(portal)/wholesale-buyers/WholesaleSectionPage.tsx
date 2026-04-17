@@ -31,6 +31,7 @@ interface WholesaleSectionPageProps {
   buyers: WholesaleBuyer[];
   autoApprove: boolean;
   wholesaleStripeEnabled: boolean;
+  autoApprovePaymentTerms: string;
   roasterId: string;
   hideHeader?: boolean;
 }
@@ -39,6 +40,7 @@ export function WholesaleSectionPage({
   buyers: initialBuyers,
   autoApprove,
   wholesaleStripeEnabled,
+  autoApprovePaymentTerms,
   roasterId,
   hideHeader = false,
 }: WholesaleSectionPageProps) {
@@ -97,7 +99,7 @@ export function WholesaleSectionPage({
         />
       ) : (
         <>
-          <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} roasterId={roasterId} />
+          <SettingsSection autoApprove={autoApprove} wholesaleStripeEnabled={wholesaleStripeEnabled} autoApprovePaymentTerms={autoApprovePaymentTerms} roasterId={roasterId} />
 
           <WholesaleBuyersPage
             buyers={buyers}

@@ -164,7 +164,7 @@ function SuccessContent() {
     );
   }
 
-  // Stripe payment success (prepay)
+  // Stripe payment success
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">

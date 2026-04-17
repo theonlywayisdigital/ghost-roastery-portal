@@ -9,17 +9,21 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { autoApproveWholesale, wholesaleStripeEnabled } = body as {
+  const { autoApproveWholesale, wholesaleStripeEnabled, autoApprovePaymentTerms } = body as {
     autoApproveWholesale?: boolean;
     wholesaleStripeEnabled?: boolean;
+    autoApprovePaymentTerms?: string;
   };
 
-  const update: Record<string, boolean> = {};
+  const update: Record<string, boolean | string> = {};
   if (typeof autoApproveWholesale === "boolean") {
     update.auto_approve_wholesale = autoApproveWholesale;
   }
   if (typeof wholesaleStripeEnabled === "boolean") {
     update.wholesale_stripe_enabled = wholesaleStripeEnabled;
+  }
+  if (autoApprovePaymentTerms && ["net7", "net14", "net30"].includes(autoApprovePaymentTerms)) {
+    update.auto_approve_payment_terms = autoApprovePaymentTerms;
   }
 
   if (Object.keys(update).length === 0) {

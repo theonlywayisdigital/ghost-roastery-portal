@@ -14,7 +14,6 @@ import {
 import type { PlatformSettings } from "@/types/finance";
 
 const PAYMENT_TERMS_OPTIONS = [
-  { value: "prepay", label: "Prepay" },
   { value: "net7", label: "Net 7 days" },
   { value: "net14", label: "Net 14 days" },
   { value: "net30", label: "Net 30 days" },

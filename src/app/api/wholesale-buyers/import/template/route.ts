@@ -42,7 +42,7 @@ const EXAMPLE_2 = [
   "",
   "",
   "25kg",
-  "prepay",
+  "net14",
   "Interested in house blend supply",
 ];
 

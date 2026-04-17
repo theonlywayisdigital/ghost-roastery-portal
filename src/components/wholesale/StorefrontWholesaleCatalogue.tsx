@@ -322,7 +322,7 @@ export function StorefrontWholesaleCatalogue({
           Wholesale
         </span>
         <span className="text-xs" style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
-          {paymentTerms === "prepay" ? "Prepay" : `${paymentTerms.replace("net", "Net ")} days`}
+          {`${paymentTerms.replace("net", "Net ")} days`}
         </span>
       </div>
 

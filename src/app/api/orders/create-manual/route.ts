@@ -29,7 +29,6 @@ interface ManualOrderItem {
 }
 
 const PAYMENT_TERMS_DAYS: Record<string, number> = {
-  prepay: 0,
   net7: 7,
   net14: 14,
   net30: 30,

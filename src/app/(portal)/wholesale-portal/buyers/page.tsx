@@ -42,7 +42,7 @@ export default async function StorefrontBuyersPage() {
 
   const { data: roaster } = await supabase
     .from("roasters")
-    .select("auto_approve_wholesale, wholesale_stripe_enabled")
+    .select("auto_approve_wholesale, wholesale_stripe_enabled, auto_approve_payment_terms")
     .eq("id", user.roaster.id)
     .single();
 
@@ -51,6 +51,7 @@ export default async function StorefrontBuyersPage() {
       buyers={enrichedBuyers}
       autoApprove={roaster?.auto_approve_wholesale ?? false}
       wholesaleStripeEnabled={roaster?.wholesale_stripe_enabled ?? false}
+      autoApprovePaymentTerms={(roaster?.auto_approve_payment_terms as string) || "net30"}
       roasterId={user.roaster.id as string}
       hideHeader
     />

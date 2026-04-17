@@ -1632,7 +1632,6 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                       onChange={(e) => setPaymentTerms(e.target.value)}
                       className="w-full appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white pr-8"
                     >
-                      <option value="prepay">Prepay</option>
                       <option value="net7">Net 7</option>
                       <option value="net14">Net 14</option>
                       <option value="net30">Net 30</option>

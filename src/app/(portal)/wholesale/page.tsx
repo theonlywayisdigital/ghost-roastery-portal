@@ -12,7 +12,6 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 const TERMS_LABELS: Record<string, string> = {
-  prepay: "Prepay",
   net7: "Net 7",
   net14: "Net 14",
   net30: "Net 30",

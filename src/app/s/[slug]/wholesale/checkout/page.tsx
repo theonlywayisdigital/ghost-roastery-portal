@@ -55,7 +55,6 @@ interface BuyerAddress {
 }
 
 const PAYMENT_TERMS_LABELS: Record<string, string> = {
-  prepay: "Prepay (card payment)",
   net7: "Net 7 days",
   net14: "Net 14 days",
   net30: "Net 30 days",
@@ -197,10 +196,6 @@ export default function WholesaleCheckoutPage() {
     setError(null);
 
     try {
-      // HIDDEN: Stripe Connect - restore when storefront/online payments feature is launched
-      // const isInvoiceCheckout = checkout.paymentTerms !== "prepay";
-      // const endpoint = isInvoiceCheckout ? "/api/s/invoice-checkout" : "/api/s/checkout";
-      const isInvoiceCheckout = true; // All orders use invoice checkout
       const endpoint = "/api/s/invoice-checkout";
 
       const deliveryAddress = {
@@ -250,7 +245,7 @@ export default function WholesaleCheckoutPage() {
         notes: notes || null,
       }));
 
-      if (isInvoiceCheckout && data.success) {
+      if (data.success) {
         const urlParams = new URLSearchParams({
           invoice_id: data.invoiceId || "",
           invoice_number: data.invoiceNumber || "",
@@ -258,8 +253,6 @@ export default function WholesaleCheckoutPage() {
           ...(data.accessToken ? { access_token: data.accessToken } : {}),
         });
         window.location.href = `${checkout.successUrl}?${urlParams.toString()}`;
-      } else if (data.sessionUrl) {
-        window.location.href = data.sessionUrl;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -549,8 +542,6 @@ export default function WholesaleCheckoutPage() {
         </section>
 
         {/* ─── Payment ─── */}
-        {/* HIDDEN: Stripe Connect - restore when storefront/online payments feature is launched */}
-        {/* Card/prepay option hidden — all orders use invoice/bank transfer */}
         <section className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
             Payment
@@ -559,7 +550,7 @@ export default function WholesaleCheckoutPage() {
             {PAYMENT_TERMS_LABELS[checkout.paymentTerms] || checkout.paymentTerms}
           </p>
           <p className="text-xs text-slate-500">
-            An invoice will be sent to your email{checkout.paymentTerms !== "prepay" ? ` with ${checkout.paymentTerms.replace("net", "")} day payment terms` : ""}.
+            An invoice will be sent to your email with {checkout.paymentTerms.replace("net", "")} day payment terms.
           </p>
         </section>
 

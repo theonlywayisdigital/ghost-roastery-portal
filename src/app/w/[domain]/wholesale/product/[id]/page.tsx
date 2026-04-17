@@ -30,7 +30,7 @@ export default async function WebsiteWholesaleProductDetailRoute({
 
   // Auth check — only approved wholesale buyers
   let wholesaleAccessId: string | null = null;
-  let paymentTerms = "prepay";
+  let paymentTerms = "net30";
 
   try {
     const authClient = await createAuthServerClient();

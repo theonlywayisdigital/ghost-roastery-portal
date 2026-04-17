@@ -70,6 +70,7 @@ export function StorefrontWholesalePage({
     id: string;
     businessName: string;
     logoUrl: string | null;
+    heroImageUrl: string | null;
     slug: string;
     stripeAccountId: string | null;
     platformFeePercent: number | null;
@@ -79,7 +80,7 @@ export function StorefrontWholesalePage({
   initialAccess: AccessResponse | null;
   isApproved: boolean;
 }) {
-  const { roaster: brandData, slug, primary, accent, accentText, embedded } =
+  const { roaster: brandData, slug, primary, accent, accentText } =
     useStorefront();
 
   const isAuthenticated = initialAccess?.authenticated === true;
@@ -219,20 +220,20 @@ export function StorefrontWholesalePage({
     >
       <Header />
       <Cart />
-      {!embedded && <div className="h-16 md:h-20" />}
+      {/* Hero banner */}
+      {roaster.heroImageUrl && (
+        <section className="relative w-full h-56 md:h-72 lg:h-80 overflow-hidden">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${roaster.heroImageUrl})` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
+        </section>
+      )}
 
       <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
         {/* Hero area */}
         <div className="text-center mb-12">
-          {roaster.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={roaster.logoUrl}
-              alt={roaster.businessName}
-              className="w-auto mx-auto mb-5"
-              style={{ height: 60 }}
-            />
-          )}
           <h1
             className="text-3xl md:text-4xl font-bold mb-3"
             style={{ color: "var(--sf-text)" }}
@@ -246,7 +247,7 @@ export function StorefrontWholesalePage({
           )}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href={`/s/${slug}/wholesale/apply`}
+              href="/wholesale/apply"
               className="px-6 py-3 font-semibold text-sm transition-opacity hover:opacity-90"
               style={{ backgroundColor: accent, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
             >
@@ -255,7 +256,7 @@ export function StorefrontWholesalePage({
             {/* Only show login CTA if user is NOT already authenticated */}
             {!isAuthenticated && (
               <Link
-                href={`/s/${slug}/wholesale/login`}
+                href="/wholesale/login"
                 className="px-6 py-3 font-semibold text-sm border transition-colors hover:bg-slate-50"
                 style={{ borderColor: accent, color: accent, borderRadius: "var(--sf-btn-radius)" }}
               >
@@ -351,7 +352,7 @@ export function StorefrontWholesalePage({
             Ready to order wholesale?
           </h2>
           <Link
-            href={`/s/${slug}/wholesale/apply`}
+            href="/wholesale/apply"
             className="inline-block px-8 py-3.5 font-semibold text-sm bg-white hover:bg-white/90 transition-colors"
             style={{ color: primary, borderRadius: "var(--sf-btn-radius)" }}
           >

@@ -59,14 +59,20 @@ export async function middleware(request: NextRequest) {
     // If it's a storefront subdomain, rewrite page requests to /s/[slug]/...
     // API routes (/api/...) are NOT rewritten — they serve from the root
     if (subdomain && !reservedSubdomains.includes(subdomain) && !pathname.startsWith("/api/")) {
-      // Strip /s/{slug} prefix if already present (from server-side redirects
-      // that use the internal path, e.g. redirect("/s/acme/login"))
       const prefix = `/s/${subdomain}`;
-      const strippedPath = pathname.startsWith(prefix)
-        ? pathname.slice(prefix.length) || "/"
-        : pathname;
 
-      const rewriteUrl = new URL(`/s/${subdomain}${strippedPath}`, request.url);
+      // If the visible URL contains /s/{slug} prefix (e.g. from a server-side
+      // redirect or stale link), 301 redirect to the clean path first.
+      // Skip embed paths — they're loaded in iframes and need stable URLs.
+      if (pathname.startsWith(prefix) && !pathname.startsWith(`${prefix}/embed`)) {
+        const cleanPath = pathname.slice(prefix.length) || "/";
+        const redirectUrl = new URL(cleanPath, request.url);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl, 301);
+      }
+
+      // Rewrite the clean path to the internal /s/{slug}/... route
+      const rewriteUrl = new URL(`/s/${subdomain}${pathname}`, request.url);
       rewriteUrl.search = request.nextUrl.search;
       return NextResponse.rewrite(rewriteUrl);
     }

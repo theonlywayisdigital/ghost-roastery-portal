@@ -74,13 +74,12 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Storefront type */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <h3 className="text-sm font-semibold text-slate-900 mb-4">
-          {RETAIL_ENABLED ? "Portal type" : "Wholesale settings"}
-        </h3>
-        <div className="space-y-5">
-          {RETAIL_ENABLED && (
+      {/* Portal type — only shown when retail feature flag is enabled */}
+      {RETAIL_ENABLED && (
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-4">
+            Portal type
+          </h3>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Type
@@ -95,9 +94,8 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
               <option value="both">Both wholesale and retail</option>
             </select>
           </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* SEO */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">

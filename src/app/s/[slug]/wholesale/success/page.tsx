@@ -4,7 +4,6 @@ import { useSearchParams, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { useStorefront } from "../../_components/StorefrontProvider";
 import { Header } from "../../_components/Header";
 import { Cart } from "../../_components/Cart";
 import { Footer } from "../../_components/Footer";
@@ -35,29 +34,29 @@ function OrderDetailsSection({ details }: { details: OrderDetails }) {
   if (!hasAddress && !hasNotes) return null;
 
   return (
-    <div className="bg-slate-50 rounded-xl border border-slate-200 p-5 mb-6 text-left max-w-sm mx-auto">
+    <div className="rounded-xl p-5 mb-6 text-left max-w-sm mx-auto" style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
       {hasAddress && (
         <div className="mb-3 last:mb-0">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1 opacity-50">
             Delivering to
           </p>
           {details.deliveryAddress!.label && (
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-sm font-medium">
               {details.deliveryAddress!.label}
             </p>
           )}
-          <p className="text-sm text-slate-600">
+          <p className="text-sm opacity-70">
             {formatDeliveryAddress(details.deliveryAddress!)}
           </p>
         </div>
       )}
       {hasNotes && (
         <div>
-          {hasAddress && <div className="border-t border-slate-200 my-3" />}
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+          {hasAddress && <div className="my-3" style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }} />}
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1 opacity-50">
             Order Notes
           </p>
-          <p className="text-sm text-slate-600">{details.notes}</p>
+          <p className="text-sm opacity-70">{details.notes}</p>
         </div>
       )}
     </div>
@@ -67,7 +66,6 @@ function OrderDetailsSection({ details }: { details: OrderDetails }) {
 function SuccessContent() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { primary } = useStorefront();
   const slug = params.slug as string;
 
   const sessionId = searchParams.get("session_id");
@@ -137,7 +135,7 @@ function SuccessContent() {
 
   return (
     <div
-      style={{ fontFamily: "var(--sf-font)" }}
+      style={{ fontFamily: "var(--sf-font)", backgroundColor: "var(--sf-nav-bg)", color: "var(--sf-nav-text)" }}
       className="min-h-screen"
     >
       <Header />
@@ -147,9 +145,9 @@ function SuccessContent() {
         <div className="max-w-md w-full text-center">
           {status === "loading" && (
             <>
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
                 <svg
-                  className="w-8 h-8 text-slate-400"
+                  className="w-8 h-8 opacity-50"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -162,10 +160,10 @@ function SuccessContent() {
                   />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl font-bold mb-2">
                 Confirming your order...
               </h1>
-              <p className="text-slate-500">Please wait a moment.</p>
+              <p className="opacity-60">Please wait a moment.</p>
             </>
           )}
 
@@ -186,17 +184,17 @@ function SuccessContent() {
                   />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl font-bold mb-2">
                 Something went wrong
               </h1>
-              <p className="text-slate-600 mb-6">
+              <p className="opacity-70 mb-6">
                 Your payment was received but we had trouble confirming your
                 order. Don&apos;t worry — our team will follow up shortly.
               </p>
               <Link
                 href={backUrl}
-                className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: primary }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "var(--sf-nav-text)" }}
               >
                 Back to Catalogue
               </Link>
@@ -220,17 +218,17 @@ function SuccessContent() {
                   />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl font-bold mb-2">
                 Order Confirmed
               </h1>
-              <p className="text-slate-600 mb-4">
+              <p className="opacity-70 mb-4">
                 Your wholesale order has been placed and an invoice will be sent
                 to you shortly.
               </p>
               {invoiceNumber && (
-                <p className="text-sm text-slate-500 mb-4">
+                <p className="text-sm opacity-60 mb-4">
                   Invoice:{" "}
-                  <span className="font-mono font-medium text-slate-700">
+                  <span className="font-mono font-medium opacity-100">
                     {invoiceNumber}
                   </span>
                 </p>
@@ -242,7 +240,8 @@ function SuccessContent() {
                 {accessToken && invoiceId && (
                   <Link
                     href={`/invoice/${accessToken}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "rgba(255,255,255,0.12)", color: "var(--sf-nav-text)" }}
                   >
                     <svg
                       className="w-4 h-4"
@@ -263,15 +262,16 @@ function SuccessContent() {
                 {confirmedOrderId && (
                   <Link
                     href={`/s/${slug}/orders/${confirmedOrderId}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "rgba(255,255,255,0.12)", color: "var(--sf-nav-text)" }}
                   >
                     View Order
                   </Link>
                 )}
                 <Link
                   href={backUrl}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: primary }}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "var(--sf-accent)", color: "var(--sf-accent-text)" }}
                 >
                   Back to Catalogue
                 </Link>
@@ -279,7 +279,7 @@ function SuccessContent() {
               <div className="mt-4">
                 <Link
                   href={`/s/${slug}/orders`}
-                  className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                  className="text-sm opacity-50 hover:opacity-70 transition-opacity"
                 >
                   My Orders
                 </Link>
@@ -304,15 +304,15 @@ function SuccessContent() {
                   />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 mb-2">
+              <h1 className="text-2xl font-bold mb-2">
                 Order Confirmed!
               </h1>
-              <p className="text-slate-600 mb-4">
+              <p className="opacity-70 mb-4">
                 Thank you for your purchase. You&apos;ll receive a confirmation
                 email shortly with your order details.
               </p>
               {sessionId && (
-                <p className="text-xs text-slate-400 mb-4">
+                <p className="text-xs opacity-40 mb-4">
                   Reference: {sessionId.slice(-8).toUpperCase()}
                 </p>
               )}
@@ -323,15 +323,16 @@ function SuccessContent() {
                 {confirmedOrderId && (
                   <Link
                     href={`/s/${slug}/orders/${confirmedOrderId}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: "rgba(255,255,255,0.12)", color: "var(--sf-nav-text)" }}
                   >
                     View Order
                   </Link>
                 )}
                 <Link
                   href={backUrl}
-                  className="inline-flex items-center gap-2 px-6 py-3 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: primary }}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: "var(--sf-accent)", color: "var(--sf-accent-text)" }}
                 >
                   Back to Catalogue
                 </Link>
@@ -339,7 +340,7 @@ function SuccessContent() {
               <div className="mt-4">
                 <Link
                   href={`/s/${slug}/orders`}
-                  className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+                  className="text-sm opacity-50 hover:opacity-70 transition-opacity"
                 >
                   My Orders
                 </Link>

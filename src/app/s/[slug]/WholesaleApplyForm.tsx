@@ -100,7 +100,13 @@ export function WholesaleApplyForm({
 
   if (submitted) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+      <div
+        className="rounded-xl border p-8 text-center"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+          borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+        }}
+      >
         <div
           className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
           style={{ backgroundColor: accentColour + "20" }}
@@ -119,12 +125,15 @@ export function WholesaleApplyForm({
             />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-2">
+        <h3
+          className="text-xl font-semibold mb-2"
+          style={{ color: "var(--sf-text)" }}
+        >
           {resultStatus === "approved"
             ? "Application Approved!"
             : "Application Submitted"}
         </h3>
-        <p className="text-slate-500">
+        <p style={{ color: "color-mix(in srgb, var(--sf-text) 55%, transparent)" }}>
           {resultStatus === "approved"
             ? "Your wholesale account has been approved. Check your email for details on how to get started."
             : "Thanks for applying! We\u2019ll review your application and get back to you soon."}
@@ -133,17 +142,32 @@ export function WholesaleApplyForm({
     );
   }
 
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: "color-mix(in srgb, var(--sf-text) 5%, transparent)",
+    borderColor: "color-mix(in srgb, var(--sf-text) 20%, transparent)",
+    color: "var(--sf-text)",
+  };
+
   const inputClassName =
-    "w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent";
+    "w-full px-4 py-3 border rounded-lg placeholder:opacity-40 focus:outline-none focus:ring-2 focus:border-transparent";
+
+  const labelStyle: React.CSSProperties = { color: "var(--sf-text)" };
+  const optionalStyle: React.CSSProperties = {
+    color: "color-mix(in srgb, var(--sf-text) 45%, transparent)",
+  };
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white rounded-xl border border-slate-200 p-6 md:p-8 space-y-4"
+      className="rounded-xl border p-6 md:p-8 space-y-4"
+      style={{
+        backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",
+        borderColor: "color-mix(in srgb, var(--sf-text) 15%, transparent)",
+      }}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             First Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -153,11 +177,11 @@ export function WholesaleApplyForm({
             onChange={(e) => setFirstName(e.target.value)}
             placeholder="First name"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Last Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -167,14 +191,14 @@ export function WholesaleApplyForm({
             onChange={(e) => setLastName(e.target.value)}
             placeholder="Last name"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Email <span className="text-red-500">*</span>
           </label>
           <input
@@ -184,13 +208,13 @@ export function WholesaleApplyForm({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Phone{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
+            <span className="font-normal" style={optionalStyle}>(optional)</span>
           </label>
           <input
             type="tel"
@@ -198,14 +222,14 @@ export function WholesaleApplyForm({
             onChange={(e) => setPhone(e.target.value)}
             placeholder="Your phone number"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Business Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -215,19 +239,19 @@ export function WholesaleApplyForm({
             onChange={(e) => setBusinessName(e.target.value)}
             placeholder="Your business"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Business Type{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
+            <span className="font-normal" style={optionalStyle}>(optional)</span>
           </label>
           <select
             value={businessType}
             onChange={(e) => setBusinessType(e.target.value)}
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           >
             <option value="">Select type...</option>
             {BUSINESS_TYPES.map((t) => (
@@ -240,9 +264,9 @@ export function WholesaleApplyForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
           Business Address{" "}
-          <span className="text-slate-400 font-normal">(optional)</span>
+          <span className="font-normal" style={optionalStyle}>(optional)</span>
         </label>
         <input
           type="text"
@@ -250,7 +274,7 @@ export function WholesaleApplyForm({
           onChange={(e) => setAddressLine1(e.target.value)}
           placeholder="Address line 1"
           className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
         />
       </div>
       <div>
@@ -260,7 +284,7 @@ export function WholesaleApplyForm({
           onChange={(e) => setAddressLine2(e.target.value)}
           placeholder="Address line 2 (optional)"
           className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
         />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -271,7 +295,7 @@ export function WholesaleApplyForm({
             onChange={(e) => setAddressCity(e.target.value)}
             placeholder="City"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
@@ -281,7 +305,7 @@ export function WholesaleApplyForm({
             onChange={(e) => setAddressCounty(e.target.value)}
             placeholder="County"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
@@ -291,16 +315,16 @@ export function WholesaleApplyForm({
             onChange={(e) => setAddressPostcode(e.target.value)}
             placeholder="Postcode"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             Website{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
+            <span className="font-normal" style={optionalStyle}>(optional)</span>
           </label>
           <input
             type="text"
@@ -308,13 +332,13 @@ export function WholesaleApplyForm({
             onChange={(e) => setBusinessWebsite(e.target.value)}
             placeholder="https://..."
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
             VAT Number{" "}
-            <span className="text-slate-400 font-normal">(optional)</span>
+            <span className="font-normal" style={optionalStyle}>(optional)</span>
           </label>
           <input
             type="text"
@@ -322,21 +346,21 @@ export function WholesaleApplyForm({
             onChange={(e) => setVatNumber(e.target.value)}
             placeholder="GB123456789"
             className={inputClassName}
-            style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+            style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
           Estimated Monthly Volume{" "}
-          <span className="text-slate-400 font-normal">(optional)</span>
+          <span className="font-normal" style={optionalStyle}>(optional)</span>
         </label>
         <select
           value={monthlyVolume}
           onChange={(e) => setMonthlyVolume(e.target.value)}
           className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
         >
           <option value="">Select volume...</option>
           {VOLUME_OPTIONS.map((v) => (
@@ -348,9 +372,9 @@ export function WholesaleApplyForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-medium mb-1.5" style={labelStyle}>
           Additional Notes{" "}
-          <span className="text-slate-400 font-normal">(optional)</span>
+          <span className="font-normal" style={optionalStyle}>(optional)</span>
         </label>
         <textarea
           value={notes}
@@ -358,7 +382,7 @@ export function WholesaleApplyForm({
           placeholder="Tell us about your business and what you're looking for..."
           rows={3}
           className={inputClassName}
-          style={{ "--tw-ring-color": accentColour } as React.CSSProperties}
+          style={{ ...inputStyle, "--tw-ring-color": accentColour } as React.CSSProperties}
         />
       </div>
 
@@ -367,7 +391,11 @@ export function WholesaleApplyForm({
       <button
         type="submit"
         disabled={submitting}
-        style={{ backgroundColor: accentColour, color: accentText, borderRadius: "var(--sf-btn-radius)" }}
+        style={{
+          backgroundColor: "var(--sf-btn-colour)",
+          color: "var(--sf-btn-text)",
+          borderRadius: "var(--sf-btn-radius)",
+        }}
         className="w-full py-3 font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
       >
         {submitting ? "Submitting..." : "Apply for Trade Account"}

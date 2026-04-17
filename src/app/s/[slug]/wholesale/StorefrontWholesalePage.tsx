@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useStorefront } from "../_components/StorefrontProvider";
@@ -80,20 +79,11 @@ export function StorefrontWholesalePage({
   initialAccess: AccessResponse | null;
   isApproved: boolean;
 }) {
-  const router = useRouter();
   const { roaster: brandData, slug, primary, accent, accentText, embedded } =
     useStorefront();
 
   const isAuthenticated = initialAccess?.authenticated === true;
   const accessStatus = initialAccess?.access?.status;
-  const userName = initialAccess?.user?.name || initialAccess?.user?.email || "";
-  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "";
-
-  async function handleSignOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.refresh();
-  }
-
   // STATE B — Authenticated + pending
   if (isAuthenticated && accessStatus === "pending") {
     return (
@@ -193,32 +183,6 @@ export function StorefrontWholesalePage({
         <Header />
         <Cart />
         {!embedded && <div className="h-16 md:h-20" />}
-
-        {/* Signed-in bar */}
-        <div className="bg-slate-50 border-b border-slate-200">
-          <div className="max-w-6xl mx-auto px-6 py-2.5 flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              {`Signed in as ${userName}`}
-            </span>
-            <div className="flex items-center gap-4">
-              <a
-                href={`${portalUrl}/my-orders`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium hover:underline"
-                style={{ color: accent }}
-              >
-                My Orders
-              </a>
-              <button
-                onClick={handleSignOut}
-                className="text-sm text-slate-500 hover:text-slate-700"
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
 
         <div className="max-w-6xl mx-auto px-6 py-8 md:py-12">
           <h1

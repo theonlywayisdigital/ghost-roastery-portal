@@ -7,7 +7,7 @@ import { RETAIL_ENABLED } from "@/lib/feature-flags";
 
 interface SettingsData {
   storefront_type: string;
-  minimum_wholesale_order: number;
+  // minimum_wholesale_order DB column retained but setting removed — minimum order is handled per-product
   storefront_seo_title: string;
   storefront_seo_description: string;
   storefront_contact_email: string;
@@ -26,7 +26,6 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
   const router = useRouter();
 
   const [storefrontType, setStorefrontType] = useState(settings.storefront_type);
-  const [minOrder, setMinOrder] = useState(settings.minimum_wholesale_order.toString());
   const [seoTitle, setSeoTitle] = useState(settings.storefront_seo_title);
   const [seoDescription, setSeoDescription] = useState(settings.storefront_seo_description);
 
@@ -49,7 +48,6 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storefront_type: storefrontType,
-          minimum_wholesale_order: parseInt(minOrder) || 1,
           storefront_seo_title: seoTitle || null,
           storefront_seo_description: seoDescription || null,
           storefront_contact_email: contactEmail || null,
@@ -72,7 +70,7 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
     } finally {
       setSaving(false);
     }
-  }, [storefrontType, minOrder, seoTitle, seoDescription, contactEmail, contactPhone, contactAddress, router]);
+  }, [storefrontType, seoTitle, seoDescription, contactEmail, contactPhone, contactAddress, router]);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -97,21 +95,6 @@ export function StorefrontSettings({ settings }: { settings: SettingsData }) {
               <option value="both">Both wholesale and retail</option>
             </select>
           </div>
-          )}
-
-          {(storefrontType === "wholesale" || storefrontType === "both") && (
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Minimum wholesale order (units)
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={minOrder}
-                onChange={(e) => setMinOrder(e.target.value)}
-                className={`${inputClassName} max-w-[150px]`}
-              />
-            </div>
           )}
         </div>
       </div>

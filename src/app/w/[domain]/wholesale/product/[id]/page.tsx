@@ -1,8 +1,46 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient, createAuthServerClient } from "@/lib/supabase";
 import { WholesaleProductDetail } from "@/app/s/[slug]/wholesale/product/[id]/WholesaleProductDetail";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ domain: string; id: string }>;
+}): Promise<Metadata> {
+  const { domain, id } = await params;
+  const supabase = createServerClient();
+
+  const { data: roaster } = await supabase
+    .from("roasters")
+    .select("id, business_name, storefront_seo_title, storefront_seo_description")
+    .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
+    .eq("website_subscription_active", true)
+    .single();
+
+  if (!roaster) return { title: "Not Found" };
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("name, description")
+    .eq("id", id)
+    .eq("roaster_id", roaster.id)
+    .eq("status", "published")
+    .eq("is_wholesale", true)
+    .single();
+
+  if (!product) return { title: "Not Found" };
+
+  return {
+    title: `${product.name} — ${roaster.business_name}`,
+    description:
+      product.description ||
+      roaster.storefront_seo_description ||
+      `${product.name} from ${roaster.business_name}`,
+  };
+}
 
 export default async function WebsiteWholesaleProductDetailRoute({
   params,

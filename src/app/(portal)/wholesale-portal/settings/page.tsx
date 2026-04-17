@@ -12,7 +12,7 @@ export default async function SettingsPage() {
 
   const settingsData = {
     storefront_type: (roaster.storefront_type as string) || "wholesale",
-    minimum_wholesale_order: (roaster.minimum_wholesale_order as number) || 1,
+    // minimum_wholesale_order DB column retained but setting removed — minimum order is handled per-product
     storefront_seo_title: (roaster.storefront_seo_title as string) || "",
     storefront_seo_description: (roaster.storefront_seo_description as string) || "",
     storefront_contact_email: (roaster.storefront_contact_email as string) || "",

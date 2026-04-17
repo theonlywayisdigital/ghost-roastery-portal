@@ -26,6 +26,7 @@ export async function PUT(request: Request) {
     updateData.retail_enabled =
       body.storefront_type === "retail" || body.storefront_type === "both";
   }
+  // minimum_wholesale_order DB column retained but setting removed — minimum order is handled per-product
   if ("minimum_wholesale_order" in body) updateData.minimum_wholesale_order = body.minimum_wholesale_order ?? 1;
   if ("storefront_seo_title" in body) updateData.storefront_seo_title = body.storefront_seo_title ?? null;
   if ("storefront_seo_description" in body) updateData.storefront_seo_description = body.storefront_seo_description ?? null;

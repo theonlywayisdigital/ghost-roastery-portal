@@ -1,8 +1,33 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServerClient, createAuthServerClient } from "@/lib/supabase";
 import { WebsiteWholesalePage } from "./WebsiteWholesalePage";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ domain: string }>;
+}): Promise<Metadata> {
+  const { domain } = await params;
+  const supabase = createServerClient();
+  const { data: roaster } = await supabase
+    .from("roasters")
+    .select("business_name, storefront_seo_title, storefront_seo_description")
+    .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
+    .eq("website_subscription_active", true)
+    .single();
+
+  if (!roaster) return { title: "Not Found" };
+
+  return {
+    title: roaster.storefront_seo_title || `${roaster.business_name} — Wholesale`,
+    description:
+      roaster.storefront_seo_description ||
+      `Wholesale catalogue from ${roaster.business_name}`,
+  };
+}
 
 export default async function WebsiteWholesalePageRoute({
   params,

@@ -164,7 +164,7 @@ export async function POST(request: Request) {
     const { data: products } = await supabase
       .from("products")
       .select(
-        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, roasted_stock_id, green_bean_id, weight_grams, is_blend"
+        "id, name, retail_price, price, is_purchasable, is_active, is_retail, is_wholesale, track_stock, retail_stock_count, unit, wholesale_price, roasted_stock_id, green_bean_id, weight_grams, is_blend, minimum_wholesale_quantity"
       )
       .eq("roaster_id", roasterId)
       .in("id", productIds);
@@ -297,6 +297,32 @@ export async function POST(request: Request) {
         productId: product.id,
         unit: variant?.unit || product.unit || "",
       });
+    }
+
+    // ─── Server-side minimum order quantity validation ───
+    // Groups items by product and checks total weight against minimum_wholesale_quantity (in kg)
+    const productQuantityMap: Record<string, { name: string; totalKg: number; minimum: number }> = {};
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.productId);
+      if (!product) continue;
+      const minQty = (product as Record<string, unknown>).minimum_wholesale_quantity as number | null;
+      if (!minQty || minQty <= 0) continue;
+      const variant = item.variantId ? variantMap[item.variantId] : null;
+      const weightGrams = variant?.weight_grams ?? product.weight_grams ?? 0;
+      if (weightGrams <= 0) continue;
+      const itemKg = (weightGrams / 1000) * item.quantity;
+      if (!productQuantityMap[product.id]) {
+        productQuantityMap[product.id] = { name: product.name, totalKg: 0, minimum: minQty };
+      }
+      productQuantityMap[product.id].totalKg += itemKg;
+    }
+    for (const [, entry] of Object.entries(productQuantityMap)) {
+      if (entry.totalKg < entry.minimum) {
+        return NextResponse.json(
+          { error: `"${entry.name}" requires a minimum order of ${entry.minimum}kg (you selected ${entry.totalKg.toFixed(1)}kg).` },
+          { status: 400 }
+        );
+      }
     }
 
     // Calculate totals

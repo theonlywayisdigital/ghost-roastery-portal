@@ -253,9 +253,9 @@ export function WholesaleProductDetail({
       }
     }
 
-    const checkoutUrl = `/s/${slug}/wholesale/checkout`;
-    const successUrl = `/s/${slug}/wholesale/success`;
-    const cancelUrl = `/s/${slug}/wholesale`;
+    const checkoutUrl = `/wholesale/checkout`;
+    const successUrl = `/wholesale/success`;
+    const cancelUrl = `/wholesale`;
     sessionStorage.setItem(
       "wholesale_checkout",
       JSON.stringify({
@@ -299,7 +299,7 @@ export function WholesaleProductDetail({
           style={{ color: "color-mix(in srgb, var(--sf-text) 45%, transparent)" }}
         >
           <Link
-            href={`/s/${slug}/wholesale${qs}`}
+            href={`/wholesale${qs}`}
             className="hover:opacity-80 transition-opacity"
           >
             Wholesale
@@ -710,7 +710,7 @@ export function WholesaleProductDetail({
                 return (
                   <Link
                     key={p.id}
-                    href={`/s/${slug}/wholesale/product/${p.id}${qs}`}
+                    href={`/wholesale/product/${p.id}${qs}`}
                     className="rounded-xl border overflow-hidden hover:opacity-90 transition-opacity"
                     style={{
                       backgroundColor: "color-mix(in srgb, var(--sf-text) 8%, transparent)",

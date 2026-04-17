@@ -289,17 +289,9 @@ export function StorefrontWholesaleCatalogue({
     }
 
     // Persist cart and checkout metadata to sessionStorage
-    const checkoutUrl = context.type === "storefront"
-      ? `/s/${context.slug}/wholesale/checkout`
-      : `/w/${context.domain}/wholesale/checkout`;
-
-    const successUrl = context.type === "storefront"
-      ? `/s/${context.slug}/wholesale/success`
-      : `/w/${context.domain}/wholesale/success`;
-
-    const cancelUrl = context.type === "storefront"
-      ? `/s/${context.slug}/wholesale`
-      : `/w/${context.domain}/wholesale`;
+    const checkoutUrl = `/wholesale/checkout`;
+    const successUrl = `/wholesale/success`;
+    const cancelUrl = `/wholesale`;
 
     sessionStorage.setItem(
       "wholesale_checkout",
@@ -377,9 +369,7 @@ export function StorefrontWholesaleCatalogue({
                 }}
               >
                 <Link
-                  href={context.type === "storefront"
-                    ? `/s/${context.slug}/wholesale/product/${product.id}`
-                    : `/w/${context.domain}/wholesale/product/${product.id}`}
+                  href={`/wholesale/product/${product.id}`}
                   className="block hover:opacity-90 transition-opacity"
                 >
                   {product.image_url ? (

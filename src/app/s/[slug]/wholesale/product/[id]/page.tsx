@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServerClient, createAuthServerClient } from "@/lib/supabase";
 import { WholesaleProductDetail } from "./WholesaleProductDetail";
 
@@ -58,8 +58,7 @@ export default async function WholesaleProductDetailRoute({
   }
 
   if (!wholesaleAccessId) {
-    // Not an approved buyer — redirect to wholesale landing
-    notFound();
+    redirect(`/s/${slug}/wholesale`);
   }
 
   // Fetch product with wholesale variants, stock pools, and images

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { isLightColour } from "../_components/utils";
 
 const LOGO_SIZE_MAP = { small: 80, medium: 120, large: 160 };
@@ -21,7 +20,6 @@ export function StorefrontLoginPage({
     logoSize: "small" | "medium" | "large";
   };
 }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +54,7 @@ export function StorefrontLoginPage({
         return;
       }
 
-      router.push(redirectTo || `/s/${slug}`);
+      window.location.href = redirectTo || `/s/${slug}`;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { isLightColour } from "../../_components/utils";
 
@@ -20,7 +19,6 @@ export function WholesaleLoginPage({
     logoSize: "small" | "medium" | "large";
   };
 }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +53,7 @@ export function WholesaleLoginPage({
         return;
       }
 
-      router.push(`/s/${slug}/wholesale`);
+      window.location.href = `/s/${slug}/wholesale`;
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

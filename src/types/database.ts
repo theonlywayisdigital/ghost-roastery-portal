@@ -4464,6 +4464,125 @@ export type Database = {
           },
         ]
       }
+      product_buyer_access: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          roaster_id: string
+          wholesale_access_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          roaster_id: string
+          wholesale_access_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          roaster_id?: string
+          wholesale_access_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_buyer_access_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_access_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_access_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_access_wholesale_access_id_fkey"
+            columns: ["wholesale_access_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_buyer_pricing: {
+        Row: {
+          created_at: string
+          custom_price: number
+          id: string
+          product_id: string
+          roaster_id: string
+          variant_id: string
+          wholesale_access_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_price: number
+          id?: string
+          product_id: string
+          roaster_id: string
+          variant_id: string
+          wholesale_access_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_price?: number
+          id?: string
+          product_id?: string
+          roaster_id?: string
+          variant_id?: string
+          wholesale_access_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_buyer_pricing_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_pricing_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_pricing_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_pricing_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_buyer_pricing_wholesale_access_id_fkey"
+            columns: ["wholesale_access_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_access"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_channel_mappings: {
         Row: {
           connection_id: string

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createServerClient, createAuthServerClient } from "@/lib/supabase";
+import { filterProductsByBuyerAccess, applyBuyerPricing } from "@/lib/wholesale-catalogue";
 import { WebsiteWholesalePage } from "./WebsiteWholesalePage";
 
 export const dynamic = "force-dynamic";
@@ -111,7 +112,14 @@ export default async function WebsiteWholesalePageRoute({
           .eq("is_wholesale", true)
           .order("sort_order", { ascending: true });
 
-        products = wholesaleProducts || [];
+        // Apply per-buyer product visibility and custom pricing
+        let filtered = await filterProductsByBuyerAccess(
+          wholesaleProducts || [],
+          roaster.id,
+          access.id,
+        );
+        filtered = await applyBuyerPricing(filtered, roaster.id, access.id);
+        products = filtered;
       }
     }
   } catch {

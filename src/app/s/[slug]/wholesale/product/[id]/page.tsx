@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createServerClient, createAuthServerClient } from "@/lib/supabase";
+import { filterProductsByBuyerAccess, applyBuyerPricing } from "@/lib/wholesale-catalogue";
 import { WholesaleProductDetail } from "./WholesaleProductDetail";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,21 @@ export default async function WholesaleProductDetailRoute({
 
   if (!product) notFound();
 
+  // Check per-buyer product visibility
+  const [visibleProduct] = await filterProductsByBuyerAccess(
+    [product],
+    roaster.id,
+    wholesaleAccessId,
+  );
+  if (!visibleProduct) redirect(`/s/${slug}/wholesale`);
+
+  // Apply per-buyer custom pricing to the product
+  const [pricedProduct] = await applyBuyerPricing(
+    [visibleProduct],
+    roaster.id,
+    wholesaleAccessId,
+  );
+
   // Fetch related wholesale products
   const { data: related } = await supabase
     .from("products")
@@ -98,11 +114,19 @@ export default async function WholesaleProductDetailRoute({
     .order("sort_order", { ascending: true })
     .limit(4);
 
+  // Apply per-buyer visibility and pricing to related products
+  let filteredRelated = await filterProductsByBuyerAccess(
+    related || [],
+    roaster.id,
+    wholesaleAccessId,
+  );
+  filteredRelated = await applyBuyerPricing(filteredRelated, roaster.id, wholesaleAccessId);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (
     <WholesaleProductDetail
-      product={product as any}
-      relatedProducts={(related as any) || []}
+      product={pricedProduct as any}
+      relatedProducts={(filteredRelated as any) || []}
       roaster={{
         id: roaster.id,
         businessName: roaster.business_name,

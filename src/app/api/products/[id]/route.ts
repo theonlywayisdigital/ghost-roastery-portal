@@ -86,7 +86,29 @@ export async function GET(_request: Request, { params }: RouteParams) {
     blend_components = (components || []) as Record<string, unknown>[];
   }
 
-  return NextResponse.json({ product, variants: variantsWithOptionIds, option_types, images: images || [], blend_components });
+  // Fetch per-buyer product access restrictions
+  const { data: buyer_access } = await supabase
+    .from("product_buyer_access")
+    .select("id, wholesale_access_id")
+    .eq("product_id", id)
+    .eq("roaster_id", roaster.id);
+
+  // Fetch per-buyer variant pricing overrides
+  const { data: buyer_pricing } = await supabase
+    .from("product_buyer_pricing")
+    .select("id, variant_id, wholesale_access_id, custom_price")
+    .eq("product_id", id)
+    .eq("roaster_id", roaster.id);
+
+  return NextResponse.json({
+    product,
+    variants: variantsWithOptionIds,
+    option_types,
+    images: images || [],
+    blend_components,
+    buyer_access: buyer_access || [],
+    buyer_pricing: buyer_pricing || [],
+  });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
@@ -108,6 +130,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       vat_rate, rrp, order_multiples, subscription_frequency,
       variants, option_types,
       is_blend, blend_components,
+      buyer_access, buyer_pricing,
     } = body;
 
     if (!name) {
@@ -385,6 +408,54 @@ export async function PUT(request: Request, { params }: RouteParams) {
           .insert(componentRows);
         if (blendError) {
           console.error("Blend components update error:", blendError);
+        }
+      }
+    }
+
+    // Handle buyer access restrictions (delete-and-reinsert)
+    if (Array.isArray(buyer_access)) {
+      await supabase
+        .from("product_buyer_access")
+        .delete()
+        .eq("product_id", id)
+        .eq("roaster_id", roaster.id);
+
+      if (buyer_access.length > 0) {
+        const accessRows = buyer_access.map((ba: { wholesale_access_id: string }) => ({
+          product_id: id,
+          wholesale_access_id: ba.wholesale_access_id,
+          roaster_id: roaster.id,
+        }));
+        const { error: accessError } = await supabase
+          .from("product_buyer_access")
+          .insert(accessRows);
+        if (accessError) {
+          console.error("Buyer access insert error:", accessError);
+        }
+      }
+    }
+
+    // Handle buyer pricing overrides (delete-and-reinsert)
+    if (Array.isArray(buyer_pricing)) {
+      await supabase
+        .from("product_buyer_pricing")
+        .delete()
+        .eq("product_id", id)
+        .eq("roaster_id", roaster.id);
+
+      if (buyer_pricing.length > 0) {
+        const pricingRows = buyer_pricing.map((bp: { variant_id: string; wholesale_access_id: string; custom_price: number }) => ({
+          product_id: id,
+          variant_id: bp.variant_id,
+          wholesale_access_id: bp.wholesale_access_id,
+          roaster_id: roaster.id,
+          custom_price: bp.custom_price,
+        }));
+        const { error: pricingError } = await supabase
+          .from("product_buyer_pricing")
+          .insert(pricingRows);
+        if (pricingError) {
+          console.error("Buyer pricing insert error:", pricingError);
         }
       }
     }

@@ -11,6 +11,11 @@ import {
   Package,
   Archive,
   Sparkles,
+  Search,
+  Plus,
+  Trash2,
+  Users,
+  Shield,
 } from "@/components/icons";
 import Link from "next/link";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
@@ -298,6 +303,18 @@ export function ProductForm({ product }: { product?: Product }) {
     product?.order_multiples?.toString() || ""
   );
 
+  // Buyer access & pricing
+  const [restrictAccess, setRestrictAccess] = useState(false);
+  const [selectedBuyerIds, setSelectedBuyerIds] = useState<string[]>([]);
+  const [buyerPricing, setBuyerPricing] = useState<
+    { wholesale_access_id: string; variant_id: string; custom_price: string }[]
+  >([]);
+  const [wholesaleBuyers, setWholesaleBuyers] = useState<
+    { id: string; business_name: string; user_name: string; user_email: string }[]
+  >([]);
+  const [buyerSearchQuery, setBuyerSearchQuery] = useState("");
+  const [showBuyerDropdown, setShowBuyerDropdown] = useState(false);
+
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
@@ -335,6 +352,25 @@ export function ProductForm({ product }: { product?: Product }) {
       })
       .catch(() => setHasStorefrontIntegration(false));
   }, []);
+
+  // Fetch approved wholesale buyers for the Customer Access section
+  useEffect(() => {
+    if (!isWholesale) return;
+    fetch("/api/wholesale-buyers")
+      .then((res) => res.json())
+      .then((data) => {
+        const approved = (data.buyers || [])
+          .filter((b: { status: string }) => b.status === "approved")
+          .map((b: { id: string; business_name: string; users: { full_name: string; email: string } | null }) => ({
+            id: b.id,
+            business_name: b.business_name || "",
+            user_name: b.users?.full_name || "",
+            user_email: b.users?.email || "",
+          }));
+        setWholesaleBuyers(approved);
+      })
+      .catch(() => {});
+  }, [isWholesale]);
 
   // Fetch roasted stock and green bean records for coffee products
   useEffect(() => {
@@ -480,6 +516,25 @@ export function ProductForm({ product }: { product?: Product }) {
                 id: bc.id,
                 roasted_stock_id: bc.roasted_stock_id,
                 percentage: bc.percentage.toString(),
+              }))
+            );
+          }
+
+          // Load buyer access restrictions
+          if (data.buyer_access && data.buyer_access.length > 0) {
+            setRestrictAccess(true);
+            setSelectedBuyerIds(
+              data.buyer_access.map((ba: { wholesale_access_id: string }) => ba.wholesale_access_id)
+            );
+          }
+
+          // Load buyer pricing overrides
+          if (data.buyer_pricing && data.buyer_pricing.length > 0) {
+            setBuyerPricing(
+              data.buyer_pricing.map((bp: { wholesale_access_id: string; variant_id: string; custom_price: number }) => ({
+                wholesale_access_id: bp.wholesale_access_id,
+                variant_id: bp.variant_id,
+                custom_price: bp.custom_price.toString(),
               }))
             );
           }
@@ -1160,6 +1215,21 @@ export function ProductForm({ product }: { product?: Product }) {
     if (isWholesale) collectOptionTypes(wholesaleOptionTypes, "wholesale");
     if (allOptionTypes.length > 0) {
       body.option_types = allOptionTypes;
+    }
+
+    // Buyer access restrictions
+    if (isWholesale) {
+      body.buyer_access = restrictAccess
+        ? selectedBuyerIds.map((id) => ({ wholesale_access_id: id }))
+        : [];
+      // Buyer pricing overrides
+      body.buyer_pricing = buyerPricing
+        .filter((bp) => bp.wholesale_access_id && bp.variant_id && bp.custom_price)
+        .map((bp) => ({
+          wholesale_access_id: bp.wholesale_access_id,
+          variant_id: bp.variant_id,
+          custom_price: parseFloat(bp.custom_price),
+        }));
     }
 
     try {
@@ -2137,6 +2207,227 @@ export function ProductForm({ product }: { product?: Product }) {
                   </div>
                   {renderOptionBuilder("wholesale")}
                   {renderVariantGrid("wholesale")}
+                </div>
+
+                {/* ─── Customer Access ─── */}
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-slate-500" />
+                    Customer Access
+                  </h3>
+                  <div className={sectionClassName}>
+                    {/* Product Visibility Toggle */}
+                    <div>
+                      <Toggle
+                        enabled={restrictAccess}
+                        onToggle={() => {
+                          setRestrictAccess(!restrictAccess);
+                          if (restrictAccess) setSelectedBuyerIds([]);
+                        }}
+                        label="Restrict to specific buyers"
+                      />
+                      <p className="text-xs text-slate-400 mt-1.5 ml-14">
+                        {restrictAccess
+                          ? "Only selected buyers can see this product in the wholesale catalogue."
+                          : "All approved wholesale buyers can see this product."}
+                      </p>
+                    </div>
+
+                    {/* Buyer Selector */}
+                    {restrictAccess && (
+                      <div>
+                        <label className={labelClassName}>Allowed Buyers</label>
+                        {/* Selected buyer chips */}
+                        {selectedBuyerIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {selectedBuyerIds.map((buyerId) => {
+                              const buyer = wholesaleBuyers.find((b) => b.id === buyerId);
+                              return (
+                                <span
+                                  key={buyerId}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 text-brand-700 rounded-full text-xs font-medium"
+                                >
+                                  <Users className="w-3 h-3" />
+                                  {buyer?.business_name || buyer?.user_name || buyerId.slice(0, 8)}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedBuyerIds(selectedBuyerIds.filter((id) => id !== buyerId))
+                                    }
+                                    className="ml-0.5 hover:text-brand-900"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Searchable dropdown */}
+                        <div className="relative">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                              type="text"
+                              value={buyerSearchQuery}
+                              onChange={(e) => {
+                                setBuyerSearchQuery(e.target.value);
+                                setShowBuyerDropdown(true);
+                              }}
+                              onFocus={() => setShowBuyerDropdown(true)}
+                              placeholder="Search buyers by name or business..."
+                              className={`${inputClassName} pl-9`}
+                            />
+                          </div>
+                          {showBuyerDropdown && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                              {wholesaleBuyers
+                                .filter((b) => !selectedBuyerIds.includes(b.id))
+                                .filter((b) => {
+                                  if (!buyerSearchQuery) return true;
+                                  const q = buyerSearchQuery.toLowerCase();
+                                  return (
+                                    b.business_name.toLowerCase().includes(q) ||
+                                    b.user_name.toLowerCase().includes(q) ||
+                                    b.user_email.toLowerCase().includes(q)
+                                  );
+                                })
+                                .map((buyer) => (
+                                  <button
+                                    key={buyer.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedBuyerIds([...selectedBuyerIds, buyer.id]);
+                                      setBuyerSearchQuery("");
+                                      setShowBuyerDropdown(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-800">
+                                        {buyer.business_name || buyer.user_name}
+                                      </p>
+                                      <p className="text-xs text-slate-500">{buyer.user_email}</p>
+                                    </div>
+                                    <Plus className="w-4 h-4 text-slate-400" />
+                                  </button>
+                                ))}
+                              {wholesaleBuyers.filter(
+                                (b) =>
+                                  !selectedBuyerIds.includes(b.id) &&
+                                  (!buyerSearchQuery ||
+                                    b.business_name.toLowerCase().includes(buyerSearchQuery.toLowerCase()) ||
+                                    b.user_name.toLowerCase().includes(buyerSearchQuery.toLowerCase()) ||
+                                    b.user_email.toLowerCase().includes(buyerSearchQuery.toLowerCase()))
+                              ).length === 0 && (
+                                <p className="px-3 py-2 text-xs text-slate-400">No buyers found</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Custom Pricing */}
+                    <div className="pt-3 border-t border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className={labelClassName + " mb-0"}>Custom Pricing</label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBuyerPricing([
+                              ...buyerPricing,
+                              { wholesale_access_id: "", variant_id: "", custom_price: "" },
+                            ])
+                          }
+                          className="text-xs text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-1"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Override
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-3">
+                        Override the default wholesale price for specific buyers and variants.
+                      </p>
+
+                      {buyerPricing.length === 0 && (
+                        <p className="text-xs text-slate-400 italic">No custom pricing overrides set.</p>
+                      )}
+
+                      {buyerPricing.map((bp, idx) => (
+                        <div key={idx} className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 mb-2 items-end">
+                          {/* Buyer select */}
+                          <div>
+                            {idx === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">Buyer</label>}
+                            <select
+                              value={bp.wholesale_access_id}
+                              onChange={(e) => {
+                                const updated = [...buyerPricing];
+                                updated[idx] = { ...updated[idx], wholesale_access_id: e.target.value };
+                                setBuyerPricing(updated);
+                              }}
+                              className={inputClassName + " text-sm"}
+                            >
+                              <option value="">Select buyer…</option>
+                              {wholesaleBuyers.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.business_name || b.user_name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Variant select */}
+                          <div>
+                            {idx === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">Variant</label>}
+                            <select
+                              value={bp.variant_id}
+                              onChange={(e) => {
+                                const updated = [...buyerPricing];
+                                updated[idx] = { ...updated[idx], variant_id: e.target.value };
+                                setBuyerPricing(updated);
+                              }}
+                              className={inputClassName + " text-sm"}
+                            >
+                              <option value="">Select variant…</option>
+                              {wholesaleVariantCells.map((cell) => (
+                                <option key={cell.id || cell.label} value={cell.id || ""}>
+                                  {cell.label} {cell.wholesalePrice ? `(£${cell.wholesalePrice})` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Custom price */}
+                          <div>
+                            {idx === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">Price (£)</label>}
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={bp.custom_price}
+                              onChange={(e) => {
+                                const updated = [...buyerPricing];
+                                updated[idx] = { ...updated[idx], custom_price: e.target.value };
+                                setBuyerPricing(updated);
+                              }}
+                              placeholder="0.00"
+                              className={inputClassName + " w-24 text-sm"}
+                            />
+                          </div>
+                          {/* Delete button */}
+                          <div>
+                            {idx === 0 && <label className="block text-xs font-medium text-slate-500 mb-1">&nbsp;</label>}
+                            <button
+                              type="button"
+                              onClick={() => setBuyerPricing(buyerPricing.filter((_, i) => i !== idx))}
+                              className="p-2.5 text-slate-400 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

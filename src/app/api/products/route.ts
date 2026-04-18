@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       vat_rate, rrp, order_multiples, subscription_frequency,
       variants, category, option_types,
       is_blend, blend_components,
+      buyer_access, buyer_pricing,
     } = body;
 
     if (!name) {
@@ -219,6 +220,57 @@ export async function POST(request: Request) {
               }
             }
           }
+        }
+      }
+    }
+
+    // Insert buyer access restrictions
+    if (Array.isArray(buyer_access) && buyer_access.length > 0) {
+      const accessRows = buyer_access.map((ba: { wholesale_access_id: string }) => ({
+        product_id: product.id,
+        wholesale_access_id: ba.wholesale_access_id,
+        roaster_id: roaster.id,
+      }));
+      const { error: accessError } = await supabase
+        .from("product_buyer_access")
+        .insert(accessRows);
+      if (accessError) {
+        console.error("Buyer access insert error:", accessError);
+      }
+    }
+
+    // Insert buyer pricing overrides
+    if (Array.isArray(buyer_pricing) && buyer_pricing.length > 0) {
+      // Map variant indices to real IDs — buyer_pricing uses variant_index for new products
+      const { data: productVariants } = await supabase
+        .from("product_variants")
+        .select("id")
+        .eq("product_id", product.id)
+        .eq("roaster_id", roaster.id)
+        .order("sort_order", { ascending: true });
+
+      const variantIds = (productVariants || []).map((v: { id: string }) => v.id);
+
+      const pricingRows = buyer_pricing
+        .map((bp: { variant_id?: string; variant_index?: number; wholesale_access_id: string; custom_price: number }) => {
+          const variantId = bp.variant_id || (bp.variant_index != null ? variantIds[bp.variant_index] : null);
+          if (!variantId) return null;
+          return {
+            product_id: product.id,
+            variant_id: variantId,
+            wholesale_access_id: bp.wholesale_access_id,
+            roaster_id: roaster.id,
+            custom_price: bp.custom_price,
+          };
+        })
+        .filter(Boolean);
+
+      if (pricingRows.length > 0) {
+        const { error: pricingError } = await supabase
+          .from("product_buyer_pricing")
+          .insert(pricingRows);
+        if (pricingError) {
+          console.error("Buyer pricing insert error:", pricingError);
         }
       }
     }

@@ -1,10 +1,9 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { ChevronDown, ChevronRight } from "@/components/icons";
+import { ChevronDown, ChevronRight, Shield, Package, Plus, Pencil, Trash2, Star, X, Search } from "@/components/icons";
 import { SettingsSection } from "./SettingsSection";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Star, X } from "lucide-react";
 
 interface BuyerUser {
   full_name: string | null;
@@ -140,6 +139,31 @@ export function WholesaleBuyersPage({
   const [addrSaving, setAddrSaving] = useState(false);
   const [addrError, setAddrError] = useState<string | null>(null);
 
+  // Assigned Products state
+  const [buyerAccessMap, setBuyerAccessMap] = useState<
+    Record<string, { id: string; product_id: string; product_name: string }[]>
+  >({});
+
+  // Custom Pricing state
+  const [buyerPricingMap, setBuyerPricingMap] = useState<
+    Record<string, { id: string; product_id: string; variant_id: string; custom_price: number; product_name: string; variant_label: string; standard_price: number | null }[]>
+  >({});
+  const [editingPricingId, setEditingPricingId] = useState<string | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState("");
+  const [pricingSaving, setPricingSaving] = useState(false);
+
+  // Add pricing form state
+  const [showAddPricingForm, setShowAddPricingForm] = useState<string | null>(null);
+  const [addPricingProductId, setAddPricingProductId] = useState("");
+  const [addPricingVariantId, setAddPricingVariantId] = useState("");
+  const [addPricingPrice, setAddPricingPrice] = useState("");
+
+  // Products list for the "add pricing" picker
+  const [roasterProducts, setRoasterProducts] = useState<
+    { id: string; name: string; variants: { id: string; unit: string | null; wholesale_price: number | null }[] }[]
+  >([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+
   const requests = buyers.filter(
     (b) => b.status === "pending" || b.status === "rejected"
   );
@@ -192,12 +216,66 @@ export function WholesaleBuyersPage({
     }
   }, []);
 
-  // Fetch addresses when a buyer row is expanded
+  // Fetch buyer access data
+  const fetchBuyerAccess = useCallback(async (buyerId: string) => {
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${buyerId}/access`);
+      if (res.ok) {
+        const data = await res.json();
+        setBuyerAccessMap((prev) => ({ ...prev, [buyerId]: data.access }));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Fetch buyer pricing data
+  const fetchBuyerPricing = useCallback(async (buyerId: string) => {
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${buyerId}/pricing`);
+      if (res.ok) {
+        const data = await res.json();
+        setBuyerPricingMap((prev) => ({ ...prev, [buyerId]: data.pricing }));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Load products list (for add pricing picker) — once
+  const loadProducts = useCallback(async () => {
+    if (productsLoaded) return;
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = (data.products || [])
+          .filter((p: { is_wholesale: boolean; status: string }) => p.is_wholesale && p.status === "published")
+          .map((p: { id: string; name: string; product_variants: { id: string; unit: string | null; wholesale_price: number | null; channel: string; is_active: boolean }[] }) => ({
+            id: p.id,
+            name: p.name,
+            variants: (p.product_variants || [])
+              .filter((v: { channel: string; is_active: boolean }) => v.channel === "wholesale" && v.is_active)
+              .map((v: { id: string; unit: string | null; wholesale_price: number | null }) => ({
+                id: v.id,
+                unit: v.unit,
+                wholesale_price: v.wholesale_price,
+              })),
+          }));
+        setRoasterProducts(mapped);
+        setProductsLoaded(true);
+      }
+    } catch { /* ignore */ }
+  }, [productsLoaded]);
+
+  // Fetch addresses, access, and pricing when a buyer row is expanded
   useEffect(() => {
-    if (expandedId && !addressMap[expandedId]) {
-      fetchAddresses(expandedId);
+    if (expandedId) {
+      if (!addressMap[expandedId]) fetchAddresses(expandedId);
+      // Only fetch access/pricing for approved/suspended buyers (active tab)
+      const buyer = buyers.find((b) => b.id === expandedId);
+      if (buyer && (buyer.status === "approved" || buyer.status === "suspended")) {
+        if (!buyerAccessMap[expandedId]) fetchBuyerAccess(expandedId);
+        if (!buyerPricingMap[expandedId]) fetchBuyerPricing(expandedId);
+      }
     }
-  }, [expandedId, addressMap, fetchAddresses]);
+  }, [expandedId, addressMap, fetchAddresses, buyers, buyerAccessMap, buyerPricingMap, fetchBuyerAccess, fetchBuyerPricing]);
 
   function openAddrAdd(buyerId: string) {
     setShowAddrForm(buyerId);
@@ -277,6 +355,270 @@ export function WholesaleBuyersPage({
       });
       await fetchAddresses(buyerId);
     } catch { /* ignore */ }
+  }
+
+  // ─── Buyer Access helpers ───
+  async function handleRemoveAccess(buyerId: string, accessId: string) {
+    try {
+      await fetch(`/api/wholesale-buyers/${buyerId}/access?accessId=${accessId}`, { method: "DELETE" });
+      await fetchBuyerAccess(buyerId);
+    } catch { /* ignore */ }
+  }
+
+  // ─── Buyer Pricing helpers ───
+  async function handleDeletePricing(buyerId: string, pricingId: string) {
+    try {
+      await fetch(`/api/wholesale-buyers/${buyerId}/pricing?pricingId=${pricingId}`, { method: "DELETE" });
+      await fetchBuyerPricing(buyerId);
+    } catch { /* ignore */ }
+  }
+
+  async function handleUpdatePricing(buyerId: string, pricingId: string) {
+    if (!editPriceValue) return;
+    setPricingSaving(true);
+    try {
+      await fetch(`/api/wholesale-buyers/${buyerId}/pricing`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pricingId, custom_price: parseFloat(editPriceValue) }),
+      });
+      setEditingPricingId(null);
+      setEditPriceValue("");
+      await fetchBuyerPricing(buyerId);
+    } catch { /* ignore */ }
+    finally { setPricingSaving(false); }
+  }
+
+  async function handleAddPricing(buyerId: string) {
+    if (!addPricingProductId || !addPricingVariantId || !addPricingPrice) return;
+    setPricingSaving(true);
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${buyerId}/pricing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: addPricingProductId,
+          variant_id: addPricingVariantId,
+          custom_price: parseFloat(addPricingPrice),
+        }),
+      });
+      if (res.ok) {
+        setShowAddPricingForm(null);
+        setAddPricingProductId("");
+        setAddPricingVariantId("");
+        setAddPricingPrice("");
+        await fetchBuyerPricing(buyerId);
+      }
+    } catch { /* ignore */ }
+    finally { setPricingSaving(false); }
+  }
+
+  function renderAssignedProductsSection(buyerId: string) {
+    const access = buyerAccessMap[buyerId];
+    if (!access || access.length === 0) return null;
+
+    return (
+      <div className="mt-4 pt-4 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-3.5 h-3.5 text-slate-400" />
+          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            Assigned Products
+          </h4>
+        </div>
+        <p className="text-xs text-slate-400 mb-3">
+          Only products restricted to specific buyers appear here. Products visible to all buyers are not listed.
+        </p>
+        <div className="space-y-1.5">
+          {access.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Package className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="text-sm text-slate-700 truncate">{a.product_name}</span>
+              </div>
+              <button
+                onClick={() => handleRemoveAccess(buyerId, a.id)}
+                className="p-1 rounded text-slate-400 hover:text-red-600 shrink-0"
+                title="Remove access"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  function renderCustomPricingSection(buyerId: string) {
+    const pricing = buyerPricingMap[buyerId];
+    const selectedProduct = roasterProducts.find((p) => p.id === addPricingProductId);
+
+    return (
+      <div className="mt-4 pt-4 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Custom Pricing
+            </h4>
+          </div>
+          <button
+            onClick={() => {
+              loadProducts();
+              setShowAddPricingForm(buyerId);
+              setAddPricingProductId("");
+              setAddPricingVariantId("");
+              setAddPricingPrice("");
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Add custom price
+          </button>
+        </div>
+
+        {(!pricing || pricing.length === 0) && showAddPricingForm !== buyerId && (
+          <p className="text-xs text-slate-400">No custom pricing overrides for this buyer.</p>
+        )}
+
+        {pricing && pricing.length > 0 && (
+          <div className="space-y-1.5">
+            {pricing.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <span className="text-sm text-slate-700">
+                    {p.product_name} — {p.variant_label}
+                  </span>
+                  <span className="text-xs text-slate-400 ml-2">
+                    Standard: £{p.standard_price != null ? Number(p.standard_price).toFixed(2) : "—"}
+                  </span>
+                  {editingPricingId === p.id ? (
+                    <span className="ml-2 inline-flex items-center gap-1">
+                      <span className="text-xs text-slate-500">→ £</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editPriceValue}
+                        onChange={(e) => setEditPriceValue(e.target.value)}
+                        className="w-20 px-1.5 py-0.5 border border-slate-300 rounded text-xs"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => handleUpdatePricing(buyerId, p.id)}
+                        disabled={pricingSaving}
+                        className="px-2 py-0.5 rounded text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setEditingPricingId(null); setEditPriceValue(""); }}
+                        className="px-2 py-0.5 rounded text-xs text-slate-500 hover:text-slate-700"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="text-sm font-medium text-brand-700 ml-2">
+                      Custom: £{Number(p.custom_price).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                {editingPricingId !== p.id && (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      onClick={() => { setEditingPricingId(p.id); setEditPriceValue(Number(p.custom_price).toFixed(2)); }}
+                      className="p-1 rounded text-slate-400 hover:text-slate-600"
+                      title="Edit price"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePricing(buyerId, p.id)}
+                      className="p-1 rounded text-slate-400 hover:text-red-600"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add pricing form */}
+        {showAddPricingForm === buyerId && (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-sm font-medium text-slate-900">Add Custom Price</h5>
+              <button onClick={() => setShowAddPricingForm(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Product</label>
+                <select
+                  value={addPricingProductId}
+                  onChange={(e) => { setAddPricingProductId(e.target.value); setAddPricingVariantId(""); }}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                >
+                  <option value="">Select product…</option>
+                  {roasterProducts.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Variant</label>
+                <select
+                  value={addPricingVariantId}
+                  onChange={(e) => setAddPricingVariantId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  disabled={!addPricingProductId}
+                >
+                  <option value="">Select variant…</option>
+                  {selectedProduct?.variants.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.unit || "Default"} {v.wholesale_price != null ? `(£${Number(v.wholesale_price).toFixed(2)})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-0.5">Custom Price (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={addPricingPrice}
+                  onChange={(e) => setAddPricingPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setShowAddPricingForm(null)} className="px-3 py-1.5 rounded-md text-xs text-slate-600 hover:bg-slate-50 border border-slate-300">Cancel</button>
+              <button
+                onClick={() => handleAddPricing(buyerId)}
+                disabled={pricingSaving || !addPricingProductId || !addPricingVariantId || !addPricingPrice}
+                className="px-3 py-1.5 rounded-md text-xs font-medium bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {pricingSaving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   function renderAddressSection(buyerId: string) {
@@ -953,6 +1295,8 @@ export function WholesaleBuyersPage({
                             </div>
                           </div>
                           {renderAddressSection(buyer.id)}
+                          {renderAssignedProductsSection(buyer.id)}
+                          {renderCustomPricingSection(buyer.id)}
                         </td>
                       </tr>
                     )}

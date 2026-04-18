@@ -1297,6 +1297,17 @@ export function WholesaleBuyersPage({
                           {renderAddressSection(buyer.id)}
                           {renderAssignedProductsSection(buyer.id)}
                           {renderCustomPricingSection(buyer.id)}
+                          {buyer.contact_id && (
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                              <Link
+                                href={`/contacts/${buyer.contact_id}`}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700"
+                              >
+                                View Full Profile
+                                <ChevronRight className="w-4 h-4" />
+                              </Link>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}

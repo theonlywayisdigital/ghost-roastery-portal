@@ -37,6 +37,13 @@ import {
   Inbox,
   ChevronUp,
   MapPin,
+  Plus,
+  Trash2,
+  Shield,
+  Package,
+  DollarSign,
+  Truck,
+  ExternalLink,
 } from "@/components/icons";
 import { STAGE_COLOURS, type PipelineStage } from "@/lib/pipeline";
 
@@ -106,12 +113,47 @@ interface Invoice {
 }
 
 interface WholesaleAccess {
+  id: string;
   status: string;
   price_tier: string | null;
   payment_terms: string | null;
   credit_limit: number | null;
   approved_at: string | null;
   created_at: string;
+}
+
+interface BuyerAddress {
+  id: string;
+  label: string | null;
+  address_line_1: string;
+  address_line_2: string | null;
+  city: string;
+  county: string | null;
+  postcode: string;
+  country: string;
+  is_default: boolean;
+}
+
+interface BuyerAccessRow {
+  id: string;
+  product_id: string;
+  product_name: string;
+}
+
+interface BuyerPricingRow {
+  id: string;
+  product_id: string;
+  variant_id: string;
+  custom_price: number;
+  product_name: string;
+  variant_label: string;
+  standard_price: number | null;
+}
+
+interface RoasterProduct {
+  id: string;
+  name: string;
+  product_variants: { id: string; unit: string | null; wholesale_price: number | null }[];
 }
 
 interface InboxMessageItem {
@@ -257,9 +299,32 @@ export function ContactDetail({ contactId }: { contactId: string }) {
   // Expanded inbox messages
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
 
+  // Wholesale tab state
+  const [wsForm, setWsForm] = useState({ payment_terms: "", price_tier: "", credit_limit: "" });
+  const [wsSaving, setWsSaving] = useState(false);
+  const [wsAddresses, setWsAddresses] = useState<BuyerAddress[]>([]);
+  const [wsAddrLoaded, setWsAddrLoaded] = useState(false);
+  const [wsEditingAddr, setWsEditingAddr] = useState<string | null>(null);
+  const [wsAddrForm, setWsAddrForm] = useState({ label: "", address_line_1: "", address_line_2: "", city: "", county: "", postcode: "", country: "GB", is_default: false });
+  const [wsShowAddrForm, setWsShowAddrForm] = useState(false);
+  const [wsAccess, setWsAccess] = useState<BuyerAccessRow[]>([]);
+  const [wsAccessLoaded, setWsAccessLoaded] = useState(false);
+  const [wsPricing, setWsPricing] = useState<BuyerPricingRow[]>([]);
+  const [wsPricingLoaded, setWsPricingLoaded] = useState(false);
+  const [wsProducts, setWsProducts] = useState<RoasterProduct[]>([]);
+  const [wsProductsLoaded, setWsProductsLoaded] = useState(false);
+  const [wsShowAddAccess, setWsShowAddAccess] = useState(false);
+  const [wsAddAccessProductId, setWsAddAccessProductId] = useState("");
+  const [wsShowAddPricing, setWsShowAddPricing] = useState(false);
+  const [wsAddPricingProductId, setWsAddPricingProductId] = useState("");
+  const [wsAddPricingVariantId, setWsAddPricingVariantId] = useState("");
+  const [wsAddPricingPrice, setWsAddPricingPrice] = useState("");
+  const [wsEditPricingId, setWsEditPricingId] = useState<string | null>(null);
+  const [wsEditPriceValue, setWsEditPriceValue] = useState("");
+
   // Detail tabs
   const [activeDetailTab, setActiveDetailTab] = useState<
-    "activity" | "notes" | "communication" | "orders" | "deals"
+    "activity" | "notes" | "communication" | "orders" | "deals" | "wholesale"
   >("activity");
 
   async function loadContact() {
@@ -287,6 +352,14 @@ export function ContactDetail({ contactId }: { contactId: string }) {
         country: d.contact.country || "GB",
         marketing_consent: d.contact.marketing_consent ?? false,
       });
+      // Populate wholesale form if data exists
+      if (d.wholesaleAccess) {
+        setWsForm({
+          payment_terms: d.wholesaleAccess.payment_terms || "",
+          price_tier: d.wholesaleAccess.price_tier || "",
+          credit_limit: d.wholesaleAccess.credit_limit != null ? String(d.wholesaleAccess.credit_limit) : "",
+        });
+      }
       fetch("/api/pipeline-stages").then(res => res.ok ? res.json() : null).then(data => {
         if (data?.stages) setStages(data.stages);
       }).catch(() => {});
@@ -296,10 +369,73 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     setLoading(false);
   }
 
+  async function loadWsAddresses(waId: string) {
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${waId}/addresses`);
+      if (res.ok) {
+        const d = await res.json();
+        setWsAddresses(d.addresses || []);
+      }
+    } catch { /* ignore */ }
+    setWsAddrLoaded(true);
+  }
+
+  async function loadWsAccess(waId: string) {
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${waId}/access`);
+      if (res.ok) {
+        const d = await res.json();
+        setWsAccess(d.access || []);
+      }
+    } catch { /* ignore */ }
+    setWsAccessLoaded(true);
+  }
+
+  async function loadWsPricing(waId: string) {
+    try {
+      const res = await fetch(`/api/wholesale-buyers/${waId}/pricing`);
+      if (res.ok) {
+        const d = await res.json();
+        setWsPricing(d.pricing || []);
+      }
+    } catch { /* ignore */ }
+    setWsPricingLoaded(true);
+  }
+
+  async function loadWsProducts() {
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const d = await res.json();
+        setWsProducts((d.products || []).map((p: { id: string; name: string; product_variants?: { id: string; unit: string | null; wholesale_price: number | null }[] }) => ({
+          id: p.id,
+          name: p.name,
+          product_variants: (p.product_variants || []).map((v: { id: string; unit: string | null; wholesale_price: number | null }) => ({
+            id: v.id,
+            unit: v.unit,
+            wholesale_price: v.wholesale_price,
+          })),
+        })));
+      }
+    } catch { /* ignore */ }
+    setWsProductsLoaded(true);
+  }
+
   useEffect(() => {
     loadContact();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
+
+  // Load wholesale tab data on first tab switch
+  useEffect(() => {
+    if (activeDetailTab !== "wholesale" || !data?.wholesaleAccess?.id) return;
+    const waId = data.wholesaleAccess.id;
+    if (!wsAddrLoaded) loadWsAddresses(waId);
+    if (!wsAccessLoaded) loadWsAccess(waId);
+    if (!wsPricingLoaded) loadWsPricing(waId);
+    if (!wsProductsLoaded) loadWsProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDetailTab, data?.wholesaleAccess?.id]);
 
   async function handleSave() {
     setSaving(true);
@@ -507,6 +643,142 @@ export function ContactDetail({ contactId }: { contactId: string }) {
     } finally {
       setSendingEmail(false);
     }
+  }
+
+  // ─── Wholesale tab handlers ───
+
+  async function handleWsSaveAccount() {
+    if (!data?.wholesaleAccess?.id) return;
+    setWsSaving(true);
+    try {
+      await fetch(`/api/wholesale-buyers/${data.wholesaleAccess.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          paymentTerms: wsForm.payment_terms || undefined,
+          price_tier: wsForm.price_tier,
+          credit_limit: wsForm.credit_limit ? parseFloat(wsForm.credit_limit) : null,
+        }),
+      });
+      loadContact();
+    } catch { /* ignore */ }
+    setWsSaving(false);
+  }
+
+  async function handleWsToggleStatus() {
+    if (!data?.wholesaleAccess?.id) return;
+    const newAction = data.wholesaleAccess.status === "approved" ? "suspend" : "reactivate";
+    try {
+      await fetch(`/api/wholesale-buyers/${data.wholesaleAccess.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: newAction }),
+      });
+      loadContact();
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsSaveAddr() {
+    if (!data?.wholesaleAccess?.id) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      if (wsEditingAddr) {
+        await fetch(`/api/wholesale-buyers/${waId}/addresses/${wsEditingAddr}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(wsAddrForm),
+        });
+      } else {
+        await fetch(`/api/wholesale-buyers/${waId}/addresses`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(wsAddrForm),
+        });
+      }
+      loadWsAddresses(waId);
+      setWsShowAddrForm(false);
+      setWsEditingAddr(null);
+      setWsAddrForm({ label: "", address_line_1: "", address_line_2: "", city: "", county: "", postcode: "", country: "GB", is_default: false });
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsDeleteAddr(addrId: string) {
+    if (!data?.wholesaleAccess?.id) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/addresses/${addrId}`, { method: "DELETE" });
+      loadWsAddresses(waId);
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsRemoveAccess(accessId: string) {
+    if (!data?.wholesaleAccess?.id) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/access?accessId=${accessId}`, { method: "DELETE" });
+      loadWsAccess(waId);
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsAddAccess() {
+    if (!data?.wholesaleAccess?.id || !wsAddAccessProductId) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: wsAddAccessProductId }),
+      });
+      loadWsAccess(waId);
+      setWsShowAddAccess(false);
+      setWsAddAccessProductId("");
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsAddPricing() {
+    if (!data?.wholesaleAccess?.id || !wsAddPricingProductId || !wsAddPricingVariantId || !wsAddPricingPrice) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/pricing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: wsAddPricingProductId,
+          variant_id: wsAddPricingVariantId,
+          custom_price: wsAddPricingPrice,
+        }),
+      });
+      loadWsPricing(waId);
+      setWsShowAddPricing(false);
+      setWsAddPricingProductId("");
+      setWsAddPricingVariantId("");
+      setWsAddPricingPrice("");
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsUpdatePricing(pricingId: string) {
+    if (!data?.wholesaleAccess?.id || !wsEditPriceValue) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/pricing`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pricingId, custom_price: wsEditPriceValue }),
+      });
+      loadWsPricing(waId);
+      setWsEditPricingId(null);
+      setWsEditPriceValue("");
+    } catch { /* ignore */ }
+  }
+
+  async function handleWsDeletePricing(pricingId: string) {
+    if (!data?.wholesaleAccess?.id) return;
+    const waId = data.wholesaleAccess.id;
+    try {
+      await fetch(`/api/wholesale-buyers/${waId}/pricing?pricingId=${pricingId}`, { method: "DELETE" });
+      loadWsPricing(waId);
+    } catch { /* ignore */ }
   }
 
   // ─── Render ───
@@ -732,6 +1004,9 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 { id: "orders", label: "Orders", icon: ShoppingBag },
                 ...((contact.types.includes("lead") || contact.types.includes("wholesale"))
                   ? [{ id: "deals" as const, label: "Deals", icon: Funnel }]
+                  : []),
+                ...(wholesaleAccess
+                  ? [{ id: "wholesale" as const, label: "Wholesale", icon: Package }]
                   : []),
               ] as const
             ).map((tab) => {
@@ -1165,6 +1440,393 @@ export function ContactDetail({ contactId }: { contactId: string }) {
               timeline={deduped}
               isReadOnly={false}
             />
+          )}
+
+          {/* Wholesale Tab */}
+          {activeDetailTab === "wholesale" && wholesaleAccess && (
+            <div className="space-y-6">
+              {/* Account Settings */}
+              <div className="bg-white rounded-xl border border-slate-200">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-slate-400" />
+                    Account Settings
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        wholesaleAccess.status === "approved"
+                          ? "bg-green-50 text-green-700"
+                          : wholesaleAccess.status === "suspended"
+                            ? "bg-red-50 text-red-600"
+                            : "bg-yellow-50 text-yellow-700"
+                      }`}
+                    >
+                      {wholesaleAccess.status === "approved" ? "Active" : wholesaleAccess.status === "suspended" ? "Suspended" : wholesaleAccess.status}
+                    </span>
+                    {(wholesaleAccess.status === "approved" || wholesaleAccess.status === "suspended") && (
+                      <button
+                        onClick={handleWsToggleStatus}
+                        className={`text-xs font-medium px-2.5 py-1 rounded-md ${
+                          wholesaleAccess.status === "approved"
+                            ? "text-red-600 hover:bg-red-50 border border-red-200"
+                            : "text-brand-600 hover:bg-brand-50 border border-brand-200"
+                        }`}
+                      >
+                        {wholesaleAccess.status === "approved" ? "Suspend" : "Reinstate"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Payment Terms</label>
+                      <select
+                        value={wsForm.payment_terms}
+                        onChange={(e) => setWsForm((f) => ({ ...f, payment_terms: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value="">Select...</option>
+                        <option value="net7">Net 7</option>
+                        <option value="net14">Net 14</option>
+                        <option value="net30">Net 30</option>
+                        <option value="prepaid">Prepaid</option>
+                        <option value="cod">Cash on Delivery</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Price Tier</label>
+                      <select
+                        value={wsForm.price_tier}
+                        onChange={(e) => setWsForm((f) => ({ ...f, price_tier: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      >
+                        <option value="">Standard</option>
+                        <option value="preferred">Preferred</option>
+                        <option value="vip">VIP</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Credit Limit (£)</label>
+                      <input
+                        type="number"
+                        value={wsForm.credit_limit}
+                        onChange={(e) => setWsForm((f) => ({ ...f, credit_limit: e.target.value }))}
+                        placeholder="No limit"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleWsSaveAccount}
+                      disabled={wsSaving}
+                      className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {wsSaving ? "Saving..." : "Save Account Settings"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Addresses */}
+              <div className="bg-white rounded-xl border border-slate-200">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-slate-400" />
+                    Delivery Addresses
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setWsAddrForm({ label: "", address_line_1: "", address_line_2: "", city: "", county: "", postcode: "", country: "GB", is_default: false });
+                      setWsEditingAddr(null);
+                      setWsShowAddrForm(true);
+                    }}
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Address
+                  </button>
+                </div>
+                <div className="p-4">
+                  {!wsAddrLoaded ? (
+                    <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-slate-300 animate-spin" /></div>
+                  ) : wsAddresses.length === 0 && !wsShowAddrForm ? (
+                    <p className="text-sm text-slate-400 text-center py-4">No delivery addresses saved</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {wsAddresses.map((addr) => (
+                        <div key={addr.id} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {addr.label && <span className="text-sm font-medium text-slate-900">{addr.label}</span>}
+                              {addr.is_default && <span className="text-xs bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded font-medium">Default</span>}
+                            </div>
+                            <p className="text-sm text-slate-600 mt-0.5">
+                              {[addr.address_line_1, addr.address_line_2, addr.city, addr.county, addr.postcode, addr.country].filter(Boolean).join(", ")}
+                            </p>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => {
+                                setWsAddrForm({
+                                  label: addr.label || "",
+                                  address_line_1: addr.address_line_1,
+                                  address_line_2: addr.address_line_2 || "",
+                                  city: addr.city,
+                                  county: addr.county || "",
+                                  postcode: addr.postcode,
+                                  country: addr.country,
+                                  is_default: addr.is_default,
+                                });
+                                setWsEditingAddr(addr.id);
+                                setWsShowAddrForm(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-slate-600"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleWsDeleteAddr(addr.id)} className="p-1.5 text-slate-400 hover:text-red-500">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {wsShowAddrForm && (
+                    <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                      <h4 className="text-sm font-medium text-slate-900">{wsEditingAddr ? "Edit Address" : "Add Address"}</h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Label</label>
+                          <input type="text" value={wsAddrForm.label} onChange={(e) => setWsAddrForm((f) => ({ ...f, label: e.target.value }))} placeholder="e.g. Main warehouse" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Address Line 1 *</label>
+                          <input type="text" value={wsAddrForm.address_line_1} onChange={(e) => setWsAddrForm((f) => ({ ...f, address_line_1: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Address Line 2</label>
+                          <input type="text" value={wsAddrForm.address_line_2} onChange={(e) => setWsAddrForm((f) => ({ ...f, address_line_2: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">City *</label>
+                          <input type="text" value={wsAddrForm.city} onChange={(e) => setWsAddrForm((f) => ({ ...f, city: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">County</label>
+                          <input type="text" value={wsAddrForm.county} onChange={(e) => setWsAddrForm((f) => ({ ...f, county: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Postcode *</label>
+                          <input type="text" value={wsAddrForm.postcode} onChange={(e) => setWsAddrForm((f) => ({ ...f, postcode: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Country</label>
+                          <input type="text" value={wsAddrForm.country} onChange={(e) => setWsAddrForm((f) => ({ ...f, country: e.target.value }))} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-slate-600">
+                        <input type="checkbox" checked={wsAddrForm.is_default} onChange={(e) => setWsAddrForm((f) => ({ ...f, is_default: e.target.checked }))} className="rounded border-slate-300" />
+                        Set as default address
+                      </label>
+                      <div className="flex gap-2">
+                        <button onClick={handleWsSaveAddr} disabled={!wsAddrForm.address_line_1 || !wsAddrForm.city || !wsAddrForm.postcode} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+                          {wsEditingAddr ? "Update" : "Add"}
+                        </button>
+                        <button onClick={() => { setWsShowAddrForm(false); setWsEditingAddr(null); }} className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Custom Pricing */}
+              <div className="bg-white rounded-xl border border-slate-200">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-slate-400" />
+                    Custom Pricing
+                  </h2>
+                  <button
+                    onClick={() => { setWsShowAddPricing(true); setWsAddPricingProductId(""); setWsAddPricingVariantId(""); setWsAddPricingPrice(""); }}
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Custom Price
+                  </button>
+                </div>
+                <div className="p-4">
+                  {!wsPricingLoaded ? (
+                    <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-slate-300 animate-spin" /></div>
+                  ) : wsPricing.length === 0 && !wsShowAddPricing ? (
+                    <p className="text-sm text-slate-400 text-center py-4">No custom pricing set. This buyer uses standard wholesale prices.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {wsPricing.map((row) => (
+                        <div key={row.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <div className="text-sm text-slate-700">
+                            <span className="font-medium">{row.product_name}</span>
+                            <span className="text-slate-400 mx-1.5">—</span>
+                            <span>{row.variant_label}</span>
+                            <span className="text-slate-400 mx-1.5">—</span>
+                            <span className="text-slate-400">Standard: {row.standard_price != null ? formatCurrency(row.standard_price) : "—"}</span>
+                            <span className="text-slate-400 mx-1.5">—</span>
+                            {wsEditPricingId === row.id ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span>Custom: £</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={wsEditPriceValue}
+                                  onChange={(e) => setWsEditPriceValue(e.target.value)}
+                                  className="w-20 px-2 py-1 border border-slate-300 rounded text-sm"
+                                  autoFocus
+                                />
+                                <button onClick={() => handleWsUpdatePricing(row.id)} className="text-brand-600 hover:text-brand-700 text-xs font-medium">Save</button>
+                                <button onClick={() => setWsEditPricingId(null)} className="text-slate-400 hover:text-slate-600 text-xs">Cancel</button>
+                              </span>
+                            ) : (
+                              <span className="font-semibold text-brand-700">Custom: {formatCurrency(row.custom_price)}</span>
+                            )}
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => { setWsEditPricingId(row.id); setWsEditPriceValue(String(row.custom_price)); }}
+                              className="p-1.5 text-slate-400 hover:text-slate-600"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleWsDeletePricing(row.id)} className="p-1.5 text-slate-400 hover:text-red-500">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {wsShowAddPricing && (
+                    <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                      <h4 className="text-sm font-medium text-slate-900">Add Custom Price</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Product</label>
+                          <select
+                            value={wsAddPricingProductId}
+                            onChange={(e) => { setWsAddPricingProductId(e.target.value); setWsAddPricingVariantId(""); }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          >
+                            <option value="">Select product...</option>
+                            {wsProducts.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Variant</label>
+                          <select
+                            value={wsAddPricingVariantId}
+                            onChange={(e) => setWsAddPricingVariantId(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                            disabled={!wsAddPricingProductId}
+                          >
+                            <option value="">Select variant...</option>
+                            {wsProducts.find((p) => p.id === wsAddPricingProductId)?.product_variants.map((v) => (
+                              <option key={v.id} value={v.id}>{v.unit || "Default"} — {v.wholesale_price != null ? formatCurrency(v.wholesale_price) : "—"}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Custom Price (£)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={wsAddPricingPrice}
+                            onChange={(e) => setWsAddPricingPrice(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={handleWsAddPricing} disabled={!wsAddPricingProductId || !wsAddPricingVariantId || !wsAddPricingPrice} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+                          Add
+                        </button>
+                        <button onClick={() => setWsShowAddPricing(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Assigned Products */}
+              <div className="bg-white rounded-xl border border-slate-200">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-slate-400" />
+                    Assigned Products
+                  </h2>
+                  <button
+                    onClick={() => { setWsShowAddAccess(true); setWsAddAccessProductId(""); }}
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Product
+                  </button>
+                </div>
+                <div className="p-4">
+                  {!wsAccessLoaded ? (
+                    <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-slate-300 animate-spin" /></div>
+                  ) : wsAccess.length === 0 && !wsShowAddAccess ? (
+                    <p className="text-sm text-slate-400 text-center py-4">No product restrictions. This buyer can see all wholesale products.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {wsAccess.map((row) => (
+                        <div key={row.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                          <span className="text-sm font-medium text-slate-700">{row.product_name}</span>
+                          <button onClick={() => handleWsRemoveAccess(row.id)} className="p-1.5 text-slate-400 hover:text-red-500">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {wsAccess.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-2">Products listed above are exclusively visible to this buyer. Products with no access restrictions are visible to all buyers.</p>
+                  )}
+                  {wsShowAddAccess && (
+                    <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+                      <h4 className="text-sm font-medium text-slate-900">Add Product Access</h4>
+                      <select
+                        value={wsAddAccessProductId}
+                        onChange={(e) => setWsAddAccessProductId(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      >
+                        <option value="">Select product...</option>
+                        {wsProducts.filter((p) => !wsAccess.some((a) => a.product_id === p.id)).map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <button onClick={handleWsAddAccess} disabled={!wsAddAccessProductId} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+                          Add
+                        </button>
+                        <button onClick={() => setWsShowAddAccess(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

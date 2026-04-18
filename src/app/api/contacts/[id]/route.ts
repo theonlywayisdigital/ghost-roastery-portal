@@ -83,7 +83,7 @@ export async function GET(
   if ((contact.types as string[])?.includes("wholesale") && contact.user_id) {
     const { data: waData } = await supabase
       .from("wholesale_access")
-      .select("status, price_tier, payment_terms, credit_limit, approved_at, created_at")
+      .select("id, status, price_tier, payment_terms, credit_limit, approved_at, created_at")
       .eq("roaster_id", roaster.id)
       .eq("user_id", contact.user_id)
       .single();
@@ -97,7 +97,7 @@ export async function GET(
     if (matchedUser) {
       const { data: waData } = await supabase
         .from("wholesale_access")
-        .select("status, price_tier, payment_terms, credit_limit, approved_at, created_at")
+        .select("id, status, price_tier, payment_terms, credit_limit, approved_at, created_at")
         .eq("roaster_id", roaster.id)
         .eq("user_id", matchedUser.id)
         .single();

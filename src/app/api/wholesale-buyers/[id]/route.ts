@@ -25,10 +25,12 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
-  const { action, paymentTerms, reason } = body as {
+  const { action, paymentTerms, reason, price_tier, credit_limit } = body as {
     action: "approve" | "reject" | "suspend" | "reactivate" | "update";
     paymentTerms?: string;
     reason?: string;
+    price_tier?: string;
+    credit_limit?: number | null;
   };
 
   const supabase = createServerClient();
@@ -391,6 +393,8 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       };
       if (paymentTerms) updates.payment_terms = paymentTerms;
+      if (price_tier !== undefined) updates.price_tier = price_tier || null;
+      if (credit_limit !== undefined) updates.credit_limit = credit_limit;
 
       const { error: updateError } = await supabase
         .from("wholesale_access")

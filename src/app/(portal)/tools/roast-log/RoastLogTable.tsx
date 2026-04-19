@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Star, Flame } from "@/components/icons";
+import { Star, Flame, Upload } from "@/components/icons";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
+import { RoastLogImportModal } from "@/components/inventory/RoastLogImportModal";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -65,6 +66,7 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const banner = useUpgradeBanner("roastLogsPerMonth");
   const [showRoastModal, setShowRoastModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...initial];
@@ -190,13 +192,22 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
           <h1 className="text-2xl font-bold text-slate-900">Roast Log</h1>
           <p className="text-slate-500 mt-1">Record and track every roast batch.</p>
         </div>
-        <button
-          onClick={() => setShowRoastModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-        >
-          <Flame className="w-4 h-4" />
-          Log Roast
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-300 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </button>
+          <button
+            onClick={() => setShowRoastModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Flame className="w-4 h-4" />
+            Log Roast
+          </button>
+        </div>
       </div>
 
       {banner.show && (
@@ -234,6 +245,12 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
         open={showRoastModal}
         onClose={() => setShowRoastModal(false)}
         onSuccess={() => { setShowRoastModal(false); router.refresh(); }}
+      />
+
+      <RoastLogImportModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImported={() => router.refresh()}
       />
     </div>
   );

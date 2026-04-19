@@ -217,19 +217,60 @@ function parseTimeToSeconds(val: string | undefined | null): number | null {
 function parseDateToISO(val: string | undefined | null): string | null {
   if (!val) return null;
   const trimmed = val.trim();
+  if (!trimmed) return null;
 
-  // Try direct ISO parse
-  const d = new Date(trimmed);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split("T")[0];
+  // 1. Excel serial date number (e.g. 46132 = a date in 2026)
+  //    Serial dates are typically 5-digit numbers between ~1 and ~60000
+  const asNum = Number(trimmed);
+  if (!isNaN(asNum) && asNum > 1 && asNum < 100000 && /^\d+(\.\d+)?$/.test(trimmed)) {
+    // Excel epoch is 1899-12-30, but has the Lotus 1-2-3 leap year bug (day 60 = Feb 29 1900)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const ms = excelEpoch.getTime() + asNum * 86400000;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().split("T")[0];
+    }
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
+  // 2. Cropster format: "DD/MM/YYYY - HH:mm" (strip time suffix before parsing)
+  const cropsterMatch = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\s*-\s*\d{1,2}:\d{2}/);
+  if (cropsterMatch) {
+    const [, day, month, year] = cropsterMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // 3. DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (no time suffix)
   const dmyMatch = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
   if (dmyMatch) {
     const [, day, month, year] = dmyMatch;
     const parsed = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`);
     if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
+  }
+
+  // 4. YYYY-MM-DD (ISO format)
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    const parsed = new Date(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
+  }
+
+  // 5. MM/DD/YYYY (US format — only if month <= 12 and day > 12 to disambiguate)
+  const mdyMatch = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (mdyMatch) {
+    const [, part1, part2, year] = mdyMatch;
+    const p1 = parseInt(part1), p2 = parseInt(part2);
+    // If part1 <= 12 and part2 > 12, treat as MM/DD/YYYY
+    if (p1 <= 12 && p2 > 12) {
+      const parsed = new Date(`${year}-${part1.padStart(2, "0")}-${part2.padStart(2, "0")}`);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0];
+    }
+  }
+
+  // 6. Fallback: try native Date constructor (handles various formats)
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
   }
 
   return null;
@@ -300,6 +341,9 @@ export function parseRoastLogRows(
     return { logs, errors };
   }
 
+  // Track last valid date for carry-forward (some exports leave date blank on repeat rows)
+  let lastValidDate: string | null = null;
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const rowNum = i + 2; // 1-indexed + header row
@@ -310,11 +354,16 @@ export function parseRoastLogRows(
       continue;
     }
 
-    const dateStr = parseDateToISO(getMapped(row, mapping, "roast_date"));
+    let dateStr = parseDateToISO(getMapped(row, mapping, "roast_date"));
+    // Carry-forward: if date cell is empty/invalid, use last valid date
+    if (!dateStr && lastValidDate) {
+      dateStr = lastValidDate;
+    }
     if (!dateStr) {
       errors.push(`Row ${rowNum}: Invalid or missing roast date, skipped`);
       continue;
     }
+    lastValidDate = dateStr;
 
     const greenKg = parseWeightKg(getMapped(row, mapping, "green_weight_kg"));
     if (!greenKg || greenKg <= 0) {

@@ -117,9 +117,9 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     fetch("/api/tools/roasted-stock")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.roastedStocks) {
+        if (d?.roastedStock) {
           setRoastedStocks(
-            (d.roastedStocks as RoastedStock[])
+            (d.roastedStock as RoastedStock[])
               .filter((s: RoastedStock & { is_active?: boolean }) => s.is_active !== false)
               .map((s: RoastedStock) => ({ id: s.id, name: s.name, green_bean_id: s.green_bean_id }))
           );
@@ -388,6 +388,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
   const matchedCount = uniqueProfiles.filter((p) => profileMatches[p]).length;
   const skippedLogCount = parsedLogs.filter((l) => profileMatches[l.roast_profile] === null).length;
   const importableCount = parsedLogs.filter((l) => profileMatches[l.roast_profile]).length;
+
 
   if (!open) return null;
 

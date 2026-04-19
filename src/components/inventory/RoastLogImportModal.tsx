@@ -57,8 +57,10 @@ interface ProfileMatch {
 interface UnmatchedPlan {
   action: "create" | "skip";
   profileName: string;       // editable new profile name
+  weightLossPercent: number | null; // avg weight loss across rows for this profile
   greenBeanName: string | null; // from green_lots CSV value
   existingGreenBeanId: string | null; // manual selection of existing green bean
+  createNewGreenBean: boolean; // true = create new green bean instead of linking existing
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -290,6 +292,14 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
           const logsForProfile = logs.filter((l) => l.roast_profile === profileName);
           const greenLotsValue = logsForProfile.find((l) => l.green_lots)?.green_lots || null;
 
+          // Compute average weight loss %
+          const lossValues = logsForProfile
+            .filter((l) => l.green_weight_kg > 0 && l.roasted_weight_kg > 0)
+            .map((l) => ((l.green_weight_kg - l.roasted_weight_kg) / l.green_weight_kg) * 100);
+          const avgLoss = lossValues.length > 0
+            ? Math.round((lossValues.reduce((a, b) => a + b, 0) / lossValues.length) * 10) / 10
+            : null;
+
           // Try to match green_lots to an existing green bean
           let existingGreenBeanId: string | null = null;
           if (greenLotsValue) {
@@ -302,8 +312,10 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
           plans[profileName] = {
             action: "create",
             profileName,
-            greenBeanName: existingGreenBeanId ? null : greenLotsValue,
+            weightLossPercent: avgLoss,
+            greenBeanName: greenLotsValue,
             existingGreenBeanId,
+            createNewGreenBean: !existingGreenBeanId && !!greenLotsValue,
           };
         }
       }
@@ -338,14 +350,8 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
         .catch(() => {});
     }
 
-    const matches = autoMatchProfiles(logs);
-    const hasUnmatched = Object.values(matches).some((m) => m === null);
-
-    if (hasUnmatched) {
-      setStep("match");
-    } else {
-      setStep("preview");
-    }
+    autoMatchProfiles(logs);
+    setStep("match");
   }, [parseData, autoMatchProfiles, saveMapping, saveMappingName, headers, mapping]);
 
   const goFromMatchStep = useCallback(async () => {
@@ -354,7 +360,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
       .filter(([, plan]) => plan.action === "create")
       .map(([, plan]) => ({
         profileName: plan.profileName,
-        greenBeanName: plan.greenBeanName,
+        greenBeanName: plan.createNewGreenBean ? plan.greenBeanName : null,
         existingGreenBeanId: plan.existingGreenBeanId,
         existingRoastedStockId: null,
       }));
@@ -512,7 +518,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
   const newGreenBeanNames = Array.from(
     new Set(
       Object.values(unmatchedPlans)
-        .filter((p) => p.action === "create" && p.greenBeanName && !p.existingGreenBeanId)
+        .filter((p) => p.action === "create" && p.createNewGreenBean && p.greenBeanName)
         .map((p) => p.greenBeanName!.toLowerCase().trim())
     )
   );
@@ -691,7 +697,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Match Roast Profiles</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Match or create roast profiles. Unmatched profiles can be auto-created with linked green beans.
+                  Match each profile to an existing roasted stock, create a new one, or skip.
                 </p>
               </div>
 
@@ -701,267 +707,260 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                 </div>
               )}
 
-              {/* Matched profiles section */}
-              {matchedProfiles.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Matched ({matchedProfiles.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {matchedProfiles.map((profileName) => {
-                      const match = profileMatches[profileName]!;
-                      const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
-                      const stockName = roastedStocks.find((s) => s.id === match.roasted_stock_id)?.name || "—";
+              <div className="space-y-2">
+                {uniqueProfiles.map((profileName) => {
+                  const match = profileMatches[profileName];
+                  const plan = unmatchedPlans[profileName];
+                  const isMatched = match !== null && match !== undefined;
+                  const isCreate = !isMatched && plan?.action === "create";
+                  const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
 
-                      return (
-                        <div key={profileName} className="p-3 rounded-lg border border-green-200 bg-green-50/50">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-medium text-slate-900">{profileName}</span>
-                              <span className="text-xs text-slate-400">({rowCount} rows)</span>
-                            </div>
+                  // Determine the dropdown value
+                  let dropdownValue = "_create";
+                  if (isMatched) {
+                    dropdownValue = match.roasted_stock_id;
+                  } else if (plan?.action === "skip") {
+                    dropdownValue = "_skip";
+                  }
+
+                  const handleDropdownChange = (val: string) => {
+                    if (val === "_create") {
+                      // Switch to create mode
+                      setProfileMatches((prev) => ({ ...prev, [profileName]: null }));
+                      if (!unmatchedPlans[profileName]) {
+                        // Build plan from CSV data
+                        const logsForProfile = parsedLogs.filter((l) => l.roast_profile === profileName);
+                        const greenLotsValue = logsForProfile.find((l) => l.green_lots)?.green_lots || null;
+                        const lossValues = logsForProfile
+                          .filter((l) => l.green_weight_kg > 0 && l.roasted_weight_kg > 0)
+                          .map((l) => ((l.green_weight_kg - l.roasted_weight_kg) / l.green_weight_kg) * 100);
+                        const avgLoss = lossValues.length > 0
+                          ? Math.round((lossValues.reduce((a, b) => a + b, 0) / lossValues.length) * 10) / 10
+                          : null;
+                        let existingGreenBeanId: string | null = null;
+                        if (greenLotsValue) {
+                          const beanMatch = greenBeans.find(
+                            (b) => b.name.toLowerCase().trim() === greenLotsValue.toLowerCase().trim()
+                          );
+                          if (beanMatch) existingGreenBeanId = beanMatch.id;
+                        }
+                        setUnmatchedPlans((prev) => ({
+                          ...prev,
+                          [profileName]: {
+                            action: "create",
+                            profileName,
+                            weightLossPercent: avgLoss,
+                            greenBeanName: greenLotsValue,
+                            existingGreenBeanId,
+                            createNewGreenBean: !existingGreenBeanId && !!greenLotsValue,
+                          },
+                        }));
+                      } else {
+                        setUnmatchedPlans((prev) => ({
+                          ...prev,
+                          [profileName]: { ...prev[profileName], action: "create" },
+                        }));
+                      }
+                    } else if (val === "_skip") {
+                      setProfileMatches((prev) => ({ ...prev, [profileName]: null }));
+                      setUnmatchedPlans((prev) => ({
+                        ...prev,
+                        [profileName]: {
+                          ...(prev[profileName] || {
+                            profileName,
+                            weightLossPercent: null,
+                            greenBeanName: null,
+                            existingGreenBeanId: null,
+                            createNewGreenBean: false,
+                          }),
+                          action: "skip",
+                        },
+                      }));
+                    } else {
+                      // Match to existing stock
+                      const stock = roastedStocks.find((s) => s.id === val);
+                      setProfileMatches((prev) => ({
+                        ...prev,
+                        [profileName]: {
+                          roasted_stock_id: val,
+                          green_bean_id: stock?.green_bean_id || null,
+                        },
+                      }));
+                      // Remove from unmatched plans
+                      setUnmatchedPlans((prev) => {
+                        const updated = { ...prev };
+                        delete updated[profileName];
+                        return updated;
+                      });
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={profileName}
+                      className={`p-3 rounded-lg border ${
+                        isMatched
+                          ? "border-green-200 bg-green-50/50"
+                          : isCreate
+                            ? "border-blue-200 bg-blue-50/30"
+                            : "border-slate-200 bg-slate-50/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {isMatched ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : isCreate ? (
+                            <Plus className="w-4 h-4 text-blue-600" />
+                          ) : (
+                            <X className="w-4 h-4 text-slate-400" />
+                          )}
+                          <span className="text-sm font-medium text-slate-900">{profileName}</span>
+                          <span className="text-xs text-slate-400">({rowCount} rows)</span>
+                        </div>
+                      </div>
+
+                      <select
+                        value={dropdownValue}
+                        onChange={(e) => handleDropdownChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                      >
+                        <option value="_create">Create new profile</option>
+                        <option value="_skip">Skip rows with this profile</option>
+                        {roastedStocks.length > 0 && (
+                          <option disabled className="text-slate-400">───── Existing profiles ─────</option>
+                        )}
+                        {roastedStocks.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+
+                      {/* Inline create form */}
+                      {isCreate && plan && (
+                        <div className="mt-3 space-y-2 pl-2 border-l-2 border-blue-200">
+                          {/* Profile name */}
+                          <div>
+                            <label className="text-xs text-slate-500 mb-1 block">Profile Name</label>
+                            <input
+                              type="text"
+                              value={plan.profileName}
+                              onChange={(e) => {
+                                setUnmatchedPlans((prev) => ({
+                                  ...prev,
+                                  [profileName]: { ...prev[profileName], profileName: e.target.value },
+                                }));
+                              }}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                            />
                           </div>
-                          <select
-                            value={match.roasted_stock_id}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "_skip") {
-                                setProfileMatches((prev) => ({ ...prev, [profileName]: null }));
+
+                          {/* Weight loss % */}
+                          <div>
+                            <label className="text-xs text-slate-500 mb-1 block">
+                              Avg Weight Loss %
+                              {plan.weightLossPercent !== null && (
+                                <span className="text-slate-400 ml-1">(from import data)</span>
+                              )}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={plan.weightLossPercent ?? ""}
+                              placeholder="e.g. 14.5"
+                              onChange={(e) => {
+                                const val = e.target.value;
                                 setUnmatchedPlans((prev) => ({
                                   ...prev,
                                   [profileName]: {
-                                    action: "skip",
-                                    profileName,
-                                    greenBeanName: null,
-                                    existingGreenBeanId: null,
+                                    ...prev[profileName],
+                                    weightLossPercent: val === "" ? null : parseFloat(val),
                                   },
                                 }));
-                              } else {
-                                const stock = roastedStocks.find((s) => s.id === val);
-                                setProfileMatches((prev) => ({
-                                  ...prev,
-                                  [profileName]: {
-                                    roasted_stock_id: val,
-                                    green_bean_id: stock?.green_bean_id || null,
-                                  },
-                                }));
-                              }
-                            }}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                          >
-                            <option value="_skip">Skip rows with this profile</option>
-                            {roastedStocks.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Unmatched profiles section */}
-              {unmatchedProfileNames.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                    Unmatched ({unmatchedProfileNames.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {unmatchedProfileNames.map((profileName) => {
-                      const plan = unmatchedPlans[profileName];
-                      if (!plan) return null;
-                      const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
-
-                      return (
-                        <div key={profileName} className="p-3 rounded-lg border border-amber-200 bg-amber-50/50">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <AlertTriangle className="w-4 h-4 text-amber-500" />
-                              <span className="text-sm font-medium text-slate-900">{profileName}</span>
-                              <span className="text-xs text-slate-400">({rowCount} rows)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => {
-                                  setUnmatchedPlans((prev) => ({
-                                    ...prev,
-                                    [profileName]: { ...prev[profileName], action: "create" },
-                                  }));
-                                }}
-                                className={`px-2 py-1 text-xs rounded-l-md border ${
-                                  plan.action === "create"
-                                    ? "bg-brand-600 text-white border-brand-600"
-                                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
-                                }`}
-                              >
-                                Create
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setUnmatchedPlans((prev) => ({
-                                    ...prev,
-                                    [profileName]: { ...prev[profileName], action: "skip" },
-                                  }));
-                                }}
-                                className={`px-2 py-1 text-xs rounded-r-md border ${
-                                  plan.action === "skip"
-                                    ? "bg-slate-600 text-white border-slate-600"
-                                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
-                                }`}
-                              >
-                                Skip
-                              </button>
-                            </div>
+                              }}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                            />
                           </div>
 
-                          {plan.action === "create" && (
-                            <div className="space-y-2">
-                              {/* Profile name input */}
-                              <div>
-                                <label className="text-xs text-slate-500 mb-1 block">New Profile Name</label>
+                          {/* Green bean */}
+                          <div>
+                            <label className="text-xs text-slate-500 mb-1 block">Green Bean</label>
+                            <select
+                              value={
+                                plan.createNewGreenBean
+                                  ? "_create_new"
+                                  : plan.existingGreenBeanId || "_none"
+                              }
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === "_create_new") {
+                                  setUnmatchedPlans((prev) => ({
+                                    ...prev,
+                                    [profileName]: {
+                                      ...prev[profileName],
+                                      createNewGreenBean: true,
+                                      existingGreenBeanId: null,
+                                    },
+                                  }));
+                                } else if (val === "_none") {
+                                  setUnmatchedPlans((prev) => ({
+                                    ...prev,
+                                    [profileName]: {
+                                      ...prev[profileName],
+                                      createNewGreenBean: false,
+                                      existingGreenBeanId: null,
+                                    },
+                                  }));
+                                } else {
+                                  setUnmatchedPlans((prev) => ({
+                                    ...prev,
+                                    [profileName]: {
+                                      ...prev[profileName],
+                                      createNewGreenBean: false,
+                                      existingGreenBeanId: val,
+                                    },
+                                  }));
+                                }
+                              }}
+                              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                            >
+                              <option value="_none">Don&apos;t link a green bean</option>
+                              {greenBeans.map((b) => (
+                                <option key={b.id} value={b.id}>{b.name}</option>
+                              ))}
+                              <option disabled className="text-slate-400">─────────────────</option>
+                              <option value="_create_new">Create new green bean</option>
+                            </select>
+
+                            {/* New green bean name input */}
+                            {plan.createNewGreenBean && (
+                              <div className="mt-1.5">
+                                <label className="text-xs text-slate-500 mb-1 block">New Green Bean Name</label>
                                 <input
                                   type="text"
-                                  value={plan.profileName}
+                                  value={plan.greenBeanName || ""}
+                                  placeholder="e.g. Ethiopia Yirgacheffe"
                                   onChange={(e) => {
                                     setUnmatchedPlans((prev) => ({
                                       ...prev,
-                                      [profileName]: { ...prev[profileName], profileName: e.target.value },
-                                    }));
-                                  }}
-                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                />
-                              </div>
-
-                              {/* Green bean link */}
-                              <div>
-                                <label className="text-xs text-slate-500 mb-1 block">Green Bean</label>
-                                {plan.existingGreenBeanId ? (
-                                  <div className="flex items-center gap-2">
-                                    <select
-                                      value={plan.existingGreenBeanId}
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        setUnmatchedPlans((prev) => ({
-                                          ...prev,
-                                          [profileName]: {
-                                            ...prev[profileName],
-                                            existingGreenBeanId: val === "_none" ? null : val,
-                                            greenBeanName: val === "_none" ? plan.greenBeanName : null,
-                                          },
-                                        }));
-                                      }}
-                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                    >
-                                      <option value="_none">Don&apos;t link a green bean</option>
-                                      {greenBeans.map((b) => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                ) : plan.greenBeanName ? (
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                                      <Plus className="w-3.5 h-3.5" />
-                                      <span>Will create: <strong>{plan.greenBeanName}</strong></span>
-                                    </div>
-                                    <select
-                                      value="_create"
-                                      onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val === "_none") {
-                                          setUnmatchedPlans((prev) => ({
-                                            ...prev,
-                                            [profileName]: {
-                                              ...prev[profileName],
-                                              greenBeanName: null,
-                                              existingGreenBeanId: null,
-                                            },
-                                          }));
-                                        } else if (val !== "_create") {
-                                          setUnmatchedPlans((prev) => ({
-                                            ...prev,
-                                            [profileName]: {
-                                              ...prev[profileName],
-                                              existingGreenBeanId: val,
-                                              greenBeanName: null,
-                                            },
-                                          }));
-                                        }
-                                      }}
-                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                    >
-                                      <option value="_create">Create new green bean from CSV</option>
-                                      <option value="_none">Don&apos;t link a green bean</option>
-                                      {greenBeans.map((b) => (
-                                        <option key={b.id} value={b.id}>{b.name} (existing)</option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                ) : (
-                                  <select
-                                    value={plan.existingGreenBeanId || "_none"}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setUnmatchedPlans((prev) => ({
-                                        ...prev,
-                                        [profileName]: {
-                                          ...prev[profileName],
-                                          existingGreenBeanId: val === "_none" ? null : val,
-                                        },
-                                      }));
-                                    }}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                                  >
-                                    <option value="_none">Don&apos;t link a green bean</option>
-                                    {greenBeans.map((b) => (
-                                      <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                  </select>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {plan.action === "skip" && (
-                            <div className="mt-1">
-                              <select
-                                value="_skip"
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val !== "_skip") {
-                                    const stock = roastedStocks.find((s) => s.id === val);
-                                    setProfileMatches((prev) => ({
-                                      ...prev,
                                       [profileName]: {
-                                        roasted_stock_id: val,
-                                        green_bean_id: stock?.green_bean_id || null,
+                                        ...prev[profileName],
+                                        greenBeanName: e.target.value || null,
                                       },
                                     }));
-                                    // Remove from unmatched plans
-                                    setUnmatchedPlans((prev) => {
-                                      const updated = { ...prev };
-                                      delete updated[profileName];
-                                      return updated;
-                                    });
-                                  }
-                                }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                              >
-                                <option value="_skip">Skip rows with this profile</option>
-                                {roastedStocks.map((s) => (
-                                  <option key={s.id} value={s.id}>Match to: {s.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
+                                  }}
+                                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Summary banner */}
               {(createCount > 0 || newGreenBeanNames.length > 0) && (

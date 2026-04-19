@@ -13,6 +13,7 @@ export type RoastLogField =
   | "green_weight_kg" // Required
   | "roasted_weight_kg" // Required
   | "batch_number"
+  | "green_lots"      // Green bean name (for auto-linking)
   | "duration"        // mm:ss
   | "charge_temp_c"
   | "drop_temp_c"
@@ -30,6 +31,7 @@ export const ROAST_LOG_FIELDS: FieldOption<RoastLogField>[] = [
   { value: "green_weight_kg", label: "Green Weight (kg)", group: "Required" },
   { value: "roasted_weight_kg", label: "Roasted Weight (kg)", group: "Required" },
   { value: "batch_number", label: "Batch Number", group: "Optional" },
+  { value: "green_lots", label: "Green Lots / Bean Name", group: "Optional" },
   { value: "duration", label: "Duration (mm:ss)", group: "Optional" },
   { value: "charge_temp_c", label: "Charge Temp (°C)", group: "Optional" },
   { value: "drop_temp_c", label: "Drop Temp (°C)", group: "Optional" },
@@ -59,7 +61,11 @@ const ROAST_LOG_ALIASES: Record<string, RoastLogField> = {
   "first crack": "first_crack",
   "machine": "machine",
   "notes": "notes",
-  "green lots": "roast_profile",
+  "green lots": "green_lots",
+  "green lot": "green_lots",
+  "green bean": "green_lots",
+  "green coffee": "green_lots",
+  "green bean name": "green_lots",
 
   // Generic aliases
   "profile": "roast_profile",
@@ -173,6 +179,7 @@ export interface NormalisedRoastLog {
   green_weight_kg: number;
   roasted_weight_kg: number;
   batch_number: string | null;
+  green_lots: string | null;
   duration_seconds: number | null;
   charge_temp_c: number | null;
   drop_temp_c: number | null;
@@ -383,6 +390,7 @@ export function parseRoastLogRows(
       green_weight_kg: greenKg,
       roasted_weight_kg: roastedKg,
       batch_number: getMapped(row, mapping, "batch_number") || null,
+      green_lots: getMapped(row, mapping, "green_lots") || null,
       duration_seconds: parseTimeToSeconds(getMapped(row, mapping, "duration")),
       charge_temp_c: parseNum(getMapped(row, mapping, "charge_temp_c")),
       drop_temp_c: parseNum(getMapped(row, mapping, "drop_temp_c")),

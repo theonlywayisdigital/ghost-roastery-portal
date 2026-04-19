@@ -92,61 +92,23 @@ export async function POST(request: Request) {
         continue;
       }
 
-      // Deduct green bean stock (same logic as single roast log POST)
-      if (profile.green_bean_id && greenKg > 0) {
-        const { data: bean } = await supabase
-          .from("green_beans")
-          .select("current_stock_kg")
-          .eq("id", profile.green_bean_id)
-          .eq("roaster_id", roasterId)
-          .single();
+      // Atomic stock update: only when BOTH green bean AND roasted stock exist
+      if (profile.green_bean_id && profile.roasted_stock_id && greenKg > 0 && roastedKg > 0) {
+        const { error: rpcError } = await supabase.rpc("import_roast_stock_transfer", {
+          p_roaster_id: roasterId,
+          p_green_bean_id: profile.green_bean_id,
+          p_roasted_stock_id: profile.roasted_stock_id,
+          p_green_qty_kg: greenKg,
+          p_roasted_qty_kg: roastedKg,
+          p_reference_id: roastLog.id,
+          p_batch_label: log.batch_number || null,
+        });
 
-        if (bean) {
-          const newStock = Math.max(0, (bean.current_stock_kg || 0) - greenKg);
-          await supabase
-            .from("green_beans")
-            .update({ current_stock_kg: newStock })
-            .eq("id", profile.green_bean_id)
-            .eq("roaster_id", roasterId);
-
-          await supabase.from("green_bean_movements").insert({
-            roaster_id: roasterId,
-            green_bean_id: profile.green_bean_id,
-            movement_type: "roast_deduction",
-            quantity_kg: -greenKg,
-            balance_after_kg: newStock,
-            reference_id: roastLog.id,
-            reference_type: "roast_log",
-            notes: `Import: Roast deduction for batch ${log.batch_number || roastLog.id}`,
-          });
+        if (rpcError) {
+          result.errors.push(`${rowLabel}: Stock update failed — ${rpcError.message}`);
+        } else {
+          updatedStockIds.add(profile.roasted_stock_id);
         }
-      }
-
-      // Add to roasted stock (same logic as single roast log POST)
-      if (profile.roasted_stock_id && roastedKg > 0) {
-        await supabase.rpc("replenish_roasted_stock", {
-          stock_id: profile.roasted_stock_id,
-          qty_kg: roastedKg,
-        });
-
-        const { data: updatedStock } = await supabase
-          .from("roasted_stock")
-          .select("current_stock_kg")
-          .eq("id", profile.roasted_stock_id)
-          .single();
-
-        await supabase.from("roasted_stock_movements").insert({
-          roaster_id: roasterId,
-          roasted_stock_id: profile.roasted_stock_id,
-          movement_type: "roast_addition",
-          quantity_kg: roastedKg,
-          balance_after_kg: updatedStock?.current_stock_kg || roastedKg,
-          reference_id: roastLog.id,
-          reference_type: "roast_log",
-          notes: `Import: Roast output from batch ${log.batch_number || roastLog.id}`,
-        });
-
-        updatedStockIds.add(profile.roasted_stock_id);
       }
 
       result.imported++;
@@ -157,7 +119,7 @@ export async function POST(request: Request) {
   }
 
   // Push stock updates to ecommerce channels (fire-and-forget)
-  for (const stockId of updatedStockIds) {
+  for (const stockId of Array.from(updatedStockIds)) {
     pushStockToChannels(roasterId, stockId).catch((err) =>
       console.error("[roast-log-import] Stock push error:", err)
     );

@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Trash2,
   Save,
+  Plus,
 } from "@/components/icons";
 import { CsvFieldMapper } from "@/components/products/CsvFieldMapper";
 import {
@@ -43,9 +44,21 @@ interface RoastedStock {
   green_bean_id: string | null;
 }
 
+interface GreenBean {
+  id: string;
+  name: string;
+}
+
 interface ProfileMatch {
   roasted_stock_id: string;
   green_bean_id: string | null;
+}
+
+interface UnmatchedPlan {
+  action: "create" | "skip";
+  profileName: string;       // editable new profile name
+  greenBeanName: string | null; // from green_lots CSV value
+  existingGreenBeanId: string | null; // manual selection of existing green bean
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -94,8 +107,14 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
   const [parsedLogs, setParsedLogs] = useState<NormalisedRoastLog[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [roastedStocks, setRoastedStocks] = useState<RoastedStock[]>([]);
+  const [greenBeans, setGreenBeans] = useState<GreenBean[]>([]);
   const [stocksLoaded, setStocksLoaded] = useState(false);
   const [profileMatches, setProfileMatches] = useState<Record<string, ProfileMatch | null>>({});
+
+  // Auto-create state for unmatched profiles
+  const [unmatchedPlans, setUnmatchedPlans] = useState<Record<string, UnmatchedPlan>>({});
+  const [autoCreateLoading, setAutoCreateLoading] = useState(false);
+  const [autoCreateError, setAutoCreateError] = useState<string | null>(null);
 
   // Import
   const [importResult, setImportResult] = useState<RoastLogImportResult | null>(null);
@@ -111,17 +130,27 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
       .finally(() => setSavedMappingsLoaded(true));
   }, [open, savedMappingsLoaded]);
 
-  // Load roasted stocks for profile matching
+  // Load roasted stocks AND green beans for profile matching
   useEffect(() => {
     if (stocksLoaded) return;
-    fetch("/api/tools/roasted-stock")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.roastedStock) {
+
+    Promise.all([
+      fetch("/api/tools/roasted-stock").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/tools/green-beans").then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([stockData, beanData]) => {
+        if (stockData?.roastedStock) {
           setRoastedStocks(
-            (d.roastedStock as RoastedStock[])
-              .filter((s: RoastedStock & { is_active?: boolean }) => s.is_active !== false)
-              .map((s: RoastedStock) => ({ id: s.id, name: s.name, green_bean_id: s.green_bean_id }))
+            (stockData.roastedStock as (RoastedStock & { is_active?: boolean })[])
+              .filter((s) => s.is_active !== false)
+              .map((s) => ({ id: s.id, name: s.name, green_bean_id: s.green_bean_id }))
+          );
+        }
+        if (beanData?.greenBeans) {
+          setGreenBeans(
+            (beanData.greenBeans as (GreenBean & { is_active?: boolean })[])
+              .filter((b) => b.is_active !== false)
+              .map((b) => ({ id: b.id, name: b.name }))
           );
         }
       })
@@ -243,6 +272,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     (logs: NormalisedRoastLog[]) => {
       const profiles = Array.from(new Set(logs.map((l) => l.roast_profile)));
       const matches: Record<string, ProfileMatch | null> = {};
+      const plans: Record<string, UnmatchedPlan> = {};
 
       for (const profileName of profiles) {
         const exact = roastedStocks.find(
@@ -255,13 +285,34 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
           };
         } else {
           matches[profileName] = null;
+
+          // Build auto-create plan using green_lots from CSV rows
+          const logsForProfile = logs.filter((l) => l.roast_profile === profileName);
+          const greenLotsValue = logsForProfile.find((l) => l.green_lots)?.green_lots || null;
+
+          // Try to match green_lots to an existing green bean
+          let existingGreenBeanId: string | null = null;
+          if (greenLotsValue) {
+            const beanMatch = greenBeans.find(
+              (b) => b.name.toLowerCase().trim() === greenLotsValue.toLowerCase().trim()
+            );
+            if (beanMatch) existingGreenBeanId = beanMatch.id;
+          }
+
+          plans[profileName] = {
+            action: "create",
+            profileName,
+            greenBeanName: existingGreenBeanId ? null : greenLotsValue,
+            existingGreenBeanId,
+          };
         }
       }
 
       setProfileMatches(matches);
+      setUnmatchedPlans(plans);
       return matches;
     },
-    [roastedStocks]
+    [roastedStocks, greenBeans]
   );
 
   const goFromMapStep = useCallback(() => {
@@ -297,9 +348,73 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     }
   }, [parseData, autoMatchProfiles, saveMapping, saveMappingName, headers, mapping]);
 
-  const goFromMatchStep = useCallback(() => {
-    setStep("preview");
-  }, []);
+  const goFromMatchStep = useCallback(async () => {
+    // Collect plans that need auto-creation
+    const createPlans = Object.entries(unmatchedPlans)
+      .filter(([, plan]) => plan.action === "create")
+      .map(([, plan]) => ({
+        profileName: plan.profileName,
+        greenBeanName: plan.greenBeanName,
+        existingGreenBeanId: plan.existingGreenBeanId,
+        existingRoastedStockId: null,
+      }));
+
+    if (createPlans.length === 0) {
+      // Nothing to create — just move on
+      setStep("preview");
+      return;
+    }
+
+    setAutoCreateLoading(true);
+    setAutoCreateError(null);
+
+    try {
+      const res = await fetch("/api/tools/roast-log/import/auto-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plans: createPlans }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAutoCreateError(data.error || "Auto-create failed");
+        setAutoCreateLoading(false);
+        return;
+      }
+
+      // Merge created profiles into profile matches
+      const created = data.created as Record<string, { roasted_stock_id: string; green_bean_id: string | null }>;
+      setProfileMatches((prev) => {
+        const updated = { ...prev };
+        for (const [name, match] of Object.entries(created)) {
+          updated[name] = match;
+        }
+        return updated;
+      });
+
+      // Also update roastedStocks state so preview table can show names
+      setRoastedStocks((prev) => {
+        const newStocks = [...prev];
+        for (const [name, match] of Object.entries(created)) {
+          if (!newStocks.find((s) => s.id === match.roasted_stock_id)) {
+            newStocks.push({
+              id: match.roasted_stock_id,
+              name,
+              green_bean_id: match.green_bean_id,
+            });
+          }
+        }
+        return newStocks;
+      });
+
+      setStep("preview");
+    } catch (err) {
+      setAutoCreateError(err instanceof Error ? err.message : "Auto-create failed");
+    } finally {
+      setAutoCreateLoading(false);
+    }
+  }, [unmatchedPlans]);
 
   // ─── Import ──────────────────────────────────────────────
 
@@ -356,6 +471,8 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     setParsedLogs([]);
     setParseErrors([]);
     setProfileMatches({});
+    setUnmatchedPlans({});
+    setAutoCreateError(null);
     setImportResult(null);
     setImportError(null);
     setSaveMapping(false);
@@ -384,11 +501,21 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
 
   const currentStepIndex = STEP_ORDER.indexOf(step);
   const uniqueProfiles = Array.from(new Set(parsedLogs.map((l) => l.roast_profile)));
-  const unmatchedProfiles = uniqueProfiles.filter((p) => !profileMatches[p]);
-  const matchedCount = uniqueProfiles.filter((p) => profileMatches[p]).length;
+  const matchedProfiles = uniqueProfiles.filter((p) => profileMatches[p]);
+  const unmatchedProfileNames = uniqueProfiles.filter((p) => !profileMatches[p]);
+  const matchedCount = matchedProfiles.length;
   const skippedLogCount = parsedLogs.filter((l) => profileMatches[l.roast_profile] === null).length;
   const importableCount = parsedLogs.filter((l) => profileMatches[l.roast_profile]).length;
 
+  // Auto-create summary for match step
+  const createCount = Object.values(unmatchedPlans).filter((p) => p.action === "create").length;
+  const newGreenBeanNames = Array.from(
+    new Set(
+      Object.values(unmatchedPlans)
+        .filter((p) => p.action === "create" && p.greenBeanName && !p.existingGreenBeanId)
+        .map((p) => p.greenBeanName!.toLowerCase().trim())
+    )
+  );
 
   if (!open) return null;
 
@@ -564,62 +691,287 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Match Roast Profiles</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Match each roast profile name from your import to an existing roasted stock record.
+                  Match or create roast profiles. Unmatched profiles can be auto-created with linked green beans.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                {uniqueProfiles.map((profileName) => {
-                  const match = profileMatches[profileName];
-                  const isMatched = match !== null && match !== undefined;
-                  const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
+              {autoCreateError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  {autoCreateError}
+                </div>
+              )}
 
-                  return (
-                    <div
-                      key={profileName}
-                      className={`p-3 rounded-lg border ${
-                        isMatched ? "border-green-200 bg-green-50/50" : "border-amber-200 bg-amber-50/50"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {isMatched ? (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                          )}
-                          <span className="text-sm font-medium text-slate-900">{profileName}</span>
-                          <span className="text-xs text-slate-400">({rowCount} rows)</span>
+              {/* Matched profiles section */}
+              {matchedProfiles.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Matched ({matchedProfiles.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {matchedProfiles.map((profileName) => {
+                      const match = profileMatches[profileName]!;
+                      const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
+                      const stockName = roastedStocks.find((s) => s.id === match.roasted_stock_id)?.name || "—";
+
+                      return (
+                        <div key={profileName} className="p-3 rounded-lg border border-green-200 bg-green-50/50">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-medium text-slate-900">{profileName}</span>
+                              <span className="text-xs text-slate-400">({rowCount} rows)</span>
+                            </div>
+                          </div>
+                          <select
+                            value={match.roasted_stock_id}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === "_skip") {
+                                setProfileMatches((prev) => ({ ...prev, [profileName]: null }));
+                                setUnmatchedPlans((prev) => ({
+                                  ...prev,
+                                  [profileName]: {
+                                    action: "skip",
+                                    profileName,
+                                    greenBeanName: null,
+                                    existingGreenBeanId: null,
+                                  },
+                                }));
+                              } else {
+                                const stock = roastedStocks.find((s) => s.id === val);
+                                setProfileMatches((prev) => ({
+                                  ...prev,
+                                  [profileName]: {
+                                    roasted_stock_id: val,
+                                    green_bean_id: stock?.green_bean_id || null,
+                                  },
+                                }));
+                              }
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          >
+                            <option value="_skip">Skip rows with this profile</option>
+                            {roastedStocks.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
                         </div>
-                      </div>
-                      <select
-                        value={match?.roasted_stock_id || "_skip"}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "_skip") {
-                            setProfileMatches((prev) => ({ ...prev, [profileName]: null }));
-                          } else {
-                            const stock = roastedStocks.find((s) => s.id === val);
-                            setProfileMatches((prev) => ({
-                              ...prev,
-                              [profileName]: {
-                                roasted_stock_id: val,
-                                green_bean_id: stock?.green_bean_id || null,
-                              },
-                            }));
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                      >
-                        <option value="_skip">Skip rows with this profile</option>
-                        {roastedStocks.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Unmatched profiles section */}
+              {unmatchedProfileNames.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Unmatched ({unmatchedProfileNames.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {unmatchedProfileNames.map((profileName) => {
+                      const plan = unmatchedPlans[profileName];
+                      if (!plan) return null;
+                      const rowCount = parsedLogs.filter((l) => l.roast_profile === profileName).length;
+
+                      return (
+                        <div key={profileName} className="p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              <span className="text-sm font-medium text-slate-900">{profileName}</span>
+                              <span className="text-xs text-slate-400">({rowCount} rows)</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setUnmatchedPlans((prev) => ({
+                                    ...prev,
+                                    [profileName]: { ...prev[profileName], action: "create" },
+                                  }));
+                                }}
+                                className={`px-2 py-1 text-xs rounded-l-md border ${
+                                  plan.action === "create"
+                                    ? "bg-brand-600 text-white border-brand-600"
+                                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                                }`}
+                              >
+                                Create
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setUnmatchedPlans((prev) => ({
+                                    ...prev,
+                                    [profileName]: { ...prev[profileName], action: "skip" },
+                                  }));
+                                }}
+                                className={`px-2 py-1 text-xs rounded-r-md border ${
+                                  plan.action === "skip"
+                                    ? "bg-slate-600 text-white border-slate-600"
+                                    : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+                                }`}
+                              >
+                                Skip
+                              </button>
+                            </div>
+                          </div>
+
+                          {plan.action === "create" && (
+                            <div className="space-y-2">
+                              {/* Profile name input */}
+                              <div>
+                                <label className="text-xs text-slate-500 mb-1 block">New Profile Name</label>
+                                <input
+                                  type="text"
+                                  value={plan.profileName}
+                                  onChange={(e) => {
+                                    setUnmatchedPlans((prev) => ({
+                                      ...prev,
+                                      [profileName]: { ...prev[profileName], profileName: e.target.value },
+                                    }));
+                                  }}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                                />
+                              </div>
+
+                              {/* Green bean link */}
+                              <div>
+                                <label className="text-xs text-slate-500 mb-1 block">Green Bean</label>
+                                {plan.existingGreenBeanId ? (
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={plan.existingGreenBeanId}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setUnmatchedPlans((prev) => ({
+                                          ...prev,
+                                          [profileName]: {
+                                            ...prev[profileName],
+                                            existingGreenBeanId: val === "_none" ? null : val,
+                                            greenBeanName: val === "_none" ? plan.greenBeanName : null,
+                                          },
+                                        }));
+                                      }}
+                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                                    >
+                                      <option value="_none">Don&apos;t link a green bean</option>
+                                      {greenBeans.map((b) => (
+                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : plan.greenBeanName ? (
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                                      <Plus className="w-3.5 h-3.5" />
+                                      <span>Will create: <strong>{plan.greenBeanName}</strong></span>
+                                    </div>
+                                    <select
+                                      value="_create"
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "_none") {
+                                          setUnmatchedPlans((prev) => ({
+                                            ...prev,
+                                            [profileName]: {
+                                              ...prev[profileName],
+                                              greenBeanName: null,
+                                              existingGreenBeanId: null,
+                                            },
+                                          }));
+                                        } else if (val !== "_create") {
+                                          setUnmatchedPlans((prev) => ({
+                                            ...prev,
+                                            [profileName]: {
+                                              ...prev[profileName],
+                                              existingGreenBeanId: val,
+                                              greenBeanName: null,
+                                            },
+                                          }));
+                                        }
+                                      }}
+                                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                                    >
+                                      <option value="_create">Create new green bean from CSV</option>
+                                      <option value="_none">Don&apos;t link a green bean</option>
+                                      {greenBeans.map((b) => (
+                                        <option key={b.id} value={b.id}>{b.name} (existing)</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <select
+                                    value={plan.existingGreenBeanId || "_none"}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setUnmatchedPlans((prev) => ({
+                                        ...prev,
+                                        [profileName]: {
+                                          ...prev[profileName],
+                                          existingGreenBeanId: val === "_none" ? null : val,
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                                  >
+                                    <option value="_none">Don&apos;t link a green bean</option>
+                                    {greenBeans.map((b) => (
+                                      <option key={b.id} value={b.id}>{b.name}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {plan.action === "skip" && (
+                            <div className="mt-1">
+                              <select
+                                value="_skip"
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val !== "_skip") {
+                                    const stock = roastedStocks.find((s) => s.id === val);
+                                    setProfileMatches((prev) => ({
+                                      ...prev,
+                                      [profileName]: {
+                                        roasted_stock_id: val,
+                                        green_bean_id: stock?.green_bean_id || null,
+                                      },
+                                    }));
+                                    // Remove from unmatched plans
+                                    setUnmatchedPlans((prev) => {
+                                      const updated = { ...prev };
+                                      delete updated[profileName];
+                                      return updated;
+                                    });
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                              >
+                                <option value="_skip">Skip rows with this profile</option>
+                                {roastedStocks.map((s) => (
+                                  <option key={s.id} value={s.id}>Match to: {s.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary banner */}
+              {(createCount > 0 || newGreenBeanNames.length > 0) && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                  Will create <strong>{createCount}</strong> new roasted stock profile{createCount !== 1 ? "s" : ""}
+                  {newGreenBeanNames.length > 0 && (
+                    <> and <strong>{newGreenBeanNames.length}</strong> new green bean{newGreenBeanNames.length !== 1 ? "s" : ""}</>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -631,10 +983,20 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                 </button>
                 <button
                   onClick={goFromMatchStep}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700"
+                  disabled={autoCreateLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
                 >
-                  Next
-                  <ArrowRight className="w-4 h-4" />
+                  {autoCreateLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      Next
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -676,9 +1038,11 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                     {parseErrors.map((e, i) => (
                       <li key={i}>{e}</li>
                     ))}
-                    {unmatchedProfiles.map((p) => (
-                      <li key={p}>Rows with profile &quot;{p}&quot; will be skipped (no match)</li>
-                    ))}
+                    {unmatchedProfileNames
+                      .filter((p) => unmatchedPlans[p]?.action === "skip")
+                      .map((p) => (
+                        <li key={p}>Rows with profile &quot;{p}&quot; will be skipped (no match)</li>
+                      ))}
                   </ul>
                 </div>
               )}
@@ -729,7 +1093,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
 
               <div className="flex items-center justify-between pt-2">
                 <button
-                  onClick={() => setStep(unmatchedProfiles.length > 0 ? "match" : "map")}
+                  onClick={() => setStep("match")}
                   className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700"
                 >
                   <ArrowLeft className="w-4 h-4" />

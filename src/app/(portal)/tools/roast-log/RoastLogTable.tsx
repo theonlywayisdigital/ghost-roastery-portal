@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Star, Flame, Upload, Download, Trash2, X } from "@/components/icons";
+import { Star, Flame, Upload, Download, Trash2, Undo2, X } from "@/components/icons";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
 import { RoastLogImportModal } from "@/components/inventory/RoastLogImportModal";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
@@ -134,6 +134,29 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
       if (!res.ok) {
         const data = await res.json();
         alert(data.error || "Bulk delete failed");
+        return;
+      }
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selected, router]);
+
+  const handleBulkUndo = useCallback(async () => {
+    const ok = window.confirm(`Undo ${selected.size} roast log${selected.size === 1 ? "" : "s"}? This will reverse the stock changes for each log.`);
+    if (!ok) return;
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/tools/roast-log/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), action: "undo" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Bulk undo failed");
         return;
       }
       setSelected(new Set());
@@ -305,6 +328,14 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
       {selected.size > 0 && (
         <div className="flex items-center gap-3 p-3 mb-4 bg-brand-50 border border-brand-200 rounded-lg">
           <span className="text-sm font-medium text-brand-700">{selected.size} selected</span>
+          <button
+            onClick={handleBulkUndo}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1"
+          >
+            <Undo2 className="w-3 h-3" />
+            Undo Roast
+          </button>
           <button
             onClick={handleBulkDelete}
             disabled={bulkLoading}

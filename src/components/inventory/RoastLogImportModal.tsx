@@ -118,6 +118,8 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
   const [unmatchedPlans, setUnmatchedPlans] = useState<Record<string, UnmatchedPlan>>({});
   const [autoCreateLoading, setAutoCreateLoading] = useState(false);
   const [autoCreateError, setAutoCreateError] = useState<string | null>(null);
+  // Track green bean IDs that were newly created during auto-create (skip stock deduction for these)
+  const [newGreenBeanIds, setNewGreenBeanIds] = useState<Set<string>>(new Set());
 
   // Import
   const [importResult, setImportResult] = useState<RoastLogImportResult | null>(null);
@@ -394,6 +396,21 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
 
       // Merge created profiles into profile matches
       const created = data.created as Record<string, { roasted_stock_id: string; green_bean_id: string | null }>;
+
+      // Track which green bean IDs were newly created (to skip stock deduction during import)
+      const createdGbIds = new Set<string>();
+      for (const [profileName, match] of Object.entries(created)) {
+        const plan = unmatchedPlans[profileName];
+        if (plan?.createNewGreenBean && match.green_bean_id) {
+          createdGbIds.add(match.green_bean_id);
+        }
+      }
+      setNewGreenBeanIds((prev) => {
+        const merged = new Set(prev);
+        for (const id of Array.from(createdGbIds)) merged.add(id);
+        return merged;
+      });
+
       setProfileMatches((prev) => {
         const updated = { ...prev };
         for (const [name, match] of Object.entries(created)) {
@@ -449,6 +466,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
         body: JSON.stringify({
           logs: filteredLogs,
           profileMapping: apiProfileMapping,
+          newGreenBeanIds: Array.from(newGreenBeanIds),
         }),
       });
 
@@ -481,6 +499,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     setParseErrors([]);
     setProfileMatches({});
     setUnmatchedPlans({});
+    setNewGreenBeanIds(new Set());
     setAutoCreateError(null);
     setImportResult(null);
     setImportError(null);
@@ -979,7 +998,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                                     }}
                                     className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
                                   />
-                                  <p className="text-[11px] text-slate-400 mt-1">How many kg of this green bean do you currently have on hand.</p>
+                                  <p className="text-[11px] text-slate-400 mt-1">Enter your current stock on hand. Historical logs won&apos;t deduct from this — only future roasts logged through the platform will update stock automatically.</p>
                                 </div>
                               </>
                             )}

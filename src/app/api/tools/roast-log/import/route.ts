@@ -13,10 +13,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { logs, profileMapping } = body as {
+  const { logs, profileMapping, newGreenBeanIds: newGreenBeanIdsArr } = body as {
     logs: NormalisedRoastLog[];
     profileMapping: Record<string, { roasted_stock_id: string; green_bean_id: string | null } | null>;
+    newGreenBeanIds?: string[];
   };
+  // Green beans created during this import session — skip stock deduction for these
+  const newGreenBeanIds = new Set(newGreenBeanIdsArr || []);
 
   if (!logs || !Array.isArray(logs) || logs.length === 0) {
     return NextResponse.json({ error: "No roast log rows provided" }, { status: 400 });
@@ -96,7 +99,10 @@ export async function POST(request: Request) {
       }
 
       // Atomic stock update: only when BOTH green bean AND roasted stock exist
-      if (profile.green_bean_id && profile.roasted_stock_id && greenKg > 0 && roastedKg > 0) {
+      // Skip deduction for newly created green beans — roaster entered current real-world stock,
+      // historical logs should not deduct from it
+      const isNewGreenBean = profile.green_bean_id && newGreenBeanIds.has(profile.green_bean_id);
+      if (profile.green_bean_id && profile.roasted_stock_id && greenKg > 0 && roastedKg > 0 && !isNewGreenBean) {
         const { error: rpcError } = await supabase.rpc("import_roast_stock_transfer", {
           p_roaster_id: roasterId,
           p_green_bean_id: profile.green_bean_id,

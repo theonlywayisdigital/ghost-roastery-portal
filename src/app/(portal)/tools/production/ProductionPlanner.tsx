@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Flame,
   Clock,
   Coffee,
   CalendarDays,
@@ -19,6 +18,7 @@ import {
   Trash2,
   AlertTriangle,
   Scale,
+  X,
 } from "@/components/icons";
 import Link from "next/link";
 import {
@@ -95,23 +95,30 @@ function parseDraggableId(id: string): { type: DraggableType; key: string } {
   return { type: "plan", key: id.replace("plan-", "") };
 }
 
-// ── Week helpers ───────────────────────────────────────────────────────
+// ── Day helpers ────────────────────────────────────────────────────────
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const VISIBLE_DAYS = 4;
 
-function getWeekDays(date: Date): Date[] {
+function getVisibleDays(date: Date): Date[] {
   const d = new Date(date);
-  const dayOfWeek = d.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(d);
-  monday.setDate(d.getDate() + mondayOffset);
+  d.setHours(0, 0, 0, 0);
   const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const wd = new Date(monday);
-    wd.setDate(monday.getDate() + i);
+  for (let i = 0; i < VISIBLE_DAYS; i++) {
+    const wd = new Date(d);
+    wd.setDate(d.getDate() + i);
     days.push(wd);
   }
   return days;
+}
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const dayOfWeek = d.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  d.setDate(d.getDate() + mondayOffset);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function toDateKey(d: Date): string {
@@ -172,9 +179,9 @@ function Toast({ message, type, onClose }: { message: string; type?: "error" | "
   );
 }
 
-// ── Stock Update Form ──────────────────────────────────────────────────
+// ── Log & Complete Overlay ─────────────────────────────────────────────
 
-function StockUpdateForm({
+function LogCompleteOverlay({
   plan,
   onClose,
   onComplete,
@@ -192,6 +199,8 @@ function StockUpdateForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const profileName = plan.roasted_stock?.name || plan.green_beans?.name || plan.green_bean_name || "Unnamed";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const greenKg = parseFloat(greenUsed);
@@ -205,7 +214,6 @@ function StockUpdateForm({
     setError(null);
 
     try {
-      // Create a completed roast log with stock updates
       const res = await fetch("/api/tools/roast-log", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,7 +225,7 @@ function StockUpdateForm({
           roasted_weight_kg: roastedKg,
           roasted_stock_id: plan.roasted_stock_id || null,
           roasted_stock_qty_kg: roastedKg,
-          notes: `From production plan. ${plan.roasted_stock?.name || plan.green_beans?.name || ""}`.trim(),
+          notes: `From production plan. ${profileName}`.trim(),
           status: "completed",
         }),
       });
@@ -229,7 +237,6 @@ function StockUpdateForm({
         return;
       }
 
-      // Mark plan as completed and link the roast log
       const logData = await res.json();
       await fetch(`/api/tools/production/${plan.id}`, {
         method: "PUT",
@@ -249,62 +256,72 @@ function StockUpdateForm({
   }
 
   return (
-    <div className="absolute top-0 left-0 right-0 z-20 bg-white rounded-lg border border-slate-200 shadow-lg p-3" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-xs font-semibold text-slate-900">Manual Stock Update</h4>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-sm">&times;</button>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 rounded p-2 mb-2">
-        <p className="text-[10px] text-amber-700 leading-tight">
-          Only use this if you are not importing roast logs from a roasting tool. Importing logs after using this will create duplicate stock entries.
-        </p>
-      </div>
-
-      {error && (
-        <p className="text-[10px] text-red-600 mb-2">{error}</p>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-2">
-        <div>
-          <label className="block text-[10px] font-medium text-slate-600 mb-0.5">Actual Green Used (kg)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={greenUsed}
-            onChange={(e) => setGreenUsed(e.target.value)}
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-        </div>
-        <div>
-          <label className="block text-[10px] font-medium text-slate-600 mb-0.5">Actual Roasted Output (kg)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={roastedOutput}
-            onChange={(e) => setRoastedOutput(e.target.value)}
-            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-        </div>
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 px-2 py-1.5 text-xs font-medium bg-brand-600 text-white rounded hover:bg-brand-700 disabled:opacity-50 transition-colors"
-          >
-            {saving ? "Updating..." : "Confirm"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700"
-          >
-            Cancel
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-md mx-4 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Log & Complete</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{profileName} — {plan.planned_weight_kg}kg planned</p>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
-      </form>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-amber-700 leading-relaxed">
+            Only use this if you are not importing logs from Cropster or another roasting tool.
+          </p>
+        </div>
+
+        {error && (
+          <p className="text-xs text-red-600 mb-3">{error}</p>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Actual Green Used (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={greenUsed}
+              onChange={(e) => setGreenUsed(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">Actual Roasted Output (kg)</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={roastedOutput}
+              onChange={(e) => setRoastedOutput(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            />
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+            >
+              {saving ? "Updating..." : "Confirm"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -467,33 +484,20 @@ function DraggablePlanCard({
         {/* Hover-reveal action buttons — top right */}
         {!isOverlay && !isCompleted && (
           <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-200 p-0.5 z-10">
-            {plan.status === "planned" && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "in_progress"); }}
-                title="Start roasting"
-                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              >
-                <Flame className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {plan.status === "in_progress" && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "completed"); }}
-                  title="Mark complete"
-                  className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onStockUpdate(plan.id); }}
-                  title="Manual stock update"
-                  className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
-                >
-                  <Scale className="w-3.5 h-3.5" />
-                </button>
-              </>
-            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "completed"); }}
+              title="Mark complete"
+              className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onStockUpdate(plan.id); }}
+              title="Log & complete"
+              className="p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
+            >
+              <Scale className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(plan.id); }}
               title="Unschedule"
@@ -554,9 +558,6 @@ function DroppableDay({
   onStatusChange,
   onDelete,
   onStockUpdate,
-  stockUpdatePlanId,
-  onStockUpdateComplete,
-  onStockUpdateClose,
 }: {
   date: Date;
   isToday: boolean;
@@ -566,9 +567,6 @@ function DroppableDay({
   onStatusChange: (planId: string, newStatus: string) => void;
   onDelete: (planId: string) => void;
   onStockUpdate: (planId: string) => void;
-  stockUpdatePlanId: string | null;
-  onStockUpdateComplete: (planId: string) => void;
-  onStockUpdateClose: () => void;
 }) {
   const dateKey = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: dateKey });
@@ -593,25 +591,17 @@ function DroppableDay({
         </span>
       </div>
 
-      <div className="flex-1 p-1.5 space-y-1.5">
+      <div className="flex-1 p-2 space-y-2">
         {plans.map((plan) => (
-          <div key={plan.id} className="relative">
-            <DraggablePlanCard
-              plan={plan}
-              urgency={getUrgencyForPlan(plan)}
-              requiredBy={getRequiredByForPlan(plan)}
-              onStatusChange={onStatusChange}
-              onDelete={onDelete}
-              onStockUpdate={onStockUpdate}
-            />
-            {stockUpdatePlanId === plan.id && (
-              <StockUpdateForm
-                plan={plan}
-                onClose={onStockUpdateClose}
-                onComplete={onStockUpdateComplete}
-              />
-            )}
-          </div>
+          <DraggablePlanCard
+            key={plan.id}
+            plan={plan}
+            urgency={getUrgencyForPlan(plan)}
+            requiredBy={getRequiredByForPlan(plan)}
+            onStatusChange={onStatusChange}
+            onDelete={onDelete}
+            onStockUpdate={onStockUpdate}
+          />
         ))}
 
         {isOver && (
@@ -673,12 +663,12 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const weekDays = getWeekDays(currentDate);
+  const visibleDays = getVisibleDays(currentDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayKey = toDateKey(today);
 
-  const weekLabel = `${formatDateShort(toDateKey(weekDays[0]))} — ${formatDateShort(toDateKey(weekDays[6]))}`;
+  const rangeLabel = `${formatDateShort(toDateKey(visibleDays[0]))} — ${formatDateShort(toDateKey(visibleDays[visibleDays.length - 1]))}`;
 
   const loadData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -728,10 +718,10 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     return null;
   }
 
-  // Filter plans by week
-  const weekKeys = new Set(weekDays.map(toDateKey));
-  const plansThisWeek = plans.filter((p) => weekKeys.has(p.planned_date));
-  const scheduledBatchCount = plansThisWeek.length;
+  // Filter plans by visible range
+  const visibleKeys = new Set(visibleDays.map(toDateKey));
+  const plansVisible = plans.filter((p) => visibleKeys.has(p.planned_date));
+  const scheduledBatchCount = plansVisible.length;
 
   function getPlansForDate(dateKey: string): ExistingPlan[] {
     return plans.filter((p) => p.planned_date === dateKey);
@@ -769,16 +759,16 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   }
 
   // Navigation
-  function navigateWeek(delta: number) {
+  function navigateDays(delta: number) {
     setCurrentDate((prev) => {
       const d = new Date(prev);
-      d.setDate(d.getDate() + delta * 7);
+      d.setDate(d.getDate() + delta * VISIBLE_DAYS);
       return d;
     });
   }
 
-  function goToToday() {
-    setCurrentDate(new Date());
+  function goToThisWeek() {
+    setCurrentDate(getWeekStart(new Date()));
   }
 
   function saveSnapshot() {
@@ -1145,22 +1135,22 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
             {/* Right panel — Week calendar */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-900">{weekLabel}</h3>
+                <h3 className="text-sm font-semibold text-slate-900">{rangeLabel}</h3>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => navigateWeek(-1)}
+                    onClick={() => navigateDays(-1)}
                     className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={goToToday}
+                    onClick={goToThisWeek}
                     className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50"
                   >
                     This Week
                   </button>
                   <button
-                    onClick={() => navigateWeek(1)}
+                    onClick={() => navigateDays(1)}
                     className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -1169,8 +1159,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
               </div>
 
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="grid grid-cols-7">
-                  {weekDays.map((date) => {
+                <div className="grid grid-cols-4">
+                  {visibleDays.map((date) => {
                     const dateKey = toDateKey(date);
                     const dayPlans = getPlansForDate(dateKey);
                     const isToday = dateKey === todayKey;
@@ -1186,9 +1176,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                         onStatusChange={handleStatusChange}
                         onDelete={handleDelete}
                         onStockUpdate={handleStockUpdate}
-                        stockUpdatePlanId={stockUpdatePlanId}
-                        onStockUpdateComplete={handleStockUpdateComplete}
-                        onStockUpdateClose={() => setStockUpdatePlanId(null)}
                       />
                     );
                   })}
@@ -1225,6 +1212,19 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Log & Complete overlay */}
+      {stockUpdatePlanId && (() => {
+        const plan = plans.find((p) => p.id === stockUpdatePlanId);
+        if (!plan) return null;
+        return (
+          <LogCompleteOverlay
+            plan={plan}
+            onClose={() => setStockUpdatePlanId(null)}
+            onComplete={handleStockUpdateComplete}
+          />
+        );
+      })()}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>

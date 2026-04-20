@@ -59,6 +59,7 @@ interface UnmatchedPlan {
   profileName: string;       // editable new profile name
   weightLossPercent: number | null; // avg weight loss across rows for this profile
   greenBeanName: string | null; // from green_lots CSV value
+  greenBeanStockKg: number | null; // initial stock weight for new green bean
   existingGreenBeanId: string | null; // manual selection of existing green bean
   createNewGreenBean: boolean; // true = create new green bean instead of linking existing
 }
@@ -314,6 +315,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
             profileName,
             weightLossPercent: avgLoss,
             greenBeanName: greenLotsValue,
+            greenBeanStockKg: null,
             existingGreenBeanId,
             createNewGreenBean: !existingGreenBeanId && !!greenLotsValue,
           };
@@ -361,6 +363,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
       .map(([, plan]) => ({
         profileName: plan.profileName,
         greenBeanName: plan.createNewGreenBean ? plan.greenBeanName : null,
+        greenBeanStockKg: plan.createNewGreenBean ? (plan.greenBeanStockKg ?? 0) : null,
         existingGreenBeanId: plan.existingGreenBeanId,
         existingRoastedStockId: null,
       }));
@@ -751,6 +754,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                             profileName,
                             weightLossPercent: avgLoss,
                             greenBeanName: greenLotsValue,
+                            greenBeanStockKg: null,
                             existingGreenBeanId,
                             createNewGreenBean: !existingGreenBeanId && !!greenLotsValue,
                           },
@@ -770,6 +774,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                             profileName,
                             weightLossPercent: null,
                             greenBeanName: null,
+                            greenBeanStockKg: null,
                             existingGreenBeanId: null,
                             createNewGreenBean: false,
                           }),
@@ -933,26 +938,50 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                               <option value="_create_new">Create new green bean</option>
                             </select>
 
-                            {/* New green bean name input */}
+                            {/* New green bean name + stock inputs */}
                             {plan.createNewGreenBean && (
-                              <div className="mt-1.5">
-                                <label className="text-xs text-slate-500 mb-1 block">New Green Bean Name</label>
-                                <input
-                                  type="text"
-                                  value={plan.greenBeanName || ""}
-                                  placeholder="e.g. Ethiopia Yirgacheffe"
-                                  onChange={(e) => {
-                                    setUnmatchedPlans((prev) => ({
-                                      ...prev,
-                                      [profileName]: {
-                                        ...prev[profileName],
-                                        greenBeanName: e.target.value || null,
-                                      },
-                                    }));
-                                  }}
-                                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-                                />
-                              </div>
+                              <>
+                                <div className="mt-1.5">
+                                  <label className="text-xs text-slate-500 mb-1 block">New Green Bean Name</label>
+                                  <input
+                                    type="text"
+                                    value={plan.greenBeanName || ""}
+                                    placeholder="e.g. Ethiopia Yirgacheffe"
+                                    onChange={(e) => {
+                                      setUnmatchedPlans((prev) => ({
+                                        ...prev,
+                                        [profileName]: {
+                                          ...prev[profileName],
+                                          greenBeanName: e.target.value || null,
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                                  />
+                                </div>
+                                <div className="mt-1.5">
+                                  <label className="text-xs text-slate-500 mb-1 block">Current Stock (kg)</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={plan.greenBeanStockKg ?? ""}
+                                    placeholder="e.g. 25.5"
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setUnmatchedPlans((prev) => ({
+                                        ...prev,
+                                        [profileName]: {
+                                          ...prev[profileName],
+                                          greenBeanStockKg: val === "" ? null : parseFloat(val),
+                                        },
+                                      }));
+                                    }}
+                                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                                  />
+                                  <p className="text-[11px] text-slate-400 mt-1">How many kg of this green bean do you currently have on hand.</p>
+                                </div>
+                              </>
                             )}
                           </div>
                         </div>

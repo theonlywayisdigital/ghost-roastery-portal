@@ -6,6 +6,7 @@ import { checkLimit } from "@/lib/feature-gates";
 interface AutoCreatePlan {
   profileName: string;
   greenBeanName: string | null; // null = manual selection already done
+  greenBeanStockKg: number | null; // initial stock weight for new green bean
   existingGreenBeanId: string | null; // pre-matched green bean
   existingRoastedStockId: string | null; // for skip case (already matched)
 }
@@ -62,16 +63,18 @@ export async function POST(request: Request) {
   const greenBeanMap = new Map<string, string>(); // lowercase name → id
 
   for (const name of uniqueGreenBeanNames) {
-    const originalName = plans.find(
+    const matchingPlan = plans.find(
       (p) => p.greenBeanName?.toLowerCase().trim() === name
-    )?.greenBeanName;
+    );
+    const originalName = matchingPlan?.greenBeanName;
+    const stockKg = matchingPlan?.greenBeanStockKg ?? 0;
 
     const { data: bean, error } = await supabase
       .from("green_beans")
       .insert({
         roaster_id: roasterId,
         name: originalName || name,
-        current_stock_kg: 0,
+        current_stock_kg: stockKg,
         is_active: true,
       })
       .select("id")

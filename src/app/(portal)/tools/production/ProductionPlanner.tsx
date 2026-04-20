@@ -344,7 +344,7 @@ function DraggableBatchCard({
           {/* Checkbox — visible on hover or when selected */}
           {!isOverlay && onToggleSelect && (
             <label
-              className={`shrink-0 ${isSelected ? "opacity-100" : "opacity-0 group-item-hover:opacity-100"}`}
+              className="shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
               <input

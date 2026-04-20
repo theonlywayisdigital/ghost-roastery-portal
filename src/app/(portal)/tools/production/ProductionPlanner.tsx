@@ -50,6 +50,10 @@ interface SuggestedBatch {
   profileName: string;
   greenBeanId: string | null;
   greenBeanName: string | null;
+  greenBeanOrigin: string | null;
+  greenStockKg: number | null;
+  roastedStockKg: number;
+  weightLossPercent: number | null;
   batchSizeKg: number;
   batchNumber: number;
   totalBatches: number;
@@ -157,18 +161,70 @@ function deriveUrgency(requiredBy: string | null): "overdue" | "urgent" | "norma
 
 // ── Toast notification ─────────────────────────────────────────────────
 
-function Toast({ message, type, onClose }: { message: string; type?: "error" | "success"; onClose: () => void }) {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
+function Toast({ message, type, onClose, action }: {
+  message: string;
+  type?: "error" | "success";
+  onClose: () => void;
+  action?: { label: string; onClick: () => void };
+}) {
   const isSuccess = type === "success";
   return (
     <div className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 ${isSuccess ? "bg-green-600" : "bg-red-600"} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium`}>
       {isSuccess ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
       {message}
+      {action && (
+        <button
+          onClick={action.onClick}
+          className="ml-2 underline underline-offset-2 text-white hover:text-green-100 font-semibold"
+        >
+          {action.label}
+        </button>
+      )}
       <button onClick={onClose} className={`ml-2 ${isSuccess ? "text-green-200" : "text-red-200"} hover:text-white`}>&times;</button>
+    </div>
+  );
+}
+
+// ── Mark Complete Confirmation ─────────────────────────────────────────
+
+function MarkCompleteConfirmation({
+  onLogRoast,
+  onSkip,
+}: {
+  onLogRoast: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onSkip}>
+      <div
+        className="bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-sm mx-4 p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+            <Check className="w-4 h-4 text-green-600" />
+          </div>
+          <h3 className="text-sm font-semibold text-slate-900">Batch marked as complete</h3>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          Did you want to log the roast for stock tracking?
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onLogRoast}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            <Scale className="w-3.5 h-3.5" />
+            Log Roast
+          </button>
+          <button
+            onClick={onSkip}
+            className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium"
+          >
+            Skip
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -177,23 +233,39 @@ function Toast({ message, type, onClose }: { message: string; type?: "error" | "
 
 function LogCompleteOverlay({
   plan,
+  suggestion,
   onClose,
   onComplete,
 }: {
   plan: ExistingPlan;
+  suggestion: SuggestedBatch | null;
   onClose: () => void;
-  onComplete: (planId: string) => void;
+  onComplete: (planId: string, roastLogId: string, greenKg: number, roastedKg: number) => void;
 }) {
-  const [greenUsed, setGreenUsed] = useState(String(plan.planned_weight_kg));
-  const [roastedOutput, setRoastedOutput] = useState(
-    plan.expected_roasted_kg != null
-      ? String(Number(plan.expected_roasted_kg).toFixed(2))
-      : String((plan.planned_weight_kg * 0.85).toFixed(2))
-  );
+  const wlp = suggestion?.weightLossPercent;
+  const defaultLoss = wlp != null ? wlp : 14;
+  const initialGreen = String(plan.planned_weight_kg);
+  const initialRoasted = (plan.planned_weight_kg * (1 - defaultLoss / 100)).toFixed(2);
+
+  const [greenUsed, setGreenUsed] = useState(initialGreen);
+  const [roastedOutput, setRoastedOutput] = useState(initialRoasted);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const profileName = plan.roasted_stock?.name || plan.green_beans?.name || plan.green_bean_name || "Unnamed";
+
+  // Recalculate roasted output when green weight changes
+  function handleGreenChange(value: string) {
+    setGreenUsed(value);
+    const gk = parseFloat(value);
+    if (gk && gk > 0) {
+      setRoastedOutput((gk * (1 - defaultLoss / 100)).toFixed(2));
+    }
+  }
+
+  const lossLabel = wlp != null
+    ? `Based on ${wlp.toFixed(1)}% average weight loss`
+    : "Using system default (14%)";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -241,7 +313,7 @@ function LogCompleteOverlay({
         }),
       });
 
-      onComplete(plan.id);
+      onComplete(plan.id, logData.roastLog?.id, greenKg, roastedKg);
       onClose();
     } catch {
       setError("Failed to update stock. Please try again.");
@@ -265,9 +337,27 @@ function LogCompleteOverlay({
           </button>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-          <p className="text-xs text-amber-700 leading-relaxed">
-            Only use this if you are not importing logs from Cropster or another roasting tool.
+        {/* Current stock info */}
+        {suggestion && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            {suggestion.greenStockKg != null && (
+              <div className="bg-slate-50 rounded-lg p-2.5">
+                <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Green Stock</p>
+                <p className="text-sm font-semibold text-slate-900">{suggestion.greenStockKg.toFixed(1)}kg</p>
+              </div>
+            )}
+            <div className="bg-slate-50 rounded-lg p-2.5">
+              <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Roasted Stock</p>
+              <p className="text-sm font-semibold text-slate-900">{suggestion.roastedStockKg.toFixed(1)}kg</p>
+            </div>
+          </div>
+        )}
+
+        {/* Weight loss explanation */}
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+          <p className="text-[10px] font-medium text-slate-600 mb-1">{lossLabel}</p>
+          <p className="text-[10px] text-slate-500 leading-relaxed">
+            We pre-fill the roasted output using your average weight loss. For accurate stock tracking, enter the actual output from your roast or import logs from your roasting tool.
           </p>
         </div>
 
@@ -283,7 +373,7 @@ function LogCompleteOverlay({
               step="0.01"
               min="0"
               value={greenUsed}
-              onChange={(e) => setGreenUsed(e.target.value)}
+              onChange={(e) => handleGreenChange(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             />
           </div>
@@ -352,7 +442,6 @@ function DraggableBatchCard({
       <div className="p-3">
         {/* Required By — first line */}
         <div className="flex items-center gap-1.5 mb-1.5">
-          {/* Checkbox — visible on hover or when selected */}
           {!isOverlay && onToggleSelect && (
             <label
               className="shrink-0"
@@ -444,6 +533,7 @@ function DraggablePlanCard({
   plan,
   urgency,
   requiredBy,
+  suggestion,
   isOverlay,
   onStatusChange,
   onDelete,
@@ -452,6 +542,7 @@ function DraggablePlanCard({
   plan: ExistingPlan;
   urgency: "overdue" | "urgent" | "normal";
   requiredBy: string | null;
+  suggestion: SuggestedBatch | null;
   isOverlay?: boolean;
   onStatusChange: (planId: string, newStatus: string) => void;
   onDelete: (planId: string) => void;
@@ -463,6 +554,7 @@ function DraggablePlanCard({
     id,
     disabled: isCompleted,
   });
+  const [expanded, setExpanded] = useState(false);
   const status = STATUS_CONFIG[plan.status] || STATUS_CONFIG.planned;
   const name = plan.roasted_stock?.name || plan.green_beans?.name || plan.green_bean_name || "Unnamed";
   const urg = URGENCY_CONFIG[urgency];
@@ -538,7 +630,69 @@ function DraggablePlanCard({
             </div>
           </div>
         </div>
+
+        {/* Expand toggle */}
+        {!isOverlay && suggestion && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 mt-1.5 ml-5 text-[10px] text-slate-400 hover:text-slate-600"
+          >
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {expanded ? "Less" : "More"}
+          </button>
+        )}
       </div>
+
+      {/* Expanded details */}
+      {!isOverlay && expanded && suggestion && (
+        <div className="px-2.5 pb-2.5 border-t border-slate-100 mt-0.5 pt-2 space-y-1.5">
+          {/* Green bean info */}
+          {suggestion.greenBeanName && (
+            <div className="text-[10px] text-slate-500">
+              <span className="font-medium text-slate-600">Green:</span> {suggestion.greenBeanName}
+              {suggestion.greenBeanOrigin && <span className="text-slate-400"> — {suggestion.greenBeanOrigin}</span>}
+            </div>
+          )}
+
+          {/* Stock & loss info */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+            {suggestion.weightLossPercent != null && (
+              <>
+                <span className="text-slate-400">Avg loss</span>
+                <span className="text-slate-600 font-medium">{suggestion.weightLossPercent.toFixed(1)}%</span>
+              </>
+            )}
+            {suggestion.greenStockKg != null && (
+              <>
+                <span className="text-slate-400">Green stock</span>
+                <span className="text-slate-600 font-medium">{suggestion.greenStockKg.toFixed(1)}kg</span>
+              </>
+            )}
+            <span className="text-slate-400">Roasted stock</span>
+            <span className="text-slate-600 font-medium">{suggestion.roastedStockKg.toFixed(1)}kg</span>
+          </div>
+
+          {/* Contributing orders */}
+          {suggestion.contributingOrders.length > 0 && (
+            <div className="pt-1 border-t border-slate-50">
+              <p className="text-[10px] font-medium text-slate-500 mb-1">
+                {suggestion.contributingOrders.length} order{suggestion.contributingOrders.length !== 1 ? "s" : ""}
+              </p>
+              <div className="space-y-0.5">
+                {suggestion.contributingOrders.map((o) => (
+                  <div key={o.orderId} className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                    <span className="truncate">{o.customerName || o.customerBusiness || o.orderNumber}</span>
+                    <span className="shrink-0 text-slate-600 font-medium">{o.kgNeeded.toFixed(1)}kg</span>
+                    {o.requiredByDate && (
+                      <span className="shrink-0 text-slate-400">by {formatDateShort(o.requiredByDate)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -547,6 +701,7 @@ function DroppableDay({
   date,
   isToday,
   plans,
+  getSuggestionForPlan,
   getUrgencyForPlan,
   getRequiredByForPlan,
   onStatusChange,
@@ -556,6 +711,7 @@ function DroppableDay({
   date: Date;
   isToday: boolean;
   plans: ExistingPlan[];
+  getSuggestionForPlan: (plan: ExistingPlan) => SuggestedBatch | null;
   getUrgencyForPlan: (plan: ExistingPlan) => "overdue" | "urgent" | "normal";
   getRequiredByForPlan: (plan: ExistingPlan) => string | null;
   onStatusChange: (planId: string, newStatus: string) => void;
@@ -592,6 +748,7 @@ function DroppableDay({
             plan={plan}
             urgency={getUrgencyForPlan(plan)}
             requiredBy={getRequiredByForPlan(plan)}
+            suggestion={getSuggestionForPlan(plan)}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
             onStockUpdate={onStockUpdate}
@@ -645,8 +802,12 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   const [summary, setSummary] = useState({ totalBatchesNeeded: 0, profilesWithShortfall: 0, overdueCount: 0, urgentCount: 0 });
   const [activeDrag, setActiveDrag] = useState<{ type: DraggableType; index?: number; plan?: ExistingPlan } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success"; action?: { label: string; onClick: () => void } } | null>(null);
   const [stockUpdatePlanId, setStockUpdatePlanId] = useState<string | null>(null);
+  const [markCompleteConfirmPlanId, setMarkCompleteConfirmPlanId] = useState<string | null>(null);
+
+  // Undo toast timer
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Multi-select state
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -684,12 +845,26 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     loadData(true);
   }, [loadData]);
 
+  // Cleanup undo timer
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
+
   // Build lookup: roasted_stock_id → suggestion
   const suggestionByStockId = new Map<string, SuggestedBatch>();
   for (const s of suggestions) {
     if (!suggestionByStockId.has(s.roastedStockId)) {
       suggestionByStockId.set(s.roastedStockId, s);
     }
+  }
+
+  function getSuggestionForPlan(plan: ExistingPlan): SuggestedBatch | null {
+    if (plan.roasted_stock_id) {
+      return suggestionByStockId.get(plan.roasted_stock_id) || null;
+    }
+    return null;
   }
 
   function getUrgencyForPlan(plan: ExistingPlan): "overdue" | "urgent" | "normal" {
@@ -784,9 +959,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     const { type, key } = parseDraggableId(event.active.id as string);
     if (type === "suggestion") {
       const idx = parseInt(key);
-      // If dragging a selected card, ensure it's in the selection
       if (selectedIndices.size > 0 && !selectedIndices.has(idx)) {
-        // Dragging an unselected card — clear selection and drag just this one
         setSelectedIndices(new Set());
       }
       setActiveDrag({ type: "suggestion", index: idx });
@@ -809,13 +982,10 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     if (dragData.type === "suggestion") {
       if (targetId === "unschedule") return;
 
-      // Determine which batches to schedule
       const indicesToSchedule: number[] = [];
       if (selectedIndices.size > 0 && selectedIndices.has(dragData.index!)) {
-        // Multi-select: schedule all selected
         indicesToSchedule.push(...Array.from(selectedIndices).sort((a, b) => a - b));
       } else {
-        // Single drag
         indicesToSchedule.push(dragData.index!);
       }
 
@@ -825,7 +995,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
 
       if (batchesToSchedule.length === 0) return;
 
-      // Optimistic: create temporary plans
       saveSnapshot();
       const tempPlans: ExistingPlan[] = batchesToSchedule.map((batch, i) => ({
         id: `temp-${Date.now()}-${i}`,
@@ -848,7 +1017,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
       setPlans((prev) => [...prev, ...tempPlans]);
       setSelectedIndices(new Set());
 
-      // Create all plans in parallel
       try {
         const results = await Promise.all(
           batchesToSchedule.map((batch) =>
@@ -921,7 +1089,36 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     }
   }
 
+  // Mark Complete — show confirmation dialog
   async function handleStatusChange(planId: string, newStatus: string) {
+    if (newStatus === "completed") {
+      // First mark it complete via API
+      saveSnapshot();
+      setPlans((prev) =>
+        prev.map((p) => (p.id === planId ? { ...p, status: "completed" } : p))
+      );
+
+      try {
+        const res = await fetch(`/api/tools/production/${planId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "completed" }),
+        });
+        if (!res.ok) {
+          rollback("Failed to update status. Changes reverted.");
+          return;
+        }
+        loadData();
+      } catch {
+        rollback("Failed to update status. Changes reverted.");
+        return;
+      }
+
+      // Show confirmation asking if they want to log the roast
+      setMarkCompleteConfirmPlanId(planId);
+      return;
+    }
+
     saveSnapshot();
     setPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: newStatus } : p))
@@ -963,12 +1160,49 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     setStockUpdatePlanId(planId);
   }
 
-  function handleStockUpdateComplete(planId: string) {
+  function handleStockUpdateComplete(planId: string, roastLogId: string, _greenKg: number, _roastedKg: number) {
     setPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: "completed" } : p))
     );
-    setToast({ message: "Stock updated and batch marked complete.", type: "success" });
-    loadData();
+
+    // Clear any previous undo timer
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+
+    // Show undo toast for 10 seconds
+    setToast({
+      message: "Roast logged and stock updated.",
+      type: "success",
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+          setToast(null);
+
+          try {
+            // Delete the roast log (API now reverses stock movements)
+            await fetch(`/api/tools/roast-log/${roastLogId}`, { method: "DELETE" });
+
+            // Revert plan status back to planned
+            await fetch(`/api/tools/production/${planId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "planned", roast_log_id: null }),
+            });
+
+            setToast({ message: "Roast log undone. Stock reverted.", type: "success" });
+            loadData();
+          } catch {
+            setToast({ message: "Failed to undo. Please check your roast logs.", type: "error" });
+          }
+        },
+      },
+    });
+
+    // Auto-dismiss undo toast after 10 seconds
+    undoTimerRef.current = setTimeout(() => {
+      setToast(null);
+      loadData();
+    }, 10000);
   }
 
   // View toggle
@@ -1004,7 +1238,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           </div>
         </div>
         <ListViewFallback plans={plans} loading={loading} router={router} />
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} action={toast.action} />}
       </div>
     );
   }
@@ -1165,6 +1399,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                         date={date}
                         isToday={isToday}
                         plans={dayPlans}
+                        getSuggestionForPlan={getSuggestionForPlan}
                         getUrgencyForPlan={getUrgencyForPlan}
                         getRequiredByForPlan={getRequiredByForPlan}
                         onStatusChange={handleStatusChange}
@@ -1196,6 +1431,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                   plan={activeDrag.plan}
                   urgency={getUrgencyForPlan(activeDrag.plan)}
                   requiredBy={getRequiredByForPlan(activeDrag.plan)}
+                  suggestion={getSuggestionForPlan(activeDrag.plan)}
                   isOverlay
                   onStatusChange={() => {}}
                   onDelete={() => {}}
@@ -1207,20 +1443,44 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         </DndContext>
       )}
 
+      {/* Mark Complete confirmation dialog */}
+      {markCompleteConfirmPlanId && (
+        <MarkCompleteConfirmation
+          onLogRoast={() => {
+            const planId = markCompleteConfirmPlanId;
+            setMarkCompleteConfirmPlanId(null);
+            // Revert to planned first so the Log & Complete form can mark it completed with log
+            setPlans((prev) =>
+              prev.map((p) => (p.id === planId ? { ...p, status: "planned" } : p))
+            );
+            fetch(`/api/tools/production/${planId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "planned" }),
+            }).then(() => {
+              setStockUpdatePlanId(planId);
+            });
+          }}
+          onSkip={() => setMarkCompleteConfirmPlanId(null)}
+        />
+      )}
+
       {/* Log & Complete overlay */}
       {stockUpdatePlanId && (() => {
         const plan = plans.find((p) => p.id === stockUpdatePlanId);
         if (!plan) return null;
+        const suggestion = getSuggestionForPlan(plan);
         return (
           <LogCompleteOverlay
             plan={plan}
+            suggestion={suggestion}
             onClose={() => setStockUpdatePlanId(null)}
             onComplete={handleStockUpdateComplete}
           />
         );
       })()}
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => { setToast(null); if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }} action={toast.action} />}
     </div>
   );
 }

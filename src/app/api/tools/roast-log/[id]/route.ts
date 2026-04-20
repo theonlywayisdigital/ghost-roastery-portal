@@ -182,6 +182,92 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { id } = await params;
   const supabase = createServerClient();
+
+  // Fetch the log before deleting so we can reverse stock movements
+  const { data: log } = await supabase
+    .from("roast_logs")
+    .select("id, status, green_bean_id, green_weight_kg, roasted_weight_kg, roasted_stock_id")
+    .eq("id", id)
+    .eq("roaster_id", roaster.id)
+    .single();
+
+  if (!log) return NextResponse.json({ error: "Roast log not found" }, { status: 404 });
+
+  // Reverse stock movements if the log was completed
+  if (log.status === "completed") {
+    // Restore green bean stock
+    if (log.green_bean_id && log.green_weight_kg && log.green_weight_kg > 0) {
+      const { data: bean } = await supabase
+        .from("green_beans")
+        .select("current_stock_kg")
+        .eq("id", log.green_bean_id)
+        .eq("roaster_id", roaster.id)
+        .single();
+
+      if (bean) {
+        const newStock = (bean.current_stock_kg || 0) + log.green_weight_kg;
+        await supabase
+          .from("green_beans")
+          .update({ current_stock_kg: newStock })
+          .eq("id", log.green_bean_id)
+          .eq("roaster_id", roaster.id);
+
+        await supabase.from("green_bean_movements").insert({
+          roaster_id: roaster.id,
+          green_bean_id: log.green_bean_id,
+          movement_type: "roast_undo",
+          quantity_kg: log.green_weight_kg,
+          balance_after_kg: newStock,
+          reference_id: id,
+          reference_type: "roast_log",
+          notes: `Undo roast deduction (log deleted)`,
+        });
+      }
+    }
+
+    // Deduct roasted stock
+    if (log.roasted_stock_id && log.roasted_weight_kg && log.roasted_weight_kg > 0) {
+      const { data: stock } = await supabase
+        .from("roasted_stock")
+        .select("current_stock_kg")
+        .eq("id", log.roasted_stock_id)
+        .single();
+
+      if (stock) {
+        const newStock = Math.max(0, (stock.current_stock_kg || 0) - log.roasted_weight_kg);
+        await supabase
+          .from("roasted_stock")
+          .update({ current_stock_kg: newStock })
+          .eq("id", log.roasted_stock_id);
+
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roaster.id,
+          roasted_stock_id: log.roasted_stock_id,
+          movement_type: "roast_undo",
+          quantity_kg: -log.roasted_weight_kg,
+          balance_after_kg: newStock,
+          reference_id: id,
+          reference_type: "roast_log",
+          notes: `Undo roast addition (log deleted)`,
+        });
+      }
+    }
+
+    // Recalculate weight loss average
+    if (log.green_bean_id) {
+      updateWeightLossAverage(roaster.id as string, log.green_bean_id).catch((err) =>
+        console.error("[roast-log] Weight loss avg update error on delete:", err)
+      );
+    }
+
+    // Push updated stock to ecommerce channels
+    if (log.roasted_stock_id) {
+      pushStockToChannels(roaster.id as string, log.roasted_stock_id).catch((err) =>
+        console.error("[roast-log] Stock push error on delete:", err)
+      );
+    }
+  }
+
   const { error } = await supabase
     .from("roast_logs")
     .delete()

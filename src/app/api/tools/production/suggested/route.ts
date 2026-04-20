@@ -25,6 +25,10 @@ interface SuggestedBatch {
   profileName: string;
   greenBeanId: string | null;
   greenBeanName: string | null;
+  greenBeanOrigin: string | null;
+  greenStockKg: number | null;
+  roastedStockKg: number;
+  weightLossPercent: number | null;
   batchSizeKg: number;
   batchNumber: number;
   totalBatches: number;
@@ -49,7 +53,7 @@ export async function GET() {
   const [roastedRes, ordersRes, roasterRes, plansRes] = await Promise.all([
     supabase
       .from("roasted_stock")
-      .select("id, name, current_stock_kg, green_bean_id, batch_size_kg")
+      .select("id, name, current_stock_kg, green_bean_id, batch_size_kg, weight_loss_percentage")
       .eq("roaster_id", roasterId)
       .eq("is_active", true),
     supabase
@@ -88,14 +92,18 @@ export async function GET() {
         .filter(Boolean) as string[]
     )
   );
-  let greenBeanMap = new Map<string, string>();
+  let greenBeanMap = new Map<string, { name: string; origin: string | null; stockKg: number }>();
   if (greenBeanIds.length > 0) {
     const { data: beans } = await supabase
       .from("green_beans")
-      .select("id, name")
+      .select("id, name, origin_country, origin_region, current_stock_kg")
       .in("id", greenBeanIds);
     greenBeanMap = new Map(
-      (beans || []).map((b) => [b.id, b.name])
+      (beans || []).map((b) => [b.id, {
+        name: b.name,
+        origin: [b.origin_country, b.origin_region].filter(Boolean).join(", ") || null,
+        stockKg: b.current_stock_kg ?? 0,
+      }])
     );
   }
 
@@ -183,14 +191,18 @@ export async function GET() {
       else if (diffDays <= 2) urgency = "urgent";
     }
 
+    const greenBean = stock.green_bean_id ? greenBeanMap.get(stock.green_bean_id) : null;
+
     for (let i = 0; i < totalBatches; i++) {
       suggestions.push({
         roastedStockId: stockId,
         profileName: stock.name,
         greenBeanId: stock.green_bean_id,
-        greenBeanName: stock.green_bean_id
-          ? greenBeanMap.get(stock.green_bean_id) || null
-          : null,
+        greenBeanName: greenBean?.name || null,
+        greenBeanOrigin: greenBean?.origin || null,
+        greenStockKg: greenBean?.stockKg ?? null,
+        roastedStockKg: stock.current_stock_kg,
+        weightLossPercent: stock.weight_loss_percentage ?? null,
         batchSizeKg: batchSize,
         batchNumber: i + 1,
         totalBatches,

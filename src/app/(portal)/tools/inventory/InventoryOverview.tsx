@@ -14,11 +14,13 @@ import {
   Scale,
   ChevronDown,
   ChevronUp,
+  Upload,
 } from "@/components/icons";
 import { DataTable } from "@/components/admin/DataTable";
 import { QuickReceiveModal } from "@/components/inventory/QuickReceiveModal";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
 import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
+import { RoastLogImportModal } from "@/components/inventory/RoastLogImportModal";
 
 interface RoastedStock {
   id: string;
@@ -66,6 +68,107 @@ interface LowStockItem {
   greenBeanId?: string;
   greenBeanName?: string;
   greenBeanKg?: number;
+}
+
+function EmptyState({ onImported }: { onImported: () => void }) {
+  const [importOpen, setImportOpen] = useState(false);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Option A — Import (recommended) */}
+        <div className="bg-white rounded-xl border-2 border-brand-200 p-8 relative">
+          <span className="absolute top-4 right-4 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-50 text-brand-700 uppercase tracking-wide">
+            Recommended
+          </span>
+          <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center mb-4">
+            <Upload className="w-5 h-5 text-brand-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Got a roasting tool? Set everything up in one go
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+            Export this week&apos;s roast logs from Cropster, Artisan, or any roasting software as a spreadsheet and import them here. We&apos;ll create your green beans, roast profiles, and stock levels automatically. Have your current stock weights to hand — you can always rebalance later.
+          </p>
+          <button
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import Roast Logs
+          </button>
+        </div>
+
+        {/* Option B — Manual setup */}
+        <div className="bg-white rounded-xl border border-slate-200 p-8">
+          <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mb-4">
+            <Settings className="w-5 h-5 text-slate-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            Prefer to set up manually?
+          </h3>
+          <p className="text-sm text-slate-500 mb-6">
+            Add your green beans and roast profiles separately, then log your roasts going forward.
+          </p>
+
+          <ol className="space-y-4">
+            <li className="flex items-start gap-3">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold shrink-0 mt-0.5">1</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 mb-1.5">Add your green beans</p>
+                <Link
+                  href="/tools/inventory/green/new"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  Add Bean
+                </Link>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold shrink-0 mt-0.5">2</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 mb-1.5">Create roast profiles and map them to your beans</p>
+                <Link
+                  href="/tools/inventory/roasted"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  Go to Roast Profiles
+                </Link>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold shrink-0 mt-0.5">3</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 mb-1.5">Log roasts to track stock automatically</p>
+                <Link
+                  href="/tools/roast-log/new"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  <Flame className="w-3.5 h-3.5" />
+                  Log a Roast
+                </Link>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-400 text-center">
+        Once you&apos;re selling products through your wholesale portal or a connected storefront, your inventory will update automatically with every order.
+      </p>
+
+      <RoastLogImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setImportOpen(false);
+          onImported();
+        }}
+      />
+    </div>
+  );
 }
 
 export function InventoryOverview({ roasterId }: { roasterId: string }) {
@@ -140,66 +243,7 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
 
   if (!data || data.roastedStock.length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl border border-slate-200 p-12">
-          <div className="max-w-lg mx-auto">
-            <Archive className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-5 text-center">Let&apos;s get your inventory set up</h3>
-
-            <ol className="space-y-4 mb-6">
-              <li className="flex gap-3">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">1</span>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Add your green beans</p>
-                  <p className="text-sm text-slate-500">Use the <strong>Add Bean</strong> button below to log the green bean stock you have on hand, including origin, cost, and quantity.</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">2</span>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Create roast profiles</p>
-                  <p className="text-sm text-slate-500">Head to the <strong>Roast Profiles</strong> tab to set up your roasts and map them to your green beans. Add your current roasted stock here too.</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-50 text-brand-600 text-xs font-bold shrink-0 mt-0.5">3</span>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Log roasts and watch your stock update</p>
-                  <p className="text-sm text-slate-500">When you roast, log it and we&apos;ll automatically deduct from your green stock and add to your roasted stock, accounting for weight loss.</p>
-                </div>
-              </li>
-            </ol>
-
-            <p className="text-xs text-slate-400 text-center mb-6">
-              Once you&apos;re selling products through your wholesale portal or a connected storefront, your inventory will update automatically with every order.
-            </p>
-
-            <div className="flex items-center justify-center gap-3">
-              <Link
-                href="/tools/inventory/green/new"
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
-              >
-                <Package className="w-4 h-4" />
-                Add Bean
-              </Link>
-              <Link
-                href="/tools/inventory/roasted"
-                className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-              >
-                <Archive className="w-4 h-4" />
-                Add Roast Profile
-              </Link>
-              <Link
-                href="/tools/inventory/roast-log"
-                className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-              >
-                <Flame className="w-4 h-4" />
-                Log a Roast
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <EmptyState onImported={fetchData} />
     );
   }
 

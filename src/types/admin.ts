@@ -16,6 +16,7 @@ export interface UnifiedOrder {
   artworkStatus: string | null;
   source: string | null;
   itemSummary: string;
+  requiredByDate: string | null;
 }
 
 export interface OrderFilters {

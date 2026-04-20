@@ -156,6 +156,8 @@ export function StorefrontWholesaleCatalogue({
     stripeAccountId: string | null;
     platformFeePercent: number | null;
     defaultWeightLossPct: number;
+    dispatchDays: string[];
+    dispatchCutoffTime: string | null;
   };
   products: Product[];
   wholesaleAccessId: string;
@@ -358,6 +360,8 @@ export function StorefrontWholesaleCatalogue({
         successUrl,
         cancelUrl,
         context,
+        dispatchDays: roaster.dispatchDays,
+        dispatchCutoffTime: roaster.dispatchCutoffTime,
       })
     );
 

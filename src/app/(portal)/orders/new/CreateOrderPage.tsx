@@ -391,6 +391,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   const [paidViaMethod, setPaidViaMethod] = useState("cash");
   const [paidViaOther, setPaidViaOther] = useState("");
   const [notes, setNotes] = useState("");
+  const [requiredByDate, setRequiredByDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [inboxMessageId, setInboxMessageId] = useState<string | null>(null);
@@ -879,6 +880,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           paymentTerms:
             orderChannel === "wholesale" && !markedAsPaid ? paymentTerms : undefined,
           notes: notes || undefined,
+          requiredByDate: requiredByDate || undefined,
           inboxMessageId: inboxMessageId || undefined,
           ...(markedAsPaid ? {
             markedAsPaid: true,
@@ -1721,6 +1723,19 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
             placeholder="Add any notes or special instructions for this order..."
             rows={4}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+          />
+        </div>
+
+        {/* ── Required By ── */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-1">Required By</h2>
+          <p className="text-xs text-slate-400 mb-4">Optional — when does the customer need this order?</p>
+          <input
+            type="date"
+            value={requiredByDate}
+            onChange={(e) => setRequiredByDate(e.target.value)}
+            min={new Date().toISOString().split("T")[0]}
+            className="w-full sm:w-auto px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
           />
         </div>
 

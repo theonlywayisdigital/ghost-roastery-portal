@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -3535,6 +3536,7 @@ export type Database = {
           platform_fee: number
           refund_status: string | null
           refund_total: number | null
+          required_by_date: string | null
           roaster_id: string
           roaster_payout: number
           shipping_cost: number | null
@@ -3576,6 +3578,7 @@ export type Database = {
           platform_fee: number
           refund_status?: string | null
           refund_total?: number | null
+          required_by_date?: string | null
           roaster_id: string
           roaster_payout: number
           shipping_cost?: number | null
@@ -3617,6 +3620,7 @@ export type Database = {
           platform_fee?: number
           refund_status?: string | null
           refund_total?: number | null
+          required_by_date?: string | null
           roaster_id?: string
           roaster_payout?: number
           shipping_cost?: number | null
@@ -5334,6 +5338,48 @@ export type Database = {
         }
         Relationships: []
       }
+      roast_import_mappings: {
+        Row: {
+          created_at: string
+          header_fingerprint: Json
+          id: string
+          mapping: Json
+          name: string
+          roaster_id: string
+        }
+        Insert: {
+          created_at?: string
+          header_fingerprint?: Json
+          id?: string
+          mapping?: Json
+          name: string
+          roaster_id: string
+        }
+        Update: {
+          created_at?: string
+          header_fingerprint?: Json
+          id?: string
+          mapping?: Json
+          name?: string
+          roaster_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roast_import_mappings_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roast_import_mappings_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roast_logs: {
         Row: {
           ambient_humidity_percent: number | null
@@ -5525,6 +5571,7 @@ export type Database = {
           notes: string | null
           roaster_id: string
           updated_at: string
+          weight_loss_percentage: number | null
         }
         Insert: {
           batch_size_kg?: number | null
@@ -5538,6 +5585,7 @@ export type Database = {
           notes?: string | null
           roaster_id: string
           updated_at?: string
+          weight_loss_percentage?: number | null
         }
         Update: {
           batch_size_kg?: number | null
@@ -5551,6 +5599,7 @@ export type Database = {
           notes?: string | null
           roaster_id?: string
           updated_at?: string
+          weight_loss_percentage?: number | null
         }
         Relationships: [
           {
@@ -6153,6 +6202,7 @@ export type Database = {
           default_batch_size_kg: number | null
           default_dispatch_time: string | null
           default_payment_terms: number | null
+          default_weight_loss_pct: number
           discount_note: string | null
           dispatch_cutoff_time: string | null
           dispatch_days: string[] | null
@@ -6281,6 +6331,7 @@ export type Database = {
           default_batch_size_kg?: number | null
           default_dispatch_time?: string | null
           default_payment_terms?: number | null
+          default_weight_loss_pct?: number
           discount_note?: string | null
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
@@ -6409,6 +6460,7 @@ export type Database = {
           default_batch_size_kg?: number | null
           default_dispatch_time?: string | null
           default_payment_terms?: number | null
+          default_weight_loss_pct?: number
           discount_note?: string | null
           dispatch_cutoff_time?: string | null
           dispatch_days?: string[] | null
@@ -8199,6 +8251,18 @@ export type Database = {
       get_partner_rate: {
         Args: { p_bag_size: string; p_quantity: number; p_roaster_id: string }
         Returns: number
+      }
+      import_roast_stock_transfer: {
+        Args: {
+          p_batch_label?: string
+          p_green_bean_id: string
+          p_green_qty_kg: number
+          p_reference_id: string
+          p_roasted_qty_kg: number
+          p_roasted_stock_id: string
+          p_roaster_id: string
+        }
+        Returns: Json
       }
       increment_discount_used_count: {
         Args: { discount_id: string }

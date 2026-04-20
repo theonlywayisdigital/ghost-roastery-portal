@@ -123,6 +123,8 @@ export function WholesaleProductDetail({
     stripeAccountId: string | null;
     platformFeePercent: number | null;
     defaultWeightLossPct: number;
+    dispatchDays: string[];
+    dispatchCutoffTime: string | null;
   };
   wholesaleAccessId: string;
   paymentTerms: string;
@@ -306,6 +308,8 @@ export function WholesaleProductDetail({
         successUrl,
         cancelUrl,
         context: { type: "storefront", slug },
+        dispatchDays: roaster.dispatchDays,
+        dispatchCutoffTime: roaster.dispatchCutoffTime,
       })
     );
     router.push(checkoutUrl);

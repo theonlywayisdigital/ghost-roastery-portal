@@ -68,6 +68,8 @@ export function WebsiteWholesalePage({
     stripeAccountId: string | null;
     platformFeePercent: number | null;
     defaultWeightLossPct: number;
+    dispatchDays: string[];
+    dispatchCutoffTime: string | null;
   };
   domain: string;
   products: Product[];

@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       paymentMethod,
       paymentTerms,
       notes,
+      requiredByDate,
       status: requestedStatus,
       inboxMessageId,
       markedAsPaid,
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
       paymentMethod: string;
       paymentTerms?: string;
       notes?: string;
+      requiredByDate?: string;
       status?: string;
       inboxMessageId?: string;
       markedAsPaid?: boolean;
@@ -302,6 +304,7 @@ export async function POST(request: Request) {
         user_id: userId,
         order_channel: orderChannel,
         notes: [notes, markedAsPaid && paidViaOther ? `Paid via: ${paidViaOther}` : null].filter(Boolean).join("\n") || null,
+        required_by_date: requiredByDate || null,
       })
       .select("id")
       .single();

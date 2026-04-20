@@ -42,11 +42,16 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const [markPaidMethod, setMarkPaidMethod] = useState("cash");
   const [markPaidOther, setMarkPaidOther] = useState("");
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [requiredByDate, setRequiredByDate] = useState("");
+  const [savingRequiredBy, setSavingRequiredBy] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}?type=${initialType}`)
       .then((res) => res.json())
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        if (d?.order?.required_by_date) setRequiredByDate(d.order.required_by_date);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [orderId, initialType]);
@@ -128,6 +133,20 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
       }
     } finally {
       setMarkingPaid(false);
+    }
+  }
+
+  async function handleSaveRequiredBy(date: string) {
+    setSavingRequiredBy(true);
+    try {
+      await fetch(`/api/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requiredByDate: date || null }),
+      });
+      setRequiredByDate(date);
+    } finally {
+      setSavingRequiredBy(false);
     }
   }
 
@@ -327,6 +346,29 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
             contactHref={contactId ? `/contacts/${contactId}` : null}
             heading="Buyer"
           />
+
+          {/* Required By Date */}
+          {!isGhost && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Required By</h3>
+              <input
+                type="date"
+                value={requiredByDate}
+                onChange={(e) => handleSaveRequiredBy(e.target.value)}
+                disabled={savingRequiredBy}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 disabled:opacity-50"
+              />
+              {requiredByDate && (
+                <button
+                  onClick={() => handleSaveRequiredBy("")}
+                  disabled={savingRequiredBy}
+                  className="mt-2 text-xs text-slate-400 hover:text-red-500 disabled:opacity-50"
+                >
+                  Clear date
+                </button>
+              )}
+            </div>
+          )}
 
           <ActivityTimeline
             activities={activities}

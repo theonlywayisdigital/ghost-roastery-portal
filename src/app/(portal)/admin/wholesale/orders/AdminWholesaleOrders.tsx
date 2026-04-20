@@ -23,6 +23,7 @@ interface WholesaleOrder {
   paymentStatus: string;
   total: number;
   itemSummary: string;
+  requiredByDate: string | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -180,6 +181,9 @@ export function AdminWholesaleOrders() {
                       Total
                     </th>
                     <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
+                      Required By
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
                       Date
                     </th>
                   </tr>
@@ -229,6 +233,21 @@ export function AdminWholesaleOrders() {
                         <span className="text-sm font-medium text-slate-900">
                           {formatCurrency(order.total)}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {order.requiredByDate ? (() => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const reqDate = new Date(order.requiredByDate + "T00:00:00");
+                          const diffDays = Math.ceil((reqDate.getTime() - today.getTime()) / 86400000);
+                          const isOverdue = diffDays < 0 && order.status !== "delivered" && order.status !== "cancelled";
+                          const isUrgent = diffDays >= 0 && diffDays <= 2 && order.status !== "delivered" && order.status !== "cancelled";
+                          return (
+                            <span className={`text-xs font-medium ${isOverdue ? "text-red-600" : isUrgent ? "text-amber-600" : "text-slate-600"}`}>
+                              {formatDate(order.requiredByDate)}
+                            </span>
+                          );
+                        })() : <span className="text-xs text-slate-300">&mdash;</span>}
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className="text-xs text-slate-500">

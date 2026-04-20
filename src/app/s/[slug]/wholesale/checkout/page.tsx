@@ -40,6 +40,8 @@ interface CheckoutData {
   successUrl: string;
   cancelUrl: string;
   context: { type: string; slug?: string; domain?: string };
+  dispatchDays?: string[];
+  dispatchCutoffTime?: string | null;
 }
 
 interface BuyerAddress {
@@ -83,6 +85,7 @@ export default function WholesaleCheckoutPage() {
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
   const [shippingLoading, setShippingLoading] = useState(true);
+  const [requiredByDate, setRequiredByDate] = useState("");
 
   // Load checkout data from sessionStorage
   useEffect(() => {
@@ -224,6 +227,7 @@ export default function WholesaleCheckoutPage() {
           cancelUrl: checkout.cancelUrl,
           deliveryAddress,
           orderNotes: notes || undefined,
+          requiredByDate: requiredByDate || undefined,
           ...(selectedShippingId ? { shippingMethodId: selectedShippingId, shippingCost } : {}),
         }),
       });
@@ -539,6 +543,41 @@ export default function WholesaleCheckoutPage() {
             rows={3}
             className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none"
           />
+        </section>
+
+        {/* ─── Required By ─── */}
+        <section className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
+            Required By
+            <span className="text-xs font-normal text-slate-400 ml-2">(optional)</span>
+          </h2>
+          {checkout.dispatchDays && checkout.dispatchDays.length > 0 && (
+            <p className="text-xs text-slate-500 mb-3">
+              {checkout.roasterName} dispatches on{" "}
+              <span className="font-medium text-slate-700">
+                {checkout.dispatchDays
+                  .map((d) => d.charAt(0).toUpperCase() + d.slice(1))
+                  .join(", ")}
+              </span>
+              {checkout.dispatchCutoffTime && (
+                <>
+                  . Orders placed before{" "}
+                  <span className="font-medium text-slate-700">{checkout.dispatchCutoffTime}</span>
+                  {" "}are included in the next dispatch.
+                </>
+              )}
+            </p>
+          )}
+          <input
+            type="date"
+            value={requiredByDate}
+            onChange={(e) => setRequiredByDate(e.target.value)}
+            min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+            className="w-full sm:w-auto rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          />
+          <p className="text-xs text-slate-400 mt-2">
+            Let us know when you need this by so we can prioritise your order.
+          </p>
         </section>
 
         {/* ─── Payment ─── */}

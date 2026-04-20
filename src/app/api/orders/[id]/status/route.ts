@@ -258,7 +258,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { trackingNumber, trackingCarrier } = await request.json();
+    const { trackingNumber, trackingCarrier, requiredByDate } = await request.json();
     const supabase = createServerClient();
 
     const { data: order } = await supabase
@@ -275,6 +275,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const updatePayload: Record<string, unknown> = {};
     if (trackingNumber !== undefined) updatePayload.tracking_number = trackingNumber;
     if (trackingCarrier !== undefined) updatePayload.tracking_carrier = trackingCarrier;
+    if (requiredByDate !== undefined) updatePayload.required_by_date = requiredByDate || null;
 
     if (Object.keys(updatePayload).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });

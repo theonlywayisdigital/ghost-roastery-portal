@@ -17,7 +17,7 @@ export default async function WholesalePageRoute({
   const { data: roaster } = await supabase
     .from("roasters")
     .select(
-      "id, business_name, brand_logo_url, brand_hero_image_url, hero_overlay_opacity, storefront_slug, storefront_enabled, storefront_type, stripe_account_id, platform_fee_percent, default_weight_loss_pct"
+      "id, business_name, brand_logo_url, brand_hero_image_url, hero_overlay_opacity, storefront_slug, storefront_enabled, storefront_type, stripe_account_id, platform_fee_percent, default_weight_loss_pct, dispatch_days, dispatch_cutoff_time"
     )
     .eq("storefront_slug", slug)
     .eq("storefront_enabled", true)
@@ -129,6 +129,8 @@ export default async function WholesalePageRoute({
         stripeAccountId: roaster.stripe_account_id,
         platformFeePercent: roaster.platform_fee_percent as number | null,
         defaultWeightLossPct: (roaster.default_weight_loss_pct as number) ?? 14,
+        dispatchDays: (roaster.dispatch_days as string[]) ?? [],
+        dispatchCutoffTime: (roaster.dispatch_cutoff_time as string) ?? null,
       }}
       previewProducts={previewProducts || []}
       products={fullProducts}

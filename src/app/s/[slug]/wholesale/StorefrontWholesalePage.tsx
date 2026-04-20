@@ -84,6 +84,8 @@ export function StorefrontWholesalePage({
     stripeAccountId: string | null;
     platformFeePercent: number | null;
     defaultWeightLossPct: number;
+    dispatchDays: string[];
+    dispatchCutoffTime: string | null;
   };
   previewProducts: PreviewProduct[];
   products: Product[];

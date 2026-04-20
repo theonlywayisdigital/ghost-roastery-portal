@@ -20,6 +20,7 @@ interface RoasterOrder {
   status: string;
   paymentStatus: string;
   date: string;
+  requiredByDate: string | null;
   externalSource: string | null;
 }
 
@@ -227,6 +228,27 @@ export function OrdersPage({ roasterId, isPartner }: OrdersPageProps) {
       label: "Payment",
       hiddenOnMobile: true,
       render: (row) => <StatusBadge status={row.paymentStatus} type="payment" />,
+    },
+    {
+      key: "requiredByDate",
+      label: "Required By",
+      hiddenOnMobile: true,
+      render: (row) => {
+        if (!row.requiredByDate) return <span className="text-sm text-slate-300">&mdash;</span>;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const reqDate = new Date(row.requiredByDate + "T00:00:00");
+        const diffDays = Math.ceil((reqDate.getTime() - today.getTime()) / 86400000);
+        const isOverdue = diffDays < 0 && row.status !== "delivered" && row.status !== "cancelled";
+        const isUrgent = diffDays >= 0 && diffDays <= 2 && row.status !== "delivered" && row.status !== "cancelled";
+        return (
+          <span className={`text-sm font-medium ${
+            isOverdue ? "text-red-600" : isUrgent ? "text-amber-600" : "text-slate-600"
+          }`}>
+            {formatDate(row.requiredByDate)}
+          </span>
+        );
+      },
     },
     {
       key: "date",

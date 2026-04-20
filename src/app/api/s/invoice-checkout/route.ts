@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       discountAmountPence?: number;
       shippingMethodId?: string;
       shippingCost?: number;
+      requiredByDate?: string;
     };
 
     // Invoice checkout is wholesale-only
@@ -545,6 +546,7 @@ export async function POST(request: Request) {
         notes: body.orderNotes || null,
         shipping_method_id: validatedShippingMethodId,
         shipping_cost: validatedShippingCost,
+        required_by_date: body.requiredByDate || null,
       })
       .select("id")
       .single();

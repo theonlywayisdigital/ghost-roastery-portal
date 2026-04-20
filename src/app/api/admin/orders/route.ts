@@ -104,6 +104,7 @@ export async function GET(req: NextRequest) {
           artworkStatus: o.artwork_status ?? null,
           source: o.order_source ?? null,
           itemSummary: `${o.quantity}× ${o.bag_size} ${o.roast_profile}`,
+          requiredByDate: null,
         });
       }
     }
@@ -196,6 +197,7 @@ export async function GET(req: NextRequest) {
           artworkStatus: null,
           source: null,
           itemSummary: `${totalQty} items (${itemCount} products)`,
+          requiredByDate: wo.required_by_date || null,
         });
       }
     }

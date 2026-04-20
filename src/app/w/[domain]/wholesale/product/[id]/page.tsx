@@ -55,7 +55,7 @@ export default async function WebsiteWholesaleProductDetailRoute({
   const { data: roaster } = await supabase
     .from("roasters")
     .select(
-      "id, business_name, brand_logo_url, storefront_slug, storefront_enabled, storefront_type, stripe_account_id, platform_fee_percent, default_weight_loss_pct"
+      "id, business_name, brand_logo_url, storefront_slug, storefront_enabled, storefront_type, stripe_account_id, platform_fee_percent, default_weight_loss_pct, dispatch_days, dispatch_cutoff_time"
     )
     .or(`website_custom_domain.eq.${domain},storefront_slug.eq.${domain}`)
     .eq("website_subscription_active", true)
@@ -169,6 +169,8 @@ export default async function WebsiteWholesaleProductDetailRoute({
         stripeAccountId: roaster.stripe_account_id,
         platformFeePercent: roaster.platform_fee_percent as number | null,
         defaultWeightLossPct: (roaster.default_weight_loss_pct as number) ?? 14,
+        dispatchDays: (roaster.dispatch_days as string[]) ?? [],
+        dispatchCutoffTime: (roaster.dispatch_cutoff_time as string) ?? null,
       }}
       wholesaleAccessId={wholesaleAccessId}
       paymentTerms={paymentTerms}

@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
       paymentStatus,
       total: wo.subtotal,
       itemSummary: `${totalQty} items (${itemCount} products)`,
+      requiredByDate: wo.required_by_date || null,
     };
   });
 

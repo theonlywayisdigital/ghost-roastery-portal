@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
   Loader2,
   Flame,
-  AlertTriangle,
   Clock,
   Coffee,
   CalendarDays,
@@ -18,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
+  AlertTriangle,
 } from "@/components/icons";
 import Link from "next/link";
 import {
@@ -101,7 +101,6 @@ const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function getWeekDays(date: Date): Date[] {
   const d = new Date(date);
-  // Get Monday of this week
   const dayOfWeek = d.getDay();
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(d);
@@ -120,7 +119,7 @@ function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function formatDate(dateStr: string) {
+function formatDateShort(dateStr: string) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -130,9 +129,9 @@ function formatDate(dateStr: string) {
 // ── Urgency helpers ────────────────────────────────────────────────────
 
 const URGENCY_CONFIG = {
-  overdue: { label: "Overdue", bg: "bg-red-50", text: "text-red-700", border: "border-red-200", dot: "bg-red-500" },
-  urgent: { label: "Urgent", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-500" },
-  normal: { label: "On Track", bg: "bg-green-50", text: "text-green-700", border: "border-green-200", dot: "bg-green-500" },
+  overdue: { label: "Overdue", bg: "bg-red-50", text: "text-red-700", border: "border-red-200", leftBorder: "border-l-red-500" },
+  urgent: { label: "Urgent", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", leftBorder: "border-l-amber-500" },
+  normal: { label: "On Track", bg: "bg-green-50", text: "text-green-700", border: "border-green-200", leftBorder: "border-l-green-500" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -141,6 +140,42 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   completed: { label: "Completed", bg: "bg-green-50", text: "text-green-700" },
   cancelled: { label: "Cancelled", bg: "bg-slate-100", text: "text-slate-500" },
 };
+
+// Parse "Required by: YYYY-MM-DD" from plan notes
+function parseRequiredByFromNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/Required by: (\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+}
+
+// Derive urgency from a required-by date
+function deriveUrgency(requiredBy: string | null): "overdue" | "urgent" | "normal" {
+  if (!requiredBy) return "normal";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const reqDate = new Date(requiredBy + "T00:00:00");
+  const diffDays = Math.ceil((reqDate.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 2) return "urgent";
+  return "normal";
+}
+
+// ── Toast notification ─────────────────────────────────────────────────
+
+function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium">
+      <AlertTriangle className="w-4 h-4 shrink-0" />
+      {message}
+      <button onClick={onClose} className="ml-2 text-red-200 hover:text-white">&times;</button>
+    </div>
+  );
+}
 
 // ── Sub-components ─────────────────────────────────────────────────────
 
@@ -161,52 +196,56 @@ function DraggableBatchCard({
   return (
     <div
       ref={isOverlay ? undefined : setNodeRef}
-      className={`bg-white rounded-lg border ${urg.border} p-3 transition-all ${
+      className={`bg-white rounded-lg border border-slate-200 border-l-[3px] ${urg.leftBorder} transition-all ${
         isDragging ? "opacity-30" : ""
       } ${isOverlay ? "shadow-lg ring-2 ring-brand-200" : ""}`}
     >
-      {/* Drag handle + header */}
-      <div className="flex items-start gap-2">
-        <button
-          {...listeners}
-          {...attributes}
-          className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-slate-900 truncate">
-              {batch.profileName}
+      <div className="p-3">
+        {/* Required By — first line, prominent */}
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+          {batch.earliestRequiredBy ? (
+            <span className={`text-xs font-medium ${batch.urgency === "overdue" ? "text-red-600" : batch.urgency === "urgent" ? "text-amber-600" : "text-slate-600"}`}>
+              Required by {formatDateShort(batch.earliestRequiredBy)}
             </span>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${urg.bg} ${urg.text}`}>
-              {urg.label}
-            </span>
-          </div>
-          {batch.greenBeanName && (
-            <p className="text-xs text-slate-500 truncate mb-1">{batch.greenBeanName}</p>
+          ) : (
+            <span className="text-xs text-slate-400">No date set</span>
           )}
-          <div className="flex items-center gap-3 text-xs text-slate-500">
-            <span className="font-medium text-slate-700">{batch.batchSizeKg}kg</span>
-            {batch.earliestRequiredBy && (
-              <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {formatDate(batch.earliestRequiredBy)}
-              </span>
+          <span className={`ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${urg.bg} ${urg.text}`}>
+            {urg.label}
+          </span>
+        </div>
+
+        {/* Drag handle + profile info */}
+        <div className="flex items-start gap-2">
+          <button
+            {...listeners}
+            {...attributes}
+            className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-slate-900 truncate">{batch.profileName}</p>
+            {batch.greenBeanName && (
+              <p className="text-xs text-slate-500 truncate">{batch.greenBeanName}</p>
             )}
-            <span>{batch.contributingOrders.length} order{batch.contributingOrders.length !== 1 ? "s" : ""}</span>
+            <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+              <span className="font-medium text-slate-700">{batch.batchSizeKg}kg</span>
+              <span>{batch.contributingOrders.length} order{batch.contributingOrders.length !== 1 ? "s" : ""}</span>
+            </div>
+            {batch.totalBatches > 1 && (
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Batch {batch.batchNumber} of {batch.totalBatches} ({batch.totalShortfallKg}kg shortfall)
+              </p>
+            )}
           </div>
-          {batch.totalBatches > 1 && (
-            <p className="text-[10px] text-slate-400 mt-1">
-              Batch {batch.batchNumber} of {batch.totalBatches} ({batch.totalShortfallKg}kg shortfall)
-            </p>
-          )}
         </div>
       </div>
 
       {/* Expandable order details */}
       {!isOverlay && batch.contributingOrders.length > 0 && (
-        <div className="mt-2 ml-6">
+        <div className="px-3 pb-2 ml-6">
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600"
@@ -233,11 +272,15 @@ function DraggableBatchCard({
 
 function DraggablePlanCard({
   plan,
+  urgency,
+  requiredBy,
   isOverlay,
   onStatusChange,
   onDelete,
 }: {
   plan: ExistingPlan;
+  urgency: "overdue" | "urgent" | "normal";
+  requiredBy: string | null;
   isOverlay?: boolean;
   onStatusChange: (planId: string, newStatus: string) => void;
   onDelete: (planId: string) => void;
@@ -246,42 +289,23 @@ function DraggablePlanCard({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   const status = STATUS_CONFIG[plan.status] || STATUS_CONFIG.planned;
   const name = plan.roasted_stock?.name || plan.green_beans?.name || plan.green_bean_name || "Unnamed";
+  const urg = URGENCY_CONFIG[urgency];
 
   return (
     <div
       ref={isOverlay ? undefined : setNodeRef}
-      className={`bg-white rounded-lg border border-slate-200 p-2.5 transition-all ${
+      className={`group bg-white rounded-lg border border-slate-200 border-l-[3px] ${urg.leftBorder} min-h-[72px] transition-all ${
         isDragging ? "opacity-30" : ""
       } ${isOverlay ? "shadow-lg ring-2 ring-brand-200" : ""}`}
     >
-      <div className="flex items-start gap-1.5">
-        <button
-          {...listeners}
-          {...attributes}
-          className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
-        >
-          <GripVertical className="w-3.5 h-3.5" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-xs font-medium text-slate-900 truncate">{name}</span>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${status.bg} ${status.text}`}>
-              {status.label}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-[10px] text-slate-500">
-            <span>{plan.planned_weight_kg}kg</span>
-            {plan.expected_roasted_kg && (
-              <span className="text-slate-400">→ {Number(plan.expected_roasted_kg).toFixed(1)}kg</span>
-            )}
-          </div>
-        </div>
+      <div className="p-2.5 relative">
+        {/* Hover-reveal action buttons — top right */}
         {!isOverlay && (
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-200 p-0.5 z-10">
             {plan.status === "planned" && (
               <button
-                onClick={() => onStatusChange(plan.id, "in_progress")}
-                title="Start"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "in_progress"); }}
+                title="Start roasting"
                 className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -289,15 +313,15 @@ function DraggablePlanCard({
             )}
             {plan.status === "in_progress" && (
               <button
-                onClick={() => onStatusChange(plan.id, "completed")}
-                title="Complete"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "completed"); }}
+                title="Mark complete"
                 className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
             )}
             <button
-              onClick={() => onDelete(plan.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete(plan.id); }}
               title="Unschedule"
               className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             >
@@ -305,6 +329,41 @@ function DraggablePlanCard({
             </button>
           </div>
         )}
+
+        {/* Drag handle + content */}
+        <div className="flex items-start gap-1.5">
+          <button
+            {...listeners}
+            {...attributes}
+            className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            {/* Required By — first line */}
+            <div className="flex items-center gap-1 mb-1">
+              <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+              {requiredBy ? (
+                <span className={`text-[10px] font-medium ${urgency === "overdue" ? "text-red-600" : urgency === "urgent" ? "text-amber-600" : "text-slate-500"}`}>
+                  {formatDateShort(requiredBy)}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400">No date set</span>
+              )}
+            </div>
+
+            {/* Profile name */}
+            <p className="text-xs font-medium text-slate-900 truncate pr-6">{name}</p>
+
+            {/* Batch size + status */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-slate-500">{plan.planned_weight_kg}kg</span>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${status.bg} ${status.text}`}>
+                {status.label}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -314,12 +373,16 @@ function DroppableDay({
   date,
   isToday,
   plans,
+  getUrgencyForPlan,
+  getRequiredByForPlan,
   onStatusChange,
   onDelete,
 }: {
   date: Date;
   isToday: boolean;
   plans: ExistingPlan[];
+  getUrgencyForPlan: (plan: ExistingPlan) => "overdue" | "urgent" | "normal";
+  getRequiredByForPlan: (plan: ExistingPlan) => string | null;
   onStatusChange: (planId: string, newStatus: string) => void;
   onDelete: (planId: string) => void;
 }) {
@@ -329,11 +392,14 @@ function DroppableDay({
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col min-h-[200px] p-2 border-r border-slate-100 last:border-r-0 transition-colors ${
-        isOver ? "bg-brand-50" : ""
+      className={`flex flex-col min-h-[280px] border-r border-slate-100 last:border-r-0 transition-all ${
+        isOver
+          ? "bg-brand-50 ring-2 ring-inset ring-brand-300"
+          : ""
       }`}
     >
-      <div className="text-center mb-2">
+      {/* Day header */}
+      <div className={`text-center py-2 border-b ${isOver ? "border-brand-200" : "border-slate-100"}`}>
         <p className="text-[10px] font-medium text-slate-400 uppercase">
           {DAY_NAMES[((date.getDay() + 6) % 7)]}
         </p>
@@ -346,23 +412,30 @@ function DroppableDay({
         </span>
       </div>
 
-      <div className="flex-1 space-y-1.5">
+      {/* Cards area — entire column is droppable */}
+      <div className="flex-1 p-1.5 space-y-1.5">
         {plans.map((plan) => (
           <DraggablePlanCard
             key={plan.id}
             plan={plan}
+            urgency={getUrgencyForPlan(plan)}
+            requiredBy={getRequiredByForPlan(plan)}
             onStatusChange={onStatusChange}
             onDelete={onDelete}
           />
         ))}
-        {plans.length === 0 && isOver && (
-          <div className="flex items-center justify-center h-16 border-2 border-dashed border-brand-200 rounded-lg text-xs text-brand-400">
+
+        {/* Drop indicator when dragging over */}
+        {isOver && (
+          <div className="flex items-center justify-center min-h-[72px] border-2 border-dashed border-brand-300 rounded-lg text-xs text-brand-500 font-medium bg-brand-50/50">
             Drop here
           </div>
         )}
+
+        {/* Empty state — only when no plans and not being dragged over */}
         {plans.length === 0 && !isOver && (
-          <div className="flex items-center justify-center h-16 border-2 border-dashed border-slate-100 rounded-lg text-xs text-slate-300">
-            No batches
+          <div className="flex items-center justify-center min-h-[60px] text-xs text-slate-300">
+            —
           </div>
         )}
       </div>
@@ -376,11 +449,9 @@ function UnscheduleDropZone() {
   return (
     <div
       ref={setNodeRef}
-      className={`mt-auto pt-3 border-t border-slate-100 transition-colors ${
-        isOver ? "opacity-100" : "opacity-0 pointer-events-none"
-      }`}
+      className="mt-auto pt-3 border-t border-slate-100"
     >
-      <div className={`flex items-center justify-center py-3 border-2 border-dashed rounded-lg text-xs font-medium ${
+      <div className={`flex items-center justify-center py-3 border-2 border-dashed rounded-lg text-xs font-medium transition-colors ${
         isOver ? "border-red-300 bg-red-50 text-red-600" : "border-slate-200 text-slate-400"
       }`}>
         <Trash2 className="w-3.5 h-3.5 mr-1.5" />
@@ -406,6 +477,10 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   const [summary, setSummary] = useState({ totalBatchesNeeded: 0, profilesWithShortfall: 0, overdueCount: 0, urgentCount: 0 });
   const [activeDrag, setActiveDrag] = useState<{ type: DraggableType; index?: number; plan?: ExistingPlan } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Snapshot for rollback on failure
+  const snapshotRef = useRef<{ plans: ExistingPlan[]; suggestions: SuggestedBatch[] } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -416,11 +491,11 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   today.setHours(0, 0, 0, 0);
   const todayKey = toDateKey(today);
 
-  const weekLabel = `${formatDate(toDateKey(weekDays[0]))} — ${formatDate(toDateKey(weekDays[6]))}`;
+  const weekLabel = `${formatDateShort(toDateKey(weekDays[0]))} — ${formatDateShort(toDateKey(weekDays[6]))}`;
 
-  // Load suggested batches
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  // Load suggested batches (background sync — no loading spinner after initial load)
+  const loadData = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const res = await fetch("/api/tools/production/suggested");
       if (res.ok) {
@@ -432,12 +507,42 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     } catch (err) {
       console.error("Failed to load production data:", err);
     }
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }, []);
 
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, [loadData]);
+
+  // Build lookup: roasted_stock_id → suggestion (for deriving urgency/requiredBy on existing plans)
+  const suggestionByStockId = new Map<string, SuggestedBatch>();
+  for (const s of suggestions) {
+    if (!suggestionByStockId.has(s.roastedStockId)) {
+      suggestionByStockId.set(s.roastedStockId, s);
+    }
+  }
+
+  function getUrgencyForPlan(plan: ExistingPlan): "overdue" | "urgent" | "normal" {
+    // First try to get from notes
+    const notesDate = parseRequiredByFromNotes(plan.notes);
+    if (notesDate) return deriveUrgency(notesDate);
+    // Fall back to suggestion data
+    if (plan.roasted_stock_id) {
+      const suggestion = suggestionByStockId.get(plan.roasted_stock_id);
+      if (suggestion) return suggestion.urgency;
+    }
+    return "normal";
+  }
+
+  function getRequiredByForPlan(plan: ExistingPlan): string | null {
+    const notesDate = parseRequiredByFromNotes(plan.notes);
+    if (notesDate) return notesDate;
+    if (plan.roasted_stock_id) {
+      const suggestion = suggestionByStockId.get(plan.roasted_stock_id);
+      if (suggestion) return suggestion.earliestRequiredBy;
+    }
+    return null;
+  }
 
   // Filter plans by week
   const weekKeys = new Set(weekDays.map(toDateKey));
@@ -447,12 +552,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   function getPlansForDate(dateKey: string): ExistingPlan[] {
     return plans.filter((p) => p.planned_date === dateKey);
   }
-
-  // Filter out suggestions that already have a matching plan (same roasted_stock_id + batch number)
-  const scheduledStockIds = new Set(
-    plans.filter((p) => p.roasted_stock_id && (p.status === "planned" || p.status === "in_progress"))
-      .map((p) => p.roasted_stock_id)
-  );
 
   // Count how many plans exist per roasted_stock_id
   const planCountByStock: Record<string, number> = {};
@@ -480,6 +579,20 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     setCurrentDate(new Date());
   }
 
+  // Save snapshot for rollback
+  function saveSnapshot() {
+    snapshotRef.current = { plans: [...plans], suggestions: [...suggestions] };
+  }
+
+  function rollback(errorMsg: string) {
+    if (snapshotRef.current) {
+      setPlans(snapshotRef.current.plans);
+      setSuggestions(snapshotRef.current.suggestions);
+      snapshotRef.current = null;
+    }
+    setToast(errorMsg);
+  }
+
   // Drag and drop handlers
   function handleDragStart(event: DragStartEvent) {
     setIsDragging(true);
@@ -498,19 +611,40 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     const dragData = activeDrag;
     setActiveDrag(null);
 
-    const { active, over } = event;
+    const { over } = event;
     if (!over || !dragData) return;
 
     const targetId = over.id as string;
 
     if (dragData.type === "suggestion") {
-      // Dragging a suggestion onto a day
-      if (targetId === "unschedule") return; // Can't unschedule something not scheduled
+      if (targetId === "unschedule") return;
 
       const batch = unscheduledSuggestions[dragData.index!];
       if (!batch) return;
 
-      // Create a new production plan
+      // Optimistic: create a temporary plan in state
+      saveSnapshot();
+      const tempId = `temp-${Date.now()}`;
+      const tempPlan: ExistingPlan = {
+        id: tempId,
+        planned_date: targetId,
+        green_bean_id: batch.greenBeanId,
+        green_bean_name: batch.greenBeanName || batch.profileName,
+        roasted_stock_id: batch.roastedStockId,
+        planned_weight_kg: batch.batchSizeKg,
+        expected_roasted_kg: Math.round(batch.batchSizeKg * 0.85 * 1000) / 1000,
+        expected_loss_percent: 15,
+        status: "planned",
+        notes: batch.earliestRequiredBy
+          ? `Required by: ${batch.earliestRequiredBy}. Auto-scheduled for ${batch.contributingOrders.length} order(s).`
+          : `Auto-scheduled for ${batch.contributingOrders.length} order(s). Shortfall: ${batch.totalShortfallKg}kg.`,
+        priority: 0,
+        green_beans: batch.greenBeanName ? { name: batch.greenBeanName } : null,
+        roasted_stock: { name: batch.profileName },
+      };
+
+      setPlans((prev) => [...prev, tempPlan]);
+
       try {
         const res = await fetch("/api/tools/production", {
           method: "POST",
@@ -522,28 +656,39 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
             green_bean_name: batch.greenBeanName || batch.profileName,
             planned_weight_kg: String(batch.batchSizeKg),
             expected_loss_percent: "15",
-            notes: `Auto-scheduled for ${batch.contributingOrders.length} order(s). Shortfall: ${batch.totalShortfallKg}kg.`,
+            notes: tempPlan.notes,
           }),
         });
 
         if (res.ok) {
-          await loadData();
+          const data = await res.json();
+          // Replace temp plan with real plan
+          setPlans((prev) => prev.map((p) => p.id === tempId ? { ...tempPlan, id: data.productionPlan.id } : p));
+          // Background sync to update summary counts
+          loadData();
+        } else {
+          rollback("Failed to schedule batch. Changes reverted.");
         }
       } catch {
-        console.error("Failed to create plan");
+        rollback("Failed to schedule batch. Changes reverted.");
       }
     } else if (dragData.type === "plan" && dragData.plan) {
       const plan = dragData.plan;
 
       if (targetId === "unschedule") {
-        // Delete the plan
+        // Optimistic delete
+        saveSnapshot();
+        setPlans((prev) => prev.filter((p) => p.id !== plan.id));
+
         try {
           const res = await fetch(`/api/tools/production/${plan.id}`, { method: "DELETE" });
           if (res.ok) {
-            await loadData();
+            loadData();
+          } else {
+            rollback("Failed to unschedule batch. Changes reverted.");
           }
         } catch {
-          console.error("Failed to delete plan");
+          rollback("Failed to unschedule batch. Changes reverted.");
         }
         return;
       }
@@ -551,7 +696,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
       // Reschedule to a different day
       if (plan.planned_date === targetId) return;
 
-      // Optimistic update
+      saveSnapshot();
       setPlans((prev) =>
         prev.map((p) => (p.id === plan.id ? { ...p, planned_date: targetId } : p))
       );
@@ -563,17 +708,17 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           body: JSON.stringify({ planned_date: targetId }),
         });
         if (!res.ok) {
-          await loadData(); // Revert
+          rollback("Failed to reschedule batch. Changes reverted.");
         }
       } catch {
-        await loadData();
+        rollback("Failed to reschedule batch. Changes reverted.");
       }
     }
   }
 
   // Status change handler
   async function handleStatusChange(planId: string, newStatus: string) {
-    // Optimistic update
+    saveSnapshot();
     setPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: newStatus } : p))
     );
@@ -584,21 +729,30 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) await loadData();
+      if (!res.ok) {
+        rollback("Failed to update status. Changes reverted.");
+      } else {
+        loadData();
+      }
     } catch {
-      await loadData();
+      rollback("Failed to update status. Changes reverted.");
     }
   }
 
   // Delete handler
   async function handleDelete(planId: string) {
+    saveSnapshot();
     setPlans((prev) => prev.filter((p) => p.id !== planId));
+
     try {
       const res = await fetch(`/api/tools/production/${planId}`, { method: "DELETE" });
-      if (res.ok) await loadData();
-      else await loadData();
+      if (res.ok) {
+        loadData();
+      } else {
+        rollback("Failed to delete plan. Changes reverted.");
+      }
     } catch {
-      await loadData();
+      rollback("Failed to delete plan. Changes reverted.");
     }
   }
 
@@ -636,8 +790,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
             </Link>
           </div>
         </div>
-        {/* Render the existing table in list mode — trigger a key change to remount */}
         <ListViewFallback plans={plans} loading={loading} router={router} />
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </div>
     );
   }
@@ -730,7 +884,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                   )}
                 </div>
 
-                {/* Unschedule drop zone — only visible when dragging a plan */}
+                {/* Unschedule drop zone — always visible when dragging */}
                 {isDragging && <UnscheduleDropZone />}
               </div>
             </div>
@@ -776,6 +930,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                         date={date}
                         isToday={isToday}
                         plans={dayPlans}
+                        getUrgencyForPlan={getUrgencyForPlan}
+                        getRequiredByForPlan={getRequiredByForPlan}
                         onStatusChange={handleStatusChange}
                         onDelete={handleDelete}
                       />
@@ -801,6 +957,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
               <div className="w-[200px]">
                 <DraggablePlanCard
                   plan={activeDrag.plan}
+                  urgency={getUrgencyForPlan(activeDrag.plan)}
+                  requiredBy={getRequiredByForPlan(activeDrag.plan)}
                   isOverlay
                   onStatusChange={() => {}}
                   onDelete={() => {}}
@@ -810,6 +968,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           </DragOverlay>
         </DndContext>
       )}
+
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }

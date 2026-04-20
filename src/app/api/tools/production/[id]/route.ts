@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const { data: plan } = await supabase
     .from("production_plans")
-    .select("*, green_beans(id, name)")
+    .select("*, green_beans(id, name), roasted_stock(name)")
     .eq("id", id)
     .eq("roaster_id", roaster.id)
     .single();
@@ -26,37 +26,43 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const body = await request.json();
-  const {
-    planned_date, green_bean_id, green_bean_name,
-    planned_weight_kg, expected_loss_percent,
-    product_id, priority, status, notes,
-  } = body;
 
-  if (!planned_date) return NextResponse.json({ error: "Planned date is required" }, { status: 400 });
+  // Build partial update payload — only include fields that were sent
+  const updatePayload: Record<string, unknown> = {};
 
-  // Auto-compute expected roasted kg
-  const plannedKg = planned_weight_kg ? parseFloat(planned_weight_kg) : null;
-  const lossPercent = expected_loss_percent ? parseFloat(expected_loss_percent) : 15;
-  let expected_roasted_kg: number | null = null;
-  if (plannedKg && plannedKg > 0) {
-    expected_roasted_kg = Math.round(plannedKg * (1 - lossPercent / 100) * 1000) / 1000;
+  if (body.planned_date !== undefined) updatePayload.planned_date = body.planned_date;
+  if (body.green_bean_id !== undefined) updatePayload.green_bean_id = body.green_bean_id || null;
+  if (body.green_bean_name !== undefined) updatePayload.green_bean_name = body.green_bean_name || null;
+  if (body.roasted_stock_id !== undefined) updatePayload.roasted_stock_id = body.roasted_stock_id || null;
+  if (body.product_id !== undefined) updatePayload.product_id = body.product_id || null;
+  if (body.priority !== undefined) updatePayload.priority = body.priority ? parseInt(body.priority) : 0;
+  if (body.status !== undefined) updatePayload.status = body.status || "planned";
+  if (body.notes !== undefined) updatePayload.notes = body.notes || null;
+
+  if (body.planned_weight_kg !== undefined) {
+    const plannedKg = body.planned_weight_kg ? parseFloat(body.planned_weight_kg) : null;
+    updatePayload.planned_weight_kg = plannedKg;
+
+    // Auto-compute expected roasted kg when weight changes
+    const lossPercent = body.expected_loss_percent !== undefined
+      ? parseFloat(body.expected_loss_percent) || 15
+      : 15;
+    if (body.expected_loss_percent !== undefined) updatePayload.expected_loss_percent = lossPercent;
+    if (plannedKg && plannedKg > 0) {
+      updatePayload.expected_roasted_kg = Math.round(plannedKg * (1 - lossPercent / 100) * 1000) / 1000;
+    }
+  } else if (body.expected_loss_percent !== undefined) {
+    updatePayload.expected_loss_percent = parseFloat(body.expected_loss_percent) || 15;
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("production_plans")
-    .update({
-      planned_date,
-      green_bean_id: green_bean_id || null,
-      green_bean_name: green_bean_name || null,
-      planned_weight_kg: plannedKg,
-      expected_roasted_kg,
-      expected_loss_percent: lossPercent,
-      product_id: product_id || null,
-      priority: priority ? parseInt(priority) : 0,
-      status: status || "planned",
-      notes: notes || null,
-    })
+    .update(updatePayload)
     .eq("id", id)
     .eq("roaster_id", roaster.id)
     .select()

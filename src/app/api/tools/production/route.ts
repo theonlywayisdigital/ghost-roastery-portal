@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("production_plans")
-    .select("*, green_beans(name)")
+    .select("*, green_beans(name), roasted_stock(name)")
     .eq("roaster_id", roaster.id)
     .order("planned_date", { ascending: true });
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const {
     planned_date, green_bean_id, green_bean_name,
     planned_weight_kg, expected_loss_percent,
-    product_id, priority, status, notes,
+    product_id, roasted_stock_id, priority, status, notes,
   } = body;
 
   if (!planned_date) return NextResponse.json({ error: "Planned date is required" }, { status: 400 });
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       planned_date,
       green_bean_id: green_bean_id || null,
       green_bean_name: green_bean_name || null,
+      roasted_stock_id: roasted_stock_id || null,
       planned_weight_kg: plannedKg,
       expected_roasted_kg,
       expected_loss_percent: lossPercent,

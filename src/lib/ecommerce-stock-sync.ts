@@ -16,7 +16,7 @@ export async function pushStockToChannels(
   // Get current stock level + linked green bean stock
   const { data: stock } = await supabase
     .from("roasted_stock")
-    .select("current_stock_kg, green_bean_id")
+    .select("current_stock_kg, green_bean_id, weight_loss_percentage, roaster_id")
     .eq("id", roastedStockId)
     .single();
 
@@ -24,15 +24,27 @@ export async function pushStockToChannels(
 
   let stockKg = stock.current_stock_kg || 0;
 
-  // Add linked green bean stock to total
+  // Add linked green bean stock to total, adjusted for weight loss during roasting
   if (stock.green_bean_id) {
     const { data: greenBean } = await supabase
       .from("green_beans")
       .select("current_stock_kg")
       .eq("id", stock.green_bean_id)
       .single();
-    if (greenBean) {
-      stockKg += greenBean.current_stock_kg || 0;
+    if (greenBean && (greenBean.current_stock_kg || 0) > 0) {
+      // Use profile weight loss %, fall back to roaster default
+      let lossPct = stock.weight_loss_percentage;
+      if (lossPct == null) {
+        const { data: roaster } = await supabase
+          .from("roasters")
+          .select("default_weight_loss_pct")
+          .eq("id", stock.roaster_id)
+          .single();
+        lossPct = roaster?.default_weight_loss_pct ?? 14;
+      }
+      const greenKg = greenBean.current_stock_kg || 0;
+      const availableFromGreen = greenKg * (1 - Number(lossPct) / 100);
+      stockKg += availableFromGreen;
     }
   }
 

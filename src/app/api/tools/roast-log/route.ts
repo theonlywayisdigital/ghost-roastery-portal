@@ -3,6 +3,7 @@ import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { checkLimit } from "@/lib/feature-gates";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
+import { updateWeightLossAverage } from "@/lib/roast-weight-loss";
 
 export async function GET() {
   const roaster = await getCurrentRoaster();
@@ -149,6 +150,13 @@ export async function POST(request: Request) {
   if (status === "completed" && roasted_stock_id) {
     pushStockToChannels(roaster.id as string, roasted_stock_id).catch((err) =>
       console.error("[roast-log] Stock push error:", err)
+    );
+  }
+
+  // Update average weight loss % on linked roasted stock profiles
+  if (green_bean_id && status === "completed") {
+    updateWeightLossAverage(roaster.id as string, green_bean_id).catch((err) =>
+      console.error("[roast-log] Weight loss avg update error:", err)
     );
   }
 

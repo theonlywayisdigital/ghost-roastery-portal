@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
+import { updateWeightLossAverage } from "@/lib/roast-weight-loss";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const roaster = await getCurrentRoaster();
@@ -156,6 +157,19 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (statusChanged && roasted_stock_id) {
     pushStockToChannels(roaster.id as string, roasted_stock_id).catch((err) =>
       console.error("[roast-log] Stock push error:", err)
+    );
+  }
+
+  // Update average weight loss % on linked roasted stock profiles
+  // Update for both old and new green bean (in case it changed)
+  const beanIdsToUpdate = new Set<string>();
+  if (green_bean_id) beanIdsToUpdate.add(green_bean_id);
+  if (existing.green_bean_id && existing.green_bean_id !== green_bean_id) {
+    beanIdsToUpdate.add(existing.green_bean_id);
+  }
+  for (const bId of Array.from(beanIdsToUpdate)) {
+    updateWeightLossAverage(roaster.id as string, bId).catch((err) =>
+      console.error("[roast-log] Weight loss avg update error:", err)
     );
   }
 

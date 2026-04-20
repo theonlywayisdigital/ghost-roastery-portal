@@ -3,6 +3,7 @@ import { getCurrentRoaster } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { checkLimit } from "@/lib/feature-gates";
 import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
+import { updateWeightLossAverage } from "@/lib/roast-weight-loss";
 import type { NormalisedRoastLog, RoastLogImportResult } from "@/lib/roast-log-import";
 
 export async function POST(request: Request) {
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
 
   // Track roasted stocks that were updated for ecommerce sync
   const updatedStockIds = new Set<string>();
+  // Track green bean IDs for weight loss average update
+  const updatedGreenBeanIds = new Set<string>();
 
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
@@ -111,6 +114,10 @@ export async function POST(request: Request) {
         }
       }
 
+      if (profile.green_bean_id) {
+        updatedGreenBeanIds.add(profile.green_bean_id);
+      }
+
       result.imported++;
     } catch (err) {
       result.skipped++;
@@ -122,6 +129,13 @@ export async function POST(request: Request) {
   for (const stockId of Array.from(updatedStockIds)) {
     pushStockToChannels(roasterId, stockId).catch((err) =>
       console.error("[roast-log-import] Stock push error:", err)
+    );
+  }
+
+  // Update average weight loss % on linked roasted stock profiles (fire-and-forget)
+  for (const greenBeanId of Array.from(updatedGreenBeanIds)) {
+    updateWeightLossAverage(roasterId, greenBeanId).catch((err) =>
+      console.error("[roast-log-import] Weight loss avg update error:", err)
     );
   }
 

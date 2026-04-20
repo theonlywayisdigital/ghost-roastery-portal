@@ -23,6 +23,8 @@ export async function GET() {
     postcode: roaster.postcode || "",
     country: roaster.country || "GB",
     brand_logo_url: roaster.brand_logo_url || null,
+    default_weight_loss_pct: roaster.default_weight_loss_pct ?? 14,
+    default_batch_size_kg: roaster.default_batch_size_kg ?? null,
   });
 }
 
@@ -50,6 +52,8 @@ export async function PUT(request: Request) {
       "postcode",
       "country",
       "brand_logo_url",
+      "default_weight_loss_pct",
+      "default_batch_size_kg",
     ];
 
     const updates: Record<string, unknown> = {};

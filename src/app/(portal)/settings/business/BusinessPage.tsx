@@ -43,6 +43,8 @@ interface BusinessData {
   postcode: string;
   country: string;
   storefront_logo_url: string | null;
+  default_weight_loss_pct: number;
+  default_batch_size_kg: number | null;
 }
 
 export function BusinessPage({ roasterId }: { roasterId: string }) {
@@ -66,6 +68,8 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
     postcode: "",
     country: "GB",
     storefront_logo_url: null,
+    default_weight_loss_pct: 14,
+    default_batch_size_kg: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -406,6 +410,51 @@ export function BusinessPage({ roasterId }: { roasterId: string }) {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── Roasting Defaults ─── */}
+        <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="text-lg font-semibold text-slate-900">Roasting Defaults</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Default Weight Loss %
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="50"
+                  value={data.default_weight_loss_pct}
+                  onChange={(e) => updateField("default_weight_loss_pct", parseFloat(e.target.value) || 0)}
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Used for stock availability calculations on new roast profiles. Updates automatically as you log roasts.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Default Batch Size (kg)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={data.default_batch_size_kg ?? ""}
+                  onChange={(e) => updateField("default_batch_size_kg", e.target.value ? parseFloat(e.target.value) : null)}
+                  placeholder="Optional"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Your typical batch size. Used as a default when logging roasts.
+                </p>
               </div>
             </div>
           </div>

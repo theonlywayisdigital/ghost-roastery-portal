@@ -13,13 +13,15 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { logs, profileMapping, newGreenBeanIds: newGreenBeanIdsArr } = body as {
+  const { logs, profileMapping, newGreenBeanIds: newGreenBeanIdsArr, importMode } = body as {
     logs: NormalisedRoastLog[];
     profileMapping: Record<string, { roasted_stock_id: string; green_bean_id: string | null } | null>;
     newGreenBeanIds?: string[];
+    importMode?: "setup" | "update";
   };
   // Green beans created during this import session — skip stock deduction for these
   const newGreenBeanIds = new Set(newGreenBeanIdsArr || []);
+  const isSetupMode = importMode === "setup";
 
   if (!logs || !Array.isArray(logs) || logs.length === 0) {
     return NextResponse.json({ error: "No roast log rows provided" }, { status: 400 });
@@ -99,10 +101,11 @@ export async function POST(request: Request) {
       }
 
       // Atomic stock update: only when BOTH green bean AND roasted stock exist
+      // Skip entirely in "setup" mode — historical logs don't change stock
       // Skip deduction for newly created green beans — roaster entered current real-world stock,
       // historical logs should not deduct from it
       const isNewGreenBean = profile.green_bean_id && newGreenBeanIds.has(profile.green_bean_id);
-      if (profile.green_bean_id && profile.roasted_stock_id && greenKg > 0 && roastedKg > 0 && !isNewGreenBean) {
+      if (!isSetupMode && profile.green_bean_id && profile.roasted_stock_id && greenKg > 0 && roastedKg > 0 && !isNewGreenBean) {
         const { error: rpcError } = await supabase.rpc("import_roast_stock_transfer", {
           p_roaster_id: roasterId,
           p_green_bean_id: profile.green_bean_id,
@@ -131,18 +134,21 @@ export async function POST(request: Request) {
     }
   }
 
-  // Push stock updates to ecommerce channels (fire-and-forget)
-  for (const stockId of Array.from(updatedStockIds)) {
-    pushStockToChannels(roasterId, stockId).catch((err) =>
-      console.error("[roast-log-import] Stock push error:", err)
-    );
-  }
+  // In setup mode, no stock was changed — skip sync and weight loss updates
+  if (!isSetupMode) {
+    // Push stock updates to ecommerce channels (fire-and-forget)
+    for (const stockId of Array.from(updatedStockIds)) {
+      pushStockToChannels(roasterId, stockId).catch((err) =>
+        console.error("[roast-log-import] Stock push error:", err)
+      );
+    }
 
-  // Update average weight loss % on linked roasted stock profiles (fire-and-forget)
-  for (const greenBeanId of Array.from(updatedGreenBeanIds)) {
-    updateWeightLossAverage(roasterId, greenBeanId).catch((err) =>
-      console.error("[roast-log-import] Weight loss avg update error:", err)
-    );
+    // Update average weight loss % on linked roasted stock profiles (fire-and-forget)
+    for (const greenBeanId of Array.from(updatedGreenBeanIds)) {
+      updateWeightLossAverage(roasterId, greenBeanId).catch((err) =>
+        console.error("[roast-log-import] Weight loss avg update error:", err)
+      );
+    }
   }
 
   return NextResponse.json(result);

@@ -121,6 +121,9 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
   // Track green bean IDs that were newly created during auto-create (skip stock deduction for these)
   const [newGreenBeanIds, setNewGreenBeanIds] = useState<Set<string>>(new Set());
 
+  // Import mode — "setup" = historical logs, no stock changes; "update" = live stock processing
+  const [importMode, setImportMode] = useState<"setup" | "update">("setup");
+
   // Import
   const [importResult, setImportResult] = useState<RoastLogImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -145,11 +148,12 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
     ])
       .then(([stockData, beanData]) => {
         if (stockData?.roastedStock) {
-          setRoastedStocks(
-            (stockData.roastedStock as (RoastedStock & { is_active?: boolean })[])
-              .filter((s) => s.is_active !== false)
-              .map((s) => ({ id: s.id, name: s.name, green_bean_id: s.green_bean_id }))
-          );
+          const active = (stockData.roastedStock as (RoastedStock & { is_active?: boolean })[])
+            .filter((s) => s.is_active !== false)
+            .map((s) => ({ id: s.id, name: s.name, green_bean_id: s.green_bean_id }));
+          setRoastedStocks(active);
+          // Default mode: "update" if roaster already has profiles, "setup" for first-time importers
+          setImportMode(active.length > 0 ? "update" : "setup");
         }
         if (beanData?.greenBeans) {
           setGreenBeans(
@@ -467,6 +471,7 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
           logs: filteredLogs,
           profileMapping: apiProfileMapping,
           newGreenBeanIds: Array.from(newGreenBeanIds),
+          importMode,
         }),
       });
 
@@ -598,6 +603,45 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
           {/* ─── STEP 1: Upload ────────────────────────────── */}
           {step === "upload" && (
             <div className="space-y-6">
+              {/* Import mode selector */}
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">What are these logs for?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("setup")}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                      importMode === "setup"
+                        ? "border-brand-500 bg-brand-50"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${importMode === "setup" ? "text-brand-700" : "text-slate-700"}`}>
+                      Setting up my inventory
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Import historical logs without changing stock levels
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("update")}
+                    className={`p-3 rounded-lg border-2 text-left transition-colors ${
+                      importMode === "update"
+                        ? "border-brand-500 bg-brand-50"
+                        : "border-slate-200 bg-white hover:border-slate-300"
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${importMode === "update" ? "text-brand-700" : "text-slate-700"}`}>
+                      Updating my stock
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Deduct green bean stock and add roasted stock for each log
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div
                 className="border-2 border-dashed border-slate-300 rounded-xl p-10 text-center hover:border-brand-400 transition-colors cursor-pointer"
                 onDragOver={(e) => e.preventDefault()}
@@ -1093,6 +1137,17 @@ export function RoastLogImportModal({ open, onClose, onImported }: Props) {
                   </ul>
                 </div>
               )}
+
+              {/* Import mode note */}
+              <div className={`p-3 rounded-lg text-sm ${
+                importMode === "setup"
+                  ? "bg-blue-50 border border-blue-200 text-blue-700"
+                  : "bg-green-50 border border-green-200 text-green-700"
+              }`}>
+                {importMode === "setup"
+                  ? "These are historical logs. Stock levels will be set from the values you entered \u2014 no stock will be deducted."
+                  : "Stock will update automatically for each imported log."}
+              </div>
 
               {/* Preview table — first 5 importable rows */}
               <div>

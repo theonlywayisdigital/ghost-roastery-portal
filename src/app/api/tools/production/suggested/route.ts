@@ -66,7 +66,7 @@ export async function GET() {
       .from("production_plans")
       .select("*, green_beans(name), roasted_stock(name)")
       .eq("roaster_id", roasterId)
-      .in("status", ["planned", "in_progress"])
+      .in("status", ["planned", "in_progress", "completed"])
       .order("planned_date", { ascending: true }),
   ]);
 

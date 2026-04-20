@@ -13,7 +13,7 @@ export default async function ProductionPage() {
     .from("production_plans")
     .select("*, green_beans(name), roasted_stock(name)")
     .eq("roaster_id", user.roaster.id)
-    .in("status", ["planned", "in_progress"])
+    .in("status", ["planned", "in_progress", "completed"])
     .order("planned_date", { ascending: true });
 
   return <ProductionPlanner initialPlans={plans || []} />;

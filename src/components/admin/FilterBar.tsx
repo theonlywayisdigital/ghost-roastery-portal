@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, X } from "@/components/icons";
 
 export interface FilterConfig {
@@ -20,19 +20,14 @@ interface FilterBarProps {
 export function FilterBar({ filters, values, onChange, onClear }: FilterBarProps) {
   const [searchInput, setSearchInput] = useState(values.search || "");
   const hasActiveFilters = Object.values(values).some((v) => v !== "");
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
-  const debouncedSearch = useCallback(
-    (value: string) => {
-      const timeout = setTimeout(() => onChange("search", value), 300);
-      return () => clearTimeout(timeout);
-    },
-    [onChange]
-  );
-
+  // Debounce search input — only fires when searchInput actually changes
   useEffect(() => {
-    const cleanup = debouncedSearch(searchInput);
-    return cleanup;
-  }, [searchInput, debouncedSearch]);
+    const timeout = setTimeout(() => onChangeRef.current("search", searchInput), 300);
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
 
   useEffect(() => {
     if (values.search !== undefined && values.search !== searchInput) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Star, Flame, Upload } from "@/components/icons";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
@@ -185,6 +185,16 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
     }
   }
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  }, []);
+
+  const handleFilterClear = useCallback(() => {
+    setFilterValues({});
+    setPage(1);
+  }, []);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -220,8 +230,8 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
         <FilterBar
           filters={filters}
           values={filterValues}
-          onChange={(key, value) => { setFilterValues((prev) => ({ ...prev, [key]: value })); setPage(1); }}
-          onClear={() => { setFilterValues({}); setPage(1); }}
+          onChange={handleFilterChange}
+          onClear={handleFilterClear}
         />
       </div>
 

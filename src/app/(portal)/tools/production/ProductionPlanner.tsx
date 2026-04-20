@@ -71,6 +71,7 @@ interface ExistingPlan {
   green_bean_id: string | null;
   green_bean_name: string | null;
   roasted_stock_id: string | null;
+  roast_log_id: string | null;
   planned_weight_kg: number;
   expected_roasted_kg: number | null;
   expected_loss_percent: number;
@@ -198,6 +199,7 @@ function LogCompleteOverlay({
   const [roastedOutput, setRoastedOutput] = useState(initialRoasted);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasExistingLog = !!plan.roast_log_id;
 
   const profileName = plan.roasted_stock?.name || plan.green_beans?.name || plan.green_bean_name || "Unnamed";
 
@@ -284,74 +286,97 @@ function LogCompleteOverlay({
           </button>
         </div>
 
-        {/* Current stock info */}
-        {suggestion && (
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            {suggestion.greenStockKg != null && (
-              <div className="bg-slate-50 rounded-lg p-2.5">
-                <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Green Stock</p>
-                <p className="text-sm font-semibold text-slate-900">{suggestion.greenStockKg.toFixed(1)}kg</p>
-              </div>
-            )}
-            <div className="bg-slate-50 rounded-lg p-2.5">
-              <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Roasted Stock</p>
-              <p className="text-sm font-semibold text-slate-900">{suggestion.roastedStockKg.toFixed(1)}kg</p>
+        {hasExistingLog ? (
+          <div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-xs font-medium text-amber-800 mb-1">A roast log has already been recorded for this batch.</p>
+              <Link
+                href={`/tools/roast-log/${plan.roast_log_id}`}
+                className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
+              >
+                View roast log
+              </Link>
             </div>
-          </div>
-        )}
-
-        {/* Weight loss explanation */}
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
-          <p className="text-[10px] font-medium text-slate-600 mb-1">{lossLabel}</p>
-          <p className="text-[10px] text-slate-500 leading-relaxed">
-            We pre-fill the roasted output using your average weight loss. For accurate stock tracking, enter the actual output from your roast or import logs from your roasting tool.
-          </p>
-        </div>
-
-        {error && (
-          <p className="text-xs text-red-600 mb-3">{error}</p>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Actual Green Used (kg)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={greenUsed}
-              onChange={(e) => handleGreenChange(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">Actual Roasted Output (kg)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={roastedOutput}
-              onChange={(e) => setRoastedOutput(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-            />
-          </div>
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
-            >
-              {saving ? "Updating..." : "Confirm"}
-            </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium"
+              className="w-full px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              Close
             </button>
           </div>
-        </form>
+        ) : (
+          <>
+            {/* Current stock info */}
+            {suggestion && (
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {suggestion.greenStockKg != null && (
+                  <div className="bg-slate-50 rounded-lg p-2.5">
+                    <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Green Stock</p>
+                    <p className="text-sm font-semibold text-slate-900">{suggestion.greenStockKg.toFixed(1)}kg</p>
+                  </div>
+                )}
+                <div className="bg-slate-50 rounded-lg p-2.5">
+                  <p className="text-[10px] font-medium text-slate-400 uppercase mb-0.5">Roasted Stock</p>
+                  <p className="text-sm font-semibold text-slate-900">{suggestion.roastedStockKg.toFixed(1)}kg</p>
+                </div>
+              </div>
+            )}
+
+            {/* Weight loss explanation */}
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+              <p className="text-[10px] font-medium text-slate-600 mb-1">{lossLabel}</p>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                We pre-fill the roasted output using your average weight loss. For accurate stock tracking, enter the actual output from your roast or import logs from your roasting tool.
+              </p>
+            </div>
+
+            {error && (
+              <p className="text-xs text-red-600 mb-3">{error}</p>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Actual Green Used (kg)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={greenUsed}
+                  onChange={(e) => handleGreenChange(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Actual Roasted Output (kg)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={roastedOutput}
+                  onChange={(e) => setRoastedOutput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? "Updating..." : "Confirm"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </>
+        )}
       </div>
     </div>
   );
@@ -543,7 +568,7 @@ function DraggablePlanCard({
 
         {/* Completed card hover overlay */}
         {!isOverlay && isCompleted && (
-          <div className="absolute inset-0 rounded-lg bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center gap-2">
+          <div className="absolute inset-0 rounded-lg bg-slate-900/60 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10 flex items-center justify-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); onStockUpdate(plan.id); }}
               className="px-3 py-1.5 text-xs font-medium bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5"
@@ -957,6 +982,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         green_bean_id: batch.greenBeanId,
         green_bean_name: batch.greenBeanName || batch.profileName,
         roasted_stock_id: batch.roastedStockId,
+        roast_log_id: null,
         planned_weight_kg: batch.batchSizeKg,
         expected_roasted_kg: Math.round(batch.batchSizeKg * 0.85 * 1000) / 1000,
         expected_loss_percent: 15,

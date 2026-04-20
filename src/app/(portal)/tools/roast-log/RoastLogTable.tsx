@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Star, Flame, Upload } from "@/components/icons";
+import { Star, Flame, Upload, Download, Trash2, X } from "@/components/icons";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
 import { RoastLogImportModal } from "@/components/inventory/RoastLogImportModal";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
@@ -67,6 +67,8 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
   const banner = useUpgradeBanner("roastLogsPerMonth");
   const [showRoastModal, setShowRoastModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...initial];
@@ -100,6 +102,71 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
   }, [initial, filterValues, sortKey, sortDir]);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === paginated.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(paginated.map((r) => r.id)));
+    }
+  }
+
+  const handleBulkDelete = useCallback(async () => {
+    const ok = window.confirm(`Delete ${selected.size} roast log${selected.size === 1 ? "" : "s"}? This cannot be undone.`);
+    if (!ok) return;
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/tools/roast-log/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), action: "delete" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Bulk delete failed");
+        return;
+      }
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selected, router]);
+
+  function handleExportCsv() {
+    const selectedLogs = initial.filter((r) => selected.has(r.id));
+    const headers = ["Date", "Batch #", "Bean", "Green (kg)", "Roasted (kg)", "Loss %", "Level", "Rating", "Status"];
+    const rows = selectedLogs.map((r) => [
+      r.roast_date,
+      r.roast_number || "",
+      r.green_beans?.name || r.green_bean_name || "",
+      r.green_weight_kg != null ? Number(r.green_weight_kg).toFixed(2) : "",
+      r.roasted_weight_kg != null ? Number(r.roasted_weight_kg).toFixed(2) : "",
+      r.weight_loss_percent != null ? Number(r.weight_loss_percent).toFixed(1) : "",
+      r.roast_level || "",
+      r.quality_rating != null ? String(r.quality_rating) : "",
+      r.status,
+    ]);
+
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roast-log-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const columns: Column<RoastLog>[] = [
     {
@@ -235,6 +302,30 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
         />
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-3 mb-4 bg-brand-50 border border-brand-200 rounded-lg">
+          <span className="text-sm font-medium text-brand-700">{selected.size} selected</span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-red-200 rounded-md text-red-600 hover:bg-red-50 flex items-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" />
+            Export CSV
+          </button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={columns}
         data={paginated}
@@ -242,6 +333,9 @@ export function RoastLogTable({ roastLogs: initial }: { roastLogs: RoastLog[] })
         sortKey={sortKey}
         sortDirection={sortDir}
         onRowClick={(row) => router.push(`/tools/inventory/roast-log/${row.id}`)}
+        selectedRows={selected}
+        onSelectRow={toggleSelect}
+        onSelectAll={toggleSelectAll}
         emptyMessage="No roast logs yet — record your first roast to get started."
       />
 

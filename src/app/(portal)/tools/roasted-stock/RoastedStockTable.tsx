@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload, Flame, Scale } from "@/components/icons";
+import { Plus, Upload, Flame, Scale, Download, Trash2, X } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -65,6 +65,8 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
   const banner = useUpgradeBanner("roastedStock");
   const [rebalanceItem, setRebalanceItem] = useState<{ id: string; name: string; currentKg: number; greenBeanId?: string; greenBeanName?: string } | null>(null);
   const [roastItem, setRoastItem] = useState<{ beanId?: string; stockId: string } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...initial];
@@ -99,6 +101,69 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
   }, [initial, filterValues, sortKey, sortDir]);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === paginated.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(paginated.map((s) => s.id)));
+    }
+  }
+
+  const handleBulkAction = useCallback(async (action: "delete" | "set_active" | "set_inactive") => {
+    if (action === "delete") {
+      const ok = window.confirm(`Delete ${selected.size} roast profile${selected.size === 1 ? "" : "s"}? This cannot be undone.`);
+      if (!ok) return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/tools/roasted-stock/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), action }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Bulk action failed");
+        return;
+      }
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selected, router]);
+
+  function handleExportCsv() {
+    const selectedStock = initial.filter((s) => selected.has(s.id));
+    const headers = ["Name", "Source Bean", "Stock (kg)", "Low Threshold (kg)", "Active"];
+    const rows = selectedStock.map((s) => [
+      s.name,
+      s.green_beans?.name || "",
+      Number(s.current_stock_kg).toFixed(2),
+      s.low_stock_threshold_kg ? Number(s.low_stock_threshold_kg).toFixed(2) : "",
+      s.is_active ? "Yes" : "No",
+    ]);
+
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roast-profiles-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const columns: Column<RoastedStock>[] = [
     {
@@ -172,6 +237,16 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
     }
   }
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  }, []);
+
+  const handleFilterClear = useCallback(() => {
+    setFilterValues({});
+    setPage(1);
+  }, []);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -207,10 +282,48 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
         <FilterBar
           filters={filters}
           values={filterValues}
-          onChange={(key, value) => { setFilterValues((prev) => ({ ...prev, [key]: value })); setPage(1); }}
-          onClear={() => { setFilterValues({}); setPage(1); }}
+          onChange={handleFilterChange}
+          onClear={handleFilterClear}
         />
       </div>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-3 mb-4 bg-brand-50 border border-brand-200 rounded-lg">
+          <span className="text-sm font-medium text-brand-700">{selected.size} selected</span>
+          <button
+            onClick={() => handleBulkAction("set_active")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50"
+          >
+            Set Active
+          </button>
+          <button
+            onClick={() => handleBulkAction("set_inactive")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50"
+          >
+            Set Inactive
+          </button>
+          <button
+            onClick={() => handleBulkAction("delete")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-red-200 rounded-md text-red-600 hover:bg-red-50 flex items-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" />
+            Export CSV
+          </button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -219,6 +332,9 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
         sortKey={sortKey}
         sortDirection={sortDir}
         onRowClick={(row) => router.push(`/tools/inventory/roasted/${row.id}`)}
+        selectedRows={selected}
+        onSelectRow={toggleSelect}
+        onSelectAll={toggleSelectAll}
         emptyMessage="No roast profiles yet — add your first item to get started."
       />
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Upload, Package, Scale } from "@/components/icons";
+import { Plus, Upload, Package, Scale, Download, Trash2, X } from "@/components/icons";
 import { DataTable, FilterBar, Pagination } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -67,6 +67,8 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
   const banner = useUpgradeBanner("greenBeans");
   const [rebalanceItem, setRebalanceItem] = useState<{ id: string; name: string; currentKg: number } | null>(null);
   const [receiveItem, setReceiveItem] = useState<{ id: string } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const filtered = useMemo(() => {
     let result = [...initial];
@@ -103,6 +105,72 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
   }, [initial, filterValues, sortKey, sortDir]);
 
   const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === paginated.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(paginated.map((b) => b.id)));
+    }
+  }
+
+  const handleBulkAction = useCallback(async (action: "delete" | "set_active" | "set_inactive") => {
+    if (action === "delete") {
+      const ok = window.confirm(`Delete ${selected.size} green bean${selected.size === 1 ? "" : "s"}? This cannot be undone.`);
+      if (!ok) return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/tools/green-beans/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected), action }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Bulk action failed");
+        return;
+      }
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selected, router]);
+
+  function handleExportCsv() {
+    const selectedBeans = initial.filter((b) => selected.has(b.id));
+    const headers = ["Name", "Origin", "Variety", "Process", "Supplier", "Stock (kg)", "Cost/kg", "Active"];
+    const rows = selectedBeans.map((b) => [
+      b.name,
+      b.origin_country || "",
+      b.variety || "",
+      b.process || "",
+      b.suppliers?.name || "",
+      Number(b.current_stock_kg).toFixed(2),
+      b.cost_per_kg ? Number(b.cost_per_kg).toFixed(2) : "",
+      b.is_active ? "Yes" : "No",
+    ]);
+
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `green-beans-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const columns: Column<GreenBean>[] = [
     {
@@ -185,6 +253,16 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
     }
   }
 
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  }, []);
+
+  const handleFilterClear = useCallback(() => {
+    setFilterValues({});
+    setPage(1);
+  }, []);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -220,10 +298,48 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
         <FilterBar
           filters={filters}
           values={filterValues}
-          onChange={(key, value) => { setFilterValues((prev) => ({ ...prev, [key]: value })); setPage(1); }}
-          onClear={() => { setFilterValues({}); setPage(1); }}
+          onChange={handleFilterChange}
+          onClear={handleFilterClear}
         />
       </div>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 p-3 mb-4 bg-brand-50 border border-brand-200 rounded-lg">
+          <span className="text-sm font-medium text-brand-700">{selected.size} selected</span>
+          <button
+            onClick={() => handleBulkAction("set_active")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50"
+          >
+            Set Active
+          </button>
+          <button
+            onClick={() => handleBulkAction("set_inactive")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50"
+          >
+            Set Inactive
+          </button>
+          <button
+            onClick={() => handleBulkAction("delete")}
+            disabled={bulkLoading}
+            className="text-xs px-2.5 py-1.5 bg-white border border-red-200 rounded-md text-red-600 hover:bg-red-50 flex items-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="text-xs px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-700 hover:bg-slate-50 flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" />
+            Export CSV
+          </button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -232,6 +348,9 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
         sortKey={sortKey}
         sortDirection={sortDir}
         onRowClick={(row) => router.push(`/tools/inventory/green/${row.id}`)}
+        selectedRows={selected}
+        onSelectRow={toggleSelect}
+        onSelectAll={toggleSelectAll}
         emptyMessage="No green beans yet — add your first bean to get started."
       />
 

@@ -31,6 +31,7 @@ interface StockPool {
   id: string;
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
+  weight_loss_percentage?: number | null;
 }
 
 interface BlendComponent {
@@ -82,6 +83,7 @@ export function StorefrontWholesalePage({
     slug: string;
     stripeAccountId: string | null;
     platformFeePercent: number | null;
+    defaultWeightLossPct: number;
   };
   previewProducts: PreviewProduct[];
   products: Product[];

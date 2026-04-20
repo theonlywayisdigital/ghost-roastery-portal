@@ -19,6 +19,7 @@ interface StockPool {
   id: string;
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
+  weight_loss_percentage?: number | null;
 }
 
 interface BlendComponent {
@@ -59,8 +60,8 @@ type CatalogueContext =
   | { type: "storefront"; slug: string }
   | { type: "website"; domain: string };
 
-/** Get total available stock KG (roasted + nested green bean combined), or null if no pools linked */
-function getAvailableKg(product: Product): number | null {
+/** Get total available stock KG (roasted + nested green bean with weight loss applied), or null if no pools linked */
+function getAvailableKg(product: Product, defaultWeightLossPct: number): number | null {
   // Blend products: sum stock across all blend components
   if (product.is_blend && product.blend_components && product.blend_components.length > 0) {
     let totalKg = 0;
@@ -70,7 +71,9 @@ function getAvailableKg(product: Product): number | null {
         hasAny = true;
         totalKg += Number(bc.roasted_stock.current_stock_kg);
         if (bc.roasted_stock.green_beans) {
-          totalKg += Number(bc.roasted_stock.green_beans.current_stock_kg);
+          const lossPct = bc.roasted_stock.weight_loss_percentage ?? defaultWeightLossPct;
+          const greenKg = Number(bc.roasted_stock.green_beans.current_stock_kg);
+          totalKg += greenKg * (1 - Number(lossPct) / 100);
         }
       }
     }
@@ -80,7 +83,11 @@ function getAvailableKg(product: Product): number | null {
   // Non-blend: use roasted_stock and its linked green_beans
   if (!product.roasted_stock) return null;
   let totalKg = Number(product.roasted_stock.current_stock_kg);
-  if (product.roasted_stock.green_beans) totalKg += Number(product.roasted_stock.green_beans.current_stock_kg);
+  if (product.roasted_stock.green_beans) {
+    const lossPct = product.roasted_stock.weight_loss_percentage ?? defaultWeightLossPct;
+    const greenKg = Number(product.roasted_stock.green_beans.current_stock_kg);
+    totalKg += greenKg * (1 - Number(lossPct) / 100);
+  }
   return totalKg;
 }
 
@@ -148,6 +155,7 @@ export function StorefrontWholesaleCatalogue({
     slug: string;
     stripeAccountId: string | null;
     platformFeePercent: number | null;
+    defaultWeightLossPct: number;
   };
   products: Product[];
   wholesaleAccessId: string;
@@ -168,7 +176,7 @@ export function StorefrontWholesaleCatalogue({
       weightGrams: number,
       excludeItemKey?: string
     ): number | null => {
-      const totalKg = getAvailableKg(product);
+      const totalKg = getAvailableKg(product, roaster.defaultWeightLossPct);
       if (totalKg === null) return null; // No stock pool — unlimited
 
       // Subtract KG consumed by other cart items sharing the same pool

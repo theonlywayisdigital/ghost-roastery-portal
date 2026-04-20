@@ -306,6 +306,27 @@ function parseWeightKg(val: string | undefined | null): number | null {
   return num > 100 ? num / 1000 : num;
 }
 
+// ─── Cropster detection & green lot name cleaning ──────────────
+
+/** Detect Cropster format from the original CSV headers mapped to fields */
+function isCropsterFormat(mapping: Record<string, RoastLogField>): boolean {
+  const headerKeys = Object.keys(mapping).map((h) => h.toLowerCase().trim());
+  // Cropster exports always have "id tag" and typically "roast name"
+  return headerKeys.includes("id tag") || headerKeys.includes("roast name");
+}
+
+/** Clean Cropster green lot name by stripping lot reference prefix and batch size suffix.
+ *  "[PG-0062] Las Gaviotas (5 kg)" → "Las Gaviotas"
+ */
+export function cleanCropsterGreenLotName(raw: string): string {
+  let cleaned = raw;
+  // Strip lot reference prefix: [XX-XXXX] or similar bracket-prefixed codes
+  cleaned = cleaned.replace(/^\[[^\]]*\]\s*/, "");
+  // Strip batch size suffix: (X kg) or (X.X kg)
+  cleaned = cleaned.replace(/\s*\(\d+(?:\.\d+)?\s*kg\)\s*$/i, "");
+  return cleaned.trim();
+}
+
 // ─── CSV → Normalised conversion ──────────────────────────────
 
 function getMapped(
@@ -328,6 +349,7 @@ export function parseRoastLogRows(
 ): { logs: NormalisedRoastLog[]; errors: string[] } {
   const logs: NormalisedRoastLog[] = [];
   const errors: string[] = [];
+  const cropster = isCropsterFormat(mapping);
 
   // Check required fields are mapped
   const mappedFields = new Set(Object.values(mapping));
@@ -390,7 +412,15 @@ export function parseRoastLogRows(
       green_weight_kg: greenKg,
       roasted_weight_kg: roastedKg,
       batch_number: getMapped(row, mapping, "batch_number") || null,
-      green_lots: getMapped(row, mapping, "green_lots") || null,
+      green_lots: (() => {
+        const raw = getMapped(row, mapping, "green_lots");
+        if (!raw) return null;
+        if (cropster) {
+          const cleaned = cleanCropsterGreenLotName(raw);
+          return cleaned || null;
+        }
+        return raw;
+      })(),
       duration_seconds: parseTimeToSeconds(getMapped(row, mapping, "duration")),
       charge_temp_c: parseNum(getMapped(row, mapping, "charge_temp_c")),
       drop_temp_c: parseNum(getMapped(row, mapping, "drop_temp_c")),

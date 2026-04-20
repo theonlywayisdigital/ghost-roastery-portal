@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -4989,6 +4988,7 @@ export type Database = {
           priority: number
           product_id: string | null
           roast_log_id: string | null
+          roasted_stock_id: string | null
           roaster_id: string
           status: string
           updated_at: string
@@ -5006,6 +5006,7 @@ export type Database = {
           priority?: number
           product_id?: string | null
           roast_log_id?: string | null
+          roasted_stock_id?: string | null
           roaster_id: string
           status?: string
           updated_at?: string
@@ -5023,6 +5024,7 @@ export type Database = {
           priority?: number
           product_id?: string | null
           roast_log_id?: string | null
+          roasted_stock_id?: string | null
           roaster_id?: string
           status?: string
           updated_at?: string
@@ -5047,6 +5049,13 @@ export type Database = {
             columns: ["roast_log_id"]
             isOneToOne: false
             referencedRelation: "roast_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_plans_roasted_stock_id_fkey"
+            columns: ["roasted_stock_id"]
+            isOneToOne: false
+            referencedRelation: "roasted_stock"
             referencedColumns: ["id"]
           },
           {

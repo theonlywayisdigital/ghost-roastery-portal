@@ -161,70 +161,17 @@ function deriveUrgency(requiredBy: string | null): "overdue" | "urgent" | "norma
 
 // ── Toast notification ─────────────────────────────────────────────────
 
-function Toast({ message, type, onClose, action }: {
+function Toast({ message, type, onClose }: {
   message: string;
   type?: "error" | "success";
   onClose: () => void;
-  action?: { label: string; onClick: () => void };
 }) {
   const isSuccess = type === "success";
   return (
     <div className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 ${isSuccess ? "bg-green-600" : "bg-red-600"} text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium`}>
       {isSuccess ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
       {message}
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="ml-2 underline underline-offset-2 text-white hover:text-green-100 font-semibold"
-        >
-          {action.label}
-        </button>
-      )}
       <button onClick={onClose} className={`ml-2 ${isSuccess ? "text-green-200" : "text-red-200"} hover:text-white`}>&times;</button>
-    </div>
-  );
-}
-
-// ── Mark Complete Confirmation ─────────────────────────────────────────
-
-function MarkCompleteConfirmation({
-  onLogRoast,
-  onSkip,
-}: {
-  onLogRoast: () => void;
-  onSkip: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onSkip}>
-      <div
-        className="bg-white rounded-xl border border-slate-200 shadow-2xl w-full max-w-sm mx-4 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="w-4 h-4 text-green-600" />
-          </div>
-          <h3 className="text-sm font-semibold text-slate-900">Batch marked as complete</h3>
-        </div>
-        <p className="text-xs text-slate-500 mb-4">
-          Did you want to log the roast for stock tracking?
-        </p>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onLogRoast}
-            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
-          >
-            <Scale className="w-3.5 h-3.5" />
-            Log Roast
-          </button>
-          <button
-            onClick={onSkip}
-            className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 font-medium"
-          >
-            Skip
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -567,7 +514,7 @@ function DraggablePlanCard({
       } ${isOverlay ? "shadow-lg ring-2 ring-brand-200" : ""} ${isCompleted ? "opacity-60" : ""}`}
     >
       <div className="p-2.5 relative">
-        {/* Hover-reveal action buttons — top right */}
+        {/* Hover-reveal action buttons — top right (non-completed only) */}
         {!isOverlay && !isCompleted && (
           <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-200 p-0.5 z-10">
             <button
@@ -590,6 +537,25 @@ function DraggablePlanCard({
               className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Completed card hover overlay */}
+        {!isOverlay && isCompleted && (
+          <div className="absolute inset-0 rounded-lg bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onStockUpdate(plan.id); }}
+              className="px-3 py-1.5 text-xs font-medium bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              Log Roast
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onStatusChange(plan.id, "planned"); }}
+              className="px-3 py-1.5 text-xs font-medium bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            >
+              Undo
             </button>
           </div>
         )}
@@ -802,12 +768,8 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   const [summary, setSummary] = useState({ totalBatchesNeeded: 0, profilesWithShortfall: 0, overdueCount: 0, urgentCount: 0 });
   const [activeDrag, setActiveDrag] = useState<{ type: DraggableType; index?: number; plan?: ExistingPlan } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: "error" | "success"; action?: { label: string; onClick: () => void } } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
   const [stockUpdatePlanId, setStockUpdatePlanId] = useState<string | null>(null);
-  const [markCompleteConfirmPlanId, setMarkCompleteConfirmPlanId] = useState<string | null>(null);
-
-  // Undo toast timer
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Multi-select state
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
@@ -844,13 +806,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   useEffect(() => {
     loadData(true);
   }, [loadData]);
-
-  // Cleanup undo timer
-  useEffect(() => {
-    return () => {
-      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    };
-  }, []);
 
   // Build lookup: roasted_stock_id → suggestion
   const suggestionByStockId = new Map<string, SuggestedBatch>();
@@ -1089,36 +1044,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     }
   }
 
-  // Mark Complete — show confirmation dialog
   async function handleStatusChange(planId: string, newStatus: string) {
-    if (newStatus === "completed") {
-      // First mark it complete via API
-      saveSnapshot();
-      setPlans((prev) =>
-        prev.map((p) => (p.id === planId ? { ...p, status: "completed" } : p))
-      );
-
-      try {
-        const res = await fetch(`/api/tools/production/${planId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "completed" }),
-        });
-        if (!res.ok) {
-          rollback("Failed to update status. Changes reverted.");
-          return;
-        }
-        loadData();
-      } catch {
-        rollback("Failed to update status. Changes reverted.");
-        return;
-      }
-
-      // Show confirmation asking if they want to log the roast
-      setMarkCompleteConfirmPlanId(planId);
-      return;
-    }
-
     saveSnapshot();
     setPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: newStatus } : p))
@@ -1160,49 +1086,12 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     setStockUpdatePlanId(planId);
   }
 
-  function handleStockUpdateComplete(planId: string, roastLogId: string, _greenKg: number, _roastedKg: number) {
+  function handleStockUpdateComplete(planId: string, _roastLogId: string, _greenKg: number, _roastedKg: number) {
     setPlans((prev) =>
       prev.map((p) => (p.id === planId ? { ...p, status: "completed" } : p))
     );
-
-    // Clear any previous undo timer
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-
-    // Show undo toast for 10 seconds
-    setToast({
-      message: "Roast logged and stock updated.",
-      type: "success",
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-          setToast(null);
-
-          try {
-            // Delete the roast log (API now reverses stock movements)
-            await fetch(`/api/tools/roast-log/${roastLogId}`, { method: "DELETE" });
-
-            // Revert plan status back to planned
-            await fetch(`/api/tools/production/${planId}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "planned", roast_log_id: null }),
-            });
-
-            setToast({ message: "Roast log undone. Stock reverted.", type: "success" });
-            loadData();
-          } catch {
-            setToast({ message: "Failed to undo. Please check your roast logs.", type: "error" });
-          }
-        },
-      },
-    });
-
-    // Auto-dismiss undo toast after 10 seconds
-    undoTimerRef.current = setTimeout(() => {
-      setToast(null);
-      loadData();
-    }, 10000);
+    setToast({ message: "Roast logged and stock updated.", type: "success" });
+    loadData();
   }
 
   // View toggle
@@ -1238,7 +1127,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           </div>
         </div>
         <ListViewFallback plans={plans} loading={loading} router={router} />
-        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} action={toast.action} />}
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
     );
   }
@@ -1443,28 +1332,6 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         </DndContext>
       )}
 
-      {/* Mark Complete confirmation dialog */}
-      {markCompleteConfirmPlanId && (
-        <MarkCompleteConfirmation
-          onLogRoast={() => {
-            const planId = markCompleteConfirmPlanId;
-            setMarkCompleteConfirmPlanId(null);
-            // Revert to planned first so the Log & Complete form can mark it completed with log
-            setPlans((prev) =>
-              prev.map((p) => (p.id === planId ? { ...p, status: "planned" } : p))
-            );
-            fetch(`/api/tools/production/${planId}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "planned" }),
-            }).then(() => {
-              setStockUpdatePlanId(planId);
-            });
-          }}
-          onSkip={() => setMarkCompleteConfirmPlanId(null)}
-        />
-      )}
-
       {/* Log & Complete overlay */}
       {stockUpdatePlanId && (() => {
         const plan = plans.find((p) => p.id === stockUpdatePlanId);
@@ -1480,7 +1347,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         );
       })()}
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => { setToast(null); if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }} action={toast.action} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }

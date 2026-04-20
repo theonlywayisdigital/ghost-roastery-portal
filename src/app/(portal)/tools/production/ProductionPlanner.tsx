@@ -95,30 +95,24 @@ function parseDraggableId(id: string): { type: DraggableType; key: string } {
   return { type: "plan", key: id.replace("plan-", "") };
 }
 
-// ── Day helpers ────────────────────────────────────────────────────────
+// ── Week helpers ───────────────────────────────────────────────────────
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const VISIBLE_DAYS = 4;
 
-function getVisibleDays(date: Date): Date[] {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const days: Date[] = [];
-  for (let i = 0; i < VISIBLE_DAYS; i++) {
-    const wd = new Date(d);
-    wd.setDate(d.getDate() + i);
-    days.push(wd);
-  }
-  return days;
-}
-
-function getWeekStart(date: Date): Date {
+function getWeekDays(date: Date): Date[] {
   const d = new Date(date);
   const dayOfWeek = d.getDay();
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  d.setDate(d.getDate() + mondayOffset);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + mondayOffset);
+  monday.setHours(0, 0, 0, 0);
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const wd = new Date(monday);
+    wd.setDate(monday.getDate() + i);
+    days.push(wd);
+  }
+  return days;
 }
 
 function toDateKey(d: Date): string {
@@ -663,12 +657,12 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const visibleDays = getVisibleDays(currentDate);
+  const weekDays = getWeekDays(currentDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayKey = toDateKey(today);
 
-  const rangeLabel = `${formatDateShort(toDateKey(visibleDays[0]))} — ${formatDateShort(toDateKey(visibleDays[visibleDays.length - 1]))}`;
+  const weekLabel = `${formatDateShort(toDateKey(weekDays[0]))} — ${formatDateShort(toDateKey(weekDays[6]))}`;
 
   const loadData = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -718,10 +712,10 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     return null;
   }
 
-  // Filter plans by visible range
-  const visibleKeys = new Set(visibleDays.map(toDateKey));
-  const plansVisible = plans.filter((p) => visibleKeys.has(p.planned_date));
-  const scheduledBatchCount = plansVisible.length;
+  // Filter plans by current week
+  const weekKeys = new Set(weekDays.map(toDateKey));
+  const plansThisWeek = plans.filter((p) => weekKeys.has(p.planned_date));
+  const scheduledBatchCount = plansThisWeek.length;
 
   function getPlansForDate(dateKey: string): ExistingPlan[] {
     return plans.filter((p) => p.planned_date === dateKey);
@@ -759,16 +753,16 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   }
 
   // Navigation
-  function navigateDays(delta: number) {
+  function navigateWeek(delta: number) {
     setCurrentDate((prev) => {
       const d = new Date(prev);
-      d.setDate(d.getDate() + delta * VISIBLE_DAYS);
+      d.setDate(d.getDate() + delta * 7);
       return d;
     });
   }
 
   function goToThisWeek() {
-    setCurrentDate(getWeekStart(new Date()));
+    setCurrentDate(new Date());
   }
 
   function saveSnapshot() {
@@ -1135,10 +1129,10 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
             {/* Right panel — Week calendar */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-900">{rangeLabel}</h3>
+                <h3 className="text-sm font-semibold text-slate-900">{weekLabel}</h3>
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => navigateDays(-1)}
+                    onClick={() => navigateWeek(-1)}
                     className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -1150,7 +1144,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                     This Week
                   </button>
                   <button
-                    onClick={() => navigateDays(1)}
+                    onClick={() => navigateWeek(1)}
                     className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -1158,9 +1152,9 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="grid grid-cols-4">
-                  {visibleDays.map((date) => {
+              <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+                <div className="grid grid-cols-7" style={{ minWidth: "1120px" }}>
+                  {weekDays.map((date) => {
                     const dateKey = toDateKey(date);
                     const dayPlans = getPlansForDate(dateKey);
                     const isToday = dateKey === todayKey;

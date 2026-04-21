@@ -183,7 +183,7 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
 
   // Detail tabs
   const [activeDetailTab, setActiveDetailTab] = useState<
-    "activity" | "notes" | "orders" | "deals"
+    "activity" | "notes" | "orders"
   >("activity");
 
   async function loadContact() {
@@ -527,9 +527,6 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
                 { id: "activity", label: "Activity", icon: Activity },
                 { id: "notes", label: "Notes", icon: StickyNote },
                 { id: "orders", label: "Orders", icon: ShoppingBag },
-                ...((contact.types.includes("lead") || contact.types.includes("wholesale"))
-                  ? [{ id: "deals" as const, label: "Deals", icon: Funnel }]
-                  : []),
               ] as const
             ).map((tab) => {
               const Icon = tab.icon;
@@ -706,13 +703,6 @@ export function AdminContactDetail({ contactId }: { contactId: string }) {
             </div>
           )}
 
-          {/* Deals Tab */}
-          {activeDetailTab === "deals" && (
-            <DealsTabContent
-              timeline={deduped}
-              isReadOnly={isReadOnly}
-            />
-          )}
         </div>
 
         {/* RIGHT COLUMN — Details */}

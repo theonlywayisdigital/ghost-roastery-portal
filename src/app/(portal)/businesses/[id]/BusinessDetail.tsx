@@ -216,7 +216,6 @@ const TAB_IDS = [
   "orders",
   "invoices",
   "notes",
-  "deals",
 ] as const;
 type TabId = (typeof TAB_IDS)[number];
 
@@ -695,8 +694,6 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
   ].filter(Boolean);
 
   // Tab definitions with counts
-  const showDealsTab = business.types.includes("lead") || business.types.includes("wholesale");
-
   const tabs: { id: TabId; label: string; icon: typeof Activity; count?: number }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "activity", label: "Activity", icon: Activity },
@@ -705,7 +702,6 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
     { id: "orders", label: "Orders", icon: ShoppingBag, count: orders.length },
     { id: "invoices", label: "Invoices", icon: FileText, count: invoices.length },
     { id: "notes", label: "Notes", icon: StickyNote, count: notes.length },
-    ...(showDealsTab ? [{ id: "deals" as const, label: "Deals", icon: Funnel }] : []),
   ];
 
   return (
@@ -1449,14 +1445,6 @@ export function BusinessDetail({ businessId }: { businessId: string }) {
             </>
           )}
 
-          {/* Deals Tab */}
-          {activeTab === "deals" && (
-            <DealsTabContent
-              stages={stages}
-              timeline={deduped}
-              isReadOnly={false}
-            />
-          )}
         </div>
 
         {/* RIGHT COLUMN — Details + Wholesale */}

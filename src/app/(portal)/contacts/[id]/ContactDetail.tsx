@@ -324,7 +324,7 @@ export function ContactDetail({ contactId }: { contactId: string }) {
 
   // Detail tabs
   const [activeDetailTab, setActiveDetailTab] = useState<
-    "activity" | "notes" | "communication" | "orders" | "deals" | "wholesale"
+    "activity" | "notes" | "communication" | "orders" | "wholesale"
   >("activity");
 
   async function loadContact() {
@@ -1002,9 +1002,6 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 { id: "notes", label: "Notes", icon: StickyNote },
                 { id: "communication", label: "Communication", icon: Mail },
                 { id: "orders", label: "Orders", icon: ShoppingBag },
-                ...((contact.types.includes("lead") || contact.types.includes("wholesale"))
-                  ? [{ id: "deals" as const, label: "Deals", icon: Funnel }]
-                  : []),
                 ...(wholesaleAccess
                   ? [{ id: "wholesale" as const, label: "Wholesale", icon: Package }]
                   : []),
@@ -1431,15 +1428,6 @@ export function ContactDetail({ contactId }: { contactId: string }) {
                 )}
               </div>
             </>
-          )}
-
-          {/* Deals Tab */}
-          {activeDetailTab === "deals" && (
-            <DealsTabContent
-              stages={stages}
-              timeline={deduped}
-              isReadOnly={false}
-            />
           )}
 
           {/* Wholesale Tab */}

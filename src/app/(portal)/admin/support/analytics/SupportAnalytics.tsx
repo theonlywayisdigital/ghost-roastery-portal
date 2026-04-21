@@ -150,7 +150,7 @@ export function SupportAnalytics() {
   return (
     <div className="space-y-6">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <StatCard
           icon={Ticket}
           label="Total Tickets"
@@ -168,12 +168,6 @@ export function SupportAnalytics() {
           label="Avg Resolution"
           value={stats.avgResolutionHours ? `${stats.avgResolutionHours}h` : "—"}
           color="text-green-600 bg-green-50"
-        />
-        <StatCard
-          icon={Bot}
-          label="Chatbot Chats"
-          value={stats.chatbotConversations}
-          color="text-purple-600 bg-purple-50"
         />
       </div>
 

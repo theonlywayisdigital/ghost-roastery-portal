@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Copy,
   Play,
+  ChevronDown,
+  ChevronUp,
 } from "@/components/icons";
 
 // ── Types ──
@@ -52,6 +54,18 @@ const EXAMPLE_PROMPTS = [
   "Show me all overdue invoices",
 ];
 
+const DOMAIN_LABELS: Record<string, string> = {
+  products: "Product",
+  contacts: "Contact",
+  orders: "Order",
+  invoices: "Invoice",
+  wholesale_buyers: "Wholesale Buyer",
+  green_beans: "Green Bean",
+  roasted_stock: "Roasted Stock",
+  production: "Production Plan",
+  discount_codes: "Discount Code",
+};
+
 // ── Component ──
 
 export function BeansAgent() {
@@ -74,6 +88,7 @@ export function BeansAgent() {
   const [history, setHistory] = useState<
     Array<{ role: "user" | "model"; content: string }>
   >([]);
+  const [readLookupsOpen, setReadLookupsOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   // ── Plan ──
@@ -92,6 +107,7 @@ export function BeansAgent() {
       setToolCalls([]);
       setError(null);
       setReply("");
+      setReadLookupsOpen(false);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -152,7 +168,6 @@ export function BeansAgent() {
                     break;
                   case "message":
                     setMessage(data.text || "");
-                    // Track model's text response in history for conversation continuity
                     if (data.text) {
                       setHistory((prev) => [
                         ...prev,
@@ -174,7 +189,6 @@ export function BeansAgent() {
           }
         }
 
-        // Track this exchange in history
         setHistory((prev) => [
           ...prev,
           { role: "user" as const, content: msg },
@@ -209,7 +223,6 @@ export function BeansAgent() {
       return;
     }
 
-    // Initialize statuses
     const initialStatuses = new Map<string, ExecutionStatus>();
     for (const action of executableActions) {
       initialStatuses.set(action.id, {
@@ -304,7 +317,6 @@ export function BeansAgent() {
 
   function handleReply() {
     if (!reply.trim()) return;
-    // Continue conversation with full history preserved
     handleSend(reply, history);
   }
 
@@ -318,6 +330,7 @@ export function BeansAgent() {
     setError(null);
     setHistory([]);
     setReply("");
+    setReadLookupsOpen(false);
   }
 
   function handleReset() {
@@ -332,13 +345,16 @@ export function BeansAgent() {
     setCompletionStats(null);
     setHistory([]);
     setReply("");
+    setReadLookupsOpen(false);
   }
 
   function copySummary() {
-    const lines = actions.map(
-      (a) =>
-        `${a.type === "READ" ? "📖" : a.destructive ? "⚠️" : "✅"} ${a.label}`
-    );
+    const lines = actions
+      .filter((a) => a.type !== "READ")
+      .map(
+        (a) =>
+          `${a.destructive ? "⚠️" : "✅"} ${a.label}`
+      );
     if (completionStats) {
       lines.unshift(
         `Beans: ${completionStats.completed} of ${completionStats.total} actions completed.`
@@ -352,10 +368,21 @@ export function BeansAgent() {
   const conflictCount = actions.filter(
     (a) => a.conflictsWith && a.conflictsWith.length > 0
   ).length;
-  const destructiveCount = actions.filter((a) => a.destructive).length;
+  const executableCount = writeActions.filter(
+    (a) => !a.conflictsWith || a.conflictsWith.length === 0
+  ).length;
+  const createCount = writeActions.filter((a) => a.type === "CREATE").length;
+  const updateCount = writeActions.filter((a) => a.type === "UPDATE").length;
+  const deleteCount = writeActions.filter((a) => a.type === "DELETE").length;
+
+  // Execution progress
+  const execTotal = Array.from(executionStatuses.values()).length;
+  const execDone = Array.from(executionStatuses.values()).filter(
+    (s) => s.status === "done" || s.status === "failed"
+  ).length;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto pb-24">
       {/* ── INPUT ── */}
       {phase === "input" && (
         <div className="space-y-6">
@@ -430,9 +457,11 @@ export function BeansAgent() {
 
           {actions.length > 0 && (
             <div className="space-y-3">
-              {actions.map((action) => (
-                <ActionCard key={action.id} action={action} />
-              ))}
+              {actions
+                .filter((a) => a.type !== "READ")
+                .map((action) => (
+                  <ActionCard key={action.id} action={action} />
+                ))}
             </div>
           )}
 
@@ -454,54 +483,72 @@ export function BeansAgent() {
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
               {writeActions.length > 0
-                ? "Here's what Beans will do"
+                ? "Beans has a plan"
                 : message
-                  ? "Here's what Beans found"
+                  ? "Beans has a question"
                   : "Here's what Beans found"}
             </h2>
             {writeActions.length > 0 && (
               <p className="text-sm text-slate-500">
                 {writeActions.length}{" "}
-                {writeActions.length === 1 ? "action" : "actions"} planned
-                {readActions.length > 0
-                  ? ` (${readActions.length} data ${readActions.length === 1 ? "lookup" : "lookups"})`
+                {writeActions.length === 1 ? "action" : "actions"}
+                {createCount > 0 || updateCount > 0 || deleteCount > 0
+                  ? " — "
                   : ""}
-                {destructiveCount > 0
-                  ? ` — ${destructiveCount} destructive`
+                {[
+                  createCount > 0
+                    ? `${createCount} ${createCount === 1 ? "create" : "creates"}`
+                    : "",
+                  updateCount > 0
+                    ? `${updateCount} ${updateCount === 1 ? "update" : "updates"}`
+                    : "",
+                  deleteCount > 0
+                    ? `${deleteCount} ${deleteCount === 1 ? "delete" : "deletes"}`
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                {readActions.length > 0
+                  ? `, ${readActions.length} ${readActions.length === 1 ? "lookup" : "lookups"}`
                   : ""}
               </p>
             )}
             {summary && (
               <p className="text-sm text-slate-700 mt-2">{summary}</p>
             )}
-            {message && (
+            {message && !writeActions.length && (
               <p className="text-sm text-slate-700 mt-2">{message}</p>
             )}
           </div>
 
-          {/* Reply input — shown when Beans asks a question (message with no write actions) */}
+          {/* Question reply input */}
           {message && writeActions.length === 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="bg-white rounded-xl border-2 border-purple-200 border-l-4 border-l-purple-500 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700">
+                  QUESTION
+                </span>
+              </div>
+              <p className="text-sm text-slate-700 mb-3">{message}</p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
                   placeholder="Reply to Beans..."
-                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleReply();
-                    }
+                    if (e.key === "Enter") handleReply();
                   }}
+                  autoFocus
                 />
                 <button
                   onClick={handleReply}
                   disabled={!reply.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  Send
+                  Continue
                 </button>
               </div>
             </div>
@@ -518,37 +565,65 @@ export function BeansAgent() {
             </div>
           )}
 
-          {/* Action cards */}
-          <div className="space-y-3">
-            {actions.map((action) => (
-              <ActionCard key={action.id} action={action} />
-            ))}
-          </div>
+          {/* Write action cards */}
+          {writeActions.length > 0 && (
+            <div className="space-y-3">
+              {writeActions.map((action) => (
+                <ActionCard key={action.id} action={action} />
+              ))}
+            </div>
+          )}
+
+          {/* Read lookups — collapsible */}
+          {readActions.length > 0 && (
+            <div>
+              <button
+                onClick={() => setReadLookupsOpen(!readLookupsOpen)}
+                className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors w-full py-2"
+              >
+                {readLookupsOpen ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+                Data lookups ({readActions.length})
+              </button>
+              {readLookupsOpen && (
+                <div className="space-y-2 mt-1">
+                  {readActions.map((action) => (
+                    <ReadCard key={action.id} action={action} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {error && <ErrorBanner error={error} />}
 
-          {/* Buttons */}
-          <div className="flex items-center gap-3 pt-2">
-            {writeActions.length > 0 &&
-              writeActions.some(
-                (a) => !a.conflictsWith || a.conflictsWith.length === 0
-              ) && (
+          {/* Sticky footer */}
+          {(writeActions.length > 0 || message) && (
+            <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-slate-200 px-6 py-4 z-10">
+              <div className="max-w-3xl mx-auto flex items-center justify-between">
                 <button
-                  onClick={handleExecute}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                  onClick={handleReset}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  Accept &amp; Run
+                  <ArrowLeft className="w-4 h-4" />
+                  Cancel
                 </button>
-              )}
-            <button
-              onClick={handleReset}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Cancel
-            </button>
-          </div>
+                {executableCount > 0 && (
+                  <button
+                    onClick={handleExecute}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Accept &amp; Run {executableCount}{" "}
+                    {executableCount === 1 ? "action" : "actions"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -556,9 +631,25 @@ export function BeansAgent() {
       {phase === "executing" && (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">
-              Running actions...
-            </h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Running actions...
+              </h2>
+              <span className="text-sm text-slate-500">
+                {execDone} of {execTotal}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mb-5">
+              <div
+                className="bg-amber-500 h-1.5 rounded-full transition-all duration-300"
+                style={{
+                  width: execTotal > 0 ? `${(execDone / execTotal) * 100}%` : "0%",
+                }}
+              />
+            </div>
+
             <div className="space-y-3">
               {actions
                 .filter(
@@ -568,9 +659,22 @@ export function BeansAgent() {
                 )
                 .map((action) => {
                   const status = executionStatuses.get(action.id);
+                  const domainLabel = DOMAIN_LABELS[action.domain] || action.domain;
+                  const badgeStyle =
+                    BADGE_STYLES[action.type] || "bg-slate-50 text-slate-700";
+
                   return (
-                    <div key={action.id} className="flex items-start gap-3">
-                      <div className="mt-0.5">
+                    <div
+                      key={action.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg ${
+                        status?.status === "failed"
+                          ? "bg-red-50"
+                          : status?.status === "done"
+                            ? "bg-slate-50"
+                            : ""
+                      }`}
+                    >
+                      <div className="mt-0.5 flex-shrink-0">
                         {(!status || status.status === "pending") && (
                           <div className="w-5 h-5 rounded-full border-2 border-slate-200" />
                         )}
@@ -585,8 +689,18 @@ export function BeansAgent() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span
-                          className={`text-sm ${
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${badgeStyle}`}
+                          >
+                            {action.type}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            {domainLabel}
+                          </span>
+                        </div>
+                        <p
+                          className={`text-sm mt-0.5 ${
                             status?.status === "done"
                               ? "text-slate-500"
                               : status?.status === "failed"
@@ -594,10 +708,10 @@ export function BeansAgent() {
                                 : "text-slate-900"
                           }`}
                         >
-                          {action.label}
-                        </span>
+                          {extractTitle(action)}
+                        </p>
                         {status?.status === "failed" && status.error && (
-                          <p className="text-xs text-red-500 mt-0.5">
+                          <p className="text-xs text-red-500 mt-1">
                             {status.error}
                           </p>
                         )}
@@ -644,7 +758,7 @@ export function BeansAgent() {
               <h3 className="text-sm font-medium text-red-800 mb-2">
                 Failed actions
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {Array.from(executionStatuses.values())
                   .filter((s) => s.status === "failed")
                   .map((s) => {
@@ -654,7 +768,7 @@ export function BeansAgent() {
                         <XCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-sm text-red-700">
-                            {action?.label || s.actionId}
+                            {action ? extractTitle(action) : s.actionId}
                           </p>
                           {s.error && (
                             <p className="text-xs text-red-500">{s.error}</p>
@@ -667,10 +781,10 @@ export function BeansAgent() {
             </div>
           )}
 
-          {/* Action cards */}
-          {actions.length > 0 && (
+          {/* Completed action cards */}
+          {writeActions.length > 0 && (
             <div className="space-y-3">
-              {actions.map((action) => (
+              {writeActions.map((action) => (
                 <ActionCard key={action.id} action={action} />
               ))}
             </div>
@@ -698,7 +812,20 @@ export function BeansAgent() {
   );
 }
 
-// ── Subcomponents ──
+// ── Helpers ──
+
+function extractTitle(action: PlannedAction): string {
+  // Strip assumption text from label for a clean title
+  const dashIdx = action.label.indexOf(" — assumed");
+  if (dashIdx > 0) return action.label.slice(0, dashIdx);
+  return action.label;
+}
+
+function extractAssumption(action: PlannedAction): string | null {
+  const dashIdx = action.label.indexOf(" — assumed");
+  if (dashIdx > 0) return action.label.slice(dashIdx + 3);
+  return null;
+}
 
 const BORDER_COLORS: Record<string, string> = {
   CREATE: "border-l-green-500",
@@ -714,64 +841,218 @@ const BADGE_STYLES: Record<string, string> = {
   DELETE: "bg-red-50 text-red-700",
 };
 
+// ── Card Components ──
+
 function ActionCard({ action }: { action: PlannedAction }) {
   const hasConflict = action.conflictsWith && action.conflictsWith.length > 0;
   const borderColor = BORDER_COLORS[action.type] || "border-l-slate-300";
   const badgeStyle = BADGE_STYLES[action.type] || "bg-slate-50 text-slate-700";
+  const domainLabel = DOMAIN_LABELS[action.domain] || action.domain;
+  const title = extractTitle(action);
+  const assumption = extractAssumption(action);
 
-  return (
-    <div
-      className={`bg-white rounded-lg border border-slate-200 border-l-4 ${borderColor} p-4 ${
-        hasConflict ? "opacity-60 line-through decoration-slate-400" : ""
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}
-            >
-              {action.type}
-            </span>
-            {action.destructive && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
-                <AlertTriangle className="w-3 h-3" />
-                DESTRUCTIVE
-              </span>
-            )}
-            {hasConflict && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">
-                <AlertTriangle className="w-3 h-3" />
-                CONFLICT
-              </span>
-            )}
-            <span className="text-sm font-medium text-slate-900 truncate">
-              {action.label}
-            </span>
+  if (action.type === "CREATE") {
+    return (
+      <div
+        className={`bg-white rounded-lg border border-slate-200 border-l-4 ${borderColor} p-4 ${
+          hasConflict ? "opacity-50" : ""
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
+            CREATE
+          </span>
+          <span className="text-xs text-slate-400 font-medium">{domainLabel}</span>
+          {hasConflict && <ConflictBadge />}
+        </div>
+
+        {/* Title */}
+        <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
+          {title}
+        </p>
+
+        {/* Body fields grid */}
+        {action.body && Object.keys(action.body).length > 0 && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
+            {Object.entries(action.body).map(([key, val]) => {
+              if (val === null || val === undefined) return null;
+              if (typeof val === "object" && !Array.isArray(val)) return null;
+              return (
+                <div key={key} className="contents">
+                  <span className="text-xs text-slate-500 truncate">
+                    {formatFieldName(key)}
+                  </span>
+                  <span className="text-xs text-slate-900 font-medium truncate">
+                    {formatFieldValue(val)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
+        )}
 
-          {/* Diff display for updates */}
-          {action.diff && action.diff.length > 0 && (
-            <div className="mt-2 space-y-1">
+        {/* Assumption note */}
+        {assumption && (
+          <p className="text-xs text-slate-400 italic mt-3">{assumption}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (action.type === "UPDATE") {
+    const hasDiff = action.diff && action.diff.length > 0;
+    return (
+      <div
+        className={`bg-white rounded-lg border border-slate-200 border-l-4 ${borderColor} p-4 ${
+          hasConflict ? "opacity-50" : ""
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
+            UPDATE
+          </span>
+          <span className="text-xs text-slate-400 font-medium">{domainLabel}</span>
+          {action.destructive && <DestructiveBadge />}
+          {hasConflict && <ConflictBadge />}
+        </div>
+
+        {/* Title */}
+        <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
+          {title}
+        </p>
+
+        {/* Diff table */}
+        {hasDiff ? (
+          <div className="mt-2 rounded-md border border-slate-100 overflow-hidden">
+            <div className="grid grid-cols-[1fr,1fr,auto,1fr] text-xs">
+              <div className="px-3 py-1.5 bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                Field
+              </div>
+              <div className="px-3 py-1.5 bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                Before
+              </div>
+              <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-100" />
+              <div className="px-3 py-1.5 bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                After
+              </div>
               {action.diff.map((d, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-500 min-w-[100px]">
-                    {String(d.field).replace(/_/g, " ")}:
-                  </span>
-                  <span className="text-slate-400 line-through">
+                <div key={i} className="contents">
+                  <div className="px-3 py-1.5 text-slate-600 border-b border-slate-50">
+                    {formatFieldName(String(d.field))}
+                  </div>
+                  <div className="px-3 py-1.5 text-slate-400 line-through border-b border-slate-50">
                     {formatValue(d.from)}
-                  </span>
-                  <span className="text-slate-400">&rarr;</span>
-                  <span className="text-slate-900 font-medium">
+                  </div>
+                  <div className="px-3 py-1.5 text-slate-300 border-b border-slate-50">
+                    &rarr;
+                  </div>
+                  <div className="px-3 py-1.5 text-slate-900 font-medium border-b border-slate-50">
                     {formatValue(d.to)}
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+        ) : (
+          /* Fallback: show body fields if no diff */
+          action.body &&
+          Object.keys(action.body).length > 0 && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
+              {Object.entries(action.body).map(([key, val]) => {
+                if (val === null || val === undefined) return null;
+                if (typeof val === "object" && !Array.isArray(val)) return null;
+                return (
+                  <div key={key} className="contents">
+                    <span className="text-xs text-slate-500 truncate">
+                      {formatFieldName(key)}
+                    </span>
+                    <span className="text-xs text-slate-900 font-medium truncate">
+                      {formatFieldValue(val)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {assumption && (
+          <p className="text-xs text-slate-400 italic mt-3">{assumption}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (action.type === "DELETE") {
+    return (
+      <div
+        className={`bg-white rounded-lg border border-slate-200 border-l-4 ${borderColor} p-4 ${
+          hasConflict ? "opacity-50" : ""
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
+            DELETE
+          </span>
+          <span className="text-xs text-slate-400 font-medium">{domainLabel}</span>
+          <DestructiveBadge />
+          {hasConflict && <ConflictBadge />}
+        </div>
+
+        {/* Title */}
+        <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
+          {title}
+        </p>
+
+        {/* Warning */}
+        <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 rounded-md">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <p className="text-xs text-red-700">
+            This action is permanent and cannot be undone.
+          </p>
         </div>
       </div>
+    );
+  }
+
+  // READ type — should not appear as ActionCard in the main list,
+  // but handle gracefully
+  return <ReadCard action={action} />;
+}
+
+function ReadCard({ action }: { action: PlannedAction }) {
+  const domainLabel = DOMAIN_LABELS[action.domain] || action.domain;
+  return (
+    <div className="bg-slate-50 rounded-lg border border-slate-100 px-4 py-2.5 flex items-center gap-3">
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600">
+        READ
+      </span>
+      <span className="text-xs text-slate-400 font-medium">{domainLabel}</span>
+      <span className="text-xs text-slate-500 flex-1 truncate">
+        {extractTitle(action)}
+      </span>
     </div>
+  );
+}
+
+function DestructiveBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+      <AlertTriangle className="w-3 h-3" />
+      DESTRUCTIVE
+    </span>
+  );
+}
+
+function ConflictBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+      <AlertTriangle className="w-3 h-3" />
+      CONFLICT
+    </span>
   );
 }
 
@@ -784,10 +1065,32 @@ function ErrorBanner({ error }: { error: string }) {
   );
 }
 
-function formatValue(val: unknown): string {
+// ── Formatting ──
+
+function formatFieldName(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatFieldValue(val: unknown): string {
   if (val === null || val === undefined) return "—";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (Array.isArray(val)) return val.join(", ");
   if (typeof val === "number") {
     // Format as currency if it looks like a price
+    if (val > 0 && val < 100000) {
+      return `£${val.toFixed(2)}`;
+    }
+    return String(val);
+  }
+  return String(val);
+}
+
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined) return "—";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (typeof val === "number") {
     if (val > 0 && val < 100000) {
       return `£${val.toFixed(2)}`;
     }

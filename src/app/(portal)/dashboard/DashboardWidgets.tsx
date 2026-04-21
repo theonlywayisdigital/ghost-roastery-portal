@@ -32,7 +32,7 @@ const activityIconMap: Record<ActivityItem["type"], { Icon: typeof ShoppingCart;
 
 export function RecentOrdersWidget({ recentOrders }: { recentOrders: RecentOrder[] }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
+    <div className="bg-white rounded-xl border border-slate-200 p-6 h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-slate-900">Recent Orders</h2>
         <Link
@@ -96,14 +96,22 @@ export function RecentOrdersWidget({ recentOrders }: { recentOrders: RecentOrder
 
 export function RecentActivityWidget({ activityItems }: { activityItems: ActivityItem[] }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
-      <h2 className="text-base font-semibold text-slate-900 mb-4">Recent Activity</h2>
+    <div className="bg-white rounded-xl border border-slate-200 p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-slate-900">Recent Activity</h2>
+        <Link
+          href="/activity"
+          className="text-sm text-brand-600 hover:underline"
+        >
+          View all
+        </Link>
+      </div>
 
       {activityItems.length === 0 ? (
         <p className="text-sm text-slate-500 py-8 text-center">No recent activity.</p>
       ) : (
-        <div className="space-y-4">
-          {activityItems.map((item) => {
+        <div className="space-y-3 flex-1 overflow-hidden">
+          {activityItems.slice(0, 5).map((item) => {
             const config = activityIconMap[item.type];
             const { Icon } = config;
             return (
@@ -112,7 +120,7 @@ export function RecentActivityWidget({ activityItems }: { activityItems: Activit
                   <Icon className={`w-4 h-4 ${config.text}`} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-700 line-clamp-2">
+                  <p className="text-sm text-slate-700 line-clamp-1">
                     {item.description}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">

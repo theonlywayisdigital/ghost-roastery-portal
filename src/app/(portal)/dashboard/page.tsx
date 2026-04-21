@@ -9,6 +9,8 @@ import Link from "next/link";
 import { RecentOrdersWidget, RecentActivityWidget } from "./DashboardWidgets";
 import { DashboardQuickActions } from "./DashboardQuickActions";
 import { DashboardProductionWidget } from "./DashboardProductionWidget";
+import { DashboardBatchesNeededWidget } from "./DashboardBatchesNeededWidget";
+import { DashboardPendingDispatchWidget } from "./DashboardDispatchWidget";
 import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
 
 export default async function DashboardPage() {
@@ -236,7 +238,7 @@ export default async function DashboardPage() {
   }
 
   activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const topActivityItems = activityItems.slice(0, 8);
+  const topActivityItems = activityItems.slice(0, 5);
 
   const displayName =
     user.roaster?.contact_name || user.fullName || user.email;
@@ -388,13 +390,19 @@ export default async function DashboardPage() {
             </span>
           </Link>
 
-          {/* Row 3, Col 3-4 — Recent Activity (2 cols wide) */}
+          {/* Row 3, Col 3 — Batches Needed */}
+          <DashboardBatchesNeededWidget />
+
+          {/* Row 3, Col 4 — Pending Dispatch */}
+          <DashboardPendingDispatchWidget />
+
+          {/* Row 4, Col 1-2 — Recent Activity */}
           <div className="lg:col-span-2">
             <RecentActivityWidget activityItems={topActivityItems} />
           </div>
 
-          {/* Row 4, Col 1-4 — Recent Orders (full width) */}
-          <div className="lg:col-span-4">
+          {/* Row 4, Col 3-4 — Recent Orders */}
+          <div className="lg:col-span-2">
             <RecentOrdersWidget recentOrders={topRecentOrders} />
           </div>
         </div>

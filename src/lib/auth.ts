@@ -39,12 +39,16 @@ export interface PortalUser {
     website_subscription_active: boolean;
     [key: string]: unknown;
   } | null;
+  impersonatingRoasterId?: string | null;
 }
 
 /**
  * Get the currently authenticated user from the Supabase session.
  * Fetches roles from user_roles and roaster data from roasters.
  * Returns null if not authenticated.
+ *
+ * When the impersonating_roaster_id cookie is set (admin impersonation),
+ * overrides the roaster context so the admin sees the roaster's portal.
  */
 export async function getCurrentUser(): Promise<PortalUser | null> {
   const supabase = await createAuthServerClient();
@@ -64,9 +68,35 @@ export async function getCurrentUser(): Promise<PortalUser | null> {
 
   const roles = (roleRows || []).map((r: { role_id: string }) => r.role_id);
 
-  // Fetch roaster data if user has a roaster role
+  // Check for admin impersonation
+  let impersonatingRoasterId: string | null = null;
+  if (roles.includes("admin")) {
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = await cookies();
+      impersonatingRoasterId = cookieStore.get("impersonating_roaster_id")?.value || null;
+    } catch {
+      // cookies() may throw in some contexts — ignore
+    }
+  }
+
+  // Fetch roaster data — either impersonated or own
   let roaster: PortalUser["roaster"] = null;
-  if (roles.includes("roaster")) {
+  if (impersonatingRoasterId) {
+    // Admin impersonation: load the target roaster by ID
+    const { data } = await serviceClient
+      .from("roasters")
+      .select("*")
+      .eq("id", impersonatingRoasterId)
+      .single();
+
+    roaster = data;
+
+    // Add "roaster" to roles so roaster-gated UI renders
+    if (roaster && !roles.includes("roaster")) {
+      roles.push("roaster");
+    }
+  } else if (roles.includes("roaster")) {
     const { data } = await serviceClient
       .from("roasters")
       .select("*")
@@ -96,6 +126,7 @@ export async function getCurrentUser(): Promise<PortalUser | null> {
     roles,
     profile,
     roaster,
+    impersonatingRoasterId,
   };
 }
 

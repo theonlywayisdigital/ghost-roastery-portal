@@ -70,6 +70,7 @@ interface SidebarUser {
   marketingTier?: string;
   subscriptionStatus?: string | null;
   websiteSubscriptionActive?: boolean;
+  isImpersonating?: boolean;
 }
 
 interface NavItem {
@@ -114,7 +115,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
   const [onboardingPanelOpen, setOnboardingPanelOpen] = useState(false);
 
   const isRoaster = user.roles.includes("roaster");
-  const isAdmin = user.roles.includes("admin");
+  const isAdmin = user.roles.includes("admin") && !user.isImpersonating;
 
   // Compute feature access for gated nav items
   const features = isRoaster && user.salesTier && user.marketingTier

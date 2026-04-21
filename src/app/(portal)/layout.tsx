@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { PastDueBanner } from "@/components/PastDueBanner";
 import { TrialBanner } from "@/components/TrialBanner";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 
 export default async function PortalLayout({
   children,
@@ -16,12 +17,14 @@ export default async function PortalLayout({
     redirect("/login");
   }
 
+  const isImpersonating = !!user.impersonatingRoasterId;
   const subscriptionStatus = (user.roaster?.subscription_status as string) || null;
 
   // Lockout: inactive/unsubscribed roasters are redirected to billing
+  // Skip lockout when admin is impersonating a roaster
   const isRoaster = user.roles.includes("roaster");
   const isAdmin = user.roles.includes("admin");
-  if (isRoaster && !isAdmin) {
+  if (isRoaster && !isAdmin && !isImpersonating) {
     const activeStatuses = ["active", "past_due", "trialing", "cancelling"];
     const hasActiveSubscription = subscriptionStatus && activeStatuses.includes(subscriptionStatus);
 
@@ -46,8 +49,11 @@ export default async function PortalLayout({
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {subscriptionStatus === "past_due" && <PastDueBanner />}
-      {subscriptionStatus === "trialing" && (
+      {isImpersonating && (
+        <ImpersonationBanner roasterName={user.roaster?.business_name || "Unknown Roaster"} />
+      )}
+      {!isImpersonating && subscriptionStatus === "past_due" && <PastDueBanner />}
+      {!isImpersonating && subscriptionStatus === "trialing" && (
         <TrialBanner trialEndsAt={(user.roaster?.trial_ends_at as string) || null} />
       )}
 
@@ -62,6 +68,7 @@ export default async function PortalLayout({
           marketingTier: (user.roaster?.marketing_tier as string) || "growth",
           subscriptionStatus,
           websiteSubscriptionActive: (user.roaster?.website_subscription_active as boolean) ?? false,
+          isImpersonating,
         }}
       />
 

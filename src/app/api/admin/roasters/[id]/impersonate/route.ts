@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 
@@ -14,6 +15,17 @@ export async function POST(
   try {
     const { id } = await params;
     const supabase = createServerClient();
+
+    // Verify roaster exists
+    const { data: roaster } = await supabase
+      .from("roasters")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (!roaster) {
+      return NextResponse.json({ error: "Roaster not found" }, { status: 404 });
+    }
 
     // Log to roaster_activity
     await supabase.from("roaster_activity").insert({
@@ -32,7 +44,17 @@ export async function POST(
       metadata: { roaster_id: id },
     });
 
-    return NextResponse.json({ redirectUrl: `/dashboard?impersonate=${id}` });
+    // Set impersonation cookie
+    const cookieStore = await cookies();
+    cookieStore.set("impersonating_roaster_id", id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60, // 1 hour
+    });
+
+    return NextResponse.json({ redirectUrl: "/dashboard" });
   } catch (error) {
     console.error("Impersonation error:", error);
     return NextResponse.json(

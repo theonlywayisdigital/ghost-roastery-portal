@@ -64,13 +64,7 @@ export function SupportDashboard() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Support</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Get help, report issues, or chat with our AI assistant.
-          </p>
-        </div>
+      <div className="flex items-center justify-end mb-6">
         <Link
           href="/support/tickets/new"
           className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"

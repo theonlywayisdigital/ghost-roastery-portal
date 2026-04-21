@@ -20,7 +20,7 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   guide: FileText,
 };
 
-export function HelpCentre() {
+export function HelpCentre({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [categories, setCategories] = useState<KBCategory[]>([]);
   const [articles, setArticles] = useState<KBArticle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,13 +56,15 @@ export function HelpCentre() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Help Centre</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Find answers, tutorials, and guides to help you get the most out of
-          Roastery Platform.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Help Centre</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Find answers, tutorials, and guides to help you get the most out of
+            Roastery Platform.
+          </p>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-6">

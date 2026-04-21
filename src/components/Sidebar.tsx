@@ -319,7 +319,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       title: "Support",
       items: [
         { label: "Support", href: "/support", icon: LifeBuoy },
-        { label: "Help Centre", href: "/help", icon: BookOpen },
       ],
     });
   }
@@ -581,34 +580,42 @@ export function Sidebar({ user }: { user: SidebarUser }) {
             </span>
           )}
         </Link>
-        {/* Support & Help Centre for roasters */}
+        {/* Beans AI for roasters */}
+        {isRoaster && (() => {
+          const isScale = user.salesTier === "scale";
+          const beansActive = isActive("/beans");
+          return (
+            <Link
+              href="/beans"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                beansActive
+                  ? "bg-brand-50 text-brand-700 font-medium"
+                  : isScale
+                    ? "text-slate-600 hover:bg-slate-100"
+                    : "text-slate-400 hover:bg-slate-50"
+              }`}
+            >
+              <Coffee className="w-6 h-6 flex-shrink-0 text-black" />
+              <span className="flex-1">Beans AI</span>
+              {!isScale && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
+            </Link>
+          );
+        })()}
+        {/* Support for roasters */}
         {isRoaster && (
-          <>
-            <Link
-              href="/support"
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive("/support")
-                  ? "bg-brand-50 text-brand-700 font-medium"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <LifeBuoy className="w-6 h-6 flex-shrink-0 text-black" />
-              Support
-            </Link>
-            <Link
-              href="/help"
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive("/help")
-                  ? "bg-brand-50 text-brand-700 font-medium"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <BookOpen className="w-6 h-6 flex-shrink-0 text-black" />
-              Help Centre
-            </Link>
-          </>
+          <Link
+            href="/support"
+            onClick={() => setMobileOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              isActive("/support") || isActive("/help")
+                ? "bg-brand-50 text-brand-700 font-medium"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <LifeBuoy className="w-6 h-6 flex-shrink-0 text-black" />
+            Support
+          </Link>
         )}
         {/* Settings link for non-admin users (admin has it in System section) */}
         {!isAdmin && (

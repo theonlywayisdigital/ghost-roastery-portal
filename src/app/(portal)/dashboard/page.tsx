@@ -8,6 +8,7 @@ import {
 import Link from "next/link";
 import { DashboardWidgets } from "./DashboardWidgets";
 import { DashboardQuickActions } from "./DashboardQuickActions";
+import { DashboardProductionWidget } from "./DashboardProductionWidget";
 import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
 
 export default async function DashboardPage() {
@@ -432,6 +433,13 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Production Widget (roaster only) */}
+      {isRoaster && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <DashboardProductionWidget />
+        </div>
+      )}
 
       {/* Recent Orders + Activity Feed (roaster only) */}
       {isRoaster && (

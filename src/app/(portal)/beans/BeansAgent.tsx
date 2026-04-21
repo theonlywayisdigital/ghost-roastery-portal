@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Send,
   Loader2,
@@ -37,7 +37,18 @@ interface PlannedAction {
   diff: ActionDiff[];
 }
 
-type Phase = "input" | "planning" | "review" | "executing" | "done";
+interface Chip {
+  label: string;
+  value: string;
+}
+
+interface ChatMessage {
+  role: "user" | "model";
+  content: string;
+  chips?: Chip[];
+}
+
+type Phase = "input" | "conversation" | "planning" | "review" | "executing" | "done";
 
 interface ExecutionStatus {
   actionId: string;
@@ -66,14 +77,30 @@ const DOMAIN_LABELS: Record<string, string> = {
   discount_codes: "Discount Code",
 };
 
+// ── Helpers ──
+
+function parseChips(text: string): { clean: string; chips: Chip[] } {
+  const match = text.match(/CHIPS:\[.*\]$/s);
+  if (!match) return { clean: text, chips: [] };
+
+  const clean = text.slice(0, match.index).trimEnd();
+  try {
+    const chips = JSON.parse(match[0].slice(6)) as Chip[];
+    return { clean, chips };
+  } catch {
+    return { clean: text, chips: [] };
+  }
+}
+
 // ── Component ──
 
 export function BeansAgent() {
   const [phase, setPhase] = useState<Phase>("input");
   const [prompt, setPrompt] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [actions, setActions] = useState<PlannedAction[]>([]);
   const [summary, setSummary] = useState("");
-  const [message, setMessage] = useState("");
   const [toolCalls, setToolCalls] = useState<string[]>([]);
   const [executionStatuses, setExecutionStatuses] = useState<
     Map<string, ExecutionStatus>
@@ -84,41 +111,54 @@ export function BeansAgent() {
     failed: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reply, setReply] = useState("");
-  const [history, setHistory] = useState<
-    Array<{ role: "user" | "model"; content: string }>
-  >([]);
+  const [isThinking, setIsThinking] = useState(false);
   const [readLookupsOpen, setReadLookupsOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const chatInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ── Plan ──
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
 
-  const handleSend = useCallback(
-    async (text?: string, prevHistory?: Array<{ role: "user" | "model"; content: string }>) => {
-      const msg = text || prompt;
-      if (!msg.trim()) return;
+  // Focus chat input when conversation phase starts
+  useEffect(() => {
+    if (phase === "conversation" && !isThinking) {
+      chatInputRef.current?.focus();
+    }
+  }, [phase, isThinking]);
 
-      const historyToSend = prevHistory || history;
+  // ── Send message to plan API ──
 
-      setPhase("planning");
-      setActions([]);
-      setSummary("");
-      setMessage("");
-      setToolCalls([]);
+  const sendMessage = useCallback(
+    async (text: string, currentMessages: ChatMessage[]) => {
+      if (!text.trim()) return;
+
+      // Add user message to chat
+      const userMsg: ChatMessage = { role: "user", content: text };
+      const updatedMessages = [...currentMessages, userMsg];
+      setMessages(updatedMessages);
+      setIsThinking(true);
       setError(null);
-      setReply("");
-      setReadLookupsOpen(false);
+      setToolCalls([]);
 
       const controller = new AbortController();
       abortRef.current = controller;
+
+      // Build history for API (exclude chips metadata)
+      const history = updatedMessages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
       try {
         const res = await fetch("/api/beans/plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: msg,
-            history: historyToSend.length > 0 ? historyToSend : undefined,
+            message: text,
+            history: history.slice(0, -1), // Don't duplicate the current message
           }),
           signal: controller.signal,
         });
@@ -126,19 +166,22 @@ export function BeansAgent() {
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: "Request failed" }));
           setError(err.error || "Request failed");
-          setPhase("input");
+          setIsThinking(false);
           return;
         }
 
         const reader = res.body?.getReader();
         if (!reader) {
           setError("No response stream");
-          setPhase("input");
+          setIsThinking(false);
           return;
         }
 
         const decoder = new TextDecoder();
         let buffer = "";
+        let receivedActions: PlannedAction[] = [];
+        let receivedSummary = "";
+        let receivedMessage = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -158,22 +201,16 @@ export function BeansAgent() {
 
                 switch (eventType) {
                   case "action":
-                    setActions((prev) => [...prev, data as PlannedAction]);
+                    receivedActions = [...receivedActions, data as PlannedAction];
                     break;
                   case "tool_call":
                     setToolCalls((prev) => [...prev, data.summary]);
                     break;
                   case "summary":
-                    setSummary(data.text || "");
+                    receivedSummary = data.text || "";
                     break;
                   case "message":
-                    setMessage(data.text || "");
-                    if (data.text) {
-                      setHistory((prev) => [
-                        ...prev,
-                        { role: "model" as const, content: data.text },
-                      ]);
-                    }
+                    receivedMessage = data.text || "";
                     break;
                   case "error":
                     setError(data.error || "An error occurred");
@@ -189,21 +226,61 @@ export function BeansAgent() {
           }
         }
 
-        setHistory((prev) => [
-          ...prev,
-          { role: "user" as const, content: msg },
-        ]);
+        setIsThinking(false);
 
-        setPhase("review");
+        // Decide what to do with the response
+        if (receivedActions.length > 0) {
+          // Beans returned a plan — transition to review
+          setActions(receivedActions);
+          setSummary(receivedSummary);
+          setPhase("review");
+        } else if (receivedMessage) {
+          // Beans sent a conversational message — stay in conversation
+          const { clean, chips } = parseChips(receivedMessage);
+          const modelMsg: ChatMessage = {
+            role: "model",
+            content: clean,
+            chips: chips.length > 0 ? chips : undefined,
+          };
+          setMessages((prev) => [...prev, modelMsg]);
+          setPhase("conversation");
+        }
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
         setError(
           err instanceof Error ? err.message : "An unexpected error occurred"
         );
-        setPhase("input");
+        setIsThinking(false);
       }
     },
-    [prompt, history]
+    []
+  );
+
+  // ── Handlers ──
+
+  const handleInitialSend = useCallback(
+    (text?: string) => {
+      const msg = text || prompt;
+      if (!msg.trim()) return;
+      setPhase("conversation");
+      sendMessage(msg, []);
+    },
+    [prompt, sendMessage]
+  );
+
+  const handleChatSend = useCallback(() => {
+    if (!chatInput.trim() || isThinking) return;
+    const text = chatInput;
+    setChatInput("");
+    sendMessage(text, messages);
+  }, [chatInput, isThinking, messages, sendMessage]);
+
+  const handleChipClick = useCallback(
+    (chip: Chip) => {
+      if (isThinking) return;
+      sendMessage(chip.value, messages);
+    },
+    [isThinking, messages, sendMessage]
   );
 
   // ── Execute ──
@@ -313,38 +390,40 @@ export function BeansAgent() {
     }
   }, [actions]);
 
-  // ── Helpers ──
-
-  function handleReply() {
-    if (!reply.trim()) return;
-    handleSend(reply, history);
-  }
+  // ── Navigation ──
 
   function handleCancel() {
     abortRef.current?.abort();
     setPhase("input");
+    setPrompt("");
+    setChatInput("");
+    setMessages([]);
     setActions([]);
     setSummary("");
-    setMessage("");
     setToolCalls([]);
     setError(null);
-    setHistory([]);
-    setReply("");
+    setIsThinking(false);
     setReadLookupsOpen(false);
+  }
+
+  function handleBackToChat() {
+    setActions([]);
+    setSummary("");
+    setPhase("conversation");
   }
 
   function handleReset() {
     setPhase("input");
     setPrompt("");
+    setChatInput("");
+    setMessages([]);
     setActions([]);
     setSummary("");
-    setMessage("");
     setToolCalls([]);
     setError(null);
     setExecutionStatuses(new Map());
     setCompletionStats(null);
-    setHistory([]);
-    setReply("");
+    setIsThinking(false);
     setReadLookupsOpen(false);
   }
 
@@ -394,18 +473,18 @@ export function BeansAgent() {
               className="w-full h-32 resize-none border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 text-base"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  handleSend();
+                  handleInitialSend();
                 }
               }}
             />
             <div className="flex justify-end pt-3 border-t border-slate-100">
               <button
-                onClick={() => handleSend()}
+                onClick={() => handleInitialSend()}
                 disabled={!prompt.trim()}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Play className="w-4 h-4" />
-                Run
+                <Send className="w-4 h-4" />
+                Send
               </button>
             </div>
           </div>
@@ -420,7 +499,7 @@ export function BeansAgent() {
                   key={ex}
                   onClick={() => {
                     setPrompt(ex);
-                    handleSend(ex);
+                    handleInitialSend(ex);
                   }}
                   className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors text-left leading-snug"
                 >
@@ -434,45 +513,124 @@ export function BeansAgent() {
         </div>
       )}
 
-      {/* ── PLANNING ── */}
-      {phase === "planning" && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
-              <span className="text-sm font-medium text-slate-900">
-                Beans is thinking...
-              </span>
-            </div>
-            {toolCalls.length > 0 && (
-              <div className="space-y-1 ml-8">
-                {toolCalls.map((tc, i) => (
-                  <p key={i} className="text-xs text-slate-500">
-                    {tc}
-                  </p>
-                ))}
+      {/* ── CONVERSATION ── */}
+      {phase === "conversation" && (
+        <div className="flex flex-col h-[calc(100vh-220px)]">
+          {/* Chat messages */}
+          <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+            {messages.map((msg, i) => (
+              <div key={i}>
+                {msg.role === "user" ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-[80%] bg-slate-800 text-white rounded-2xl rounded-br-md px-4 py-3">
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 items-start">
+                    {/* Bean avatar */}
+                    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg
+                        viewBox="0 0 24 24"
+                        className="w-4 h-4 text-amber-700"
+                        fill="currentColor"
+                      >
+                        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
+                        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
+                      </svg>
+                    </div>
+                    <div className="max-w-[80%]">
+                      <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3">
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">
+                          {msg.content}
+                        </p>
+                      </div>
+                      {/* Chips */}
+                      {msg.chips && msg.chips.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2 ml-1">
+                          {msg.chips.map((chip, ci) => (
+                            <button
+                              key={ci}
+                              onClick={() => handleChipClick(chip)}
+                              disabled={isThinking}
+                              className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-800 font-medium hover:bg-amber-100 hover:border-amber-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {chip.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Thinking indicator */}
+            {isThinking && (
+              <div className="flex gap-3 items-start">
+                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-4 h-4 text-amber-700"
+                    fill="currentColor"
+                  >
+                    <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
+                    <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
+                  </svg>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                    <span className="text-sm text-slate-500">
+                      {toolCalls.length > 0
+                        ? toolCalls[toolCalls.length - 1]
+                        : "Thinking..."}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
+
+            <div ref={chatEndRef} />
           </div>
 
-          {actions.length > 0 && (
-            <div className="space-y-3">
-              {actions
-                .filter((a) => a.type !== "READ")
-                .map((action) => (
-                  <ActionCard key={action.id} action={action} />
-                ))}
+          {/* Error */}
+          {error && (
+            <div className="mb-3">
+              <ErrorBanner error={error} />
             </div>
           )}
 
-          <button
-            onClick={handleCancel}
-            className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            Cancel
-          </button>
-
-          {error && <ErrorBanner error={error} />}
+          {/* Chat input bar */}
+          <div className="bg-white border border-slate-200 rounded-xl p-3 flex gap-2">
+            <button
+              onClick={handleCancel}
+              className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors flex-shrink-0"
+              title="Cancel"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <input
+              ref={chatInputRef}
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Reply to Beans..."
+              className="flex-1 border-0 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleChatSend();
+              }}
+              disabled={isThinking}
+            />
+            <button
+              onClick={handleChatSend}
+              disabled={!chatInput.trim() || isThinking}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -482,11 +640,7 @@ export function BeansAgent() {
           {/* Header */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
-              {writeActions.length > 0
-                ? "Beans has a plan"
-                : message
-                  ? "Beans has a question"
-                  : "Here's what Beans found"}
+              Beans has a plan
             </h2>
             {writeActions.length > 0 && (
               <p className="text-sm text-slate-500">
@@ -516,43 +670,7 @@ export function BeansAgent() {
             {summary && (
               <p className="text-sm text-slate-700 mt-2">{summary}</p>
             )}
-            {message && !writeActions.length && (
-              <p className="text-sm text-slate-700 mt-2">{message}</p>
-            )}
           </div>
-
-          {/* Question reply input */}
-          {message && writeActions.length === 0 && (
-            <div className="bg-white rounded-xl border-2 border-purple-200 border-l-4 border-l-purple-500 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-50 text-purple-700">
-                  QUESTION
-                </span>
-              </div>
-              <p className="text-sm text-slate-700 mb-3">{message}</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Reply to Beans..."
-                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleReply();
-                  }}
-                  autoFocus
-                />
-                <button
-                  onClick={handleReply}
-                  disabled={!reply.trim()}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-4 h-4" />
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Conflict warning */}
           {conflictCount > 0 && (
@@ -601,29 +719,27 @@ export function BeansAgent() {
           {error && <ErrorBanner error={error} />}
 
           {/* Sticky footer */}
-          {(writeActions.length > 0 || message) && (
-            <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-slate-200 px-6 py-4 z-10">
-              <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-slate-200 px-6 py-4 z-10">
+            <div className="max-w-3xl mx-auto flex items-center justify-between">
+              <button
+                onClick={handleBackToChat}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+              {executableCount > 0 && (
                 <button
-                  onClick={handleReset}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                  onClick={handleExecute}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Cancel
+                  <CheckCircle2 className="w-4 h-4" />
+                  Accept &amp; Run {executableCount}{" "}
+                  {executableCount === 1 ? "action" : "actions"}
                 </button>
-                {executableCount > 0 && (
-                  <button
-                    onClick={handleExecute}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Accept &amp; Run {executableCount}{" "}
-                    {executableCount === 1 ? "action" : "actions"}
-                  </button>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -815,7 +931,6 @@ export function BeansAgent() {
 // ── Helpers ──
 
 function extractTitle(action: PlannedAction): string {
-  // Strip assumption text from label for a clean title
   const dashIdx = action.label.indexOf(" — assumed");
   if (dashIdx > 0) return action.label.slice(0, dashIdx);
   return action.label;
@@ -858,7 +973,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
           hasConflict ? "opacity-50" : ""
         }`}
       >
-        {/* Header */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
             CREATE
@@ -866,13 +980,9 @@ function ActionCard({ action }: { action: PlannedAction }) {
           <span className="text-xs text-slate-400 font-medium">{domainLabel}</span>
           {hasConflict && <ConflictBadge />}
         </div>
-
-        {/* Title */}
         <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
           {title}
         </p>
-
-        {/* Body fields grid */}
         {action.body && Object.keys(action.body).length > 0 && (
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
             {Object.entries(action.body).map(([key, val]) => {
@@ -891,8 +1001,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
             })}
           </div>
         )}
-
-        {/* Assumption note */}
         {assumption && (
           <p className="text-xs text-slate-400 italic mt-3">{assumption}</p>
         )}
@@ -908,7 +1016,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
           hasConflict ? "opacity-50" : ""
         }`}
       >
-        {/* Header */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
             UPDATE
@@ -917,13 +1024,9 @@ function ActionCard({ action }: { action: PlannedAction }) {
           {action.destructive && <DestructiveBadge />}
           {hasConflict && <ConflictBadge />}
         </div>
-
-        {/* Title */}
         <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
           {title}
         </p>
-
-        {/* Diff table */}
         {hasDiff ? (
           <div className="mt-2 rounded-md border border-slate-100 overflow-hidden">
             <div className="grid grid-cols-[1fr,1fr,auto,1fr] text-xs">
@@ -956,7 +1059,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
             </div>
           </div>
         ) : (
-          /* Fallback: show body fields if no diff */
           action.body &&
           Object.keys(action.body).length > 0 && (
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
@@ -977,7 +1079,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
             </div>
           )
         )}
-
         {assumption && (
           <p className="text-xs text-slate-400 italic mt-3">{assumption}</p>
         )}
@@ -992,7 +1093,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
           hasConflict ? "opacity-50" : ""
         }`}
       >
-        {/* Header */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${badgeStyle}`}>
             DELETE
@@ -1001,13 +1101,9 @@ function ActionCard({ action }: { action: PlannedAction }) {
           <DestructiveBadge />
           {hasConflict && <ConflictBadge />}
         </div>
-
-        {/* Title */}
         <p className={`text-sm font-semibold text-slate-900 mb-2 ${hasConflict ? "line-through" : ""}`}>
           {title}
         </p>
-
-        {/* Warning */}
         <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 rounded-md">
           <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
           <p className="text-xs text-red-700">
@@ -1018,8 +1114,6 @@ function ActionCard({ action }: { action: PlannedAction }) {
     );
   }
 
-  // READ type — should not appear as ActionCard in the main list,
-  // but handle gracefully
   return <ReadCard action={action} />;
 }
 
@@ -1078,7 +1172,6 @@ function formatFieldValue(val: unknown): string {
   if (typeof val === "boolean") return val ? "Yes" : "No";
   if (Array.isArray(val)) return val.join(", ");
   if (typeof val === "number") {
-    // Format as currency if it looks like a price
     if (val > 0 && val < 100000) {
       return `£${val.toFixed(2)}`;
     }

@@ -50,7 +50,7 @@ export async function GET() {
   const roasterId = user.roaster.id;
 
   // Fetch all data in parallel
-  const [roastedRes, ordersRes, roasterRes, plansRes] = await Promise.all([
+  const [roastedRes, ordersRes, roasterRes, plansRes, allGreenBeansRes] = await Promise.all([
     supabase
       .from("roasted_stock")
       .select("id, name, current_stock_kg, green_bean_id, batch_size_kg, weight_loss_percentage")
@@ -72,12 +72,26 @@ export async function GET() {
       .eq("roaster_id", roasterId)
       .in("status", ["planned", "in_progress", "completed"])
       .order("planned_date", { ascending: true }),
+    supabase
+      .from("green_beans")
+      .select("current_stock_kg")
+      .eq("roaster_id", roasterId)
+      .eq("is_active", true),
   ]);
 
   const roastedStocks = roastedRes.data || [];
   const orders = ordersRes.data || [];
   const defaultBatchSizeKg = roasterRes.data?.default_batch_size_kg ?? 8;
   const existingPlans = plansRes.data || [];
+  const allGreenBeans = allGreenBeansRes.data || [];
+
+  // Stock totals
+  const totalGreenStockKg = Math.round(
+    allGreenBeans.reduce((sum, b) => sum + (b.current_stock_kg ?? 0), 0) * 1000
+  ) / 1000;
+  const totalRoastedStockKg = Math.round(
+    roastedStocks.reduce((sum, rs) => sum + (rs.current_stock_kg ?? 0), 0) * 1000
+  ) / 1000;
 
   // Build roasted stock lookup
   const stockMap = new Map(
@@ -237,6 +251,8 @@ export async function GET() {
       profilesWithShortfall: new Set(suggestions.map((s) => s.roastedStockId)).size,
       overdueCount: suggestions.filter((s) => s.urgency === "overdue").length,
       urgentCount: suggestions.filter((s) => s.urgency === "urgent").length,
+      totalGreenStockKg,
+      totalRoastedStockKg,
     },
   });
 }

@@ -90,6 +90,8 @@ interface SuggestedResponse {
     profilesWithShortfall: number;
     overdueCount: number;
     urgentCount: number;
+    totalGreenStockKg: number;
+    totalRoastedStockKg: number;
   };
 }
 
@@ -790,7 +792,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   const [loading, setLoading] = useState(true);
   const [suggestions, setSuggestions] = useState<SuggestedBatch[]>([]);
   const [plans, setPlans] = useState<ExistingPlan[]>(initialPlans);
-  const [summary, setSummary] = useState({ totalBatchesNeeded: 0, profilesWithShortfall: 0, overdueCount: 0, urgentCount: 0 });
+  const [summary, setSummary] = useState({ totalBatchesNeeded: 0, profilesWithShortfall: 0, overdueCount: 0, urgentCount: 0, totalGreenStockKg: 0, totalRoastedStockKg: 0 });
   const [activeDrag, setActiveDrag] = useState<{ type: DraggableType; index?: number; plan?: ExistingPlan } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
@@ -1191,7 +1193,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
       </div>
 
       {/* Summary header */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 mb-1">Batches Needed</p>
           <p className="text-2xl font-bold text-slate-900">{summary.totalBatchesNeeded}</p>
@@ -1207,6 +1209,14 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs font-medium text-slate-500 mb-1">Scheduled This Week</p>
           <p className="text-2xl font-bold text-brand-600">{scheduledBatchCount}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-medium text-green-600 mb-1">Green Stock</p>
+          <p className="text-2xl font-bold text-slate-900">{summary.totalGreenStockKg}<span className="text-sm font-medium text-slate-400 ml-0.5">kg</span></p>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs font-medium text-brand-500 mb-1">Roasted Stock</p>
+          <p className="text-2xl font-bold text-slate-900">{summary.totalRoastedStockKg}<span className="text-sm font-medium text-slate-400 ml-0.5">kg</span></p>
         </div>
       </div>
 

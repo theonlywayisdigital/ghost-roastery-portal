@@ -235,20 +235,14 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
           </div>
         )}
 
-        {/* Ghost payout info */}
-        {isGhost && (
-          <div className="mt-4 pt-4 border-t border-slate-200">
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Your Payout</p>
-            <p className="text-lg font-semibold text-slate-900">{formatPrice(order.partner_payout_total || 0)}</p>
-          </div>
-        )}
+        {/* Ghost payout info — hidden: roasters invoice directly */}
       </div>
 
       {/* Layout: main + sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
-          <OrderSummaryCard order={order} orderType={orderType} showPayoutInfo />
+          <OrderSummaryCard order={order} orderType={orderType} />
 
           <DeliveryAddressCard address={order.delivery_address} />
 

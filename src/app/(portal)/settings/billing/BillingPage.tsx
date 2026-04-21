@@ -328,9 +328,9 @@ export function BillingPage({ roaster }: { roaster: RoasterData }) {
   return (
     <div>
       <SettingsHeader
-        title="Billing & Payouts"
-        description="Manage your payment settings, view payouts, and configure how you invoice customers."
-        breadcrumb="Billing & Payouts"
+        title="Billing"
+        description="Manage your subscription, payment settings, and configure how you invoice customers."
+        breadcrumb="Billing"
       />
 
       {/* Tabs */}
@@ -1262,74 +1262,7 @@ function MyBillingTab({
 }) {
   return (
     <div className="space-y-6">
-      {/* ─── Section 1: Payouts ─── */}
-      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Landmark className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-900">
-              Payouts
-            </h2>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Recent payouts to your bank account from Stripe.
-          </p>
-        </div>
-        <div className="p-6">
-          {!isConnected ? (
-            <PromptConnect message="Connect Stripe to view your payout history." />
-          ) : payouts.length === 0 ? (
-            <div className="text-center py-6">
-              <Landmark className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">
-                No payouts yet. Payouts are processed automatically by
-                Stripe once you start receiving orders.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider pb-3">
-                      Date
-                    </th>
-                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider pb-3">
-                      Amount
-                    </th>
-                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider pb-3">
-                      Status
-                    </th>
-                    <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider pb-3 hidden sm:table-cell">
-                      Destination
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {payouts.map((payout) => (
-                    <tr key={payout.id}>
-                      <td className="py-3 text-sm text-slate-700">
-                        {formatDate(payout.arrival_date)}
-                      </td>
-                      <td className="py-3 text-sm font-medium text-slate-900">
-                        {formatCurrency(payout.amount)}
-                      </td>
-                      <td className="py-3">
-                        <PayoutStatus status={payout.status} />
-                      </td>
-                      <td className="py-3 text-sm text-slate-500 hidden sm:table-cell">
-                        {payout.destination || "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ─── Section 4: Invoices & Settings ─── */}
+      {/* ─── Section 1: Invoices & Settings ─── */}
       <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">

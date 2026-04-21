@@ -3,20 +3,18 @@
 import { useState } from "react";
 import {
   LayoutDashboard,
-  Wallet,
   FileText,
   ScrollText,
   RotateCcw,
 } from "@/components/icons";
 import { FinanceOverviewTab } from "./overview/FinanceOverviewTab";
-import { PayoutsTab } from "./payouts/PayoutsTab";
 import { InvoicesTab } from "./invoices/InvoicesTab";
 import { LedgerTab } from "./ledger/LedgerTab";
 import { RefundsTab } from "./refunds/RefundsTab";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "payouts", label: "Partner Payouts", icon: Wallet },
+  // { id: "payouts", label: "Partner Payouts", icon: Wallet }, // Hidden — partner payouts paused
   { id: "invoices", label: "Invoices", icon: FileText },
   { id: "ledger", label: "Transaction Ledger", icon: ScrollText },
   { id: "refunds", label: "Refunds", icon: RotateCcw },
@@ -31,10 +29,10 @@ export function AdminFinanceClient() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">
-          Finance & Payouts
+          Finance
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Revenue overview, partner payouts, invoices, and transaction ledger.
+          Revenue overview, invoices, and transaction ledger.
         </p>
       </div>
 
@@ -62,9 +60,7 @@ export function AdminFinanceClient() {
         <FinanceOverviewTab />
       </div>
 
-      <div className={activeTab === "payouts" ? "" : "hidden"}>
-        <PayoutsTab />
-      </div>
+      {/* PayoutsTab hidden — partner payouts paused */}
 
       <div className={activeTab === "invoices" ? "" : "hidden"}>
         <InvoicesTab />

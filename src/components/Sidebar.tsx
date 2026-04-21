@@ -262,14 +262,13 @@ export function Sidebar({ user }: { user: SidebarUser }) {
         { label: "All Roasters", href: "/admin/roasters", icon: Building2 },
         { label: "Products", href: "/admin/products", icon: Package },
         { label: "Wholesale", href: "/admin/wholesale", icon: Store },
-        { label: "Partner Program", href: "/admin/partner-program", icon: Coffee },
       ],
     });
     sections.push({
       title: "Operations",
       items: [
         { label: "Support & Disputes", href: "/admin/support", icon: LifeBuoy },
-        { label: "Finance & Payouts", href: "/admin/finance", icon: Wallet },
+        { label: "Finance", href: "/admin/finance", icon: Wallet },
       ],
     });
     sections.push({

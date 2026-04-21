@@ -39,8 +39,8 @@ const settingsItems = [
   },
   {
     href: "/settings/billing",
-    label: "Billing & Payouts",
-    description: "Subscription plan, payment settings, payout history, and invoices.",
+    label: "Billing",
+    description: "Subscription plan, payment settings, and invoices.",
     icon: CreditCard,
     roasterOnly: true,
   },

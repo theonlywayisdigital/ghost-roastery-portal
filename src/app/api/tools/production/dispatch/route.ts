@@ -26,6 +26,7 @@ export interface DispatchOrder {
   confirmedAt: string | null;
   externalSource: string | null;
   orderChannel: string | null;
+  scheduledDispatchDate: string | null;
   readiness: "ready" | "partial" | "not_ready";
   readinessDetail: string;
   stockBreakdown: {
@@ -50,7 +51,7 @@ export async function GET() {
     supabase
       .from("orders")
       .select(
-        "id, items, status, customer_name, customer_business, customer_email, subtotal, required_by_date, confirmed_at, external_source, order_channel"
+        "id, items, status, customer_name, customer_business, customer_email, subtotal, required_by_date, confirmed_at, external_source, order_channel, scheduled_dispatch_date"
       )
       .eq("roaster_id", roasterId)
       .in("status", ["confirmed", "processing"])
@@ -172,6 +173,7 @@ export async function GET() {
       confirmedAt: order.confirmed_at || null,
       externalSource: order.external_source || null,
       orderChannel: order.order_channel || null,
+      scheduledDispatchDate: order.scheduled_dispatch_date || null,
       readiness,
       readinessDetail,
       stockBreakdown,

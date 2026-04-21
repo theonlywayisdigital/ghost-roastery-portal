@@ -1,3 +1,4 @@
+Initialising login role...
 export type Json =
   | string
   | number
@@ -3538,6 +3539,7 @@ export type Database = {
           required_by_date: string | null
           roaster_id: string
           roaster_payout: number
+          scheduled_dispatch_date: string | null
           shipping_cost: number | null
           shipping_method_id: string | null
           status: string | null
@@ -3580,6 +3582,7 @@ export type Database = {
           required_by_date?: string | null
           roaster_id: string
           roaster_payout: number
+          scheduled_dispatch_date?: string | null
           shipping_cost?: number | null
           shipping_method_id?: string | null
           status?: string | null
@@ -3622,6 +3625,7 @@ export type Database = {
           required_by_date?: string | null
           roaster_id?: string
           roaster_payout?: number
+          scheduled_dispatch_date?: string | null
           shipping_cost?: number | null
           shipping_method_id?: string | null
           status?: string | null

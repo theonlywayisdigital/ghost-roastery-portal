@@ -15,7 +15,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   paid: ["confirmed", "cancelled"],
   confirmed: ["dispatched", "cancelled"],
   processing: ["dispatched", "cancelled"],  // legacy — treat same as confirmed
-  dispatched: ["delivered"],
+  dispatched: ["delivered", "confirmed"],  // confirmed = undo dispatch
 };
 
 interface RouteParams {
@@ -31,7 +31,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { status: newStatus, trackingNumber, trackingCarrier, cancellationReason } = await request.json();
+    const { status: newStatus, trackingNumber, trackingCarrier, cancellationReason, skipNotifications } = await request.json();
 
     if (!newStatus) {
       return NextResponse.json(
@@ -70,7 +70,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const now = new Date().toISOString();
     const updatePayload: Record<string, unknown> = { status: newStatus };
 
-    if (newStatus === "confirmed") updatePayload.confirmed_at = now;
+    if (newStatus === "confirmed" && order.status === "dispatched") {
+      // Undo dispatch — clear dispatch fields
+      updatePayload.dispatched_at = null;
+      updatePayload.tracking_number = null;
+      updatePayload.tracking_carrier = null;
+    } else if (newStatus === "confirmed") {
+      updatePayload.confirmed_at = now;
+    }
     if (newStatus === "dispatched") {
       updatePayload.dispatched_at = now;
       if (trackingNumber) updatePayload.tracking_number = trackingNumber;
@@ -110,7 +117,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     });
 
     // Notify the customer about their order status update
-    if (order.user_id) {
+    if (order.user_id && !skipNotifications) {
       const statusLabels: Record<string, string> = {
         confirmed: "confirmed",
         processing: "being processed",
@@ -129,7 +136,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Send dispatch/delivery emails
-    if (newStatus === "dispatched" || newStatus === "delivered") {
+    if ((newStatus === "dispatched" || newStatus === "delivered") && !skipNotifications) {
       const templateKey = newStatus === "dispatched" ? "order_dispatched" : "order_delivered";
 
       // Check idempotency
@@ -204,7 +211,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     // Push dispatch to connected ecommerce channel (fire-and-forget)
-    if (newStatus === "dispatched") {
+    if (newStatus === "dispatched" && !skipNotifications) {
       pushDispatchToChannels(id).catch((err) =>
         console.error("[dispatch-sync] Post-dispatch sync failed:", err)
       );
@@ -258,7 +265,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { trackingNumber, trackingCarrier, requiredByDate } = await request.json();
+    const { trackingNumber, trackingCarrier, requiredByDate, scheduledDispatchDate } = await request.json();
     const supabase = createServerClient();
 
     const { data: order } = await supabase
@@ -276,6 +283,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (trackingNumber !== undefined) updatePayload.tracking_number = trackingNumber;
     if (trackingCarrier !== undefined) updatePayload.tracking_carrier = trackingCarrier;
     if (requiredByDate !== undefined) updatePayload.required_by_date = requiredByDate || null;
+    if (scheduledDispatchDate !== undefined) updatePayload.scheduled_dispatch_date = scheduledDispatchDate || null;
 
     if (Object.keys(updatePayload).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });

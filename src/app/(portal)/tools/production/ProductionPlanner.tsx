@@ -124,6 +124,7 @@ interface DispatchOrder {
   confirmedAt: string | null;
   externalSource: string | null;
   orderChannel: string | null;
+  scheduledDispatchDate: string | null;
   readiness: "ready" | "partial" | "not_ready";
   readinessDetail: string;
   stockBreakdown: {
@@ -145,6 +146,7 @@ interface ScheduledDispatch {
   itemCount: number;
   subtotal: number;
   dispatched?: boolean;
+  dispatchedAt?: number; // Date.now() when marked dispatched — undo window expires after 15s
 }
 
 interface DispatchResponse {
@@ -967,11 +969,13 @@ function DispatchCalendarCard({
   isOverlay,
   onMarkDispatched,
   onUnschedule,
+  onUndoDispatch,
 }: {
   dispatch: ScheduledDispatch;
   isOverlay?: boolean;
   onMarkDispatched: (orderId: string) => void;
   onUnschedule: (orderId: string) => void;
+  onUndoDispatch: (orderId: string) => void;
 }) {
   const id = `dispatch-cal-${dispatch.orderId}`;
   const isDispatched = !!dispatch.dispatched;
@@ -981,6 +985,26 @@ function DispatchCalendarCard({
   });
   const rd = READINESS_CONFIG[dispatch.readiness];
   const displayName = dispatch.customerBusiness || dispatch.customerName || dispatch.orderNumber;
+
+  // Countdown state for the 15-second undo window
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!dispatch.dispatchedAt) {
+      setSecondsLeft(null);
+      return;
+    }
+    function tick() {
+      const elapsed = (Date.now() - dispatch.dispatchedAt!) / 1000;
+      const remaining = Math.ceil(15 - elapsed);
+      setSecondsLeft(remaining > 0 ? remaining : null);
+    }
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [dispatch.dispatchedAt]);
+
+  const isInUndoWindow = isDispatched && secondsLeft != null && secondsLeft > 0;
 
   return (
     <div
@@ -1006,6 +1030,18 @@ function DispatchCalendarCard({
               className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Dispatched hover overlay with undo — only during 15s window */}
+        {!isOverlay && isInUndoWindow && (
+          <div className="absolute inset-0 rounded-lg bg-slate-900/60 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-10 flex items-center justify-center">
+            <button
+              onClick={(e) => { e.stopPropagation(); onUndoDispatch(dispatch.orderId); }}
+              className="px-3 py-1.5 text-xs font-medium bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            >
+              Undo
             </button>
           </div>
         )}
@@ -1036,6 +1072,12 @@ function DispatchCalendarCard({
                 </span>
               )}
             </div>
+            {/* Countdown text during undo window */}
+            {isInUndoWindow && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                Sending notification in {secondsLeft}s
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1049,12 +1091,14 @@ function DroppableDispatchDay({
   dispatches,
   onMarkDispatched,
   onUnschedule,
+  onUndoDispatch,
 }: {
   date: Date;
   isToday: boolean;
   dispatches: ScheduledDispatch[];
   onMarkDispatched: (orderId: string) => void;
   onUnschedule: (orderId: string) => void;
+  onUndoDispatch: (orderId: string) => void;
 }) {
   const dateKey = toDateKey(date);
   const { setNodeRef, isOver } = useDroppable({ id: `dispatch-day-${dateKey}` });
@@ -1086,6 +1130,7 @@ function DroppableDispatchDay({
             dispatch={d}
             onMarkDispatched={onMarkDispatched}
             onUnschedule={onUnschedule}
+            onUndoDispatch={onUndoDispatch}
           />
         ))}
 
@@ -1153,6 +1198,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
   const [dispatchModalLoading, setDispatchModalLoading] = useState(false);
 
   const snapshotRef = useRef<{ plans: ExistingPlan[]; suggestions: SuggestedBatch[] } | null>(null);
+  const notifyTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -1189,6 +1235,27 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         const data: DispatchResponse = await res.json();
         setDispatchOrders(data.orders);
         setDispatchSummary(data.summary);
+
+        // Hydrate scheduled dispatches from orders with scheduled_dispatch_date
+        // Preserve any dispatched cards that are still in the undo window
+        setScheduledDispatches((prev) => {
+          const dispatched = prev.filter((d) => d.dispatched);
+          const fromApi: ScheduledDispatch[] = data.orders
+            .filter((o) => o.scheduledDispatchDate)
+            .filter((o) => !dispatched.some((d) => d.orderId === o.id))
+            .map((o) => ({
+              orderId: o.id,
+              orderNumber: o.orderNumber,
+              customerName: o.customerName,
+              customerBusiness: o.customerBusiness,
+              scheduledDate: o.scheduledDispatchDate!,
+              readiness: o.readiness,
+              totalWeightKg: o.totalWeightKg,
+              itemCount: o.itemCount,
+              subtotal: o.subtotal,
+            }));
+          return [...dispatched, ...fromApi];
+        });
       }
     } catch (err) {
       console.error("Failed to load dispatch data:", err);
@@ -1543,7 +1610,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
     }
   }
 
-  function handleDispatchDragEnd(event: DragEndEvent) {
+  async function handleDispatchDragEnd(event: DragEndEvent) {
     setIsDragging(false);
     const dragData = activeDrag;
     setActiveDrag(null);
@@ -1587,6 +1654,17 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
 
       setScheduledDispatches((prev) => [...prev, ...newDispatches]);
       setSelectedDispatchIds(new Set());
+
+      // Persist scheduled_dispatch_date to DB
+      await Promise.all(
+        ordersToSchedule.map((o) =>
+          fetch(`/api/orders/${o.id}/status`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ scheduledDispatchDate: dateKey }),
+          })
+        )
+      );
       return;
     }
 
@@ -1596,6 +1674,12 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
 
       if (targetId === "dispatch-unschedule") {
         setScheduledDispatches((prev) => prev.filter((d) => d.orderId !== sd.orderId));
+        // Clear scheduled_dispatch_date in DB
+        fetch(`/api/orders/${sd.orderId}/status`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scheduledDispatchDate: null }),
+        });
         return;
       }
 
@@ -1606,12 +1690,19 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
       setScheduledDispatches((prev) =>
         prev.map((d) => (d.orderId === sd.orderId ? { ...d, scheduledDate: dateKey } : d))
       );
+      // Persist new date to DB
+      fetch(`/api/orders/${sd.orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledDispatchDate: dateKey }),
+      });
     }
   }
 
   async function handleMarkDispatched(orderId: string, trackingNumber?: string, trackingCarrier?: string) {
     setDispatchModalLoading(true);
     try {
+      // Mark dispatched WITHOUT sending notifications (deferred for 15s)
       const res = await fetch(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1619,6 +1710,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
           status: "dispatched",
           trackingNumber: trackingNumber || undefined,
           trackingCarrier: trackingCarrier || undefined,
+          skipNotifications: true,
         }),
       });
 
@@ -1626,19 +1718,63 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         const data = await res.json().catch(() => ({}));
         setToast({ message: data.error || "Failed to mark as dispatched.", type: "error" });
       } else {
-        // Remove from left panel, mark as dispatched on calendar
+        const now = Date.now();
+        // Remove from left panel, mark as dispatched on calendar with timestamp
         setDispatchOrders((prev) => prev.filter((o) => o.id !== orderId));
         setScheduledDispatches((prev) =>
-          prev.map((d) => (d.orderId === orderId ? { ...d, dispatched: true } : d))
+          prev.map((d) => (d.orderId === orderId ? { ...d, dispatched: true, dispatchedAt: now } : d))
         );
         setDispatchSummary((prev) => ({ ...prev, totalOrders: prev.totalOrders - 1 }));
-        setToast({ message: "Order marked as dispatched.", type: "success" });
+
+        // Schedule notification after 15 seconds
+        const timer = setTimeout(async () => {
+          notifyTimersRef.current.delete(orderId);
+          try {
+            await fetch(`/api/orders/${orderId}/dispatch-notify`, { method: "POST" });
+          } catch {
+            // Notification send is best-effort
+          }
+        }, 15000);
+        notifyTimersRef.current.set(orderId, timer);
       }
     } catch {
       setToast({ message: "Failed to mark as dispatched.", type: "error" });
     } finally {
       setDispatchModalLoading(false);
       setDispatchModalOrderId(null);
+    }
+  }
+
+  async function handleUndoDispatch(orderId: string) {
+    // Cancel the pending notification timer
+    const timer = notifyTimersRef.current.get(orderId);
+    if (timer) {
+      clearTimeout(timer);
+      notifyTimersRef.current.delete(orderId);
+    }
+
+    // Revert status to confirmed
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "confirmed", skipNotifications: true }),
+      });
+
+      if (!res.ok) {
+        setToast({ message: "Failed to undo dispatch.", type: "error" });
+        return;
+      }
+
+      // Revert calendar card to non-dispatched state
+      setScheduledDispatches((prev) =>
+        prev.map((d) => (d.orderId === orderId ? { ...d, dispatched: false, dispatchedAt: undefined } : d))
+      );
+      setToast({ message: "Dispatch undone — order returned to Confirmed.", type: "success" });
+      // Reload dispatch data to refresh left panel
+      loadDispatchData();
+    } catch {
+      setToast({ message: "Failed to undo dispatch.", type: "error" });
     }
   }
 
@@ -1850,7 +1986,14 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                           onMarkDispatched={(orderId) => setDispatchModalOrderId(orderId)}
                           onUnschedule={(orderId) => {
                             setScheduledDispatches((prev) => prev.filter((d) => d.orderId !== orderId));
+                            // Clear scheduled_dispatch_date in DB
+                            fetch(`/api/orders/${orderId}/status`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ scheduledDispatchDate: null }),
+                            });
                           }}
+                          onUndoDispatch={handleUndoDispatch}
                         />
                       );
                     })}
@@ -1877,6 +2020,7 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
                     isOverlay
                     onMarkDispatched={() => {}}
                     onUnschedule={() => {}}
+                    onUndoDispatch={() => {}}
                   />
                 </div>
               )}

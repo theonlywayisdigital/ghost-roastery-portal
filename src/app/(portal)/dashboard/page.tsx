@@ -2,14 +2,13 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import {
-  Package, TrendingUp, ArrowRight, ClipboardList, Users, Store,
+  Package, TrendingUp, ArrowRight, ClipboardList, Store,
   ShoppingCart, AlertTriangle,
 } from "@/components/icons";
 import Link from "next/link";
 import { RecentOrdersWidget, RecentActivityWidget } from "./DashboardWidgets";
 import { DashboardQuickActions } from "./DashboardQuickActions";
 import { DashboardProductionWidget } from "./DashboardProductionWidget";
-import { DashboardBatchesNeededWidget } from "./DashboardBatchesNeededWidget";
 import { DashboardPendingDispatchWidget } from "./DashboardDispatchWidget";
 import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
 
@@ -37,8 +36,6 @@ export default async function DashboardPage() {
 
   // ── Parallel queries ──
   const [
-    pendingWholesaleResult,
-    wholesaleRequestsResult,
     wsRevenueResult,
     customerOrderResult,
     wholesaleAccountResult,
@@ -50,24 +47,6 @@ export default async function DashboardPage() {
     activityFormSubmissionsResult,
     activityWholesaleAppsResult,
   ] = await Promise.all([
-    // Pending wholesale orders
-    isRoaster && roasterId
-      ? supabase
-          .from("orders")
-          .select("*", { count: "exact", head: true })
-          .eq("roaster_id", roasterId)
-          .eq("status", "pending")
-      : Promise.resolve({ count: 0 }),
-
-    // Pending wholesale requests
-    isRoaster && roasterId
-      ? supabase
-          .from("wholesale_access")
-          .select("*", { count: "exact", head: true })
-          .eq("roaster_id", roasterId)
-          .eq("status", "pending")
-      : Promise.resolve({ count: 0 }),
-
     // Monthly revenue (storefront/wholesale only)
     isRoaster && roasterId
       ? supabase
@@ -95,7 +74,7 @@ export default async function DashboardPage() {
           .eq("status", "approved")
       : Promise.resolve({ count: 0 }),
 
-    // Open orders (confirmed + processing)
+    // Open orders (confirmed + processing — all channels)
     isRoaster && roasterId
       ? supabase
           .from("orders")
@@ -173,8 +152,6 @@ export default async function DashboardPage() {
   ]);
 
   // ── Compute stats ──
-  const wholesaleCount = pendingWholesaleResult.count || 0;
-  const pendingWholesaleRequests = wholesaleRequestsResult.count || 0;
   const customerOrderCount = customerOrderResult.count || 0;
   const wholesaleAccountCount = wholesaleAccountResult.count || 0;
   const openOrdersCount = openOrdersResult.count || 0;
@@ -259,75 +236,7 @@ export default async function DashboardPage() {
       {/* Roaster dashboard grid */}
       {isRoaster && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Row 1, Col 1 — Pending Wholesale */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Package className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Pending Wholesale</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {wholesaleCount}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/orders"
-              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-            >
-              View orders <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Row 1, Col 2 — Trade Requests */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Trade Requests</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {pendingWholesaleRequests}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/contacts"
-              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-            >
-              View requests <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Row 1-2, Col 3-4 — Production (2 cols wide, 2 rows tall) */}
-          <div className="lg:col-span-2 lg:row-span-2">
-            <DashboardProductionWidget />
-          </div>
-
-          {/* Row 2, Col 1 — This Month */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">This Month</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {formatCurrency(monthlyRevenue)}
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/orders"
-              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-            >
-              View revenue <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {/* Row 2, Col 2 — Open Orders */}
+          {/* Row 1, Col 1 — Open Orders */}
           <Link
             href="/orders"
             className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
@@ -348,7 +257,33 @@ export default async function DashboardPage() {
             </span>
           </Link>
 
-          {/* Row 3, Col 1 — Overdue Invoices */}
+          {/* Row 1, Col 2 — This Month */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">This Month</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {formatCurrency(monthlyRevenue)}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/orders"
+              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+            >
+              View revenue <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Row 1-2, Col 3-4 — Production (2 cols wide, 2 rows tall) */}
+          <div className="lg:col-span-2 lg:row-span-2">
+            <DashboardProductionWidget />
+          </div>
+
+          {/* Row 2, Col 1 — Overdue Invoices */}
           <Link
             href="/invoices"
             className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
@@ -369,7 +304,7 @@ export default async function DashboardPage() {
             </span>
           </Link>
 
-          {/* Row 3, Col 2 — Low Stock */}
+          {/* Row 2, Col 2 — Low Stock */}
           <Link
             href="/products"
             className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
@@ -390,11 +325,10 @@ export default async function DashboardPage() {
             </span>
           </Link>
 
-          {/* Row 3, Col 3 — Batches Needed */}
-          <DashboardBatchesNeededWidget />
-
-          {/* Row 3, Col 4 — Pending Dispatch */}
+          {/* Row 3, Col 1 — Pending Dispatch */}
           <DashboardPendingDispatchWidget />
+
+          {/* Row 3, Col 2-4 — empty (grid auto-fills) */}
 
           {/* Row 4, Col 1-2 — Recent Activity */}
           <div className="lg:col-span-2">

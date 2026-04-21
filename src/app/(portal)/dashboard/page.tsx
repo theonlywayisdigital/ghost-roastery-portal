@@ -256,7 +256,7 @@ export default async function DashboardPage() {
 
       {/* Roaster dashboard grid */}
       {isRoaster && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Row 1, Col 1 — Pending Wholesale */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center gap-3 mb-4">
@@ -299,8 +299,8 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          {/* Row 1-2, Col 3 — Production (spans 2 rows) */}
-          <div className="lg:row-span-2">
+          {/* Row 1-2, Col 3-4 — Production (2 cols wide, 2 rows tall) */}
+          <div className="lg:col-span-2 lg:row-span-2">
             <DashboardProductionWidget />
           </div>
 
@@ -388,11 +388,13 @@ export default async function DashboardPage() {
             </span>
           </Link>
 
-          {/* Row 3, Col 3 — Recent Activity */}
-          <RecentActivityWidget activityItems={topActivityItems} />
+          {/* Row 3, Col 3-4 — Recent Activity (2 cols wide) */}
+          <div className="lg:col-span-2">
+            <RecentActivityWidget activityItems={topActivityItems} />
+          </div>
 
-          {/* Row 4, Col 1-3 — Recent Orders (full width) */}
-          <div className="lg:col-span-3">
+          {/* Row 4, Col 1-4 — Recent Orders (full width) */}
+          <div className="lg:col-span-4">
             <RecentOrdersWidget recentOrders={topRecentOrders} />
           </div>
         </div>

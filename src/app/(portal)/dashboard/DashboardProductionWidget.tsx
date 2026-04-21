@@ -73,7 +73,7 @@ export function DashboardProductionWidget() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 h-full">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center">
             <Coffee className="w-5 h-5 text-brand-600" />
@@ -94,7 +94,7 @@ export function DashboardProductionWidget() {
   const hasBatches = summary.totalBatchesNeeded > 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6">
+    <div className="bg-white rounded-xl border border-slate-200 p-6 h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">

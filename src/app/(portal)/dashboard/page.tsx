@@ -6,7 +6,7 @@ import {
   ShoppingCart, AlertTriangle,
 } from "@/components/icons";
 import Link from "next/link";
-import { DashboardWidgets } from "./DashboardWidgets";
+import { RecentOrdersWidget, RecentActivityWidget } from "./DashboardWidgets";
 import { DashboardQuickActions } from "./DashboardQuickActions";
 import { DashboardProductionWidget } from "./DashboardProductionWidget";
 import type { RecentOrder, ActivityItem } from "./DashboardWidgets";
@@ -254,141 +254,153 @@ export default async function DashboardPage() {
       {/* Quick Actions */}
       {isRoaster && <DashboardQuickActions />}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Roaster stats */}
-        {isRoaster && (
-          <>
-            {/* Pending Wholesale */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Package className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Pending Wholesale</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {wholesaleCount}
-                  </p>
-                </div>
+      {/* Roaster dashboard grid */}
+      {isRoaster && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Row 1, Col 1 — Pending Wholesale */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-blue-600" />
               </div>
-              <Link
-                href="/orders"
-                className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-              >
-                View orders <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            {/* Trade Requests */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Trade Requests</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {pendingWholesaleRequests}
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm text-slate-500">Pending Wholesale</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {wholesaleCount}
+                </p>
               </div>
-              <Link
-                href="/contacts"
-                className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-              >
-                View requests <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
             </div>
-
-            {/* Revenue */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">This Month</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {formatCurrency(monthlyRevenue)}
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/orders"
-                className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-              >
-                View revenue <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            {/* Open Orders */}
             <Link
               href="/orders"
-              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <ShoppingCart className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Open Orders</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {openOrdersCount}
-                  </p>
-                </div>
-              </div>
-              <span className="text-sm text-brand-600 flex items-center gap-1">
-                View orders <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+              View orders <ArrowRight className="w-3.5 h-3.5" />
             </Link>
+          </div>
 
-            {/* Overdue Invoices */}
+          {/* Row 1, Col 2 — Trade Requests */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Trade Requests</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {pendingWholesaleRequests}
+                </p>
+              </div>
+            </div>
             <Link
-              href="/invoices"
-              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+              href="/contacts"
+              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-rose-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Overdue Invoices</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {overdueInvoicesCount}
-                  </p>
-                </div>
-              </div>
-              <span className="text-sm text-brand-600 flex items-center gap-1">
-                View invoices <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+              View requests <ArrowRight className="w-3.5 h-3.5" />
             </Link>
+          </div>
 
-            {/* Low Stock */}
+          {/* Row 1-2, Col 3 — Production (spans 2 rows) */}
+          <div className="lg:row-span-2">
+            <DashboardProductionWidget />
+          </div>
+
+          {/* Row 2, Col 1 — This Month */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">This Month</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {formatCurrency(monthlyRevenue)}
+                </p>
+              </div>
+            </div>
             <Link
-              href="/products"
-              className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+              href="/orders"
+              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
             >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
-                  <Package className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Low Stock</p>
-                  <p className="text-2xl font-bold text-slate-900">
-                    {lowStockCount}
-                  </p>
-                </div>
-              </div>
-              <span className="text-sm text-brand-600 flex items-center gap-1">
-                View products <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+              View revenue <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          </>
-        )}
+          </div>
 
-        {/* Customer stats */}
-        {isCustomer && (
+          {/* Row 2, Col 2 — Open Orders */}
+          <Link
+            href="/orders"
+            className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Open Orders</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {openOrdersCount}
+                </p>
+              </div>
+            </div>
+            <span className="text-sm text-brand-600 flex items-center gap-1">
+              View orders <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </Link>
+
+          {/* Row 3, Col 1 — Overdue Invoices */}
+          <Link
+            href="/invoices"
+            className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Overdue Invoices</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {overdueInvoicesCount}
+                </p>
+              </div>
+            </div>
+            <span className="text-sm text-brand-600 flex items-center gap-1">
+              View invoices <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </Link>
+
+          {/* Row 3, Col 2 — Low Stock */}
+          <Link
+            href="/products"
+            className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Low Stock</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {lowStockCount}
+                </p>
+              </div>
+            </div>
+            <span className="text-sm text-brand-600 flex items-center gap-1">
+              View products <ArrowRight className="w-3.5 h-3.5" />
+            </span>
+          </Link>
+
+          {/* Row 3, Col 3 — Recent Activity */}
+          <RecentActivityWidget activityItems={topActivityItems} />
+
+          {/* Row 4, Col 1-3 — Recent Orders (full width) */}
+          <div className="lg:col-span-3">
+            <RecentOrdersWidget recentOrders={topRecentOrders} />
+          </div>
+        </div>
+      )}
+
+      {/* Customer stats */}
+      {isCustomer && !isRoaster && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
@@ -408,45 +420,29 @@ export default async function DashboardPage() {
               View orders <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-        )}
 
-        {/* Wholesale buyer stats */}
-        {user.roles.includes("wholesale_buyer") && (
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-indigo-600" />
+          {user.roles.includes("wholesale_buyer") && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
+                  <Store className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Wholesale Accounts</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {wholesaleAccountCount}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-slate-500">Wholesale Accounts</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {wholesaleAccountCount}
-                </p>
-              </div>
+              <Link
+                href="/wholesale"
+                className="text-sm text-brand-600 hover:underline flex items-center gap-1"
+              >
+                View suppliers <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <Link
-              href="/wholesale"
-              className="text-sm text-brand-600 hover:underline flex items-center gap-1"
-            >
-              View suppliers <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Production Widget (roaster only) */}
-      {isRoaster && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <DashboardProductionWidget />
+          )}
         </div>
-      )}
-
-      {/* Recent Orders + Activity Feed (roaster only) */}
-      {isRoaster && (
-        <DashboardWidgets
-          recentOrders={topRecentOrders}
-          activityItems={topActivityItems}
-        />
       )}
 
     </>

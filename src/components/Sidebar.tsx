@@ -46,6 +46,7 @@ import {
   Handshake,
   Archive,
   Mail,
+  Bot,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingWidget } from "@/components/onboarding/OnboardingWidget";
@@ -596,7 +597,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
                     : "text-slate-400 hover:bg-slate-50"
               }`}
             >
-              <Coffee className="w-6 h-6 flex-shrink-0 text-black" />
+              <Bot className="w-6 h-6 flex-shrink-0 text-black" />
               <span className="flex-1">Beans AI</span>
               {!isScale && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
             </Link>

@@ -186,6 +186,14 @@ WORKFLOW:
 2. Use the real IDs and values from the data to construct your plan
 3. Return ONLY a JSON plan object — no prose, no markdown, no explanation outside the JSON
 
+ASSUMPTIONS — DO NOT ASK CLARIFYING QUESTIONS:
+- When information is ambiguous or missing, make a reasonable assumption and proceed.
+- State your assumption clearly in the action label (e.g. "Update price: Brazil Natural 250g — assumed retail price only").
+- Use sensible defaults: status "draft" for new products, "active" for discount codes, "wholesale" channel for B2B orders, today's date for start dates, etc.
+- When the user says "cheapest product", pick the one with the lowest price. When they say "most recent contact", pick the one created most recently. When they say "all", they mean all matching records.
+- ONLY ask a question (as a plain text response, not a JSON plan) if it is genuinely impossible to proceed — for example, a contact name that matches nobody in the database, or a request that is completely unclear.
+- If you must ask a question, keep it to one sentence and suggest the most likely answer.
+
 ${WRITE_ACTIONS_DESCRIPTION}`;
 
 // ── Read tool implementations ──
@@ -409,7 +417,7 @@ export async function POST(request: Request) {
   );
 
   try {
-    const { message } = await request.json();
+    const { message, history } = await request.json();
     if (!message || typeof message !== "string") {
       return Response.json({ error: "Message is required" }, { status: 400 });
     }
@@ -423,7 +431,19 @@ export async function POST(request: Request) {
         functionCall?: { name: string; args: Record<string, unknown> };
         functionResponse?: { name: string; response: Record<string, unknown> };
       }>;
-    }> = [{ role: "user", parts: [{ text: message }] }];
+    }> = [];
+
+    // Rebuild conversation history if provided (for follow-up replies)
+    if (history && Array.isArray(history)) {
+      for (const msg of history) {
+        contents.push({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.content }],
+        });
+      }
+    }
+
+    contents.push({ role: "user", parts: [{ text: message }] });
 
     // SSE stream
     const encoder = new TextEncoder();

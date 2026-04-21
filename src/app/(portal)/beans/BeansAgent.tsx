@@ -70,14 +70,20 @@ export function BeansAgent() {
     failed: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reply, setReply] = useState("");
+  const [history, setHistory] = useState<
+    Array<{ role: "user" | "model"; content: string }>
+  >([]);
   const abortRef = useRef<AbortController | null>(null);
 
   // ── Plan ──
 
   const handleSend = useCallback(
-    async (text?: string) => {
+    async (text?: string, prevHistory?: Array<{ role: "user" | "model"; content: string }>) => {
       const msg = text || prompt;
       if (!msg.trim()) return;
+
+      const historyToSend = prevHistory || history;
 
       setPhase("planning");
       setActions([]);
@@ -85,6 +91,7 @@ export function BeansAgent() {
       setMessage("");
       setToolCalls([]);
       setError(null);
+      setReply("");
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -93,7 +100,10 @@ export function BeansAgent() {
         const res = await fetch("/api/beans/plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: msg }),
+          body: JSON.stringify({
+            message: msg,
+            history: historyToSend.length > 0 ? historyToSend : undefined,
+          }),
           signal: controller.signal,
         });
 
@@ -142,6 +152,13 @@ export function BeansAgent() {
                     break;
                   case "message":
                     setMessage(data.text || "");
+                    // Track model's text response in history for conversation continuity
+                    if (data.text) {
+                      setHistory((prev) => [
+                        ...prev,
+                        { role: "model" as const, content: data.text },
+                      ]);
+                    }
                     break;
                   case "error":
                     setError(data.error || "An error occurred");
@@ -157,7 +174,12 @@ export function BeansAgent() {
           }
         }
 
-        // Determine next phase
+        // Track this exchange in history
+        setHistory((prev) => [
+          ...prev,
+          { role: "user" as const, content: msg },
+        ]);
+
         setPhase("review");
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
@@ -167,7 +189,7 @@ export function BeansAgent() {
         setPhase("input");
       }
     },
-    [prompt]
+    [prompt, history]
   );
 
   // ── Execute ──
@@ -280,6 +302,12 @@ export function BeansAgent() {
 
   // ── Helpers ──
 
+  function handleReply() {
+    if (!reply.trim()) return;
+    // Continue conversation with full history preserved
+    handleSend(reply, history);
+  }
+
   function handleCancel() {
     abortRef.current?.abort();
     setPhase("input");
@@ -288,6 +316,8 @@ export function BeansAgent() {
     setMessage("");
     setToolCalls([]);
     setError(null);
+    setHistory([]);
+    setReply("");
   }
 
   function handleReset() {
@@ -300,6 +330,8 @@ export function BeansAgent() {
     setError(null);
     setExecutionStatuses(new Map());
     setCompletionStats(null);
+    setHistory([]);
+    setReply("");
   }
 
   function copySummary() {
@@ -446,6 +478,34 @@ export function BeansAgent() {
               <p className="text-sm text-slate-700 mt-2">{message}</p>
             )}
           </div>
+
+          {/* Reply input — shown when Beans asks a question (message with no write actions) */}
+          {message && writeActions.length === 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                  placeholder="Reply to Beans..."
+                  className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleReply();
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleReply}
+                  disabled={!reply.trim()}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-4 h-4" />
+                  Send
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Conflict warning */}
           {conflictCount > 0 && (

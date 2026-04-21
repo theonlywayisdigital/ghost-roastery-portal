@@ -144,6 +144,7 @@ interface ScheduledDispatch {
   totalWeightKg: number;
   itemCount: number;
   subtotal: number;
+  dispatched?: boolean;
 }
 
 interface DispatchResponse {
@@ -973,20 +974,24 @@ function DispatchCalendarCard({
   onUnschedule: (orderId: string) => void;
 }) {
   const id = `dispatch-cal-${dispatch.orderId}`;
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
+  const isDispatched = !!dispatch.dispatched;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id,
+    disabled: isDispatched,
+  });
   const rd = READINESS_CONFIG[dispatch.readiness];
   const displayName = dispatch.customerBusiness || dispatch.customerName || dispatch.orderNumber;
 
   return (
     <div
       ref={isOverlay ? undefined : setNodeRef}
-      className={`group bg-white rounded-lg border border-slate-200 border-l-[3px] ${rd.border} min-h-[64px] transition-all ${
+      className={`group bg-white rounded-lg border border-slate-200 border-l-[3px] ${isDispatched ? "border-l-slate-300" : rd.border} min-h-[64px] transition-all ${
         isDragging ? "opacity-30" : ""
-      } ${isOverlay ? "shadow-lg ring-2 ring-brand-200" : ""}`}
+      } ${isOverlay ? "shadow-lg ring-2 ring-brand-200" : ""} ${isDispatched ? "opacity-60" : ""}`}
     >
       <div className="p-2.5 relative">
-        {/* Hover-reveal action buttons */}
-        {!isOverlay && (
+        {/* Hover-reveal action buttons — non-dispatched only */}
+        {!isOverlay && !isDispatched && (
           <div className="absolute top-1.5 right-1.5 hidden group-hover:flex items-center gap-0.5 bg-white rounded-md shadow-sm border border-slate-200 p-0.5 z-10">
             <button
               onClick={(e) => { e.stopPropagation(); onMarkDispatched(dispatch.orderId); }}
@@ -1007,21 +1012,29 @@ function DispatchCalendarCard({
 
         {/* Drag handle + content */}
         <div className="flex items-start gap-1.5">
-          <button
-            {...listeners}
-            {...attributes}
-            className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-slate-900 truncate pr-6">{displayName}</p>
+          {!isDispatched && (
+            <button
+              {...listeners}
+              {...attributes}
+              className="mt-0.5 p-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0"
+            >
+              <GripVertical className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <div className={`flex-1 min-w-0 ${isDispatched ? "pl-1" : ""}`}>
+            <p className={`text-xs font-medium truncate pr-6 ${isDispatched ? "text-slate-500 line-through" : "text-slate-900"}`}>{displayName}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] text-slate-500">{dispatch.totalWeightKg}kg</span>
               <span className="text-[10px] text-slate-400">{dispatch.itemCount} item{dispatch.itemCount !== 1 ? "s" : ""}</span>
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${rd.bg} ${rd.text}`}>
-                {rd.label}
-              </span>
+              {isDispatched ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700">
+                  Dispatched
+                </span>
+              ) : (
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${rd.bg} ${rd.text}`}>
+                  {rd.label}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1613,9 +1626,11 @@ export function ProductionPlanner({ initialPlans }: ProductionPlannerProps) {
         const data = await res.json().catch(() => ({}));
         setToast({ message: data.error || "Failed to mark as dispatched.", type: "error" });
       } else {
-        // Remove from dispatch orders and scheduled
+        // Remove from left panel, mark as dispatched on calendar
         setDispatchOrders((prev) => prev.filter((o) => o.id !== orderId));
-        setScheduledDispatches((prev) => prev.filter((d) => d.orderId !== orderId));
+        setScheduledDispatches((prev) =>
+          prev.map((d) => (d.orderId === orderId ? { ...d, dispatched: true } : d))
+        );
         setDispatchSummary((prev) => ({ ...prev, totalOrders: prev.totalOrders - 1 }));
         setToast({ message: "Order marked as dispatched.", type: "success" });
       }

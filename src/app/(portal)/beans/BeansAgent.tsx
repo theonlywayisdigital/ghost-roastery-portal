@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment } from "react";
 import {
   Send,
   Loader2,
@@ -9,9 +9,16 @@ import {
   ArrowLeft,
   AlertTriangle,
   Copy,
-  Play,
   ChevronDown,
   ChevronUp,
+  Search,
+  Package,
+  Users,
+  Leaf,
+  Coffee,
+  Store,
+  Tag,
+  X,
 } from "@/components/icons";
 
 // ── Types ──
@@ -42,10 +49,25 @@ interface Chip {
   value: string;
 }
 
+interface EntityRef {
+  type: string;
+  id: string;
+  name: string;
+  detail: string;
+}
+
+interface PickerData {
+  type: string;
+  prompt: string;
+  items: Array<{ id: string; name: string; detail: string }>;
+}
+
 interface ChatMessage {
   role: "user" | "model";
   content: string;
   chips?: Chip[];
+  entities?: EntityRef[];
+  picker?: PickerData;
 }
 
 type Phase = "input" | "conversation" | "planning" | "review" | "executing" | "done";
@@ -77,14 +99,14 @@ const DOMAIN_LABELS: Record<string, string> = {
   discount_codes: "Discount Code",
 };
 
-// ── Helpers ──
+// ── Parsing helpers ──
 
 function parseChips(text: string): { clean: string; chips: Chip[] } {
   const idx = text.lastIndexOf("CHIPS:[");
   if (idx === -1) return { clean: text, chips: [] };
 
   const clean = text.slice(0, idx).trimEnd();
-  const jsonStr = text.slice(idx + 6); // everything after "CHIPS:"
+  const jsonStr = text.slice(idx + 6);
   try {
     const chips = JSON.parse(jsonStr) as Chip[];
     if (!Array.isArray(chips)) return { clean, chips: [] };
@@ -93,6 +115,97 @@ function parseChips(text: string): { clean: string; chips: Chip[] } {
     return { clean, chips: [] };
   }
 }
+
+function parsePicker(text: string): { clean: string; picker: PickerData | null } {
+  const idx = text.lastIndexOf("PICKER:{");
+  if (idx === -1) return { clean: text, picker: null };
+
+  const clean = text.slice(0, idx).trimEnd();
+  const jsonStr = text.slice(idx + 7);
+  try {
+    const picker = JSON.parse(jsonStr) as PickerData;
+    if (!picker || !picker.items || !Array.isArray(picker.items)) return { clean, picker: null };
+    return { clean, picker };
+  } catch {
+    return { clean, picker: null };
+  }
+}
+
+function parseEntities(text: string): { segments: Array<{ text: string } | { entity: EntityRef }>; entities: EntityRef[] } {
+  const entities: EntityRef[] = [];
+  const segments: Array<{ text: string } | { entity: EntityRef }> = [];
+  const regex = /ENTITY:\{[^}]+\}/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, match.index) });
+    }
+    const jsonStr = match[0].slice(7);
+    try {
+      const entity = JSON.parse(jsonStr) as EntityRef;
+      entities.push(entity);
+      segments.push({ entity });
+    } catch {
+      segments.push({ text: match[0] });
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex) });
+  }
+
+  if (segments.length === 0 && text.length > 0) {
+    segments.push({ text });
+  }
+
+  return { segments, entities };
+}
+
+function parseModelMessage(raw: string): Omit<ChatMessage, "role"> {
+  // Order: picker first (mutually exclusive with chips), then entities from clean text
+  let text = raw;
+  let chips: Chip[] | undefined;
+  let picker: PickerData | undefined;
+
+  // Try picker first
+  const pickerResult = parsePicker(text);
+  if (pickerResult.picker) {
+    text = pickerResult.clean;
+    picker = pickerResult.picker;
+  } else {
+    // Try chips
+    const chipResult = parseChips(text);
+    if (chipResult.chips.length > 0) {
+      text = chipResult.clean;
+      chips = chipResult.chips;
+    }
+  }
+
+  // Parse entities from the remaining text
+  const { segments, entities } = parseEntities(text);
+  const cleanContent = segments.map((s) => "text" in s ? s.text : s.entity.name).join("");
+
+  return {
+    content: cleanContent,
+    chips: chips && chips.length > 0 ? chips : undefined,
+    entities: entities.length > 0 ? entities : undefined,
+    picker: picker || undefined,
+  };
+}
+
+// ── Entity type icons and colors ──
+
+const ENTITY_CONFIG: Record<string, { icon: typeof Package; bg: string; text: string }> = {
+  product: { icon: Package, bg: "bg-amber-50", text: "text-amber-700" },
+  contact: { icon: Users, bg: "bg-blue-50", text: "text-blue-700" },
+  greenBean: { icon: Leaf, bg: "bg-green-50", text: "text-green-700" },
+  roastedStock: { icon: Coffee, bg: "bg-orange-50", text: "text-orange-700" },
+  wholesaleBuyer: { icon: Store, bg: "bg-purple-50", text: "text-purple-700" },
+  discountCode: { icon: Tag, bg: "bg-pink-50", text: "text-pink-700" },
+};
 
 // ── Component ──
 
@@ -115,9 +228,12 @@ export function BeansAgent() {
   const [error, setError] = useState<string | null>(null);
   const [isThinking, setIsThinking] = useState(false);
   const [readLookupsOpen, setReadLookupsOpen] = useState(false);
+  const [activePicker, setActivePicker] = useState<PickerData | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -126,16 +242,33 @@ export function BeansAgent() {
 
   // Focus chat input when conversation phase starts
   useEffect(() => {
-    if (phase === "conversation" && !isThinking) {
+    if (phase === "conversation" && !isThinking && !activePicker) {
       chatInputRef.current?.focus();
     }
-  }, [phase, isThinking]);
+  }, [phase, isThinking, activePicker]);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!activePicker) return;
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setActivePicker(null);
+        setPickerSearch("");
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [activePicker]);
 
   // ── Send message to plan API ──
 
   const sendMessage = useCallback(
     async (text: string, currentMessages: ChatMessage[]) => {
       if (!text.trim()) return;
+
+      // Close any active picker
+      setActivePicker(null);
+      setPickerSearch("");
 
       // Add user message to chat
       const userMsg: ChatMessage = { role: "user", content: text };
@@ -148,7 +281,7 @@ export function BeansAgent() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // Build history for API (exclude chips metadata)
+      // Build history for API (exclude chips/entities/picker metadata)
       const history = updatedMessages.map((m) => ({
         role: m.role,
         content: m.content,
@@ -160,7 +293,7 @@ export function BeansAgent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: text,
-            history: history.slice(0, -1), // Don't duplicate the current message
+            history: history.slice(0, -1),
           }),
           signal: controller.signal,
         });
@@ -232,19 +365,19 @@ export function BeansAgent() {
 
         // Decide what to do with the response
         if (receivedActions.length > 0) {
-          // Beans returned a plan — transition to review
           setActions(receivedActions);
           setSummary(receivedSummary);
           setPhase("review");
         } else if (receivedMessage) {
-          // Beans sent a conversational message — stay in conversation
-          const { clean, chips } = parseChips(receivedMessage);
-          const modelMsg: ChatMessage = {
-            role: "model",
-            content: clean,
-            chips: chips.length > 0 ? chips : undefined,
-          };
+          const parsed = parseModelMessage(receivedMessage);
+          const modelMsg: ChatMessage = { role: "model", ...parsed };
           setMessages((prev) => [...prev, modelMsg]);
+
+          // If message contains a picker, show it
+          if (parsed.picker) {
+            setActivePicker(parsed.picker);
+          }
+
           setPhase("conversation");
         }
       } catch (err) {
@@ -281,6 +414,16 @@ export function BeansAgent() {
     (chip: Chip) => {
       if (isThinking) return;
       sendMessage(chip.value, messages);
+    },
+    [isThinking, messages, sendMessage]
+  );
+
+  const handlePickerSelect = useCallback(
+    (item: { id: string; name: string; detail: string }) => {
+      if (isThinking) return;
+      setActivePicker(null);
+      setPickerSearch("");
+      sendMessage(item.name, messages);
     },
     [isThinking, messages, sendMessage]
   );
@@ -406,6 +549,8 @@ export function BeansAgent() {
     setError(null);
     setIsThinking(false);
     setReadLookupsOpen(false);
+    setActivePicker(null);
+    setPickerSearch("");
   }
 
   function handleBackToChat() {
@@ -427,15 +572,14 @@ export function BeansAgent() {
     setCompletionStats(null);
     setIsThinking(false);
     setReadLookupsOpen(false);
+    setActivePicker(null);
+    setPickerSearch("");
   }
 
   function copySummary() {
     const lines = actions
       .filter((a) => a.type !== "READ")
-      .map(
-        (a) =>
-          `${a.destructive ? "⚠️" : "✅"} ${a.label}`
-      );
+      .map((a) => `${a.destructive ? "⚠️" : "✅"} ${a.label}`);
     if (completionStats) {
       lines.unshift(
         `Beans: ${completionStats.completed} of ${completionStats.total} actions completed.`
@@ -456,11 +600,19 @@ export function BeansAgent() {
   const updateCount = writeActions.filter((a) => a.type === "UPDATE").length;
   const deleteCount = writeActions.filter((a) => a.type === "DELETE").length;
 
-  // Execution progress
   const execTotal = Array.from(executionStatuses.values()).length;
   const execDone = Array.from(executionStatuses.values()).filter(
     (s) => s.status === "done" || s.status === "failed"
   ).length;
+
+  // Filtered picker items
+  const filteredPickerItems = activePicker
+    ? activePicker.items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(pickerSearch.toLowerCase()) ||
+          item.detail.toLowerCase().includes(pickerSearch.toLowerCase())
+      )
+    : [];
 
   return (
     <div className="max-w-3xl mx-auto pb-24">
@@ -530,22 +682,10 @@ export function BeansAgent() {
                   </div>
                 ) : (
                   <div className="flex gap-3 items-start">
-                    {/* Bean avatar */}
-                    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <svg
-                        viewBox="0 0 24 24"
-                        className="w-4 h-4 text-amber-700"
-                        fill="currentColor"
-                      >
-                        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
-                        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
-                      </svg>
-                    </div>
+                    <BeanAvatar />
                     <div className="max-w-[80%]">
                       <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3">
-                        <p className="text-sm text-slate-800 whitespace-pre-wrap">
-                          {msg.content}
-                        </p>
+                        <MessageContent message={msg} />
                       </div>
                       {/* Chips */}
                       {msg.chips && msg.chips.length > 0 && (
@@ -571,16 +711,7 @@ export function BeansAgent() {
             {/* Thinking indicator */}
             {isThinking && (
               <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-4 h-4 text-amber-700"
-                    fill="currentColor"
-                  >
-                    <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
-                    <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
-                  </svg>
-                </div>
+                <BeanAvatar />
                 <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
@@ -601,6 +732,68 @@ export function BeansAgent() {
           {error && (
             <div className="mb-3">
               <ErrorBanner error={error} />
+            </div>
+          )}
+
+          {/* Entity Picker panel */}
+          {activePicker && (
+            <div
+              ref={pickerRef}
+              className="mb-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <p className="text-sm font-medium text-slate-700">
+                  {activePicker.prompt}
+                </p>
+                <button
+                  onClick={() => { setActivePicker(null); setPickerSearch(""); }}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-4 py-2 border-b border-slate-100">
+                <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                  <Search className="w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={pickerSearch}
+                    onChange={(e) => setPickerSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="flex-1 bg-transparent border-0 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-0 focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {filteredPickerItems.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-slate-400">No results</p>
+                ) : (
+                  filteredPickerItems.map((item) => {
+                    const config = ENTITY_CONFIG[activePicker.type];
+                    const Icon = config?.icon || Package;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handlePickerSelect(item)}
+                        className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
+                      >
+                        <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${config?.bg || "bg-slate-50"}`}>
+                          <Icon className={`w-3.5 h-3.5 ${config?.text || "text-slate-600"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {item.detail}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
 
@@ -639,7 +832,6 @@ export function BeansAgent() {
       {/* ── REVIEW ── */}
       {phase === "review" && (
         <div className="space-y-4">
-          {/* Header */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-1">
               Beans has a plan
@@ -674,7 +866,6 @@ export function BeansAgent() {
             )}
           </div>
 
-          {/* Conflict warning */}
           {conflictCount > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -685,7 +876,6 @@ export function BeansAgent() {
             </div>
           )}
 
-          {/* Write action cards */}
           {writeActions.length > 0 && (
             <div className="space-y-3">
               {writeActions.map((action) => (
@@ -694,7 +884,6 @@ export function BeansAgent() {
             </div>
           )}
 
-          {/* Read lookups — collapsible */}
           {readActions.length > 0 && (
             <div>
               <button
@@ -720,7 +909,6 @@ export function BeansAgent() {
 
           {error && <ErrorBanner error={error} />}
 
-          {/* Sticky footer */}
           <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-slate-200 px-6 py-4 z-10">
             <div className="max-w-3xl mx-auto flex items-center justify-between">
               <button
@@ -758,7 +946,6 @@ export function BeansAgent() {
               </span>
             </div>
 
-            {/* Progress bar */}
             <div className="w-full bg-slate-100 rounded-full h-1.5 mb-5">
               <div
                 className="bg-amber-500 h-1.5 rounded-full transition-all duration-300"
@@ -868,7 +1055,6 @@ export function BeansAgent() {
             )}
           </div>
 
-          {/* Failed actions detail */}
           {Array.from(executionStatuses.values()).some(
             (s) => s.status === "failed"
           ) && (
@@ -899,7 +1085,6 @@ export function BeansAgent() {
             </div>
           )}
 
-          {/* Completed action cards */}
           {writeActions.length > 0 && (
             <div className="space-y-3">
               {writeActions.map((action) => (
@@ -927,6 +1112,64 @@ export function BeansAgent() {
         </div>
       )}
     </div>
+  );
+}
+
+// ── Sub-components ──
+
+function BeanAvatar() {
+  return (
+    <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+      <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-700" fill="currentColor">
+        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
+        <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
+      </svg>
+    </div>
+  );
+}
+
+function BeansEntityCard({ entity }: { entity: EntityRef }) {
+  const config = ENTITY_CONFIG[entity.type];
+  const Icon = config?.icon || Package;
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg mx-0.5 align-middle">
+      <span className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${config?.bg || "bg-slate-100"}`}>
+        <Icon className={`w-3 h-3 ${config?.text || "text-slate-600"}`} />
+      </span>
+      <span className="text-xs font-medium text-slate-900">{entity.name}</span>
+      {entity.detail && (
+        <span className="text-xs text-slate-500">{entity.detail}</span>
+      )}
+    </span>
+  );
+}
+
+function MessageContent({ message }: { message: ChatMessage }) {
+  // Re-parse the original content for entity rendering if entities exist
+  if (message.entities && message.entities.length > 0) {
+    // We stored the clean content (entities replaced with names),
+    // but we need to render entity cards at the right positions.
+    // Since we stripped ENTITY tags and joined with entity names,
+    // we'll render entities inline after each text segment.
+    // Simple approach: render the text and append entity cards after mentions.
+    return (
+      <p className="text-sm text-slate-800 whitespace-pre-wrap">
+        {message.content}
+        {message.entities.map((entity, i) => (
+          <Fragment key={i}>
+            {i === 0 && <br />}
+            <BeansEntityCard entity={entity} />
+          </Fragment>
+        ))}
+      </p>
+    );
+  }
+
+  return (
+    <p className="text-sm text-slate-800 whitespace-pre-wrap">
+      {message.content}
+    </p>
   );
 }
 

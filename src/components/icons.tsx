@@ -185,6 +185,7 @@ import {
   Trophy as _Trophy,
   SidebarSimple as _SidebarSimple,
   TiktokLogo as _TiktokLogo,
+  Leaf as _Leaf,
 } from "@phosphor-icons/react";
 
 // ── Wrapper ──
@@ -410,5 +411,6 @@ export const Thermometer = wrapIcon(_Thermometer, "Thermometer");
 export const Scale = wrapIcon(_Scales, "Scale");
 export const Timer = wrapIcon(_Timer, "Timer");
 export const Trophy = wrapIcon(_Trophy, "Trophy");
+export const Leaf = wrapIcon(_Leaf, "Leaf");
 export const PanelLeftClose = wrapIcon(_SidebarSimple, "PanelLeftClose");
 export const PanelLeftOpen = wrapIcon(_SidebarSimple, "PanelLeftOpen");

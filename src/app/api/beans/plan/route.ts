@@ -179,7 +179,7 @@ RULES:
 - Today's date is ${new Date().toISOString().split("T")[0]}.
 `;
 
-const SYSTEM_PROMPT = `You are Beans, a friendly and efficient AI assistant for a coffee roastery platform. You help roasters manage their business through natural language.
+const BASE_SYSTEM_PROMPT = `You are Beans, a friendly and efficient AI assistant for a coffee roastery platform. You help roasters manage their business through natural language.
 
 When a user gives you an instruction:
 
@@ -192,13 +192,141 @@ When outputting CHIPS, use only simple alphanumeric labels and values. No apostr
 
 4. FOR ORDERS — always confirm: which contact, which product and variant, quantity, required by date, channel (storefront or wholesale), payment terms.
 
-5. FOR BULK ACTIONS (e.g. update all prices) — confirm the scope before proceeding. Tell the user how many records will be affected.
+5. FOR BULK ACTIONS (e.g. update all prices) — confirm the scope before proceeding. Tell the user how many records will be affected. Never bulk update without explicit confirmation.
 
 6. WHEN READY — say 'I have everything I need. Here\\'s what I\\'ll do:' and return the structured JSON plan as before. The plan must have all fields fully populated — no placeholders, no missing IDs, no assumed values without confirmation.
 
 7. TONE — friendly, concise, professional. You are called Beans. Never refer to yourself as an AI or assistant. Speak like a knowledgeable colleague.
 
+ENTITY REFERENCES: When referring to a specific product, contact, green bean, roasted stock item, or wholesale buyer in your message, include an ENTITY tag so the UI can render a visual card. Format: ENTITY:{"type":"product","id":"actual-uuid","name":"Product Name","detail":"£12.00"}
+Valid types: product, contact, greenBean, roastedStock, wholesaleBuyer, discountCode. Use real IDs and names from the context or tool results. Place ENTITY tags inline within your message text where the entity is mentioned.
+
+ENTITY SELECTION: When you need the user to select from a list of more than 6 items, use a PICKER tag instead of CHIPS. Format: PICKER:{"type":"product","prompt":"Which product?","items":[{"id":"uuid","name":"Brazil Natural","detail":"£12.00"}]}
+The PICKER tag must be the very last thing in your message. For 6 or fewer items, use CHIPS instead.
+
+PRODUCT CREATION — always gather in this order:
+1. Name
+2. Roasted stock to link (show PICKER from get_roasted_stock results — offer to skip or create one if none exist)
+3. Green bean source if known (show PICKER from get_green_beans)
+4. Variants — ask for sizes needed (250g/500g/1kg are common), for each size ask retail price, offer to calculate wholesale at 50% margin
+5. Channels — retail, wholesale, or both (CHIPS)
+6. Description and tasting notes — offer to generate based on name and origin
+7. Status — draft or publish immediately (CHIPS)
+
+STOCK CHAIN AWARENESS: Understand the hierarchy — green beans feed into roasted stock which links to products. When creating a product, if the roaster mentions a bean origin, check if a matching green bean and roasted stock record exists and suggest linking them.
+
 ${WRITE_ACTIONS_DESCRIPTION}`;
+
+// ── Roaster context snapshot ──
+
+async function fetchRoasterContext(roasterId: string): Promise<string> {
+  const supabase = createServerClient();
+
+  const [products, contacts, greenBeans, roastedStock, buyers, discountCodes] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select("id, name, price, retail_price, wholesale_price, status")
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true)
+        .order("name")
+        .limit(100),
+      supabase
+        .from("contacts")
+        .select("id, first_name, last_name, email, business_name")
+        .eq("roaster_id", roasterId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("green_beans")
+        .select("id, name, current_stock_kg")
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true)
+        .order("name")
+        .limit(50),
+      supabase
+        .from("roasted_stock")
+        .select("id, name, current_stock_kg, green_beans(name)")
+        .eq("roaster_id", roasterId)
+        .eq("is_active", true)
+        .order("name")
+        .limit(50),
+      supabase
+        .from("wholesale_access")
+        .select("id, business_name, status, users(email)")
+        .eq("roaster_id", roasterId)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("discount_codes")
+        .select("id, code, discount_type, discount_value, status")
+        .eq("roaster_id", roasterId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
+
+  const lines: string[] = [
+    "ROASTER ACCOUNT CONTEXT (use these real IDs when building plans):",
+    "",
+  ];
+
+  // Products
+  const p = products.data || [];
+  lines.push(`Products (${p.length}):`);
+  for (const item of p) {
+    const prices = [
+      item.retail_price ? `retail £${item.retail_price}` : null,
+      item.wholesale_price ? `wholesale £${item.wholesale_price}` : null,
+      !item.retail_price && !item.wholesale_price && item.price ? `£${item.price}` : null,
+    ].filter(Boolean).join(", ");
+    lines.push(`- ${item.name} [${item.id}] ${prices ? `(${prices})` : ""} [${item.status}]`);
+  }
+
+  // Contacts
+  const c = contacts.data || [];
+  lines.push(`\nContacts (${c.length}):`);
+  for (const item of c) {
+    const name = `${item.first_name} ${item.last_name}`.trim();
+    lines.push(`- ${name} [${item.id}] ${item.email || ""} ${item.business_name ? `(${item.business_name})` : ""}`);
+  }
+
+  // Green beans
+  const gb = greenBeans.data || [];
+  lines.push(`\nGreen Beans (${gb.length}):`);
+  for (const item of gb) {
+    lines.push(`- ${item.name} [${item.id}] ${item.current_stock_kg}kg`);
+  }
+
+  // Roasted stock
+  const rs = roastedStock.data || [];
+  lines.push(`\nRoasted Stock (${rs.length}):`);
+  for (const item of rs) {
+    const greenName = (item.green_beans as { name: string } | null)?.name;
+    lines.push(`- ${item.name} [${item.id}] ${item.current_stock_kg}kg${greenName ? ` (from ${greenName})` : ""}`);
+  }
+
+  // Wholesale buyers
+  const wb = buyers.data || [];
+  lines.push(`\nWholesale Buyers (${wb.length}):`);
+  for (const item of wb) {
+    const email = (item.users as { email: string } | null)?.email;
+    lines.push(`- ${item.business_name || "Unknown"} [${item.id}] ${email || ""} [${item.status}]`);
+  }
+
+  // Discount codes
+  const dc = discountCodes.data || [];
+  lines.push(`\nActive Discount Codes (${dc.length}):`);
+  for (const item of dc) {
+    const val = item.discount_type === "percentage"
+      ? `${item.discount_value}%`
+      : `£${item.discount_value}`;
+    lines.push(`- ${item.code} [${item.id}] ${val}`);
+  }
+
+  return lines.join("\n");
+}
 
 // ── Read tool implementations ──
 
@@ -257,7 +385,6 @@ async function executeGetOrders(
   const tab = params.tab || "all";
   const results: Array<Record<string, unknown>> = [];
 
-  // Ghost orders (platform orders allocated to this roaster)
   if ((tab === "all" || tab === "ghost") && isGhostRoaster) {
     let query = supabase
       .from("ghost_orders")
@@ -284,7 +411,6 @@ async function executeGetOrders(
     }
   }
 
-  // Storefront & wholesale orders
   if (tab === "all" || tab === "storefront" || tab === "wholesale") {
     let query = supabase
       .from("orders")
@@ -426,6 +552,19 @@ export async function POST(request: Request) {
       return Response.json({ error: "Message is required" }, { status: 400 });
     }
 
+    // On first message (no history), fetch roaster context and inject into prompt
+    const isFirstMessage = !history || !Array.isArray(history) || history.length === 0;
+    let systemPrompt = BASE_SYSTEM_PROMPT;
+
+    if (isFirstMessage) {
+      try {
+        const context = await fetchRoasterContext(roasterId);
+        systemPrompt = context + "\n\n" + BASE_SYSTEM_PROMPT;
+      } catch {
+        // Context fetch failed — proceed without it
+      }
+    }
+
     const ai = new GoogleGenAI({ apiKey });
 
     const contents: Array<{
@@ -471,7 +610,7 @@ export async function POST(request: Request) {
               model: "gemini-2.5-flash",
               contents: currentContents,
               config: {
-                systemInstruction: SYSTEM_PROMPT,
+                systemInstruction: systemPrompt,
                 tools: [{ functionDeclarations: readToolDeclarations }],
               },
             });
@@ -479,7 +618,7 @@ export async function POST(request: Request) {
             const functionCalls = response.functionCalls;
 
             if (!functionCalls || functionCalls.length === 0) {
-              // Model returned text — should be the JSON plan
+              // Model returned text — could be JSON plan or conversational message
               const text = response.text || "";
 
               // Try to parse the plan from the response
@@ -490,7 +629,11 @@ export async function POST(request: Request) {
                 // Try to extract JSON from markdown/prose
                 const jsonMatch = text.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
-                  plan = JSON.parse(jsonMatch[0]);
+                  try {
+                    plan = JSON.parse(jsonMatch[0]);
+                  } catch {
+                    // Not valid JSON
+                  }
                 }
               }
 
@@ -501,7 +644,7 @@ export async function POST(request: Request) {
                 }
                 send("summary", { text: plan.summary || "" });
               } else {
-                // Model returned prose instead of a plan — send as message
+                // Model returned prose — send as message
                 send("message", { text });
               }
               break;

@@ -80,15 +80,17 @@ const DOMAIN_LABELS: Record<string, string> = {
 // ── Helpers ──
 
 function parseChips(text: string): { clean: string; chips: Chip[] } {
-  const match = text.match(/CHIPS:\[.*\]$/s);
-  if (!match) return { clean: text, chips: [] };
+  const idx = text.lastIndexOf("CHIPS:[");
+  if (idx === -1) return { clean: text, chips: [] };
 
-  const clean = text.slice(0, match.index).trimEnd();
+  const clean = text.slice(0, idx).trimEnd();
+  const jsonStr = text.slice(idx + 6); // everything after "CHIPS:"
   try {
-    const chips = JSON.parse(match[0].slice(6)) as Chip[];
+    const chips = JSON.parse(jsonStr) as Chip[];
+    if (!Array.isArray(chips)) return { clean, chips: [] };
     return { clean, chips };
   } catch {
-    return { clean: text, chips: [] };
+    return { clean, chips: [] };
   }
 }
 

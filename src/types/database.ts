@@ -1,4 +1,3 @@
-Initialising login role...
 export type Json =
   | string
   | number
@@ -5574,6 +5573,7 @@ export type Database = {
       roasted_stock: {
         Row: {
           batch_size_kg: number | null
+          committed_stock_kg: number
           created_at: string
           current_stock_kg: number
           green_bean_id: string | null
@@ -5588,6 +5588,7 @@ export type Database = {
         }
         Insert: {
           batch_size_kg?: number | null
+          committed_stock_kg?: number
           created_at?: string
           current_stock_kg?: number
           green_bean_id?: string | null
@@ -5602,6 +5603,7 @@ export type Database = {
         }
         Update: {
           batch_size_kg?: number | null
+          committed_stock_kg?: number
           created_at?: string
           current_stock_kg?: number
           green_bean_id?: string | null
@@ -6880,6 +6882,121 @@ export type Database = {
             columns: ["roaster_id"]
             isOneToOne: false
             referencedRelation: "roasters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standing_order_history: {
+        Row: {
+          error_message: string | null
+          generated_at: string
+          id: string
+          order_id: string | null
+          standing_order_id: string
+          status: string
+          summary: Json | null
+        }
+        Insert: {
+          error_message?: string | null
+          generated_at?: string
+          id?: string
+          order_id?: string | null
+          standing_order_id: string
+          status?: string
+          summary?: Json | null
+        }
+        Update: {
+          error_message?: string | null
+          generated_at?: string
+          id?: string
+          order_id?: string | null
+          standing_order_id?: string
+          status?: string
+          summary?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standing_order_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standing_order_history_standing_order_id_fkey"
+            columns: ["standing_order_id"]
+            isOneToOne: false
+            referencedRelation: "standing_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standing_orders: {
+        Row: {
+          buyer_user_id: string
+          created_at: string
+          delivery_address: Json | null
+          frequency: string
+          id: string
+          items: Json
+          next_delivery_date: string
+          notes: string | null
+          payment_terms: string
+          roaster_id: string
+          status: string
+          updated_at: string
+          wholesale_access_id: string
+        }
+        Insert: {
+          buyer_user_id: string
+          created_at?: string
+          delivery_address?: Json | null
+          frequency: string
+          id?: string
+          items?: Json
+          next_delivery_date: string
+          notes?: string | null
+          payment_terms?: string
+          roaster_id: string
+          status?: string
+          updated_at?: string
+          wholesale_access_id: string
+        }
+        Update: {
+          buyer_user_id?: string
+          created_at?: string
+          delivery_address?: Json | null
+          frequency?: string
+          id?: string
+          items?: Json
+          next_delivery_date?: string
+          notes?: string | null
+          payment_terms?: string
+          roaster_id?: string
+          status?: string
+          updated_at?: string
+          wholesale_access_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standing_orders_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "partner_roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standing_orders_roaster_id_fkey"
+            columns: ["roaster_id"]
+            isOneToOne: false
+            referencedRelation: "roasters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standing_orders_wholesale_access_id_fkey"
+            columns: ["wholesale_access_id"]
+            isOneToOne: false
+            referencedRelation: "wholesale_access"
             referencedColumns: ["id"]
           },
         ]

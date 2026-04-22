@@ -24,7 +24,7 @@ export async function GET() {
   const [roastedRes, greenRes, ordersRes, roasterRes] = await Promise.all([
     supabase
       .from("roasted_stock")
-      .select("id, name, current_stock_kg, green_bean_id, low_stock_threshold_kg, batch_size_kg")
+      .select("id, name, current_stock_kg, committed_stock_kg, green_bean_id, low_stock_threshold_kg, batch_size_kg")
       .eq("roaster_id", roasterId)
       .eq("is_active", true)
       .order("name"),

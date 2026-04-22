@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, Shield, Package, Plus, Pencil, Trash2, Star, X, Search } from "@/components/icons";
 import { SettingsSection } from "./SettingsSection";
+import { StandingOrdersTab } from "./StandingOrdersTab";
 import Link from "next/link";
 
 interface BuyerUser {
@@ -114,7 +116,11 @@ export function WholesaleBuyersPage({
   hideHeader?: boolean;
 }) {
   const [buyers, setBuyers] = useState(initial);
-  const [tab, setTab] = useState<"requests" | "active">("requests");
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [tab, setTab] = useState<"requests" | "active" | "standing">(
+    urlTab === "standing" ? "standing" : urlTab === "active" ? "active" : "requests"
+  );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -1365,9 +1371,30 @@ export function WholesaleBuyersPage({
         >
           {`Active Buyers (${active.length})`}
         </button>
+        <button
+          onClick={() => setTab("standing")}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            tab === "standing"
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          Standing Orders
+        </button>
       </div>
 
-      {tab === "requests" ? renderRequestsTable() : renderActiveTable()}
+      {tab === "requests" ? renderRequestsTable() : tab === "active" ? renderActiveTable() : (
+        <StandingOrdersTab
+          buyers={active
+            .filter((b) => b.status === "approved")
+            .map((b) => ({
+              id: b.id,
+              business_name: b.business_name,
+              user_id: b.user_id,
+              payment_terms: b.payment_terms,
+            }))}
+        />
+      )}
     </>
   );
 }

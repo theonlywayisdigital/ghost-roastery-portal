@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { WholesaleSectionPage } from "./WholesaleSectionPage";
@@ -47,12 +48,14 @@ export default async function WholesaleBuyersPageRoute() {
     .single();
 
   return (
-    <WholesaleSectionPage
-      buyers={enrichedBuyers}
-      autoApprove={roaster?.auto_approve_wholesale ?? false}
-      wholesaleStripeEnabled={roaster?.wholesale_stripe_enabled ?? false}
-      autoApprovePaymentTerms={(roaster?.auto_approve_payment_terms as string) || "net30"}
-      roasterId={user.roaster.id as string}
-    />
+    <Suspense>
+      <WholesaleSectionPage
+        buyers={enrichedBuyers}
+        autoApprove={roaster?.auto_approve_wholesale ?? false}
+        wholesaleStripeEnabled={roaster?.wholesale_stripe_enabled ?? false}
+        autoApprovePaymentTerms={(roaster?.auto_approve_payment_terms as string) || "net30"}
+        roasterId={user.roaster.id as string}
+      />
+    </Suspense>
   );
 }

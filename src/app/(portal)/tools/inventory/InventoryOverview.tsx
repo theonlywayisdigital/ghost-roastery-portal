@@ -26,6 +26,7 @@ interface RoastedStock {
   id: string;
   name: string;
   current_stock_kg: number;
+  committed_stock_kg: number;
   green_bean_id: string | null;
   low_stock_threshold_kg: number | null;
   batch_size_kg: number | null;
@@ -260,7 +261,9 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
     const gb = rs.green_bean_id ? greenBeanMap[rs.green_bean_id] || null : null;
     const greenStockKg = gb ? Number(gb.current_stock_kg) : null;
     const roastedStockKg = Number(rs.current_stock_kg);
-    const committedKg = data.committedByRoasted[rs.id] || 0;
+    const orderCommittedKg = data.committedByRoasted[rs.id] || 0;
+    const standingCommittedKg = Number(rs.committed_stock_kg) || 0;
+    const committedKg = orderCommittedKg + standingCommittedKg;
     const requiredKg = committedKg - roastedStockKg;
     const effectiveBatchSize = rs.batch_size_kg ?? globalBatchSizeKg;
     const batches =

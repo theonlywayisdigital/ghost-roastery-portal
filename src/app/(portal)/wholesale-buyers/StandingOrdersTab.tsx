@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Clock,
   Trash2,
+  Package,
 } from "@/components/icons";
 import { DataTable, FilterBar } from "@/components/admin";
 import type { Column, FilterConfig } from "@/components/admin";
@@ -53,9 +54,17 @@ interface StandingOrder {
   payment_terms: string;
   notes: string | null;
   status: string;
+  buyer_managed: boolean;
+  created_by: string;
   created_at: string;
   updated_at: string;
   wholesale_access: WholesaleAccess;
+}
+
+interface CommittedStockProfile {
+  id: string;
+  name: string;
+  committed_stock_kg: number;
 }
 
 interface HistoryEntry {
@@ -148,6 +157,9 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
   const [sortKey, setSortKey] = useState("next_delivery_date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  // Committed stock
+  const [committedStock, setCommittedStock] = useState<CommittedStockProfile[]>([]);
+
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
@@ -176,9 +188,29 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
     setLoading(false);
   }, []);
 
+  const fetchCommittedStock = useCallback(async () => {
+    try {
+      const res = await fetch("/api/tools/inventory/overview");
+      if (res.ok) {
+        const data = await res.json();
+        const profiles = (data.roastedStock || [])
+          .filter((p: { committed_stock_kg: number | null }) => (p.committed_stock_kg ?? 0) > 0)
+          .map((p: { id: string; name: string; committed_stock_kg: number }) => ({
+            id: p.id,
+            name: p.name,
+            committed_stock_kg: p.committed_stock_kg,
+          }));
+        setCommittedStock(profiles);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchCommittedStock();
+  }, [fetchOrders, fetchCommittedStock]);
 
   const fetchDetail = useCallback(async (id: string) => {
     setDetailLoading(true);
@@ -200,6 +232,15 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
   const dueCount = orders.filter(
     (o) => o.status === "active" && o.next_delivery_date <= today
   ).length;
+
+  // ─── Due this week ───
+  const weekFromNow = new Date();
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
+  const weekEnd = weekFromNow.toISOString().split("T")[0];
+  const dueThisWeek = orders.filter(
+    (o) => o.status === "active" && o.next_delivery_date > today && o.next_delivery_date <= weekEnd
+  );
+  const totalCommittedKg = committedStock.reduce((sum, p) => sum + p.committed_stock_kg, 0);
 
   // ─── Filtering & sorting ───
   const filtered = orders.filter((o) => {
@@ -237,6 +278,10 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
       case "status":
         va = a.status;
         vb = b.status;
+        break;
+      case "managed_by":
+        va = a.buyer_managed ? "buyer" : "roaster";
+        vb = b.buyer_managed ? "buyer" : "roaster";
         break;
       default:
         va = a.next_delivery_date;
@@ -373,6 +418,23 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
       sortable: true,
       render: (row) => <StandingOrderStatusBadge status={row.status} />,
     },
+    {
+      key: "managed_by",
+      label: "Managed By",
+      sortable: true,
+      hiddenOnMobile: true,
+      render: (row) => (
+        <span
+          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+            row.buyer_managed
+              ? "bg-blue-50 text-blue-700"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {row.buyer_managed ? "Buyer" : "Roaster"}
+        </span>
+      ),
+    },
   ];
 
   return (
@@ -398,6 +460,64 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
           New Standing Order
         </button>
       </div>
+
+      {/* Committed Stock Summary */}
+      {committedStock.length > 0 && (
+        <div className="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-4 h-4 text-slate-500" />
+            <h3 className="text-sm font-medium text-slate-700">
+              Committed Stock ({totalCommittedKg.toFixed(1)}kg total)
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {committedStock.map((p) => (
+              <a
+                key={p.id}
+                href="/tools/inventory"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-600 transition-colors"
+              >
+                {p.name}
+                <span className="text-slate-400">|</span>
+                <span className="font-semibold">{p.committed_stock_kg.toFixed(1)}kg</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Due This Week */}
+      {dueThisWeek.length > 0 && (
+        <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Calendar className="w-4 h-4 text-amber-600" />
+            <h3 className="text-sm font-medium text-amber-800">
+              Due This Week ({dueThisWeek.length})
+            </h3>
+          </div>
+          <div className="space-y-1.5">
+            {dueThisWeek.map((o) => (
+              <div
+                key={o.id}
+                className="flex items-center justify-between text-sm cursor-pointer hover:bg-amber-100/50 rounded px-2 py-1 -mx-2 transition-colors"
+                onClick={() => {
+                  setSelectedOrder(o);
+                  fetchDetail(o.id);
+                }}
+              >
+                <span className="text-amber-900 font-medium">
+                  {o.wholesale_access?.business_name || "Unknown"}
+                </span>
+                <span className="text-amber-700 text-xs">
+                  {formatDate(o.next_delivery_date)} &middot;{" "}
+                  {FREQ_LABELS[o.frequency] || o.frequency} &middot;{" "}
+                  {Array.isArray(o.items) ? o.items.length : 0} item{(Array.isArray(o.items) ? o.items.length : 0) !== 1 ? "s" : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-4">
@@ -753,6 +873,20 @@ function StandingOrderDetailPanel({
                 <p className="text-xs text-slate-500 mb-1">Payment Terms</p>
                 <p className="text-sm font-medium text-slate-900 uppercase">
                   {order.payment_terms}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 mb-1">Managed By</p>
+                <p className="text-sm font-medium text-slate-900">
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                      order.buyer_managed
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {order.buyer_managed ? "Buyer" : "Roaster"}
+                  </span>
                 </p>
               </div>
               <div>

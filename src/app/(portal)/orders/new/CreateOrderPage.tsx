@@ -929,7 +929,7 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           const nextDate = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
           const nextDeliveryDate = nextDate.toISOString().split("T")[0];
 
-          await fetch("/api/standing-orders", {
+          const soRes = await fetch("/api/standing-orders", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -948,8 +948,12 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
               buyerManaged: soBuyerManaged,
               preferredDeliveryDay: soDeliveryDay !== "none" ? soDeliveryDay : undefined,
               createdBy: "roaster",
+              lastOrderId: data.orderId,
             }),
           });
+          if (!soRes.ok) {
+            console.error("[CreateOrder] Standing order API returned error:", soRes.status);
+          }
         } catch (soErr) {
           console.error("[CreateOrder] Standing order creation failed:", soErr);
           // Don't block the order — will show on redirect

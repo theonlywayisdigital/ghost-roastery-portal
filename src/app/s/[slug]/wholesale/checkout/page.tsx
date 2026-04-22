@@ -291,6 +291,7 @@ export default function WholesaleCheckoutPage() {
                 buyerManaged: true,
                 preferredDeliveryDay: standingDeliveryDay !== "none" ? standingDeliveryDay : undefined,
                 createdBy: "buyer",
+                lastOrderId: data.orderId,
               }),
             });
           } catch {

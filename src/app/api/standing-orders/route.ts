@@ -65,6 +65,7 @@ export async function POST(request: Request) {
     buyerManaged,
     preferredDeliveryDay,
     createdBy,
+    lastOrderId,
   } = body as {
     wholesaleAccessId: string;
     items: { productId: string; variantId?: string; quantity: number; unitPrice: number }[];
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
     buyerManaged?: boolean;
     preferredDeliveryDay?: string;
     createdBy?: "roaster" | "buyer";
+    lastOrderId?: string;
   };
 
   if (!wholesaleAccessId || !items?.length || !frequency || !nextDeliveryDate) {
@@ -127,6 +129,30 @@ export async function POST(request: Request) {
       { error: "Failed to create standing order" },
       { status: 500 }
     );
+  }
+
+  // Link the initial order to this standing order and record history
+  if (lastOrderId) {
+    await supabase
+      .from("orders")
+      .update({ standing_order_id: order.id })
+      .eq("id", lastOrderId)
+      .eq("roaster_id", roasterId);
+
+    const total = items.reduce(
+      (sum: number, i: { unitPrice: number; quantity: number }) => sum + i.unitPrice * i.quantity,
+      0
+    );
+    await supabase.from("standing_order_history").insert({
+      standing_order_id: order.id,
+      order_id: lastOrderId,
+      status: "created",
+      summary: {
+        items_count: items.length,
+        total,
+        note: "Initial order — standing order created",
+      },
+    });
   }
 
   // Update committed stock

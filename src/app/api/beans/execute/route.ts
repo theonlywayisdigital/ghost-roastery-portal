@@ -1,6 +1,9 @@
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { headers } from "next/headers";
+import { findOrCreatePerson, findOrCreateContact, splitName } from "@/lib/people";
+import { createNotification } from "@/lib/notifications";
+import { pushStockToChannels } from "@/lib/ecommerce-stock-sync";
 
 // ── Types ──
 
@@ -66,6 +69,361 @@ function substituteEndpoint(endpoint: string, idRegistry: Map<string, string>): 
     result = result.replaceAll(placeholder, realId);
   }
   return result;
+}
+
+// ── Create order directly (replaces broken cookie-forwarded fetch to /api/orders/create-manual) ──
+
+async function executeCreateOrder(
+  supabase: ReturnType<typeof createServerClient>,
+  body: Record<string, unknown>,
+  roasterId: string,
+  userId: string
+): Promise<ActionResult> {
+  const orderChannel = (body.orderChannel as string) || "wholesale";
+  const customerName = body.customerName as string;
+  const customerEmail = body.customerEmail as string;
+  const customerBusiness = body.customerBusiness as string | undefined;
+  const customerPhone = body.customerPhone as string | undefined;
+  const paymentMethod = (body.paymentMethod as string) || "invoice";
+  const paymentTerms = body.paymentTerms as string | undefined;
+  const notes = body.notes as string | undefined;
+  const requiredByDate = body.requiredByDate as string | undefined;
+  const rawItems = body.items as Array<Record<string, unknown>> | undefined;
+
+  // ─── Validation ───
+  if (!rawItems?.length) return { success: false, error: "At least one item is required" };
+  if (!customerName) return { success: false, error: "Customer name is required" };
+  if (!customerEmail) return { success: false, error: "Customer email is required" };
+
+  // ─── Fetch roaster settings ───
+  const { data: roaster } = await supabase
+    .from("roasters")
+    .select("id, user_id, business_name, auto_create_invoices, auto_send_invoices, stripe_account_id")
+    .eq("id", roasterId)
+    .single();
+  if (!roaster) return { success: false, error: "Roaster not found" };
+
+  // ─── Validate and resolve items ───
+  const resolvedItems: Array<{
+    productId: string;
+    variantId: string | null;
+    variantLabel: string | null;
+    quantity: number;
+    unitPrice: number;
+    name: string;
+    weightGrams: number | null;
+    roastedStockId: string | null;
+    greenBeanId: string | null;
+    isBlend: boolean;
+  }> = [];
+
+  for (const item of rawItems) {
+    let productId = item.productId as string;
+    let variantId = (item.variantId as string) || null;
+    const quantity = Number(item.quantity) || 1;
+    let unitPrice = Number(item.unitPrice) || 0;
+    const variantLabel = (item.variantLabel as string) || null;
+
+    if (!productId) return { success: false, error: "Each item requires a productId" };
+
+    // ─── Verify productId exists in products table ───
+    const { data: product } = await supabase
+      .from("products")
+      .select("id, name, price, retail_price, wholesale_price, weight_grams, roasted_stock_id, green_bean_id, is_blend, unit")
+      .eq("id", productId)
+      .eq("roaster_id", roasterId)
+      .maybeSingle();
+
+    if (!product) {
+      // ─── Auto-fix: check if productId is actually a variantId ───
+      const { data: variant } = await supabase
+        .from("product_variants")
+        .select("id, product_id, retail_price, wholesale_price, weight_grams, unit")
+        .eq("id", productId)
+        .maybeSingle();
+
+      if (variant) {
+        // Verify the parent product belongs to this roaster
+        const { data: parentProduct } = await supabase
+          .from("products")
+          .select("id, name, price, retail_price, wholesale_price, weight_grams, roasted_stock_id, green_bean_id, is_blend, unit")
+          .eq("id", variant.product_id)
+          .eq("roaster_id", roasterId)
+          .maybeSingle();
+
+        if (!parentProduct) {
+          return { success: false, error: `Product not found for variant ${productId}` };
+        }
+
+        // Swap: use parent product's ID as productId, original ID as variantId
+        variantId = productId;
+        productId = parentProduct.id;
+
+        // Resolve price from variant if missing
+        if (unitPrice <= 0) {
+          unitPrice = (orderChannel === "wholesale"
+            ? variant.wholesale_price ?? variant.retail_price
+            : variant.retail_price ?? variant.wholesale_price) ?? parentProduct.price ?? 0;
+        }
+
+        resolvedItems.push({
+          productId: parentProduct.id,
+          variantId,
+          variantLabel: variantLabel || `${variant.weight_grams ? variant.weight_grams + "g" : variant.unit || ""}`,
+          quantity,
+          unitPrice,
+          name: parentProduct.name,
+          weightGrams: variant.weight_grams ?? parentProduct.weight_grams ?? null,
+          roastedStockId: parentProduct.roasted_stock_id ?? null,
+          greenBeanId: parentProduct.green_bean_id ?? null,
+          isBlend: parentProduct.is_blend ?? false,
+        });
+        continue;
+      }
+
+      return { success: false, error: `Product not found: ${productId}. Ensure you use a real product ID from the products list.` };
+    }
+
+    // ─── Verify variantId if provided ───
+    let resolvedVariant: {
+      id: string;
+      retail_price: number | null;
+      wholesale_price: number | null;
+      weight_grams: number | null;
+      unit: string | null;
+    } | null = null;
+
+    if (variantId) {
+      const { data: variant } = await supabase
+        .from("product_variants")
+        .select("id, retail_price, wholesale_price, weight_grams, unit")
+        .eq("id", variantId)
+        .eq("product_id", productId)
+        .maybeSingle();
+
+      if (variant) {
+        resolvedVariant = variant;
+      }
+      // If variant not found, proceed without it — don't fail the whole order
+    }
+
+    // ─── Resolve price if missing ───
+    if (unitPrice <= 0) {
+      if (resolvedVariant) {
+        unitPrice = (orderChannel === "wholesale"
+          ? resolvedVariant.wholesale_price ?? resolvedVariant.retail_price
+          : resolvedVariant.retail_price ?? resolvedVariant.wholesale_price) ?? product.price ?? 0;
+      } else {
+        unitPrice = (orderChannel === "wholesale"
+          ? product.wholesale_price ?? product.retail_price
+          : product.retail_price ?? product.wholesale_price) ?? product.price ?? 0;
+      }
+    }
+
+    resolvedItems.push({
+      productId: product.id,
+      variantId: resolvedVariant?.id ?? null,
+      variantLabel,
+      quantity,
+      unitPrice,
+      name: product.name,
+      weightGrams: resolvedVariant?.weight_grams ?? product.weight_grams ?? null,
+      roastedStockId: product.roasted_stock_id ?? null,
+      greenBeanId: product.green_bean_id ?? null,
+      isBlend: product.is_blend ?? false,
+    });
+  }
+
+  // ─── Fetch blend components for blend products ───
+  const blendComponentMap: Record<string, { roasted_stock_id: string; percentage: number }[]> = {};
+  const blendProductIds = resolvedItems.filter((i) => i.isBlend).map((i) => i.productId);
+  if (blendProductIds.length > 0) {
+    const { data: components } = await supabase
+      .from("blend_components")
+      .select("product_id, roasted_stock_id, percentage")
+      .in("product_id", blendProductIds);
+    if (components) {
+      for (const c of components) {
+        if (!blendComponentMap[c.product_id]) blendComponentMap[c.product_id] = [];
+        blendComponentMap[c.product_id].push({ roasted_stock_id: c.roasted_stock_id, percentage: Number(c.percentage) });
+      }
+    }
+  }
+
+  // ─── Build order items in pence ───
+  const orderItems = resolvedItems.map((item) => ({
+    productId: item.productId,
+    name: item.name,
+    unitAmount: Math.round(item.unitPrice * 100),
+    quantity: item.quantity,
+    unit: "",
+    variantId: item.variantId,
+    variantLabel: item.variantLabel,
+    ...(item.weightGrams != null ? { weightGrams: item.weightGrams } : {}),
+    ...(item.roastedStockId && !item.isBlend ? { roastedStockId: item.roastedStockId } : {}),
+    ...(item.greenBeanId ? { greenBeanId: item.greenBeanId } : {}),
+    ...(item.isBlend && blendComponentMap[item.productId]?.length
+      ? { blendComponents: blendComponentMap[item.productId] }
+      : {}),
+  }));
+
+  // ─── Calculate totals ───
+  const subtotalPence = orderItems.reduce((sum, i) => sum + i.unitAmount * i.quantity, 0);
+
+  // ─── Find or create person & contact ───
+  const { firstName, lastName } = splitName(customerName);
+  const personId = await findOrCreatePerson(supabase, customerEmail, firstName, lastName, customerPhone || null);
+  const contactId = await findOrCreateContact(supabase, roasterId, customerEmail, firstName, lastName, null);
+
+  // ─── Find existing user ───
+  let buyerUserId: string | null = null;
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", customerEmail.toLowerCase())
+    .single();
+  if (existingUser) buyerUserId = existingUser.id;
+
+  // ─── Insert order ───
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      roaster_id: roasterId,
+      customer_name: customerName,
+      customer_first_name: firstName,
+      customer_last_name: lastName,
+      customer_email: customerEmail,
+      contact_id: contactId,
+      customer_business: customerBusiness || null,
+      items: orderItems,
+      subtotal: subtotalPence / 100,
+      platform_fee: 0,
+      roaster_payout: subtotalPence / 100,
+      payment_method: paymentMethod,
+      payment_terms: paymentTerms || null,
+      status: "confirmed",
+      user_id: buyerUserId,
+      order_channel: orderChannel,
+      notes: notes || null,
+      required_by_date: requiredByDate || null,
+    })
+    .select("id")
+    .single();
+
+  if (orderError) return { success: false, error: `Failed to create order: ${orderError.message}` };
+
+  // ─── Stock deduction: retail (non-linked products) ───
+  for (const item of orderItems) {
+    const d = item as Record<string, unknown>;
+    const hasRoastedStock = d.roastedStockId || (d.blendComponents as unknown[] | undefined)?.length;
+    if (!hasRoastedStock) {
+      await supabase.rpc("decrement_product_stock", { product_id: item.productId, qty: item.quantity });
+    }
+  }
+
+  // ─── Stock deduction: roasted stock (KG) ───
+  for (const item of orderItems) {
+    const d = item as Record<string, unknown>;
+    const weightGrams = d.weightGrams as number | undefined;
+    const blendComps = d.blendComponents as { roasted_stock_id: string; percentage: number }[] | undefined;
+
+    if (blendComps && blendComps.length > 0 && weightGrams && weightGrams > 0) {
+      const totalKg = (weightGrams / 1000) * item.quantity;
+      for (const comp of blendComps) {
+        const compKg = totalKg * (comp.percentage / 100);
+        await supabase.rpc("deduct_roasted_stock", { stock_id: comp.roasted_stock_id, qty_kg: compKg });
+        const { data: updatedStock } = await supabase.from("roasted_stock").select("current_stock_kg").eq("id", comp.roasted_stock_id).single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roasterId,
+          roasted_stock_id: comp.roasted_stock_id,
+          movement_type: "order_deduction",
+          quantity_kg: -compKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? 0,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Beans AI order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} x ${item.quantity} (blend ${comp.percentage}%)`,
+        });
+      }
+    } else {
+      const rsId = d.roastedStockId as string | undefined;
+      if (rsId && weightGrams && weightGrams > 0) {
+        const deductKg = (weightGrams / 1000) * item.quantity;
+        await supabase.rpc("deduct_roasted_stock", { stock_id: rsId, qty_kg: deductKg });
+        const { data: updatedStock } = await supabase.from("roasted_stock").select("current_stock_kg").eq("id", rsId).single();
+        await supabase.from("roasted_stock_movements").insert({
+          roaster_id: roasterId,
+          roasted_stock_id: rsId,
+          movement_type: "order_deduction",
+          quantity_kg: -deductKg,
+          balance_after_kg: updatedStock?.current_stock_kg ?? 0,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Beans AI order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} x ${item.quantity}`,
+        });
+      }
+    }
+  }
+
+  // ─── Stock deduction: green beans (KG) ───
+  for (const item of orderItems) {
+    const d = item as Record<string, unknown>;
+    const greenBeanId = d.greenBeanId as string | undefined;
+    const weightGrams = d.weightGrams as number | undefined;
+    if (greenBeanId && weightGrams && weightGrams > 0) {
+      const deductKg = (weightGrams / 1000) * item.quantity;
+      const { data: bean } = await supabase.from("green_beans").select("current_stock_kg").eq("id", greenBeanId).single();
+      if (bean) {
+        const newStock = Math.max(0, (bean.current_stock_kg || 0) - deductKg);
+        await supabase.from("green_beans").update({ current_stock_kg: newStock }).eq("id", greenBeanId);
+        await supabase.from("green_bean_movements").insert({
+          roaster_id: roasterId,
+          green_bean_id: greenBeanId,
+          movement_type: "order_deduction",
+          quantity_kg: -deductKg,
+          balance_after_kg: newStock,
+          reference_id: order.id,
+          reference_type: "order",
+          notes: `Beans AI order ${order.id.slice(0, 8).toUpperCase()} — ${item.name} x ${item.quantity}`,
+        });
+      }
+    }
+  }
+
+  // ─── Push stock to ecommerce channels (fire-and-forget) ───
+  const affectedStockIds = new Set<string>();
+  for (const item of orderItems) {
+    const d = item as Record<string, unknown>;
+    if (d.roastedStockId) affectedStockIds.add(d.roastedStockId as string);
+    const blendComps = d.blendComponents as { roasted_stock_id: string }[] | undefined;
+    if (blendComps) for (const comp of blendComps) affectedStockIds.add(comp.roasted_stock_id);
+  }
+  for (const stockId of Array.from(affectedStockIds)) {
+    pushStockToChannels(roasterId, stockId).catch(() => {});
+  }
+
+  // ─── Notification ───
+  if (roaster.user_id) {
+    createNotification({
+      userId: roaster.user_id,
+      type: "new_order",
+      title: "New order created via Beans AI",
+      body: `${orderChannel} order for ${customerName} — £${(subtotalPence / 100).toFixed(2)}`,
+      link: "/orders",
+      metadata: { order_id: order.id },
+    }).catch(() => {});
+  }
+
+  // ─── Activity log ───
+  await supabase.from("order_activity_log").insert({
+    order_id: order.id,
+    order_type: orderChannel,
+    action: "order_created",
+    description: `Order created by Beans AI for ${customerName}`,
+    actor_id: userId,
+    actor_name: "Beans AI",
+  }).then(() => {});
+
+  return { success: true, id: order.id, data: { orderId: order.id, subtotal: subtotalPence / 100 } };
 }
 
 // ── Direct Supabase execution layer ──
@@ -295,8 +653,17 @@ async function executeDirectly(
           return { success: true, data };
         }
 
-        // create-manual and cancel are complex (stock, email, refunds) — use fallback
-        return NEEDS_FALLBACK;
+        // Cancel — complex (refunds, stock replenishment) — use fallback
+        if (action.endpoint.includes("/cancel")) {
+          return NEEDS_FALLBACK;
+        }
+
+        // ─── Create manual order (direct execution) ───
+        if (action.type === "CREATE" || action.endpoint.includes("create-manual")) {
+          return await executeCreateOrder(supabase, body, roasterId, userId);
+        }
+
+        return { success: false, error: `Unsupported order action: ${action.action}` };
       }
 
       // ─── Invoices ───

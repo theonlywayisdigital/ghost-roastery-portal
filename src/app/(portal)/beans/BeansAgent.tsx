@@ -1542,29 +1542,50 @@ function ActionCard({ action, allActions = [] }: { action: PlannedAction; allAct
           {title}
         </p>
         {action.body && Object.keys(action.body).length > 0 && (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2">
+          <div className="mt-2">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {Object.entries(action.body).map(([key, val]) => {
+                if (val === null || val === undefined) return null;
+                // Skip plain objects (not arrays)
+                if (typeof val === "object" && !Array.isArray(val)) return null;
+                // Arrays of objects get rendered separately below
+                if (Array.isArray(val) && val.length > 0 && typeof val[0] === "object") return null;
+
+                // If current_stock_kg is 0 and a dependent action exists, annotate
+                let displayValue = formatFieldValue(val, key);
+                if (
+                  key === "current_stock_kg" &&
+                  val === 0 &&
+                  allActions.some((a) => a.dependsOn?.includes(action.id))
+                ) {
+                  displayValue = "0kg (stock received separately)";
+                }
+
+                return (
+                  <div key={key} className="contents">
+                    <span className="text-xs text-slate-500 truncate">
+                      {formatFieldName(key)}
+                    </span>
+                    <span className="text-xs text-slate-900 font-medium truncate">
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Render array-of-objects fields (e.g. order items) */}
             {Object.entries(action.body).map(([key, val]) => {
-              if (val === null || val === undefined) return null;
-              if (typeof val === "object" && !Array.isArray(val)) return null;
-
-              // If current_stock_kg is 0 and a dependent action exists, annotate
-              let displayValue = formatFieldValue(val, key);
-              if (
-                key === "current_stock_kg" &&
-                val === 0 &&
-                allActions.some((a) => a.dependsOn?.includes(action.id))
-              ) {
-                displayValue = "0kg (stock received separately)";
-              }
-
+              if (!Array.isArray(val) || val.length === 0 || typeof val[0] !== "object") return null;
               return (
-                <div key={key} className="contents">
-                  <span className="text-xs text-slate-500 truncate">
-                    {formatFieldName(key)}
-                  </span>
-                  <span className="text-xs text-slate-900 font-medium truncate">
-                    {displayValue}
-                  </span>
+                <div key={key} className="mt-2">
+                  <span className="text-xs text-slate-500">{formatFieldName(key)}</span>
+                  <div className="mt-1 space-y-1">
+                    {(val as Array<Record<string, unknown>>).map((item, idx) => (
+                      <div key={idx} className="text-xs text-slate-900 font-medium bg-slate-50 rounded px-2 py-1">
+                        {formatObjectItem(item, key)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}
@@ -1756,6 +1777,31 @@ function formatNumericValue(val: number, fieldName?: string): string {
     return String(val);
   }
   return String(val);
+}
+
+function formatObjectItem(item: Record<string, unknown>, fieldKey: string): string {
+  // Order items: render as "Product Name Variant × Quantity — £Price"
+  if (fieldKey === "items" || fieldKey === "line_items") {
+    const name = (item.productName || item.product_name || item.name || "") as string;
+    const variant = (item.variantName || item.variant_name || item.variant || item.weight || "") as string;
+    const qty = item.quantity ?? item.qty ?? 1;
+    const price = item.unitPrice ?? item.unit_price ?? item.price ?? item.retail_price;
+    const productId = (item.productId || item.product_id || "") as string;
+
+    const label = name || (productId ? `Product ${productId.slice(0, 8)}...` : "Item");
+    const parts = [label];
+    if (variant) parts[0] = `${label} ${variant}`;
+    parts.push(`\u00d7 ${qty}`);
+    if (price != null && typeof price === "number") parts.push(`\u2014 \u00a3${price.toFixed(2)}`);
+    return parts.join(" ");
+  }
+
+  // Generic fallback: show key=value pairs
+  const pairs = Object.entries(item)
+    .filter(([, v]) => v != null && typeof v !== "object")
+    .map(([k, v]) => `${formatFieldName(k)}: ${v}`)
+    .slice(0, 4);
+  return pairs.join(", ") || JSON.stringify(item);
 }
 
 function formatFieldValue(val: unknown, fieldName?: string): string {

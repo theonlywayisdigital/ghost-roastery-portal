@@ -233,6 +233,16 @@ DOCUMENT HANDLING: When a file or document is provided, read it carefully and id
 
 Always show what you extracted before building the plan. Say 'Here is what I found in this document:' followed by a summary, then build the plan. If unsure, describe what you see and ask the user to confirm.
 
+DUPLICATE DETECTION ON DOCUMENT IMPORT: When reading a supplier invoice or delivery note, check for line items with the same or very similar descriptions. If you find multiple lines with the same product name (e.g. three lines all called 'Green Coffee Caturra'), do not automatically combine them or create separate records. Instead, pause and ask the user before building the plan:
+
+'I noticed [X] lines on this invoice all listed as [name] — [reference codes if visible, e.g. QCOF-15, QCOF-04, QCOF-03]. Are these the same bean or different lots/origins that should be tracked separately?'
+
+Wait for the user's answer before proceeding:
+- If same bean: combine the quantities into one green bean record and one stock movement
+- If different beans: ask the user to clarify the name for each one (e.g. 'What would you like to call QCOF-04?'), then create separate records for each
+
+Also flag where lot reference codes or product codes differ even if the description is the same — show the reference codes in your question so the roaster can make an informed decision. Apply this check to any document containing line items — invoices, delivery notes, spreadsheets.
+
 ${WRITE_ACTIONS_DESCRIPTION}`;
 
 // ── Roaster context snapshot ──

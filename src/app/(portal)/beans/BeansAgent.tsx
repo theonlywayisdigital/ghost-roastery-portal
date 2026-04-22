@@ -1136,7 +1136,7 @@ export function BeansAgent() {
           {writeActions.length > 0 && (
             <div className="space-y-3">
               {writeActions.map((action) => (
-                <ActionCard key={action.id} action={action} />
+                <ActionCard key={action.id} action={action} allActions={actions} />
               ))}
             </div>
           )}
@@ -1345,7 +1345,7 @@ export function BeansAgent() {
           {writeActions.length > 0 && (
             <div className="space-y-3">
               {writeActions.map((action) => (
-                <ActionCard key={action.id} action={action} />
+                <ActionCard key={action.id} action={action} allActions={actions} />
               ))}
             </div>
           )}
@@ -1460,7 +1460,7 @@ const BADGE_STYLES: Record<string, string> = {
 
 // ── Card Components ──
 
-function ActionCard({ action }: { action: PlannedAction }) {
+function ActionCard({ action, allActions = [] }: { action: PlannedAction; allActions?: PlannedAction[] }) {
   const hasConflict = action.conflictsWith && action.conflictsWith.length > 0;
   const borderColor = BORDER_COLORS[action.type] || "border-l-slate-300";
   const badgeStyle = BADGE_STYLES[action.type] || "bg-slate-50 text-slate-700";
@@ -1490,13 +1490,24 @@ function ActionCard({ action }: { action: PlannedAction }) {
             {Object.entries(action.body).map(([key, val]) => {
               if (val === null || val === undefined) return null;
               if (typeof val === "object" && !Array.isArray(val)) return null;
+
+              // If current_stock_kg is 0 and a dependent action exists, annotate
+              let displayValue = formatFieldValue(val, key);
+              if (
+                key === "current_stock_kg" &&
+                val === 0 &&
+                allActions.some((a) => a.dependsOn?.includes(action.id))
+              ) {
+                displayValue = "0kg (stock received separately)";
+              }
+
               return (
                 <div key={key} className="contents">
                   <span className="text-xs text-slate-500 truncate">
                     {formatFieldName(key)}
                   </span>
                   <span className="text-xs text-slate-900 font-medium truncate">
-                    {formatFieldValue(val)}
+                    {displayValue}
                   </span>
                 </div>
               );
@@ -1548,13 +1559,13 @@ function ActionCard({ action }: { action: PlannedAction }) {
                     {formatFieldName(String(d.field))}
                   </div>
                   <div className="px-3 py-1.5 text-slate-400 line-through border-b border-slate-50">
-                    {formatValue(d.from)}
+                    {formatValue(d.from, String(d.field))}
                   </div>
                   <div className="px-3 py-1.5 text-slate-300 border-b border-slate-50">
                     &rarr;
                   </div>
                   <div className="px-3 py-1.5 text-slate-900 font-medium border-b border-slate-50">
-                    {formatValue(d.to)}
+                    {formatValue(d.to, String(d.field))}
                   </div>
                 </div>
               ))}
@@ -1573,7 +1584,7 @@ function ActionCard({ action }: { action: PlannedAction }) {
                       {formatFieldName(key)}
                     </span>
                     <span className="text-xs text-slate-900 font-medium truncate">
-                      {formatFieldValue(val)}
+                      {formatFieldValue(val, key)}
                     </span>
                   </div>
                 );
@@ -1669,27 +1680,39 @@ function formatFieldName(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatFieldValue(val: unknown): string {
-  if (val === null || val === undefined) return "—";
-  if (typeof val === "boolean") return val ? "Yes" : "No";
-  if (Array.isArray(val)) return val.join(", ");
-  if (typeof val === "number") {
-    if (val > 0 && val < 100000) {
-      return `£${val.toFixed(2)}`;
-    }
+function isWeightField(fieldName: string): boolean {
+  return /_kg$/i.test(fieldName) || /_grams$/i.test(fieldName);
+}
+
+function isCurrencyField(fieldName: string): boolean {
+  return /price|cost|value|total|payout|subtotal/i.test(fieldName);
+}
+
+function formatNumericValue(val: number, fieldName?: string): string {
+  if (fieldName && isWeightField(fieldName)) {
+    return fieldName.endsWith("_grams") ? `${val}g` : `${val}kg`;
+  }
+  if (fieldName && isCurrencyField(fieldName)) {
+    return `£${val.toFixed(2)}`;
+  }
+  // No field name hint — don't assume currency
+  if (typeof val === "number" && !Number.isInteger(val)) {
     return String(val);
   }
   return String(val);
 }
 
-function formatValue(val: unknown): string {
+function formatFieldValue(val: unknown, fieldName?: string): string {
   if (val === null || val === undefined) return "—";
   if (typeof val === "boolean") return val ? "Yes" : "No";
-  if (typeof val === "number") {
-    if (val > 0 && val < 100000) {
-      return `£${val.toFixed(2)}`;
-    }
-    return String(val);
-  }
+  if (Array.isArray(val)) return val.join(", ");
+  if (typeof val === "number") return formatNumericValue(val, fieldName);
+  return String(val);
+}
+
+function formatValue(val: unknown, fieldName?: string): string {
+  if (val === null || val === undefined) return "—";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (typeof val === "number") return formatNumericValue(val, fieldName);
   return String(val);
 }

@@ -355,6 +355,10 @@ WHATSAPP AND MESSAGE SCREENSHOTS: When a user uploads a screenshot of a messagin
 
 BULK ACTIONS: For any request affecting multiple records, confirm the scope before proceeding. Tell the user how many records will be affected. Never bulk update without explicit confirmation.
 
+WHOLESALE BUYER TERMS: When creating a wholesale order for an existing buyer, check their payment_terms in the wholesale buyers context. If they already have terms set (e.g. net7, net14, net30), use those — never ask for payment terms that are already defined on the buyer record. Only ask for payment terms if the buyer does not have them set or if the contact is not a wholesale buyer.
+
+CONTACT MATCHING: When a user uploads a message or screenshot from a customer, immediately search the contacts list in the context snapshot for a name or email match. If found, use that contact's ID, email, and details — do not say you cannot find them. Only say a contact is not found if you have checked the full contacts list and confirmed no match exists. If you showed a contact entity card in a previous message, that contact IS in the system — never contradict this.
+
 TONE: Friendly, concise, professional. You are called Beans. Never refer to yourself as an AI or assistant. Speak like a knowledgeable colleague.
 
 ${WRITE_ACTIONS_DESCRIPTION}`;
@@ -396,7 +400,7 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
         .limit(50),
       supabase
         .from("wholesale_access")
-        .select("id, business_name, status, users(email)")
+        .select("id, business_name, status, payment_terms, price_tier, users(email)")
         .eq("roaster_id", roasterId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -454,7 +458,9 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
   lines.push(`\nWholesale Buyers (${wb.length}):`);
   for (const item of wb) {
     const email = (item.users as { email: string } | null)?.email;
-    lines.push(`- ${item.business_name || "Unknown"} [${item.id}] ${email || ""} [${item.status}]`);
+    const terms = item.payment_terms ? ` terms:${item.payment_terms}` : "";
+    const tier = item.price_tier ? ` tier:${item.price_tier}` : "";
+    lines.push(`- ${item.business_name || "Unknown"} [${item.id}] ${email || ""} [${item.status}]${terms}${tier}`);
   }
 
   // Discount codes
@@ -665,6 +671,85 @@ async function executeGetDiscountCodes(roasterId: string, params: { status?: str
   return data || [];
 }
 
+// ── Strip formatting tags from history ──
+// Removes ENTITY, CHIPS, and PICKER tags from assistant messages to reduce noise
+
+function stripFormattingTags(text: string): string {
+  // Replace ENTITY:{"type":"product","id":"uuid","name":"Name","detail":"detail"} with just the name
+  let cleaned = text.replace(/ENTITY:\{[^}]*?"name"\s*:\s*"([^"]*)"[^}]*\}/g, "$1");
+  // Remove CHIPS:[...] tags entirely
+  cleaned = cleaned.replace(/CHIPS:\[[\s\S]*?\](?:\s*$)?/g, "").trim();
+  // Remove PICKER:{...} tags entirely — these can be multi-level JSON
+  cleaned = cleaned.replace(/PICKER:\{[\s\S]*\}(?:\s*$)?/g, "").trim();
+  return cleaned;
+}
+
+// ── Extract conversation state from history ──
+// Scans previous messages for confirmed facts (entities, values) to prevent Gemini
+// from contradicting itself or re-asking questions already answered.
+
+function extractConversationState(history: Array<{ role: string; content: string }>): string {
+  const facts: string[] = [];
+  const seenContacts = new Map<string, { name: string; id: string; email?: string }>();
+  const seenProducts = new Map<string, { name: string; id: string }>();
+  const confirmedValues: string[] = [];
+
+  for (const msg of history) {
+    // Extract ENTITY tags from assistant messages
+    if (msg.role === "assistant" || msg.role === "model") {
+      const entityMatches = msg.content.matchAll(/ENTITY:\{([^}]*)\}/g);
+      for (const match of entityMatches) {
+        try {
+          const entity = JSON.parse(`{${match[1]}}`);
+          if (entity.type === "contact" && entity.id && entity.name) {
+            seenContacts.set(entity.id, {
+              name: entity.name,
+              id: entity.id,
+              email: entity.detail || undefined,
+            });
+          }
+          if (entity.type === "product" && entity.id && entity.name) {
+            seenProducts.set(entity.id, { name: entity.name, id: entity.id });
+          }
+        } catch {
+          // Malformed entity — skip
+        }
+      }
+    }
+
+    // Extract confirmed values from user messages (simple heuristics)
+    if (msg.role === "user") {
+      const lower = msg.content.toLowerCase();
+      // Payment terms
+      if (/\bnet\s*7\b/i.test(msg.content)) confirmedValues.push("Payment terms: net7");
+      else if (/\bnet\s*14\b/i.test(msg.content)) confirmedValues.push("Payment terms: net14");
+      else if (/\bnet\s*30\b/i.test(msg.content)) confirmedValues.push("Payment terms: net30");
+
+      // Confirmations like "yes", "that's right", "correct", "go ahead"
+      if (/^(yes|yeah|yep|correct|that'?s right|confirmed?|go ahead|proceed)\b/i.test(lower.trim())) {
+        // The user confirmed whatever was last proposed — we don't need to track specifics,
+        // the entities already captured cover it
+      }
+    }
+  }
+
+  // Build the state block
+  for (const [, contact] of seenContacts) {
+    facts.push(`- Contact: ${contact.name}${contact.email ? ` (${contact.email})` : ""} — ID: ${contact.id} — already confirmed`);
+  }
+  for (const [, product] of seenProducts) {
+    facts.push(`- Product: ${product.name} — ID: ${product.id} — already confirmed`);
+  }
+  // Deduplicate confirmed values
+  for (const val of Array.from(new Set(confirmedValues))) {
+    facts.push(`- ${val} — already confirmed by user`);
+  }
+
+  if (facts.length === 0) return "";
+
+  return `CONVERSATION STATE — facts already established, do not ask again:\n${facts.join("\n")}`;
+}
+
 // ── Main handler ──
 
 export async function POST(request: Request) {
@@ -698,16 +783,20 @@ export async function POST(request: Request) {
       return Response.json({ error: "Message or file is required" }, { status: 400 });
     }
 
-    // On first message (no history), fetch roaster context and inject into prompt
-    const isFirstMessage = !history || !Array.isArray(history) || history.length === 0;
+    // Always inject fresh roaster context on every request
     let systemPrompt = BASE_SYSTEM_PROMPT;
+    try {
+      const context = await fetchRoasterContext(roasterId);
+      systemPrompt = context + "\n\n" + BASE_SYSTEM_PROMPT;
+    } catch {
+      // Context fetch failed — proceed without it
+    }
 
-    if (isFirstMessage) {
-      try {
-        const context = await fetchRoasterContext(roasterId);
-        systemPrompt = context + "\n\n" + BASE_SYSTEM_PROMPT;
-      } catch {
-        // Context fetch failed — proceed without it
+    // Extract conversation state and inject above everything when history has substance
+    if (history && Array.isArray(history) && history.length > 2) {
+      const conversationState = extractConversationState(history);
+      if (conversationState) {
+        systemPrompt = conversationState + "\n\n" + systemPrompt;
       }
     }
 
@@ -725,12 +814,15 @@ export async function POST(request: Request) {
       parts: Part[];
     }> = [];
 
-    // Rebuild conversation history if provided (for follow-up replies)
+    // Rebuild conversation history — strip formatting tags from assistant messages
     if (history && Array.isArray(history)) {
       for (const msg of history) {
+        const cleanedContent = msg.role === "user"
+          ? msg.content
+          : stripFormattingTags(msg.content);
         contents.push({
           role: msg.role === "user" ? "user" : "model",
-          parts: [{ text: msg.content }],
+          parts: [{ text: cleanedContent }],
         });
       }
     }

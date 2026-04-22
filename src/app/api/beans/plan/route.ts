@@ -215,6 +215,15 @@ PRODUCT CREATION — always gather in this order:
 
 STOCK CHAIN AWARENESS: Understand the hierarchy — green beans feed into roasted stock which links to products. When creating a product, if the roaster mentions a bean origin, check if a matching green bean and roasted stock record exists and suggest linking them.
 
+DOCUMENT HANDLING: When a file or document is provided, read it carefully and identify what it contains. Common document types:
+- Supplier green bean order/invoice: extract line items (bean name/origin, variety, process, weight kg, price per kg, supplier). Build a plan to create/update green_bean records.
+- Customer order (email, screenshot, PDF): extract customer name, products, quantities, required by date. Build a plan to create an order.
+- Price list: extract product names and prices. Build a plan to update matching products.
+- Contact list/spreadsheet: extract names, emails, businesses, phone numbers. Build a plan to import contacts.
+- Inventory sheet: extract stock levels and build a plan to record movements.
+
+Always show what you extracted before building the plan. Say 'Here is what I found in this document:' followed by a summary, then build the plan. If unsure, describe what you see and ask the user to confirm.
+
 ${WRITE_ACTIONS_DESCRIPTION}`;
 
 // ── Roaster context snapshot ──
@@ -547,9 +556,13 @@ export async function POST(request: Request) {
   );
 
   try {
-    const { message, history } = await request.json();
-    if (!message || typeof message !== "string") {
-      return Response.json({ error: "Message is required" }, { status: 400 });
+    const { message, history, file } = await request.json() as {
+      message: string;
+      history?: Array<{ role: string; content: string }>;
+      file?: { name: string; mimeType: string; data: string; isText?: boolean };
+    };
+    if ((!message || typeof message !== "string") && !file) {
+      return Response.json({ error: "Message or file is required" }, { status: 400 });
     }
 
     // On first message (no history), fetch roaster context and inject into prompt
@@ -567,13 +580,16 @@ export async function POST(request: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
 
+    type Part = {
+      text?: string;
+      inlineData?: { data: string; mimeType: string };
+      functionCall?: { name: string; args: Record<string, unknown> };
+      functionResponse?: { name: string; response: Record<string, unknown> };
+    };
+
     const contents: Array<{
       role: "user" | "model";
-      parts: Array<{
-        text?: string;
-        functionCall?: { name: string; args: Record<string, unknown> };
-        functionResponse?: { name: string; response: Record<string, unknown> };
-      }>;
+      parts: Part[];
     }> = [];
 
     // Rebuild conversation history if provided (for follow-up replies)
@@ -586,7 +602,24 @@ export async function POST(request: Request) {
       }
     }
 
-    contents.push({ role: "user", parts: [{ text: message }] });
+    // Build user message parts (possibly multimodal with file)
+    const userParts: Part[] = [];
+    const textContent = message || (file ? `Please analyze this file: ${file.name}` : "");
+
+    if (file) {
+      if (file.isText) {
+        // Text files (CSV, XLSX converted to CSV): prepend to message text
+        userParts.push({ text: `[Document: ${file.name}]\n${file.data}\n\n${textContent}` });
+      } else {
+        // Binary files (PDF, DOCX, images): text + inlineData
+        userParts.push({ text: textContent });
+        userParts.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
+      }
+    } else {
+      userParts.push({ text: textContent });
+    }
+
+    contents.push({ role: "user", parts: userParts });
 
     // SSE stream
     const encoder = new TextEncoder();

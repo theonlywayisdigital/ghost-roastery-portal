@@ -19,7 +19,10 @@ import {
   Store,
   Tag,
   X,
+  FileText,
+  Upload,
 } from "@/components/icons";
+import * as XLSX from "xlsx";
 
 // ── Types ──
 
@@ -62,12 +65,21 @@ interface PickerData {
   items: Array<{ id: string; name: string; detail: string }>;
 }
 
+interface AttachedFile {
+  name: string;
+  mimeType: string;
+  data: string;
+  isText: boolean;
+  size: number;
+}
+
 interface ChatMessage {
   role: "user" | "model";
   content: string;
   chips?: Chip[];
   entities?: EntityRef[];
   picker?: PickerData;
+  file?: { name: string; size: number };
 }
 
 type Phase = "input" | "conversation" | "planning" | "review" | "executing" | "done";
@@ -76,6 +88,30 @@ interface ExecutionStatus {
   actionId: string;
   status: "pending" | "running" | "done" | "failed";
   error?: string;
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const SUPPORTED_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "image/png",
+  "image/jpeg",
+]);
+
+const TEXT_MIME_TYPES = new Set([
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -230,10 +266,14 @@ export function BeansAgent() {
   const [readLookupsOpen, setReadLookupsOpen] = useState(false);
   const [activePicker, setActivePicker] = useState<PickerData | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [toast, setToast] = useState<{ message: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -260,23 +300,85 @@ export function BeansAgent() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [activePicker]);
 
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  // ── File processing ──
+
+  const processFile = useCallback(async (file: File): Promise<AttachedFile | null> => {
+    if (file.size > MAX_FILE_SIZE) {
+      setToast({ message: "File too large — maximum 10MB" });
+      return null;
+    }
+    if (!SUPPORTED_MIME_TYPES.has(file.type)) {
+      setToast({ message: "Beans can read PDF, Word, Excel, CSV, and image files" });
+      return null;
+    }
+
+    // CSV — read as text
+    if (file.type === "text/csv") {
+      const text = await file.text();
+      return { name: file.name, mimeType: file.type, data: text, isText: true, size: file.size };
+    }
+
+    // XLSX/XLS — convert to CSV text
+    if (TEXT_MIME_TYPES.has(file.type)) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const csvParts: string[] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        if (workbook.SheetNames.length > 1) {
+          csvParts.push(`--- Sheet: ${sheetName} ---`);
+        }
+        csvParts.push(XLSX.utils.sheet_to_csv(sheet));
+      }
+      return { name: file.name, mimeType: file.type, data: csvParts.join("\n"), isText: true, size: file.size };
+    }
+
+    // PDF, DOCX, images — read as base64
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        // Strip data URI prefix (e.g. "data:application/pdf;base64,")
+        const base64 = dataUrl.split(",")[1] || "";
+        resolve({ name: file.name, mimeType: file.type, data: base64, isText: false, size: file.size });
+      };
+      reader.onerror = () => {
+        setToast({ message: "Failed to read file" });
+        resolve(null);
+      };
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
   // ── Send message to plan API ──
 
   const sendMessage = useCallback(
-    async (text: string, currentMessages: ChatMessage[]) => {
-      if (!text.trim()) return;
+    async (text: string, currentMessages: ChatMessage[], file?: AttachedFile | null) => {
+      if (!text.trim() && !file) return;
 
       // Close any active picker
       setActivePicker(null);
       setPickerSearch("");
 
-      // Add user message to chat
-      const userMsg: ChatMessage = { role: "user", content: text };
+      // Add user message to chat (with file metadata for display)
+      const userMsg: ChatMessage = {
+        role: "user",
+        content: text || (file ? `Attached: ${file.name}` : ""),
+        ...(file ? { file: { name: file.name, size: file.size } } : {}),
+      };
       const updatedMessages = [...currentMessages, userMsg];
       setMessages(updatedMessages);
       setIsThinking(true);
       setError(null);
       setToolCalls([]);
+      setAttachedFile(null);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -287,14 +389,20 @@ export function BeansAgent() {
         content: m.content,
       }));
 
+      // Build request body
+      const body: Record<string, unknown> = {
+        message: text || (file ? `Please analyze this file: ${file.name}` : ""),
+        history: history.slice(0, -1),
+      };
+      if (file) {
+        body.file = { name: file.name, mimeType: file.mimeType, data: file.data, isText: file.isText };
+      }
+
       try {
         const res = await fetch("/api/beans/plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: text,
-            history: history.slice(0, -1),
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
 
@@ -396,19 +504,20 @@ export function BeansAgent() {
   const handleInitialSend = useCallback(
     (text?: string) => {
       const msg = text || prompt;
-      if (!msg.trim()) return;
+      if (!msg.trim() && !attachedFile) return;
       setPhase("conversation");
-      sendMessage(msg, []);
+      sendMessage(msg, [], attachedFile);
     },
-    [prompt, sendMessage]
+    [prompt, attachedFile, sendMessage]
   );
 
   const handleChatSend = useCallback(() => {
-    if (!chatInput.trim() || isThinking) return;
+    if ((!chatInput.trim() && !attachedFile) || isThinking) return;
     const text = chatInput;
+    const file = attachedFile;
     setChatInput("");
-    sendMessage(text, messages);
-  }, [chatInput, isThinking, messages, sendMessage]);
+    sendMessage(text, messages, file);
+  }, [chatInput, attachedFile, isThinking, messages, sendMessage]);
 
   const handleChipClick = useCallback(
     (chip: Chip) => {
@@ -427,6 +536,63 @@ export function BeansAgent() {
     },
     [isThinking, messages, sendMessage]
   );
+
+  // ── Drag and drop ──
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only hide overlay if leaving the container (not entering a child)
+    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const processed = await processFile(file);
+    if (!processed) return;
+
+    if (phase === "conversation") {
+      // Mid-conversation: send file as next message immediately
+      sendMessage("", messages, processed);
+    } else {
+      // Input phase: attach to input
+      setAttachedFile(processed);
+    }
+  }, [phase, messages, processFile, sendMessage]);
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = ""; // Reset so same file can be selected again
+
+    const processed = await processFile(file);
+    if (!processed) return;
+
+    if (phase === "conversation") {
+      setAttachedFile(processed);
+    } else {
+      setAttachedFile(processed);
+    }
+  }, [phase, processFile]);
 
   // ── Execute ──
 
@@ -551,6 +717,7 @@ export function BeansAgent() {
     setReadLookupsOpen(false);
     setActivePicker(null);
     setPickerSearch("");
+    setAttachedFile(null);
   }
 
   function handleBackToChat() {
@@ -574,6 +741,7 @@ export function BeansAgent() {
     setReadLookupsOpen(false);
     setActivePicker(null);
     setPickerSearch("");
+    setAttachedFile(null);
   }
 
   function copySummary() {
@@ -615,7 +783,45 @@ export function BeansAgent() {
     : [];
 
   return (
-    <div className="max-w-3xl mx-auto pb-24">
+    <div
+      className="max-w-3xl mx-auto pb-24 relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.docx,.xlsx,.xls,.csv,.png,.jpg,.jpeg"
+        onChange={handleFileSelect}
+      />
+
+      {/* Drag overlay */}
+      {dragOver && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="w-8 h-8 text-amber-700" fill="currentColor">
+                <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(-30 12 12)" opacity="0.6" />
+                <ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(30 12 12)" opacity="0.6" />
+              </svg>
+            </div>
+            <p className="text-white text-lg font-medium">Drop for Beans to read</p>
+            <p className="text-white/60 text-sm">PDF, Word, Excel, CSV, or images</p>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-medium max-w-xs animate-in slide-in-from-bottom-2">
+          {toast.message}
+        </div>
+      )}
+
       {/* ── INPUT ── */}
       {phase === "input" && (
         <div className="space-y-6">
@@ -631,10 +837,31 @@ export function BeansAgent() {
                 }
               }}
             />
-            <div className="flex justify-end pt-3 border-t border-slate-100">
+            {/* Attached file card */}
+            {attachedFile && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg mb-3">
+                <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                <span className="text-sm text-slate-700 truncate flex-1">{attachedFile.name}</span>
+                <span className="text-xs text-slate-400 flex-shrink-0">{formatFileSize(attachedFile.size)}</span>
+                <button
+                  onClick={() => setAttachedFile(null)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <div className="flex justify-between pt-3 border-t border-slate-100">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-3 py-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-lg text-sm transition-colors"
+                title="Attach a file"
+              >
+                <Upload className="w-4 h-4" />
+              </button>
               <button
                 onClick={() => handleInitialSend()}
-                disabled={!prompt.trim()}
+                disabled={!prompt.trim() && !attachedFile}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
@@ -677,6 +904,13 @@ export function BeansAgent() {
                 {msg.role === "user" ? (
                   <div className="flex justify-end">
                     <div className="max-w-[80%] bg-slate-800 text-white rounded-2xl rounded-br-md px-4 py-3">
+                      {msg.file && (
+                        <div className="flex items-center gap-2 mb-2 px-2.5 py-1.5 bg-white/10 rounded-lg">
+                          <FileText className="w-4 h-4 text-white/70 flex-shrink-0" />
+                          <span className="text-sm text-white/90 truncate">{msg.file.name}</span>
+                          <span className="text-xs text-white/50 flex-shrink-0">{formatFileSize(msg.file.size)}</span>
+                        </div>
+                      )}
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     </div>
                   </div>
@@ -797,6 +1031,21 @@ export function BeansAgent() {
             </div>
           )}
 
+          {/* Attached file card (conversation) */}
+          {attachedFile && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              <span className="text-sm text-slate-700 truncate flex-1">{attachedFile.name}</span>
+              <span className="text-xs text-slate-400 flex-shrink-0">{formatFileSize(attachedFile.size)}</span>
+              <button
+                onClick={() => setAttachedFile(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Chat input bar */}
           <div className="bg-white border border-slate-200 rounded-xl p-3 flex gap-2">
             <button
@@ -819,8 +1068,16 @@ export function BeansAgent() {
               disabled={isThinking}
             />
             <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isThinking}
+              className="px-2 py-2 text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 disabled:opacity-50"
+              title="Attach a file"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            <button
               onClick={handleChatSend}
-              disabled={!chatInput.trim() || isThinking}
+              disabled={(!chatInput.trim() && !attachedFile) || isThinking}
               className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             >
               <Send className="w-4 h-4" />

@@ -177,6 +177,15 @@ RULES:
 - NEVER include these actions: change password, delete account, remove team member.
 - For read-only requests (e.g. "show me X"), return the data as a plan with type "READ" and no endpoint/method/body.
 - Today's date is ${new Date().toISOString().split("T")[0]}.
+
+DEPENDENCY CHAINING: When one action depends on the result of another (e.g. receiving stock into a green bean you are about to create), use the creating action's id as a placeholder reference in the dependent action's body and endpoint. The execute engine will substitute the placeholder with the real database ID returned from the creating action before running the dependent action. Examples:
+- Action 1: CREATE green bean, id: "abc-1234-...", body: { name: "Ethiopia Yirgacheffe", current_stock_kg: 0 }
+  Action 2: Record stock movement, endpoint: "/api/tools/green-beans/abc-1234-.../movements", body: { quantity_kg: 138 }, dependsOn: ["abc-1234-..."]
+- Action 1: CREATE contact, id: "def-5678-..."
+  Action 2: CREATE order, body: { customer_id: "def-5678-..." }, dependsOn: ["def-5678-..."]
+- Action 1: CREATE roasted stock, id: "ghi-9012-..."
+  Action 2: Record stock movement, endpoint: "/api/tools/roasted-stock/ghi-9012-.../movements", dependsOn: ["ghi-9012-..."]
+Always use the action id as the placeholder — never invent other placeholder strings. Always set dependsOn correctly so the chain executes in order.
 `;
 
 const BASE_SYSTEM_PROMPT = `You are Beans, a friendly and efficient AI assistant for a coffee roastery platform. You help roasters manage their business through natural language.

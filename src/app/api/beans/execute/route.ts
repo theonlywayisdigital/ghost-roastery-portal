@@ -19,13 +19,53 @@ interface PlannedAction {
   diff: Array<{ field: string; from: unknown; to: unknown }>;
 }
 
-type ActionResult = { success: boolean; error?: string; data?: unknown };
+type ActionResult = { success: boolean; error?: string; data?: unknown; id?: string };
 
 // ── Extract entity ID from endpoint ──
 
 function extractEntityId(endpoint: string): string | null {
   const match = endpoint.match(/([a-f0-9-]{36})/);
   return match ? match[1] : null;
+}
+
+// ── ID substitution for dependency chaining ──
+// Gemini uses action IDs as placeholders for records that don't exist yet.
+// After a CREATE completes, we register its real DB ID and substitute it
+// into all dependent action bodies and endpoints before execution.
+
+function substituteIds(
+  obj: Record<string, unknown>,
+  idRegistry: Map<string, string>
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string" && idRegistry.has(value)) {
+      result[key] = idRegistry.get(value)!;
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((item) => {
+        if (typeof item === "string" && idRegistry.has(item)) {
+          return idRegistry.get(item)!;
+        }
+        if (item !== null && typeof item === "object" && !Array.isArray(item)) {
+          return substituteIds(item as Record<string, unknown>, idRegistry);
+        }
+        return item;
+      });
+    } else if (value !== null && typeof value === "object") {
+      result[key] = substituteIds(value as Record<string, unknown>, idRegistry);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function substituteEndpoint(endpoint: string, idRegistry: Map<string, string>): string {
+  let result = endpoint;
+  for (const [placeholder, realId] of idRegistry) {
+    result = result.replaceAll(placeholder, realId);
+  }
+  return result;
 }
 
 // ── Direct Supabase execution layer ──
@@ -52,7 +92,7 @@ async function executeDirectly(
             .select("id, name")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No product ID in endpoint" };
@@ -137,7 +177,7 @@ async function executeDirectly(
             .select("id, first_name, last_name")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No contact ID in endpoint" };
@@ -268,7 +308,7 @@ async function executeDirectly(
             .select("id, invoice_number")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No invoice ID in endpoint" };
@@ -446,7 +486,7 @@ async function executeDirectly(
             .select("id, name")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No green bean ID in endpoint" };
@@ -523,7 +563,7 @@ async function executeDirectly(
             .select("id, name")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No roasted stock ID in endpoint" };
@@ -560,7 +600,7 @@ async function executeDirectly(
             .select("id")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No production plan ID in endpoint" };
@@ -597,7 +637,7 @@ async function executeDirectly(
             .select("id, code")
             .single();
           if (error) return { success: false, error: error.message };
-          return { success: true, data };
+          return { success: true, id: data.id, data };
         }
         if (action.type === "UPDATE") {
           if (!entityId) return { success: false, error: "No discount code ID in endpoint" };
@@ -754,6 +794,8 @@ export async function POST(request: Request) {
 
         const completed = new Set<string>();
         const failed = new Set<string>();
+        // Registry mapping Gemini placeholder action IDs → real DB IDs
+        const idRegistry = new Map<string, string>();
 
         try {
           // Build a dependency graph
@@ -818,18 +860,25 @@ export async function POST(request: Request) {
               send("progress", { actionId: action.id, status: "running" });
             }
 
-            // Execute ready actions in parallel
+            // Execute ready actions in parallel (within a wave)
             const results = await Promise.allSettled(
               ready.map(async (action) => {
+                // Substitute placeholder IDs with real DB IDs from prior waves
+                const resolvedAction = { ...action };
+                if (idRegistry.size > 0) {
+                  resolvedAction.body = substituteIds(action.body || {}, idRegistry);
+                  resolvedAction.endpoint = substituteEndpoint(action.endpoint, idRegistry);
+                }
+
                 // Try direct execution first
-                let result = await executeDirectly(action, supabase, roasterId, userId);
+                let result = await executeDirectly(resolvedAction, supabase, roasterId, userId);
 
                 // If direct execution says it needs fallback, use internal fetch
                 if (result.error === "__NEEDS_FALLBACK__") {
                   if (!cookieHeader) {
-                    console.error(`[Beans] Fallback fetch needed but no cookie available: ${action.action}`, {
-                      actionId: action.id,
-                      endpoint: action.endpoint,
+                    console.error(`[Beans] Fallback fetch needed but no cookie available: ${resolvedAction.action}`, {
+                      actionId: resolvedAction.id,
+                      endpoint: resolvedAction.endpoint,
                       roasterId,
                     });
                     result = {
@@ -837,22 +886,22 @@ export async function POST(request: Request) {
                       error: "This action requires complex processing that is not available in direct mode. Please perform it manually.",
                     };
                   } else {
-                    result = await executeFallbackFetch(action, baseUrl, cookieHeader);
+                    result = await executeFallbackFetch(resolvedAction, baseUrl, cookieHeader);
                     if (!result.success) {
-                      console.error(`[Beans] Fallback fetch failed: ${action.action}`, {
-                        actionId: action.id,
-                        endpoint: action.endpoint,
+                      console.error(`[Beans] Fallback fetch failed: ${resolvedAction.action}`, {
+                        actionId: resolvedAction.id,
+                        endpoint: resolvedAction.endpoint,
                         error: result.error,
                         roasterId,
                       });
                     }
                   }
                 } else if (!result.success) {
-                  console.error(`[Beans] Action failed: ${action.action}`, {
-                    actionId: action.id,
-                    endpoint: action.endpoint,
+                  console.error(`[Beans] Action failed: ${resolvedAction.action}`, {
+                    actionId: resolvedAction.id,
+                    endpoint: resolvedAction.endpoint,
                     error: result.error,
-                    body: action.body,
+                    body: resolvedAction.body,
                     roasterId,
                   });
                 }
@@ -872,6 +921,17 @@ export async function POST(request: Request) {
 
               if (result.success) {
                 completed.add(action.id);
+                // Register returned ID for dependency chaining
+                if (result.id) {
+                  idRegistry.set(action.id, result.id);
+                }
+                // Also try to extract ID from fallback fetch data
+                if (!result.id && result.data && typeof result.data === "object") {
+                  const dataObj = result.data as Record<string, unknown>;
+                  if (typeof dataObj.id === "string") {
+                    idRegistry.set(action.id, dataObj.id);
+                  }
+                }
                 send("progress", { actionId: action.id, status: "done" });
               } else {
                 failed.add(action.id);

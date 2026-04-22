@@ -182,8 +182,7 @@ export async function POST(request: Request) {
       const { data: variants } = await supabase
         .from("product_variants")
         .select("id, wholesale_price, retail_price, price, unit, weight_grams")
-        .in("id", variantIds)
-        .eq("is_active", true);
+        .in("id", variantIds);
 
       if (variants) {
         variantMap = Object.fromEntries(

@@ -245,12 +245,18 @@ Step 2 — Identify the contact:
   If not found: ask "I don't have [name] in your contacts — is this a new customer or should I search for them?"
 
 Step 3 — Identify the product and resolve quantity:
-  Search context snapshot products for a name match.
-  If found: check available variants. Calculate quantity from requested weight:
-    - Customer wants 5kg + 1kg variant exists → quantity: 5, variantId: [1kg variant id]
-    - Customer wants 5kg + 500g variant exists → quantity: 10
-    - Always use the largest available variant. Never look for a variant matching the total weight.
-  If product not found: ask "I couldn't find [product name] in your products — can you confirm the product name?"
+  Search the context snapshot products list for a name match.
+  If found: the product entry in the context snapshot includes its variants with weight_grams and prices. Use this data directly — do not ask the user for variant or price information.
+
+  Resolve quantity from requested weight automatically:
+  - Sort available variants by weight_grams descending (largest first)
+  - Select the largest variant that divides cleanly into the requested weight
+  - Calculate quantity = requested_weight_kg * 1000 / variant.weight_grams
+  - Example: customer wants 5kg, variants are 250g/500g/1kg → select 1kg, quantity = 5
+  - Example: customer wants 2.5kg, variants are 250g/500g/1kg → select 500g, quantity = 5
+  - For wholesale orders always use wholesale_price. For storefront orders use retail_price.
+
+  Never ask "which variant" or "what price" when the product exists in context with variants — this information is already available. Only ask if the product genuinely cannot be found in the context snapshot.
 
 Step 4 — Confirm missing details:
   PAYMENT TERMS: Before asking for payment terms, check the contact's wholesale access data in the context snapshot (shown as [wholesale:approved terms:net30] after their name). If payment_terms exists and is not null, use it automatically — do not ask. Only ask for payment terms if the contact has no wholesale access record or payment_terms is null.
@@ -371,7 +377,7 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
     await Promise.all([
       supabase
         .from("products")
-        .select("id, name, price, retail_price, wholesale_price, status")
+        .select("id, name, price, retail_price, wholesale_price, status, product_variants(id, unit, weight_grams, retail_price, wholesale_price)")
         .eq("roaster_id", roasterId)
         .eq("is_active", true)
         .order("name")
@@ -427,6 +433,21 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
       !item.retail_price && !item.wholesale_price && item.price ? `£${item.price}` : null,
     ].filter(Boolean).join(", ");
     lines.push(`- ${item.name} [${item.id}] ${prices ? `(${prices})` : ""} [${item.status}]`);
+    // Include variant data so Beans can resolve quantity and price without asking
+    const variants = item.product_variants as Array<{
+      id: string; unit: string | null; weight_grams: number | null;
+      retail_price: number | null; wholesale_price: number | null;
+    }> | null;
+    if (variants && variants.length > 0) {
+      for (const v of variants) {
+        const vPrices = [
+          v.retail_price != null ? `retail £${v.retail_price}` : null,
+          v.wholesale_price != null ? `wholesale £${v.wholesale_price}` : null,
+        ].filter(Boolean).join(", ");
+        const weight = v.weight_grams ? `${v.weight_grams}g` : (v.unit || "");
+        lines.push(`    variant [${v.id}] ${weight} ${vPrices ? `(${vPrices})` : ""}`);
+      }
+    }
   }
 
   // Build wholesale access lookup by email for enriching contacts

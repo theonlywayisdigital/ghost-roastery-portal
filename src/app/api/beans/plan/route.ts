@@ -253,8 +253,9 @@ Step 3 — Identify the product and resolve quantity:
   If product not found: ask "I couldn't find [product name] in your products — can you confirm the product name?"
 
 Step 4 — Confirm missing details:
-  Ask in ONE message for anything still missing: payment terms, required by date if not mentioned.
-  Use CHIPS for payment terms: Net7, Net14, Net30
+  PAYMENT TERMS: Before asking for payment terms, check the contact's wholesale access data in the context snapshot (shown as [wholesale:approved terms:net30] after their name). If payment_terms exists and is not null, use it automatically — do not ask. Only ask for payment terms if the contact has no wholesale access record or payment_terms is null.
+  Ask in ONE message for anything still missing: payment terms (only if not already set on buyer), required by date if not mentioned.
+  Use CHIPS for payment terms if needed: Net7, Net14, Net30
 
 Step 5 — Confirm before planning:
   "I'll create a [channel] order for [contact] — [product] [variant] x [qty] for [total], required by [date], on [terms]. Shall I go ahead?"
@@ -355,9 +356,7 @@ WHATSAPP AND MESSAGE SCREENSHOTS: When a user uploads a screenshot of a messagin
 
 BULK ACTIONS: For any request affecting multiple records, confirm the scope before proceeding. Tell the user how many records will be affected. Never bulk update without explicit confirmation.
 
-WHOLESALE BUYER TERMS: When creating a wholesale order for an existing buyer, check their payment_terms in the wholesale buyers context. If they already have terms set (e.g. net7, net14, net30), use those — never ask for payment terms that are already defined on the buyer record. Only ask for payment terms if the buyer does not have them set or if the contact is not a wholesale buyer.
-
-CONTACT MATCHING: When a user uploads a message or screenshot from a customer, immediately search the contacts list in the context snapshot for a name or email match. If found, use that contact's ID, email, and details — do not say you cannot find them. Only say a contact is not found if you have checked the full contacts list and confirmed no match exists. If you showed a contact entity card in a previous message, that contact IS in the system — never contradict this.
+CONTACT MATCHING: When a user uploads a message or screenshot from a customer, immediately search the contacts list in the context snapshot for a name or email match. If found, use that contact's ID, email, and details — do not say you cannot find them. Only say a contact is not found if you have checked the full contacts list and confirmed no match exists. If you showed a contact entity card in a previous message, that contact IS in the system — never contradict this. Each contact's wholesale access data (status, payment_terms, price_tier) is shown inline — use it when creating orders.
 
 TONE: Friendly, concise, professional. You are called Beans. Never refer to yourself as an AI or assistant. Speak like a knowledgeable colleague.
 
@@ -400,7 +399,7 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
         .limit(50),
       supabase
         .from("wholesale_access")
-        .select("id, business_name, status, payment_terms, price_tier, users(email)")
+        .select("id, business_name, status, payment_terms, price_tier, user_id, users!wholesale_access_user_id_fkey(email)")
         .eq("roaster_id", roasterId)
         .order("created_at", { ascending: false })
         .limit(50),
@@ -430,12 +429,36 @@ async function fetchRoasterContext(roasterId: string): Promise<string> {
     lines.push(`- ${item.name} [${item.id}] ${prices ? `(${prices})` : ""} [${item.status}]`);
   }
 
+  // Build wholesale access lookup by email for enriching contacts
+  const wholesaleByEmail = new Map<string, { status: string; payment_terms: string | null; price_tier: string | null }>();
+  for (const buyer of (buyers.data || [])) {
+    const buyerEmail = (buyer.users as { email: string } | null)?.email;
+    if (buyerEmail) {
+      wholesaleByEmail.set(buyerEmail.toLowerCase(), {
+        status: buyer.status,
+        payment_terms: buyer.payment_terms || null,
+        price_tier: buyer.price_tier || null,
+      });
+    }
+  }
+
   // Contacts
   const c = contacts.data || [];
   lines.push(`\nContacts (${c.length}):`);
   for (const item of c) {
     const name = `${item.first_name} ${item.last_name}`.trim();
-    lines.push(`- ${name} [${item.id}] ${item.email || ""} ${item.business_name ? `(${item.business_name})` : ""}`);
+    let line = `- ${name} [${item.id}] ${item.email || ""} ${item.business_name ? `(${item.business_name})` : ""}`;
+    // Enrich with wholesale access data if contact email matches a wholesale buyer
+    if (item.email) {
+      const wa = wholesaleByEmail.get(item.email.toLowerCase());
+      if (wa) {
+        line += ` [wholesale:${wa.status}`;
+        if (wa.payment_terms) line += ` terms:${wa.payment_terms}`;
+        if (wa.price_tier) line += ` tier:${wa.price_tier}`;
+        line += "]";
+      }
+    }
+    lines.push(line);
   }
 
   // Green beans
@@ -612,7 +635,7 @@ async function executeGetWholesaleBuyers(roasterId: string) {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("wholesale_access")
-    .select("id, user_id, status, business_name, business_type, payment_terms, price_tier, credit_limit, created_at, approved_at, rejected_reason, users(email)")
+    .select("id, user_id, status, business_name, business_type, payment_terms, price_tier, credit_limit, created_at, approved_at, rejected_reason, users!wholesale_access_user_id_fkey(email)")
     .eq("roaster_id", roasterId)
     .order("created_at", { ascending: false });
 

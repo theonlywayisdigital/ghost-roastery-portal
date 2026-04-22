@@ -601,6 +601,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
             >
               <Bot className="w-6 h-6 flex-shrink-0 text-black" />
               <span className="flex-1">Beans AI</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 rounded">Beta</span>
               {!isScale && <Lock className="w-3.5 h-3.5 flex-shrink-0 text-slate-300" />}
             </Link>
           );

@@ -62,6 +62,9 @@ export async function POST(request: Request) {
     deliveryAddress,
     paymentTerms,
     notes,
+    buyerManaged,
+    preferredDeliveryDay,
+    createdBy,
   } = body as {
     wholesaleAccessId: string;
     items: { productId: string; variantId?: string; quantity: number; unitPrice: number }[];
@@ -70,6 +73,9 @@ export async function POST(request: Request) {
     deliveryAddress?: Record<string, unknown>;
     paymentTerms?: string;
     notes?: string;
+    buyerManaged?: boolean;
+    preferredDeliveryDay?: string;
+    createdBy?: "roaster" | "buyer";
   };
 
   if (!wholesaleAccessId || !items?.length || !frequency || !nextDeliveryDate) {
@@ -108,6 +114,9 @@ export async function POST(request: Request) {
       payment_terms: paymentTerms || access.payment_terms || "net30",
       notes: notes || null,
       status: "active",
+      buyer_managed: buyerManaged ?? false,
+      preferred_delivery_day: preferredDeliveryDay || null,
+      created_by: createdBy || "roaster",
     })
     .select("id")
     .single();

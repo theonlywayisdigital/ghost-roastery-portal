@@ -7,7 +7,7 @@ import { useStorefront } from "../../_components/StorefrontProvider";
 import { Header } from "../../_components/Header";
 import { Cart } from "../../_components/Cart";
 import { Footer } from "../../_components/Footer";
-import { Minus, Plus, Trash2 } from "@/components/icons";
+import { Minus, Plus, Trash2, RefreshCw } from "@/components/icons";
 import { Star } from "lucide-react";
 
 interface ShippingMethod {
@@ -86,6 +86,9 @@ export default function WholesaleCheckoutPage() {
   const [selectedShippingId, setSelectedShippingId] = useState<string | null>(null);
   const [shippingLoading, setShippingLoading] = useState(true);
   const [requiredByDate, setRequiredByDate] = useState("");
+  const [standingOrderEnabled, setStandingOrderEnabled] = useState(false);
+  const [standingFrequency, setStandingFrequency] = useState<"weekly" | "fortnightly" | "monthly">("fortnightly");
+  const [standingDeliveryDay, setStandingDeliveryDay] = useState<string>("none");
 
   // Load checkout data from sessionStorage
   useEffect(() => {
@@ -247,9 +250,55 @@ export default function WholesaleCheckoutPage() {
       sessionStorage.setItem("wholesale_order_details", JSON.stringify({
         deliveryAddress,
         notes: notes || null,
+        standingOrder: standingOrderEnabled || false,
       }));
 
       if (data.success) {
+        // Create standing order if opted in
+        if (standingOrderEnabled && checkout.wholesaleAccessId) {
+          try {
+            // Calculate next delivery date based on frequency
+            const nextDate = new Date();
+            switch (standingFrequency) {
+              case "weekly":
+                nextDate.setDate(nextDate.getDate() + 7);
+                break;
+              case "fortnightly":
+                nextDate.setDate(nextDate.getDate() + 14);
+                break;
+              case "monthly":
+                nextDate.setMonth(nextDate.getMonth() + 1);
+                break;
+            }
+            const nextDeliveryDate = nextDate.toISOString().split("T")[0];
+
+            await fetch("/api/standing-orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                wholesaleAccessId: checkout.wholesaleAccessId,
+                items: items.map((item) => ({
+                  productId: item.productId.split(":")[0],
+                  variantId: item.variantId || undefined,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                })),
+                frequency: standingFrequency,
+                nextDeliveryDate,
+                deliveryAddress,
+                paymentTerms: checkout.paymentTerms,
+                notes: notes || undefined,
+                buyerManaged: true,
+                preferredDeliveryDay: standingDeliveryDay !== "none" ? standingDeliveryDay : undefined,
+                createdBy: "buyer",
+              }),
+            });
+          } catch {
+            // Standing order creation failure shouldn't block the order
+            console.error("[checkout] Standing order creation failed");
+          }
+        }
+
         const urlParams = new URLSearchParams({
           invoice_id: data.invoiceId || "",
           invoice_number: data.invoiceNumber || "",
@@ -591,6 +640,112 @@ export default function WholesaleCheckoutPage() {
           <p className="text-xs text-slate-500">
             An invoice will be sent to your email with {checkout.paymentTerms.replace("net", "")} day payment terms.
           </p>
+        </section>
+
+        {/* ─── Standing Order Opt-In ─── */}
+        <section className="bg-white rounded-xl border border-slate-200 p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 text-indigo-500" />
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Repeat this order automatically
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Set up a standing order to receive this delivery on a regular schedule
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStandingOrderEnabled(!standingOrderEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                standingOrderEnabled ? "bg-indigo-600" : "bg-slate-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  standingOrderEnabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {standingOrderEnabled && (
+            <div className="mt-5 pt-5 border-t border-slate-100 space-y-4">
+              {/* Frequency */}
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-2">
+                  Frequency
+                </label>
+                <div className="flex gap-2">
+                  {([
+                    { value: "weekly", label: "Weekly" },
+                    { value: "fortnightly", label: "Fortnightly" },
+                    { value: "monthly", label: "Monthly" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStandingFrequency(opt.value)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        standingFrequency === opt.value
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preferred Delivery Day */}
+              <div>
+                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-2">
+                  Preferred Delivery Day
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { value: "none", label: "No Preference" },
+                    { value: "monday", label: "Mon" },
+                    { value: "tuesday", label: "Tue" },
+                    { value: "wednesday", label: "Wed" },
+                    { value: "thursday", label: "Thu" },
+                    { value: "friday", label: "Fri" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStandingDeliveryDay(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        standingDeliveryDay === opt.value
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="bg-indigo-50 rounded-lg p-3">
+                <p className="text-sm text-indigo-700">
+                  This order will be repeated{" "}
+                  <span className="font-semibold">{standingFrequency}</span>
+                  {standingDeliveryDay !== "none" && (
+                    <>
+                      , preferably on{" "}
+                      <span className="font-semibold capitalize">{standingDeliveryDay}s</span>
+                    </>
+                  )}
+                  . You can pause, adjust, or cancel anytime from your account.
+                </p>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ─── Error + Place Order ─── */}

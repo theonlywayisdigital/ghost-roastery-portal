@@ -20,7 +20,7 @@ export async function GET() {
   // Fetch wholesale/storefront orders where customer email matches
   const { data: wholesaleOrders } = await supabase
     .from("orders")
-    .select("id, order_channel, status, subtotal, customer_name, customer_email, items, created_at, roaster_id, tracking_number, tracking_carrier")
+    .select("id, order_channel, status, subtotal, customer_name, customer_email, items, created_at, roaster_id, tracking_number, tracking_carrier, standing_order_id")
     .eq("customer_email", user.email)
     .order("created_at", { ascending: false });
 
@@ -52,6 +52,7 @@ export async function GET() {
         imageUrl: null,
         brandName: null,
         createdAt: o.created_at,
+        standingOrderId: o.standing_order_id || null,
       };
     }),
   ];

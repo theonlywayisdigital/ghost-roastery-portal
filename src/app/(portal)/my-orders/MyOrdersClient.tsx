@@ -18,6 +18,7 @@ interface UnifiedOrder {
   imageUrl: string | null;
   brandName: string | null;
   createdAt: string;
+  standingOrderId?: string | null;
 }
 
 export function MyOrdersClient() {
@@ -122,6 +123,9 @@ export function MyOrdersClient() {
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold text-slate-900">{order.orderNumber}</h3>
                   <StatusBadge status={order.orderType} type="orderType" />
+                  {order.standingOrderId && (
+                    <StatusBadge status="yes" type="standingOrder" />
+                  )}
                   <StatusBadge status={order.status} type="order" />
                 </div>
                 {order.brandName && (

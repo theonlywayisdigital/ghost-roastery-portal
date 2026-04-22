@@ -2,7 +2,7 @@
 
 import { STAGE_COLOURS } from "@/lib/pipeline";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert" | "leadStatus";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert" | "leadStatus" | "standingOrder";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -160,6 +160,12 @@ const colorMap: Record<string, Record<string, string>> = {
     won: "bg-green-50 text-green-700",
     lost: "bg-red-50 text-red-600",
   },
+  standingOrder: {
+    active: "bg-green-50 text-green-700",
+    paused: "bg-yellow-50 text-yellow-700",
+    cancelled: "bg-red-50 text-red-700",
+    yes: "bg-indigo-50 text-indigo-700",
+  },
 };
 
 const labelMap: Record<string, Record<string, string>> = {
@@ -296,6 +302,12 @@ const labelMap: Record<string, Record<string, string>> = {
     qualified: "Qualified",
     won: "Won",
     lost: "Lost",
+  },
+  standingOrder: {
+    active: "Active",
+    paused: "Paused",
+    cancelled: "Cancelled",
+    yes: "Standing Order",
   },
 };
 

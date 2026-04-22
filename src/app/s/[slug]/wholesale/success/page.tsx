@@ -19,6 +19,7 @@ interface OrderDetails {
     country: string;
   } | null;
   notes: string | null;
+  standingOrder?: boolean;
 }
 
 function formatDeliveryAddress(addr: NonNullable<OrderDetails["deliveryAddress"]>) {
@@ -235,6 +236,27 @@ function SuccessContent() {
               )}
 
               {orderDetails && <OrderDetailsSection details={orderDetails} />}
+
+              {orderDetails?.standingOrder && (
+                <div className="rounded-xl p-5 mb-6 text-left max-w-sm mx-auto" style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <p className="text-sm font-semibold">Standing Order Created</p>
+                  </div>
+                  <p className="text-sm opacity-70 mb-3">
+                    This order will be repeated automatically. You can manage your standing orders from your account.
+                  </p>
+                  <Link
+                    href="/my-standing-orders"
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: "var(--sf-accent, #818cf8)" }}
+                  >
+                    Manage Standing Orders &rarr;
+                  </Link>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 {accessToken && invoiceId && (

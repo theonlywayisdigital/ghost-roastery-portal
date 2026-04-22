@@ -47,6 +47,7 @@ import {
   Archive,
   Mail,
   Bot,
+  RefreshCw,
 } from "@/components/icons";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OnboardingWidget } from "@/components/onboarding/OnboardingWidget";
@@ -306,6 +307,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       title: "My Account",
       items: [
         { label: "My Orders", href: "/my-orders", icon: ClipboardList },
+        { label: "Standing Orders", href: "/my-standing-orders", icon: RefreshCw },
         { label: "My Invoices", href: "/my-invoices", icon: Receipt },
         { label: "Wholesale", href: "/wholesale", icon: Building2 },
         { label: "My Brands", href: "/my-brands", icon: Tag },

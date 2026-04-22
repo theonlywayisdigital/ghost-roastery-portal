@@ -111,6 +111,14 @@ export async function POST(
       0
     );
 
+    // Link the created order back to this standing order
+    if (result.orderId) {
+      await supabase
+        .from("orders")
+        .update({ standing_order_id: so.id })
+        .eq("id", result.orderId);
+    }
+
     // Record success
     await supabase.from("standing_order_history").insert({
       standing_order_id: so.id,

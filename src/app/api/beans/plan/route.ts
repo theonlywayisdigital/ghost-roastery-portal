@@ -818,10 +818,11 @@ export async function POST(request: Request) {
   );
 
   try {
-    const { message, history, file } = await request.json() as {
+    const { message, history, file, documentContext: existingDocContext } = await request.json() as {
       message: string;
       history?: Array<{ role: string; content: string }>;
       file?: { name: string; mimeType: string; data: string; isText?: boolean };
+      documentContext?: string;
     };
     if ((!message || typeof message !== "string") && !file) {
       return Response.json({ error: "Message or file is required" }, { status: 400 });
@@ -853,6 +854,50 @@ export async function POST(request: Request) {
       functionResponse?: { name: string; response: Record<string, unknown> };
     };
 
+    // ── Document extraction ──
+    // When a file is uploaded, extract structured data first so it persists
+    // in the conversation as text (no need to re-send the binary file).
+    let documentContext: string | null = existingDocContext || null;
+    let newDocumentContext: string | null = null;
+
+    if (file) {
+      const extractionPrompt = `Extract all structured data from this document as JSON. For supplier invoices return: { "type": "supplier_invoice", "supplier": "name", "date": "date if visible", "lines": [{ "reference": "code", "description": "name", "quantity_kg": number, "unit_price": number, "total": number }] }. For customer order messages return: { "type": "customer_order", "customer_name": "name", "items": [{ "product": "name", "quantity": "amount" }], "required_by": "date or null" }. For price lists return: { "type": "price_list", "items": [{ "product": "name", "price": number }] }. For contact lists return: { "type": "contact_list", "contacts": [{ "name": "name", "email": "email", "business": "business", "phone": "phone" }] }. Return only valid JSON, no explanation.`;
+
+      try {
+        const extractionParts: Part[] = [];
+        if (file.isText) {
+          extractionParts.push({ text: `${extractionPrompt}\n\n[Document: ${file.name}]\n${file.data}` });
+        } else {
+          extractionParts.push({ text: extractionPrompt });
+          extractionParts.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
+        }
+
+        const extractionResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: extractionParts }],
+        });
+
+        const rawExtraction = extractionResponse.text || "";
+        // Strip code fences if Gemini wrapped the JSON
+        const fenceMatch = rawExtraction.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+        const extractedText = fenceMatch ? fenceMatch[1].trim() : rawExtraction.trim();
+
+        // Validate it's parseable JSON, then store as document context
+        try {
+          JSON.parse(extractedText);
+          newDocumentContext = `DOCUMENT CONTEXT [${file.name}]: ${extractedText}`;
+          documentContext = newDocumentContext;
+        } catch {
+          // Extraction didn't return clean JSON — use the raw text as context
+          newDocumentContext = `DOCUMENT CONTEXT [${file.name}]: ${extractedText}`;
+          documentContext = newDocumentContext;
+        }
+      } catch (err) {
+        console.error("[Beans] Document extraction failed:", err);
+        // Fall through — the file will still be sent to the main call as fallback
+      }
+    }
+
     const contents: Array<{
       role: "user" | "model";
       parts: Part[];
@@ -871,21 +916,36 @@ export async function POST(request: Request) {
       }
     }
 
-    // Build user message parts (possibly multimodal with file)
+    // Inject document context into the conversation if available
+    // This ensures Gemini has the extracted document data on every turn
+    if (documentContext) {
+      // Insert as the first user message so it's always visible to Gemini
+      contents.unshift(
+        { role: "user", parts: [{ text: documentContext }] },
+        { role: "model", parts: [{ text: "I have read and stored the document data. I will use it for this conversation." }] }
+      );
+    }
+
+    // Build user message parts
     const userParts: Part[] = [];
     const textContent = message || (file ? `Please analyze this file: ${file.name}` : "");
 
-    if (file) {
+    if (file && !newDocumentContext) {
+      // Extraction failed — fall back to sending the raw file
       if (file.isText) {
-        // Text files (CSV, XLSX converted to CSV): prepend to message text
         userParts.push({ text: `[Document: ${file.name}]\n${file.data}\n\n${textContent}` });
       } else {
-        // Binary files (PDF, DOCX, images): text + inlineData
         userParts.push({ text: textContent });
         userParts.push({ inlineData: { data: file.data, mimeType: file.mimeType } });
       }
     } else {
-      userParts.push({ text: textContent });
+      // File was extracted successfully (or no file) — just send the text message
+      // Reference the document context already in the conversation
+      if (file && newDocumentContext) {
+        userParts.push({ text: `${textContent}\n\nRefer to the DOCUMENT CONTEXT above for the extracted data from ${file.name}.` });
+      } else {
+        userParts.push({ text: textContent });
+      }
     }
 
     contents.push({ role: "user", parts: userParts });
@@ -901,6 +961,11 @@ export async function POST(request: Request) {
         }
 
         try {
+          // Emit document context so client can persist it for future turns
+          if (newDocumentContext) {
+            send("document_context", { text: newDocumentContext });
+          }
+
           let currentContents = [...contents];
           let iterations = 0;
           const MAX_ITERATIONS = 8;

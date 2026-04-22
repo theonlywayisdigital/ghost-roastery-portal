@@ -310,6 +310,7 @@ export function BeansAgent() {
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [toast, setToast] = useState<{ message: string } | null>(null);
+  const [documentContext, setDocumentContext] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
@@ -438,6 +439,9 @@ export function BeansAgent() {
       if (file) {
         body.file = { name: file.name, mimeType: file.mimeType, data: file.data, isText: file.isText };
       }
+      if (documentContext) {
+        body.documentContext = documentContext;
+      }
 
       try {
         const res = await fetch("/api/beans/plan", {
@@ -496,6 +500,9 @@ export function BeansAgent() {
                   case "message":
                     receivedMessage = data.text || "";
                     break;
+                  case "document_context":
+                    setDocumentContext(data.text || null);
+                    break;
                   case "error":
                     setError(data.error || "An error occurred");
                     break;
@@ -552,7 +559,7 @@ export function BeansAgent() {
         setIsThinking(false);
       }
     },
-    []
+    [documentContext]
   );
 
   // ── Handlers ──
@@ -774,6 +781,7 @@ export function BeansAgent() {
     setActivePicker(null);
     setPickerSearch("");
     setAttachedFile(null);
+    setDocumentContext(null);
   }
 
   function handleBackToChat() {
@@ -798,6 +806,7 @@ export function BeansAgent() {
     setActivePicker(null);
     setPickerSearch("");
     setAttachedFile(null);
+    setDocumentContext(null);
   }
 
   function copySummary() {

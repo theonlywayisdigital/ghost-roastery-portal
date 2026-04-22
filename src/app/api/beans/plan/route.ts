@@ -144,7 +144,7 @@ INVOICES:
 
 WHOLESALE BUYERS:
 - POST /api/wholesale-buyers — Add wholesale customer (firstName, lastName, email, businessName, paymentTerms)
-- PATCH /api/wholesale-buyers/{id}/access — Approve/reject/suspend/update (action: approve|reject|suspend|reactivate|update)
+- PATCH /api/wholesale-buyers/{id} — Approve/reject/suspend/update (action: approve|reject|suspend|reactivate|update, paymentTerms, reason, price_tier, credit_limit)
 - POST /api/wholesale-buyers/{id}/pricing — Set custom pricing (product_id, variant_id, custom_price)
 
 GREEN BEANS:

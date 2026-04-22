@@ -19,59 +19,634 @@ interface PlannedAction {
   diff: Array<{ field: string; from: unknown; to: unknown }>;
 }
 
-// ── Ownership validation ──
+type ActionResult = { success: boolean; error?: string; data?: unknown };
 
-const OWNERSHIP_TABLES: Record<string, { table: string; column?: string }> = {
-  products: { table: "products" },
-  contacts: { table: "contacts" },
-  orders: { table: "orders" },
-  invoices: { table: "invoices" },
-  wholesale_buyers: { table: "wholesale_access" },
-  green_beans: { table: "green_beans" },
-  roasted_stock: { table: "roasted_stock" },
-  production: { table: "production_plans" },
-  discount_codes: { table: "discount_codes" },
-};
+// ── Extract entity ID from endpoint ──
 
-async function validateOwnership(
-  roasterId: string,
-  action: PlannedAction
-): Promise<boolean> {
-  // CREATE actions don't need ownership validation (new records)
-  if (action.type === "CREATE") return true;
-
-  // READ-only actions don't execute
-  if (action.type === "READ") return true;
-
-  // Extract the entity ID from the endpoint
-  // Patterns: /api/products/{id}, /api/products/{id}/notes, /api/orders/{id}/status
-  const match = action.endpoint.match(
-    /\/api\/(?:tools\/)?(?:marketing\/)?([^/]+)\/([a-f0-9-]{36})/
-  );
-  if (!match) return true; // Can't extract ID — let the target route validate
-
-  const entityId = match[2];
-  const ownerConfig = OWNERSHIP_TABLES[action.domain];
-  if (!ownerConfig) return true; // Unknown domain — let route validate
-
-  const supabase = createServerClient();
-  const { data } = await supabase
-    .from(ownerConfig.table)
-    .select("id")
-    .eq("id", entityId)
-    .eq(ownerConfig.column || "roaster_id", roasterId)
-    .maybeSingle();
-
-  return !!data;
+function extractEntityId(endpoint: string): string | null {
+  const match = endpoint.match(/([a-f0-9-]{36})/);
+  return match ? match[1] : null;
 }
 
-// ── Execute a single action via internal fetch ──
+// ── Direct Supabase execution layer ──
+// Replaces internal HTTP fetch calls with direct DB operations.
+// Complex actions (emails, Stripe, webhooks) fall back to internal fetch.
 
-async function executeAction(
+async function executeDirectly(
+  action: PlannedAction,
+  supabase: ReturnType<typeof createServerClient>,
+  roasterId: string,
+  userId: string
+): Promise<ActionResult> {
+  const entityId = extractEntityId(action.endpoint);
+  const body = action.body || {};
+
+  try {
+    switch (action.domain) {
+      // ─── Products ───
+      case "products": {
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("products")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No product ID in endpoint" };
+          const { data, error } = await supabase
+            .from("products")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Product not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          if (!entityId) return { success: false, error: "No product ID in endpoint" };
+          const { error } = await supabase
+            .from("products")
+            .delete()
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (error) return { success: false, error: error.message };
+          return { success: true };
+        }
+        return { success: false, error: `Unsupported product action: ${action.action}` };
+      }
+
+      // ─── Contacts ───
+      case "contacts": {
+        // Notes sub-action
+        if (action.endpoint.includes("/notes")) {
+          if (!entityId) return { success: false, error: "No contact ID in endpoint" };
+          // Verify ownership
+          const { data: contact } = await supabase
+            .from("contacts")
+            .select("id")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!contact) return { success: false, error: "Contact not found or not owned" };
+          const { data, error } = await supabase
+            .from("contact_notes")
+            .insert({
+              contact_id: entityId,
+              content: body.content as string,
+              author_id: userId,
+            })
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+
+        // Activity sub-action
+        if (action.endpoint.includes("/activity")) {
+          if (!entityId) return { success: false, error: "No contact ID in endpoint" };
+          const { data: contact } = await supabase
+            .from("contacts")
+            .select("id")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!contact) return { success: false, error: "Contact not found or not owned" };
+          const { data, error } = await supabase
+            .from("contact_activity")
+            .insert({
+              contact_id: entityId,
+              activity_type: body.activity_type as string,
+              description: body.description as string,
+              performed_by: userId,
+            })
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("contacts")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, first_name, last_name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No contact ID in endpoint" };
+          const { data, error } = await supabase
+            .from("contacts")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, first_name, last_name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Contact not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          // Soft delete — archive
+          if (!entityId) return { success: false, error: "No contact ID in endpoint" };
+          const { data, error } = await supabase
+            .from("contacts")
+            .update({ status: "archived" })
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Contact not found or not owned" };
+          return { success: true, data };
+        }
+        return { success: false, error: `Unsupported contact action: ${action.action}` };
+      }
+
+      // ─── Orders ───
+      case "orders": {
+        // Order status update
+        if (action.endpoint.includes("/status")) {
+          if (!entityId) return { success: false, error: "No order ID in endpoint" };
+          const updateFields: Record<string, unknown> = {};
+          if (body.status) updateFields.status = body.status;
+          if (body.trackingNumber) updateFields.tracking_number = body.trackingNumber;
+          if (body.trackingCarrier) updateFields.tracking_carrier = body.trackingCarrier;
+          // Set timestamp for status transitions
+          const status = body.status as string;
+          const now = new Date().toISOString();
+          if (status === "confirmed") updateFields.confirmed_at = now;
+          if (status === "dispatched") updateFields.dispatched_at = now;
+          if (status === "delivered") updateFields.delivered_at = now;
+          if (status === "processing") updateFields.processing_started_at = now;
+
+          const { data, error } = await supabase
+            .from("orders")
+            .update(updateFields)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, status")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Order not found or not owned" };
+
+          // Log activity
+          await supabase.from("order_activity_log").insert({
+            order_id: entityId,
+            order_type: "wholesale",
+            action: "status_change",
+            description: `Status changed to ${status} by Beans AI`,
+            actor_id: userId,
+            actor_name: "Beans AI",
+          }).then(() => {});
+
+          return { success: true, data };
+        }
+
+        // Order activity/note
+        if (action.endpoint.includes("/activity")) {
+          if (!entityId) return { success: false, error: "No order ID in endpoint" };
+          // Verify ownership
+          const { data: order } = await supabase
+            .from("orders")
+            .select("id, order_channel")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!order) return { success: false, error: "Order not found or not owned" };
+
+          const { data, error } = await supabase
+            .from("order_activity_log")
+            .insert({
+              order_id: entityId,
+              order_type: order.order_channel || "wholesale",
+              action: "note",
+              description: body.description as string,
+              actor_id: userId,
+              actor_name: "Beans AI",
+            })
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+
+        // Mark paid
+        if (action.endpoint.includes("/mark-paid")) {
+          if (!entityId) return { success: false, error: "No order ID in endpoint" };
+          const { data, error } = await supabase
+            .from("orders")
+            .update({
+              payment_status: "paid",
+              payment_method: body.paymentMethod as string || "other",
+            })
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Order not found or not owned" };
+          return { success: true, data };
+        }
+
+        // create-manual and cancel are complex (stock, email, refunds) — use fallback
+        return NEEDS_FALLBACK;
+      }
+
+      // ─── Invoices ───
+      case "invoices": {
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("invoices")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, invoice_number")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No invoice ID in endpoint" };
+          // Only allow updating draft invoices
+          const { data: existing } = await supabase
+            .from("invoices")
+            .select("id, status")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!existing) return { success: false, error: "Invoice not found or not owned" };
+          if (existing.status !== "draft") return { success: false, error: "Only draft invoices can be updated" };
+
+          const { data, error } = await supabase
+            .from("invoices")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, invoice_number")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+
+        // Void — simple DB operation (no emails/webhooks)
+        if (action.endpoint.includes("/void")) {
+          if (!entityId) return { success: false, error: "No invoice ID in endpoint" };
+          const { data: existing } = await supabase
+            .from("invoices")
+            .select("id, status")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!existing) return { success: false, error: "Invoice not found or not owned" };
+          if (existing.status === "void") return { success: false, error: "Invoice is already void" };
+          if (existing.status === "paid") return { success: false, error: "Cannot void a paid invoice" };
+
+          const { data, error } = await supabase
+            .from("invoices")
+            .update({ status: "void", payment_status: "cancelled" })
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, invoice_number")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+
+        // send, record-payment, send-reminder — complex (email, PDF, Stripe, accounting sync)
+        return NEEDS_FALLBACK;
+      }
+
+      // ─── Wholesale Buyers ───
+      case "wholesale_buyers": {
+        if (action.type === "CREATE") {
+          // Creating a wholesale buyer involves user lookup — use fallback
+          return NEEDS_FALLBACK;
+        }
+
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No wholesale access ID in endpoint" };
+
+          // Determine what we're updating based on action name and body
+          const updateFields: Record<string, unknown> = {};
+          const actionName = action.action.toLowerCase();
+
+          if (actionName.includes("approve")) {
+            updateFields.status = "approved";
+            updateFields.approved_at = new Date().toISOString();
+          } else if (actionName.includes("reject")) {
+            updateFields.status = "rejected";
+            if (body.reason) updateFields.rejected_reason = body.reason;
+          } else if (actionName.includes("suspend")) {
+            updateFields.status = "suspended";
+          } else if (actionName.includes("reactivate")) {
+            updateFields.status = "approved";
+          } else {
+            // Generic update — pass through body fields
+            if (body.action === "approve") {
+              updateFields.status = "approved";
+              updateFields.approved_at = new Date().toISOString();
+            } else if (body.action === "reject") {
+              updateFields.status = "rejected";
+              if (body.reason) updateFields.rejected_reason = body.reason;
+            } else if (body.action === "suspend") {
+              updateFields.status = "suspended";
+            } else if (body.action === "reactivate") {
+              updateFields.status = "approved";
+            } else if (body.action === "update") {
+              if (body.paymentTerms) updateFields.payment_terms = body.paymentTerms;
+              if (body.price_tier) updateFields.price_tier = body.price_tier;
+              if (body.credit_limit !== undefined) updateFields.credit_limit = body.credit_limit;
+            } else {
+              // Fallback: pass through known wholesale_access fields
+              if (body.payment_terms) updateFields.payment_terms = body.payment_terms;
+              if (body.paymentTerms) updateFields.payment_terms = body.paymentTerms;
+              if (body.price_tier) updateFields.price_tier = body.price_tier;
+              if (body.credit_limit !== undefined) updateFields.credit_limit = body.credit_limit;
+              if (body.status) updateFields.status = body.status;
+            }
+          }
+
+          if (Object.keys(updateFields).length === 0) {
+            return { success: false, error: "No update fields resolved" };
+          }
+
+          const { data, error } = await supabase
+            .from("wholesale_access")
+            .update(updateFields)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, business_name, status")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Wholesale buyer not found or not owned" };
+          return { success: true, data };
+        }
+
+        // Pricing sub-route
+        if (action.endpoint.includes("/pricing")) {
+          return NEEDS_FALLBACK;
+        }
+
+        return { success: false, error: `Unsupported wholesale action: ${action.action}` };
+      }
+
+      // ─── Green Beans ───
+      case "green_beans": {
+        // Stock movements
+        if (action.endpoint.includes("/movements")) {
+          if (!entityId) return { success: false, error: "No green bean ID in endpoint" };
+          // Verify ownership and get current stock
+          const { data: bean } = await supabase
+            .from("green_beans")
+            .select("id, current_stock_kg")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!bean) return { success: false, error: "Green bean not found or not owned" };
+
+          const quantityKg = Number(body.quantity_kg) || 0;
+          if (quantityKg === 0) return { success: false, error: "quantity_kg must be non-zero" };
+
+          const movementType = body.movement_type as string;
+          // Positive movements: purchase, adjustment (positive). Negative: roast, waste, sale, adjustment (negative)
+          const newStock = bean.current_stock_kg + quantityKg;
+
+          const { error: movError } = await supabase
+            .from("green_bean_movements")
+            .insert({
+              green_bean_id: entityId,
+              roaster_id: roasterId,
+              movement_type: movementType,
+              quantity_kg: quantityKg,
+              balance_after_kg: Math.max(0, newStock),
+              notes: (body.notes as string) || null,
+              created_by: userId,
+            });
+          if (movError) return { success: false, error: movError.message };
+
+          const { error: updateError } = await supabase
+            .from("green_beans")
+            .update({ current_stock_kg: Math.max(0, newStock) })
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (updateError) return { success: false, error: updateError.message };
+
+          return { success: true, data: { new_stock_kg: Math.max(0, newStock) } };
+        }
+
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("green_beans")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No green bean ID in endpoint" };
+          const { data, error } = await supabase
+            .from("green_beans")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Green bean not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          if (!entityId) return { success: false, error: "No green bean ID in endpoint" };
+          const { error } = await supabase
+            .from("green_beans")
+            .delete()
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (error) return { success: false, error: error.message };
+          return { success: true };
+        }
+        return { success: false, error: `Unsupported green beans action: ${action.action}` };
+      }
+
+      // ─── Roasted Stock ───
+      case "roasted_stock": {
+        // Stock movements
+        if (action.endpoint.includes("/movements")) {
+          if (!entityId) return { success: false, error: "No roasted stock ID in endpoint" };
+          const { data: stock } = await supabase
+            .from("roasted_stock")
+            .select("id, current_stock_kg")
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .maybeSingle();
+          if (!stock) return { success: false, error: "Roasted stock not found or not owned" };
+
+          const quantityKg = Number(body.quantity_kg) || 0;
+          if (quantityKg === 0) return { success: false, error: "quantity_kg must be non-zero" };
+
+          const movementType = body.movement_type as string;
+          const newStock = stock.current_stock_kg + quantityKg;
+
+          const { error: movError } = await supabase
+            .from("roasted_stock_movements")
+            .insert({
+              roasted_stock_id: entityId,
+              roaster_id: roasterId,
+              movement_type: movementType,
+              quantity_kg: quantityKg,
+              balance_after_kg: Math.max(0, newStock),
+              notes: (body.notes as string) || null,
+              created_by: userId,
+            });
+          if (movError) return { success: false, error: movError.message };
+
+          const { error: updateError } = await supabase
+            .from("roasted_stock")
+            .update({ current_stock_kg: Math.max(0, newStock) })
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (updateError) return { success: false, error: updateError.message };
+
+          return { success: true, data: { new_stock_kg: Math.max(0, newStock) } };
+        }
+
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("roasted_stock")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No roasted stock ID in endpoint" };
+          const { data, error } = await supabase
+            .from("roasted_stock")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, name")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Roasted stock not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          if (!entityId) return { success: false, error: "No roasted stock ID in endpoint" };
+          const { error } = await supabase
+            .from("roasted_stock")
+            .delete()
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (error) return { success: false, error: error.message };
+          return { success: true };
+        }
+        return { success: false, error: `Unsupported roasted stock action: ${action.action}` };
+      }
+
+      // ─── Production Plans ───
+      case "production": {
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("production_plans")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No production plan ID in endpoint" };
+          const { data, error } = await supabase
+            .from("production_plans")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Production plan not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          if (!entityId) return { success: false, error: "No production plan ID in endpoint" };
+          const { error } = await supabase
+            .from("production_plans")
+            .delete()
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (error) return { success: false, error: error.message };
+          return { success: true };
+        }
+        return { success: false, error: `Unsupported production action: ${action.action}` };
+      }
+
+      // ─── Discount Codes ───
+      case "discount_codes": {
+        if (action.type === "CREATE") {
+          const { data, error } = await supabase
+            .from("discount_codes")
+            .insert({ ...body, roaster_id: roasterId })
+            .select("id, code")
+            .single();
+          if (error) return { success: false, error: error.message };
+          return { success: true, data };
+        }
+        if (action.type === "UPDATE") {
+          if (!entityId) return { success: false, error: "No discount code ID in endpoint" };
+          const { data, error } = await supabase
+            .from("discount_codes")
+            .update(body)
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId)
+            .select("id, code")
+            .single();
+          if (error) return { success: false, error: error.message };
+          if (!data) return { success: false, error: "Discount code not found or not owned" };
+          return { success: true, data };
+        }
+        if (action.type === "DELETE") {
+          if (!entityId) return { success: false, error: "No discount code ID in endpoint" };
+          const { error } = await supabase
+            .from("discount_codes")
+            .delete()
+            .eq("id", entityId)
+            .eq("roaster_id", roasterId);
+          if (error) return { success: false, error: error.message };
+          return { success: true };
+        }
+        return { success: false, error: `Unsupported discount code action: ${action.action}` };
+      }
+
+      default:
+        return NEEDS_FALLBACK;
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Direct execution failed",
+    };
+  }
+}
+
+// Sentinel value — signals the caller to use the internal fetch fallback
+const NEEDS_FALLBACK: ActionResult = { success: false, error: "__NEEDS_FALLBACK__" };
+
+// ── Fallback: internal fetch with cookie forwarding ──
+// Used only for complex actions that involve emails, Stripe, webhooks, etc.
+
+async function executeFallbackFetch(
   action: PlannedAction,
   baseUrl: string,
   cookieHeader: string
-): Promise<{ success: boolean; error?: string; data?: unknown }> {
+): Promise<ActionResult> {
   try {
     const url = `${baseUrl}${action.endpoint}`;
     const fetchOptions: RequestInit = {
@@ -102,7 +677,7 @@ async function executeAction(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Execution failed",
+      error: err instanceof Error ? err.message : "Fallback fetch failed",
     };
   }
 }
@@ -110,12 +685,12 @@ async function executeAction(
 // ── Log to activity table ──
 
 async function logActivity(
+  supabase: ReturnType<typeof createServerClient>,
   userId: string,
   action: PlannedAction,
   success: boolean,
   error?: string
 ) {
-  const supabase = createServerClient();
   await supabase.from("user_activity_log").insert({
     user_id: userId,
     action: `beans_${action.action}`,
@@ -141,6 +716,8 @@ export async function POST(request: Request) {
   }
 
   const roasterId = user.roaster.id;
+  const userId = user.id;
+  const supabase = createServerClient();
 
   try {
     const { plan } = (await request.json()) as { plan: PlannedAction[] };
@@ -149,7 +726,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Plan is required" }, { status: 400 });
     }
 
-    // Get the base URL and cookie for internal requests
+    // Capture headers for fallback fetch (complex actions only)
     const headersList = await headers();
     const host = headersList.get("host") || "localhost:3001";
     const proto = headersList.get("x-forwarded-proto") || "http";
@@ -204,7 +781,12 @@ export async function POST(request: Request) {
                   status: "failed",
                   error: "Dependency failed",
                 });
-                await logActivity(user.id, action, false, "Dependency failed");
+                console.error(`[Beans] Action skipped (dependency failed): ${action.action}`, {
+                  actionId: id,
+                  endpoint: action.endpoint,
+                  roasterId,
+                });
+                await logActivity(supabase, userId, action, false, "Dependency failed");
                 continue;
               }
               if (depsComplete) {
@@ -220,7 +802,13 @@ export async function POST(request: Request) {
                   status: "failed",
                   error: "Unresolvable dependency",
                 });
-                await logActivity(user.id, action, false, "Unresolvable dependency");
+                console.error(`[Beans] Action stuck (unresolvable dependency): ${action.action}`, {
+                  actionId: id,
+                  endpoint: action.endpoint,
+                  dependsOn: action.dependsOn,
+                  roasterId,
+                });
+                await logActivity(supabase, userId, action, false, "Unresolvable dependency");
               }
               break;
             }
@@ -233,19 +821,42 @@ export async function POST(request: Request) {
             // Execute ready actions in parallel
             const results = await Promise.allSettled(
               ready.map(async (action) => {
-                // Validate ownership first
-                const owned = await validateOwnership(roasterId, action);
-                if (!owned) {
-                  return {
-                    action,
-                    result: {
+                // Try direct execution first
+                let result = await executeDirectly(action, supabase, roasterId, userId);
+
+                // If direct execution says it needs fallback, use internal fetch
+                if (result.error === "__NEEDS_FALLBACK__") {
+                  if (!cookieHeader) {
+                    console.error(`[Beans] Fallback fetch needed but no cookie available: ${action.action}`, {
+                      actionId: action.id,
+                      endpoint: action.endpoint,
+                      roasterId,
+                    });
+                    result = {
                       success: false,
-                      error: "Target entity does not belong to this roaster",
-                    },
-                  };
+                      error: "This action requires complex processing that is not available in direct mode. Please perform it manually.",
+                    };
+                  } else {
+                    result = await executeFallbackFetch(action, baseUrl, cookieHeader);
+                    if (!result.success) {
+                      console.error(`[Beans] Fallback fetch failed: ${action.action}`, {
+                        actionId: action.id,
+                        endpoint: action.endpoint,
+                        error: result.error,
+                        roasterId,
+                      });
+                    }
+                  }
+                } else if (!result.success) {
+                  console.error(`[Beans] Action failed: ${action.action}`, {
+                    actionId: action.id,
+                    endpoint: action.endpoint,
+                    error: result.error,
+                    body: action.body,
+                    roasterId,
+                  });
                 }
 
-                const result = await executeAction(action, baseUrl, cookieHeader);
                 return { action, result };
               })
             );
@@ -271,7 +882,7 @@ export async function POST(request: Request) {
                 });
               }
 
-              await logActivity(user.id, action, result.success, result.error);
+              await logActivity(supabase, userId, action, result.success, result.error);
             }
           }
 
@@ -281,6 +892,7 @@ export async function POST(request: Request) {
             failed: failed.size,
           });
         } catch (err) {
+          console.error("[Beans] Execute stream error:", err);
           send("error", {
             error: err instanceof Error ? err.message : "Execution failed",
           });
@@ -298,7 +910,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Beans execute error:", error);
+    console.error("[Beans] Execute error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

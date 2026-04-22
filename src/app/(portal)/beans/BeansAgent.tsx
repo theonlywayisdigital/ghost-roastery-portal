@@ -200,6 +200,47 @@ function parseEntities(text: string): { segments: Array<{ text: string } | { ent
   return { segments, entities };
 }
 
+function tryExtractPlan(text: string): { actions: PlannedAction[]; summary: string; preText: string } | null {
+  // Try to find a JSON plan embedded in the message text
+  // 1. Strip ```json ... ``` code fences
+  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  const candidate = fenceMatch ? fenceMatch[1].trim() : text.trim();
+  const preText = fenceMatch ? text.slice(0, text.indexOf(fenceMatch[0])).trim() : "";
+
+  let plan: { plan?: unknown[]; summary?: string } | null = null;
+
+  // 2. Try parsing directly
+  try {
+    plan = JSON.parse(candidate);
+  } catch {
+    // 3. Extract outermost JSON object
+    const firstBrace = candidate.indexOf("{");
+    const lastBrace = candidate.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        plan = JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+      } catch {
+        // Not valid JSON
+      }
+    }
+  }
+
+  if (plan?.plan && Array.isArray(plan.plan) && plan.plan.length > 0) {
+    const finalPreText = preText || (
+      !fenceMatch && candidate.indexOf("{") > 0
+        ? candidate.slice(0, candidate.indexOf("{")).trim()
+        : ""
+    );
+    return {
+      actions: plan.plan as PlannedAction[],
+      summary: (plan.summary as string) || "",
+      preText: finalPreText,
+    };
+  }
+
+  return null;
+}
+
 function parseModelMessage(raw: string): Omit<ChatMessage, "role"> {
   // Order: picker first (mutually exclusive with chips), then entities from clean text
   let text = raw;
@@ -477,16 +518,31 @@ export function BeansAgent() {
           setSummary(receivedSummary);
           setPhase("review");
         } else if (receivedMessage) {
-          const parsed = parseModelMessage(receivedMessage);
-          const modelMsg: ChatMessage = { role: "model", ...parsed };
-          setMessages((prev) => [...prev, modelMsg]);
+          // Client-side fallback: check if the message contains an embedded JSON plan
+          // that the server failed to parse (e.g. ```json fenced or mixed prose+JSON)
+          const extractedPlan = tryExtractPlan(receivedMessage);
+          if (extractedPlan) {
+            // Show any preamble text as a chat message
+            if (extractedPlan.preText) {
+              const parsed = parseModelMessage(extractedPlan.preText);
+              const modelMsg: ChatMessage = { role: "model", ...parsed };
+              setMessages((prev) => [...prev, modelMsg]);
+            }
+            setActions(extractedPlan.actions);
+            setSummary(extractedPlan.summary);
+            setPhase("review");
+          } else {
+            const parsed = parseModelMessage(receivedMessage);
+            const modelMsg: ChatMessage = { role: "model", ...parsed };
+            setMessages((prev) => [...prev, modelMsg]);
 
-          // If message contains a picker, show it
-          if (parsed.picker) {
-            setActivePicker(parsed.picker);
+            // If message contains a picker, show it
+            if (parsed.picker) {
+              setActivePicker(parsed.picker);
+            }
+
+            setPhase("conversation");
           }
-
-          setPhase("conversation");
         }
       } catch (err) {
         if ((err as Error).name === "AbortError") return;

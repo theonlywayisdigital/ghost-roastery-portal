@@ -87,7 +87,7 @@ const readToolDeclarations = [
 // ── Write action schemas (described to Gemini so it can build plans) ──
 
 const WRITE_ACTIONS_DESCRIPTION = `
-After fetching data with the read tools above, you must return a final text response containing ONLY a JSON object with this exact shape:
+After fetching data with the read tools above, you must return a final text response containing ONLY a plain JSON object — no markdown code fences, no backticks, no \`\`\`json wrapper. Output the raw JSON directly. The exact shape:
 {
   "plan": [
     {
@@ -673,16 +673,36 @@ export async function POST(request: Request) {
               // Model returned text — could be JSON plan or conversational message
               const text = response.text || "";
 
-              // Try to parse the plan from the response
+              // Try to parse a plan from the response.
+              // Gemini may return: pure JSON, JSON in ```json fences,
+              // or prose followed by JSON.
               let plan;
+              let preText = "";
+
+              // 1. Strip ```json ... ``` code fences if present
+              const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+              const jsonCandidate = fenceMatch ? fenceMatch[1].trim() : text.trim();
+
+              // If there was prose before the code fence, capture it
+              if (fenceMatch) {
+                const fenceStart = text.indexOf(fenceMatch[0]);
+                preText = text.slice(0, fenceStart).trim();
+              }
+
+              // 2. Try parsing the candidate directly
               try {
-                plan = JSON.parse(text);
+                plan = JSON.parse(jsonCandidate);
               } catch {
-                // Try to extract JSON from markdown/prose
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
+                // 3. Try extracting the outermost JSON object
+                // Find the first { and last } to handle prose around JSON
+                const firstBrace = jsonCandidate.indexOf("{");
+                const lastBrace = jsonCandidate.lastIndexOf("}");
+                if (firstBrace !== -1 && lastBrace > firstBrace) {
+                  if (!preText && firstBrace > 0) {
+                    preText = jsonCandidate.slice(0, firstBrace).trim();
+                  }
                   try {
-                    plan = JSON.parse(jsonMatch[0]);
+                    plan = JSON.parse(jsonCandidate.slice(firstBrace, lastBrace + 1));
                   } catch {
                     // Not valid JSON
                   }
@@ -690,6 +710,10 @@ export async function POST(request: Request) {
               }
 
               if (plan?.plan && Array.isArray(plan.plan)) {
+                // If there was a preamble (e.g. "Here's what I'll do:"), send it as a message
+                if (preText) {
+                  send("message", { text: preText });
+                }
                 // Stream each action as a separate event
                 for (const action of plan.plan) {
                   send("action", action);

@@ -44,6 +44,7 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
   const [markingPaid, setMarkingPaid] = useState(false);
   const [requiredByDate, setRequiredByDate] = useState("");
   const [savingRequiredBy, setSavingRequiredBy] = useState(false);
+  const [standingOrderData, setStandingOrderData] = useState<any>(null);
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}?type=${initialType}`)
@@ -55,6 +56,15 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [orderId, initialType]);
+
+  // Fetch standing order details when order has standing_order_id
+  useEffect(() => {
+    if (!data?.order?.standing_order_id) return;
+    fetch(`/api/standing-orders/${data.order.standing_order_id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => { if (d?.standingOrder) setStandingOrderData(d.standingOrder); })
+      .catch(() => {});
+  }, [data?.order?.standing_order_id]);
 
   async function refreshData() {
     const res = await fetch(`/api/orders/${orderId}?type=${initialType}`);
@@ -187,6 +197,9 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-slate-900">{orderNumber}</h1>
             <StatusBadge status={orderType} type="orderType" />
+            {order.standing_order_id && (
+              <StatusBadge status="yes" type="standingOrder" />
+            )}
             <StatusBadge status={status} type="order" />
           </div>
           <p className="text-sm text-slate-500">
@@ -361,6 +374,43 @@ export function OrderDetailPage({ orderId, orderType: initialType }: OrderDetail
                   Clear date
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Standing Order Card */}
+          {order.standing_order_id && standingOrderData && (
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Standing Order
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Frequency</span>
+                  <span className="text-sm font-medium text-slate-900 capitalize">{standingOrderData.frequency}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Status</span>
+                  <StatusBadge status={standingOrderData.status} type="standingOrder" />
+                </div>
+                {standingOrderData.wholesale_access?.business_name && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Buyer</span>
+                    <span className="text-sm text-slate-700">{standingOrderData.wholesale_access.business_name}</span>
+                  </div>
+                )}
+              </div>
+              <Link
+                href="/wholesale-buyers?tab=standing"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700"
+              >
+                View Standing Orders
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             </div>
           )}
 

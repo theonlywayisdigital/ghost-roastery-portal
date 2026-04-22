@@ -401,6 +401,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     subject?: string;
   } | null>(null);
 
+  // ── Standing order state ──
+  const [standingOrderEnabled, setStandingOrderEnabled] = useState(false);
+  const [soFrequency, setSoFrequency] = useState<"weekly" | "fortnightly" | "monthly">("weekly");
+  const [soDeliveryDay, setSoDeliveryDay] = useState<string>("none");
+  const [soBuyerManaged, setSoBuyerManaged] = useState(true);
+  const [wholesaleAccessId, setWholesaleAccessId] = useState<string | null>(null);
+  const [wholesaleAccessStatus, setWholesaleAccessStatus] = useState<string | null>(null);
+
   // ── Email panel state ──
   const emailMessageId = searchParams.get("messageId");
   const [emailPanelOpen, setEmailPanelOpen] = useState(true);
@@ -562,12 +570,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
               setCustomerEmail(match.email || "");
               setCustomerBusiness(match.business_name || "");
               setCustomerPhone(match.phone || "");
-              // Fetch price tier
+              // Fetch price tier and wholesale access
               fetch(`/api/contacts/${match.id}`)
                 .then((r2) => r2.json())
                 .then((d) => {
                   const tier = d.wholesaleAccess?.price_tier as PriceTier;
                   setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+                  setWholesaleAccessId(d.wholesaleAccess?.id || null);
+                  setWholesaleAccessStatus(d.wholesaleAccess?.status || null);
                 })
                 .catch(() => {});
             }
@@ -587,12 +597,14 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
         setCustomerEmail(ext.senderContact.email || "");
         setCustomerBusiness(ext.senderContact.business_name || "");
         setCustomerPhone(ext.senderContact.phone || "");
-        // Fetch price tier
+        // Fetch price tier and wholesale access
         fetch(`/api/contacts/${ext.senderContact.contact_id}`)
           .then((r) => r.json())
           .then((d) => {
             const tier = d.wholesaleAccess?.price_tier as PriceTier;
             setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+            setWholesaleAccessId(d.wholesaleAccess?.id || null);
+            setWholesaleAccessStatus(d.wholesaleAccess?.status || null);
           })
           .catch(() => {});
       } else {
@@ -693,14 +705,20 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     setContactSearch("");
     setShowContactDropdown(false);
 
-    // Fetch price tier for wholesale contacts
+    // Fetch price tier and wholesale access for wholesale contacts
     fetch(`/api/contacts/${contact.id}`)
       .then((r) => r.json())
       .then((data) => {
         const tier = data.wholesaleAccess?.price_tier as PriceTier;
         setCustomerPriceTier(tier && tier !== "standard" ? tier : null);
+        setWholesaleAccessId(data.wholesaleAccess?.id || null);
+        setWholesaleAccessStatus(data.wholesaleAccess?.status || null);
       })
-      .catch(() => setCustomerPriceTier(null));
+      .catch(() => {
+        setCustomerPriceTier(null);
+        setWholesaleAccessId(null);
+        setWholesaleAccessStatus(null);
+      });
   }
 
   function handleClearContact() {
@@ -710,6 +728,9 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
     setCustomerBusiness("");
     setCustomerPhone("");
     setCustomerPriceTier(null);
+    setWholesaleAccessId(null);
+    setWholesaleAccessStatus(null);
+    setStandingOrderEnabled(false);
   }
 
   // ── Add product ──
@@ -829,6 +850,13 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
   );
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Standing order section is only available for wholesale orders with an approved wholesale contact
+  const showStandingOrderSection =
+    orderChannel === "wholesale" &&
+    selectedContact &&
+    wholesaleAccessId &&
+    wholesaleAccessStatus === "approved";
+
   // ── Submit ──
   const handleSubmit = async () => {
     setError("");
@@ -891,6 +919,43 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create order");
+
+      // Create standing order(s) if enabled
+      if (standingOrderEnabled && wholesaleAccessId && data.orderId) {
+        try {
+          // Calculate next delivery date based on frequency
+          const now = new Date();
+          const daysToAdd = soFrequency === "weekly" ? 7 : soFrequency === "fortnightly" ? 14 : 30;
+          const nextDate = new Date(now.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+          const nextDeliveryDate = nextDate.toISOString().split("T")[0];
+
+          await fetch("/api/standing-orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              wholesaleAccessId,
+              items: items.map((i) => ({
+                productId: i.productId,
+                variantId: i.variantId || undefined,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+              })),
+              frequency: soFrequency,
+              nextDeliveryDate,
+              deliveryAddress: includeAddress ? address : undefined,
+              paymentTerms: paymentTerms || undefined,
+              notes: notes || undefined,
+              buyerManaged: soBuyerManaged,
+              preferredDeliveryDay: soDeliveryDay !== "none" ? soDeliveryDay : undefined,
+              createdBy: "roaster",
+            }),
+          });
+        } catch (soErr) {
+          console.error("[CreateOrder] Standing order creation failed:", soErr);
+          // Don't block the order — will show on redirect
+        }
+      }
+
       router.push(
         `/orders/${data.orderId}?type=${orderChannel === "wholesale" ? "wholesale" : "storefront"}&created=true`
       );
@@ -1726,6 +1791,128 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
           />
         </div>
 
+        {/* ── Standing Order ── */}
+        {showStandingOrderSection && (
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Standing Order</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Set up this order as a recurring standing order</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={standingOrderEnabled}
+                onClick={() => setStandingOrderEnabled(!standingOrderEnabled)}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                  standingOrderEnabled ? "bg-brand-600" : "bg-slate-200"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                    standingOrderEnabled ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+
+            {standingOrderEnabled && (
+              <div className="space-y-4">
+                {/* Frequency */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Frequency</label>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { value: "weekly", label: "Weekly" },
+                      { value: "fortnightly", label: "Fortnightly" },
+                      { value: "monthly", label: "Monthly" },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSoFrequency(opt.value)}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
+                          soFrequency === opt.value
+                            ? "bg-brand-50 border-brand-300 text-brand-700"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preferred delivery day */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Preferred Delivery Day</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: "none", label: "No preference" },
+                      { value: "monday", label: "Mon" },
+                      { value: "tuesday", label: "Tue" },
+                      { value: "wednesday", label: "Wed" },
+                      { value: "thursday", label: "Thu" },
+                      { value: "friday", label: "Fri" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setSoDeliveryDay(opt.value)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+                          soDeliveryDay === opt.value
+                            ? "bg-brand-50 border-brand-300 text-brand-700"
+                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Buyer managed toggle */}
+                <div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={soBuyerManaged}
+                      onClick={() => setSoBuyerManaged(!soBuyerManaged)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                        soBuyerManaged ? "bg-brand-600" : "bg-slate-200"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                          soBuyerManaged ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
+                    <div>
+                      <span className="text-sm font-medium text-slate-700">Buyer managed</span>
+                      <p className="text-xs text-slate-500">Allow the buyer to pause, adjust, or cancel this standing order</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Summary */}
+                <div className="bg-slate-50 rounded-lg px-4 py-3 text-sm text-slate-600">
+                  <p>
+                    {`A ${soFrequency} standing order will be created for ${items.length} product${items.length !== 1 ? "s" : ""}${soDeliveryDay !== "none" ? `, delivering on ${soDeliveryDay.charAt(0).toUpperCase() + soDeliveryDay.slice(1)}s` : ""}.`}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Required By ── */}
         <div className="bg-white rounded-xl border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-900 mb-1">Required By</h2>
@@ -1773,6 +1960,12 @@ export function CreateOrderPage({ roasterId }: CreateOrderPageProps) {
                 <span className="text-sm font-medium text-slate-900">
                   {customerName}
                 </span>
+              </div>
+            )}
+            {standingOrderEnabled && showStandingOrderSection && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">Standing Order</span>
+                <span className="text-sm font-medium text-indigo-600 capitalize">{soFrequency}</span>
               </div>
             )}
           </div>

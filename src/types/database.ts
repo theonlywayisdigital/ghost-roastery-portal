@@ -3541,6 +3541,7 @@ export type Database = {
           scheduled_dispatch_date: string | null
           shipping_cost: number | null
           shipping_method_id: string | null
+          standing_order_id: string | null
           status: string | null
           stripe_payment_id: string | null
           subtotal: number
@@ -3584,6 +3585,7 @@ export type Database = {
           scheduled_dispatch_date?: string | null
           shipping_cost?: number | null
           shipping_method_id?: string | null
+          standing_order_id?: string | null
           status?: string | null
           stripe_payment_id?: string | null
           subtotal: number
@@ -3627,6 +3629,7 @@ export type Database = {
           scheduled_dispatch_date?: string | null
           shipping_cost?: number | null
           shipping_method_id?: string | null
+          standing_order_id?: string | null
           status?: string | null
           stripe_payment_id?: string | null
           subtotal?: number
@@ -3655,6 +3658,13 @@ export type Database = {
             columns: ["shipping_method_id"]
             isOneToOne: false
             referencedRelation: "shipping_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_standing_order_id_fkey"
+            columns: ["standing_order_id"]
+            isOneToOne: false
+            referencedRelation: "standing_orders"
             referencedColumns: ["id"]
           },
           {
@@ -6933,8 +6943,10 @@ export type Database = {
       }
       standing_orders: {
         Row: {
+          buyer_managed: boolean
           buyer_user_id: string
           created_at: string
+          created_by: string
           delivery_address: Json | null
           frequency: string
           id: string
@@ -6942,14 +6954,17 @@ export type Database = {
           next_delivery_date: string
           notes: string | null
           payment_terms: string
+          preferred_delivery_day: string | null
           roaster_id: string
           status: string
           updated_at: string
           wholesale_access_id: string
         }
         Insert: {
+          buyer_managed?: boolean
           buyer_user_id: string
           created_at?: string
+          created_by?: string
           delivery_address?: Json | null
           frequency: string
           id?: string
@@ -6957,14 +6972,17 @@ export type Database = {
           next_delivery_date: string
           notes?: string | null
           payment_terms?: string
+          preferred_delivery_day?: string | null
           roaster_id: string
           status?: string
           updated_at?: string
           wholesale_access_id: string
         }
         Update: {
+          buyer_managed?: boolean
           buyer_user_id?: string
           created_at?: string
+          created_by?: string
           delivery_address?: Json | null
           frequency?: string
           id?: string
@@ -6972,6 +6990,7 @@ export type Database = {
           next_delivery_date?: string
           notes?: string | null
           payment_terms?: string
+          preferred_delivery_day?: string | null
           roaster_id?: string
           status?: string
           updated_at?: string

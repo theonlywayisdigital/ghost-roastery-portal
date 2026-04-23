@@ -148,7 +148,7 @@ export async function POST(request: Request) {
     // Verify roaster exists (does NOT require stripe_account_id since no Stripe payment)
     const { data: roaster } = await supabase
       .from("roasters")
-      .select("id, platform_fee_percent, business_name, user_id, sales_tier, auto_create_invoices, auto_send_invoices, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id")
+      .select("id, platform_fee_percent, business_name, user_id, sales_tier, auto_create_invoices, auto_send_invoices, email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, vat_number, bank_name, bank_account_number, bank_sort_code, payment_instructions, stripe_account_id, default_weight_loss_pct")
       .eq("id", roasterId)
       .eq("storefront_enabled", true)
       .single();
@@ -243,38 +243,85 @@ export async function POST(request: Request) {
         );
       }
 
-      // Stock pool check (roasted stock + green bean)
+      // Stock pool check — combine roasted + green bean stock (matching catalogue logic)
       const itemWeightGrams = (item.variantId && variantMap[item.variantId]?.weight_grams) || product.weight_grams;
       if (itemWeightGrams && itemWeightGrams > 0) {
         const requiredKg = (itemWeightGrams / 1000) * item.quantity;
         const variantUnit = item.variantId && variantMap[item.variantId]?.unit;
         const itemDesc = variantUnit ? `${product.name} ${variantUnit}` : product.name;
+        const defaultLossPct = (roaster.default_weight_loss_pct as number) ?? 14;
 
-        if (product.roasted_stock_id) {
-          const { data: roastedPool } = await supabase
-            .from("roasted_stock")
-            .select("current_stock_kg")
-            .eq("id", product.roasted_stock_id)
-            .single();
-          if (roastedPool && roastedPool.current_stock_kg < requiredKg) {
-            const availableUnits = Math.floor(roastedPool.current_stock_kg / (itemWeightGrams / 1000));
-            return NextResponse.json(
-              { error: availableUnits <= 0
-                  ? `"${itemDesc}" is currently out of stock.`
-                  : `Insufficient stock for ${itemDesc} — ${availableUnits} available, ${item.quantity} requested.` },
-              { status: 400 }
-            );
+        let availableKg = 0;
+        let hasStockPool = false;
+
+        if (product.is_blend && blendComponentMap[product.id]) {
+          // Blend: check each component has enough for its proportional share
+          for (const comp of blendComponentMap[product.id]) {
+            const compRequiredKg = requiredKg * (comp.percentage / 100);
+            const { data: roastedPool } = await supabase
+              .from("roasted_stock")
+              .select("current_stock_kg, weight_loss_percentage, green_bean_id")
+              .eq("id", comp.roasted_stock_id)
+              .single();
+            if (roastedPool) {
+              let compAvailable = Number(roastedPool.current_stock_kg);
+              if (roastedPool.green_bean_id) {
+                const { data: greenPool } = await supabase
+                  .from("green_beans")
+                  .select("current_stock_kg")
+                  .eq("id", roastedPool.green_bean_id)
+                  .single();
+                if (greenPool) {
+                  const lossPct = roastedPool.weight_loss_percentage ?? defaultLossPct;
+                  compAvailable += Number(greenPool.current_stock_kg) * (1 - Number(lossPct) / 100);
+                }
+              }
+              if (compAvailable < compRequiredKg) {
+                return NextResponse.json(
+                  { error: `Insufficient stock for "${itemDesc}" — a blend component has insufficient stock.` },
+                  { status: 400 }
+                );
+              }
+            }
           }
-        }
+        } else {
+          if (product.roasted_stock_id) {
+            hasStockPool = true;
+            const { data: roastedPool } = await supabase
+              .from("roasted_stock")
+              .select("current_stock_kg, weight_loss_percentage")
+              .eq("id", product.roasted_stock_id)
+              .single();
+            if (roastedPool) {
+              availableKg += Number(roastedPool.current_stock_kg);
+              // Also add green bean stock via roasted_stock's linked green bean
+              if (product.green_bean_id) {
+                const { data: greenPool } = await supabase
+                  .from("green_beans")
+                  .select("current_stock_kg")
+                  .eq("id", product.green_bean_id)
+                  .single();
+                if (greenPool) {
+                  const lossPct = roastedPool.weight_loss_percentage ?? defaultLossPct;
+                  availableKg += Number(greenPool.current_stock_kg) * (1 - Number(lossPct) / 100);
+                }
+              }
+            }
+          } else if (product.green_bean_id) {
+            // No roasted stock pool but has green beans
+            hasStockPool = true;
+            const { data: greenPool } = await supabase
+              .from("green_beans")
+              .select("current_stock_kg")
+              .eq("id", product.green_bean_id)
+              .single();
+            if (greenPool) {
+              availableKg += Number(greenPool.current_stock_kg) * (1 - defaultLossPct / 100);
+            }
+          }
 
-        if (product.green_bean_id) {
-          const { data: greenPool } = await supabase
-            .from("green_beans")
-            .select("current_stock_kg")
-            .eq("id", product.green_bean_id)
-            .single();
-          if (greenPool && greenPool.current_stock_kg < requiredKg) {
-            const availableUnits = Math.floor(greenPool.current_stock_kg / (itemWeightGrams / 1000));
+          if (hasStockPool && availableKg < requiredKg) {
+            const availableUnits = Math.floor(availableKg / (itemWeightGrams / 1000));
             return NextResponse.json(
               { error: availableUnits <= 0
                   ? `"${itemDesc}" is currently out of stock.`

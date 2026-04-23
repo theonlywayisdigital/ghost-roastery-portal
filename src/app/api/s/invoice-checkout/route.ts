@@ -244,8 +244,9 @@ export async function POST(request: Request) {
       }
 
       // Stock pool check — combine roasted + green bean stock (matching catalogue logic)
+      // Only enforce stock limits when the product has stock tracking enabled
       const itemWeightGrams = (item.variantId && variantMap[item.variantId]?.weight_grams) || product.weight_grams;
-      if (itemWeightGrams && itemWeightGrams > 0) {
+      if (product.track_stock && itemWeightGrams && itemWeightGrams > 0) {
         const requiredKg = (itemWeightGrams / 1000) * item.quantity;
         const variantUnit = item.variantId && variantMap[item.variantId]?.unit;
         const itemDesc = variantUnit ? `${product.name} ${variantUnit}` : product.name;

@@ -79,7 +79,11 @@ export async function POST(request: Request) {
       phone,
       businessName,
       businessType,
-      businessAddress,
+      addressLine1,
+      addressLine2,
+      city,
+      county,
+      postcode,
       businessWebsite,
       vatNumber,
       monthlyVolume,
@@ -92,13 +96,22 @@ export async function POST(request: Request) {
       phone?: string;
       businessName: string;
       businessType?: string;
-      businessAddress?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      city?: string;
+      county?: string;
+      postcode?: string;
       businessWebsite?: string;
       vatNumber?: string;
       monthlyVolume?: string;
       notes?: string;
       paymentTerms?: string;
     };
+
+    // Build legacy single-line address for business_address column
+    const businessAddress = [addressLine1, addressLine2, city, county, postcode]
+      .filter(Boolean)
+      .join(", ") || null;
 
     const fullName = [firstName, lastName].filter(Boolean).join(" ");
 
@@ -219,7 +232,7 @@ export async function POST(request: Request) {
           name: businessName,
           types: ["wholesale"],
           industry: businessType || null,
-          address_line_1: businessAddress || null,
+          address_line_1: addressLine1 || null,
           website: businessWebsite || null,
           source: "wholesale_application",
           roaster_id: roasterId,
@@ -301,7 +314,12 @@ export async function POST(request: Request) {
           status: "approved",
           business_name: businessName,
           business_type: businessType || null,
-          business_address: businessAddress || null,
+          business_address: businessAddress,
+          address_line_1: addressLine1 || null,
+          address_line_2: addressLine2 || null,
+          city: city || null,
+          county: county || null,
+          postcode: postcode || null,
           business_website: businessWebsite || null,
           vat_number: vatNumber || null,
           monthly_volume: monthlyVolume || null,
@@ -327,7 +345,7 @@ export async function POST(request: Request) {
     }
 
     // Seed a buyer_addresses record from the provided address
-    if (businessAddress && wholesaleAccess) {
+    if (addressLine1 && wholesaleAccess) {
       const { data: existingAddr } = await supabase
         .from("buyer_addresses")
         .select("id")
@@ -342,9 +360,11 @@ export async function POST(request: Request) {
           user_id: userId,
           wholesale_access_id: wholesaleAccess.id,
           label: "Business",
-          address_line_1: businessAddress,
-          city: "",
-          postcode: "",
+          address_line_1: addressLine1,
+          address_line_2: addressLine2 || null,
+          city: city || "",
+          county: county || null,
+          postcode: postcode || "",
           is_default: true,
         });
       }
@@ -426,7 +446,7 @@ export async function POST(request: Request) {
         email,
         business_name: businessName,
         business_type: businessType || null,
-        business_address: businessAddress || null,
+        business_address: businessAddress,
         business_website: businessWebsite || null,
         vat_number: vatNumber || null,
         payment_terms: terms,
@@ -467,7 +487,7 @@ export async function POST(request: Request) {
         {
           name: businessName,
           vat_number: vatNumber || null,
-          address_line_1: businessAddress || null,
+          address_line_1: addressLine1 || null,
         }
       );
     });
@@ -486,7 +506,7 @@ export async function POST(request: Request) {
         {
           name: businessName,
           vat_number: vatNumber || null,
-          address_line_1: businessAddress || null,
+          address_line_1: addressLine1 || null,
         }
       );
     });
@@ -504,7 +524,7 @@ export async function POST(request: Request) {
         {
           name: businessName,
           vat_number: vatNumber || null,
-          address_line_1: businessAddress || null,
+          address_line_1: addressLine1 || null,
         }
       );
     });

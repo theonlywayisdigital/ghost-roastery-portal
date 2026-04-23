@@ -197,7 +197,7 @@ export function StorefrontWholesaleCatalogue({
     product: Product,
     weightGrams: number
   ): { label: string; colour: "green" | "amber" | "red" } | null {
-    const totalKg = getAvailableKg(product);
+    const totalKg = getAvailableKg(product, roaster.defaultWeightLossPct);
     if (totalKg === null) return null;
     if (totalKg <= 0) return { label: "Out of stock", colour: "red" };
 

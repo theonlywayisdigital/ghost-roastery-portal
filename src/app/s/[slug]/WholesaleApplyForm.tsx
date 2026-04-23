@@ -8,10 +8,6 @@ const BUSINESS_TYPES = [
   { value: "hotel", label: "Hotel" },
   { value: "office", label: "Office" },
   { value: "retailer", label: "Retailer" },
-  { value: "gym", label: "Gym" },
-  { value: "coworking", label: "Coworking" },
-  { value: "events", label: "Events" },
-  { value: "retail", label: "Retail" },
   { value: "other", label: "Other" },
 ];
 

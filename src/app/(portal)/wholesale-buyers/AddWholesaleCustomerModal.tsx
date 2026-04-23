@@ -9,10 +9,6 @@ const BUSINESS_TYPE_OPTIONS = [
   { value: "hotel", label: "Hotel" },
   { value: "office", label: "Office" },
   { value: "retailer", label: "Retailer" },
-  { value: "gym", label: "Gym" },
-  { value: "coworking", label: "Coworking" },
-  { value: "events", label: "Events" },
-  { value: "retail", label: "Retail" },
   { value: "other", label: "Other" },
 ];
 
@@ -66,7 +62,11 @@ export function AddWholesaleCustomerModal({
     phone: "",
     businessName: "",
     businessType: "",
-    businessAddress: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    county: "",
+    postcode: "",
     businessWebsite: "",
     vatNumber: "",
     monthlyVolume: "",
@@ -160,7 +160,11 @@ export function AddWholesaleCustomerModal({
           phone: form.phone || undefined,
           businessName: form.businessName,
           businessType: form.businessType || undefined,
-          businessAddress: form.businessAddress || undefined,
+          addressLine1: form.addressLine1 || undefined,
+          addressLine2: form.addressLine2 || undefined,
+          city: form.city || undefined,
+          county: form.county || undefined,
+          postcode: form.postcode || undefined,
           businessWebsite: form.businessWebsite || undefined,
           vatNumber: form.vatNumber || undefined,
           monthlyVolume: form.monthlyVolume || undefined,
@@ -370,14 +374,62 @@ export function AddWholesaleCustomerModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Business Address
+                  Address Line 1
                 </label>
                 <input
                   type="text"
-                  value={form.businessAddress}
-                  onChange={(e) => updateField("businessAddress", e.target.value)}
+                  value={form.addressLine1}
+                  onChange={(e) => updateField("addressLine1", e.target.value)}
+                  placeholder="Street address"
                   className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Address Line 2
+                </label>
+                <input
+                  type="text"
+                  value={form.addressLine2}
+                  onChange={(e) => updateField("addressLine2", e.target.value)}
+                  placeholder="Apartment, suite, unit (optional)"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => updateField("city", e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    County
+                  </label>
+                  <input
+                    type="text"
+                    value={form.county}
+                    onChange={(e) => updateField("county", e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Postcode
+                  </label>
+                  <input
+                    type="text"
+                    value={form.postcode}
+                    onChange={(e) => updateField("postcode", e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

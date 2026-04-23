@@ -171,7 +171,7 @@ export function WholesaleProductDetail({
   function getStockBadge(
     weightGrams: number
   ): { label: string; colour: "green" | "amber" | "red" } | null {
-    const totalKg = getAvailableKg(product);
+    const totalKg = getAvailableKg(product, roaster.defaultWeightLossPct);
     if (totalKg === null) return null;
     if (totalKg <= 0) return { label: "Out of stock", colour: "red" };
     const units = kgToUnits(totalKg, weightGrams);

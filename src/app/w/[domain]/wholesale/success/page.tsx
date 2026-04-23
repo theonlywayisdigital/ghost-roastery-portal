@@ -17,7 +17,8 @@ function SuccessContent() {
   const invoiceNumber = searchParams.get("invoice_number");
   const accessToken = searchParams.get("access_token");
 
-  const isInvoiceOrder = !!invoiceId && !sessionId;
+  const orderId = searchParams.get("order_id");
+  const isInvoiceOrder = !sessionId && (!!invoiceId || !!orderId);
 
   const [status, setStatus] = useState<"loading" | "confirmed" | "error">(
     isInvoiceOrder ? "confirmed" : "loading"

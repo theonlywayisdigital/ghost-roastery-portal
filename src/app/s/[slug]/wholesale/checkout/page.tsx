@@ -300,12 +300,11 @@ export default function WholesaleCheckoutPage() {
           }
         }
 
-        const urlParams = new URLSearchParams({
-          invoice_id: data.invoiceId || "",
-          invoice_number: data.invoiceNumber || "",
-          order_id: data.orderId || "",
-          ...(data.accessToken ? { access_token: data.accessToken } : {}),
-        });
+        const urlParams = new URLSearchParams();
+        if (data.orderId) urlParams.set("order_id", data.orderId);
+        if (data.invoiceId) urlParams.set("invoice_id", data.invoiceId);
+        if (data.invoiceNumber) urlParams.set("invoice_number", data.invoiceNumber);
+        if (data.accessToken) urlParams.set("access_token", data.accessToken);
         window.location.href = `${checkout.successUrl}?${urlParams.toString()}`;
       }
     } catch {

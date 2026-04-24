@@ -1013,75 +1013,6 @@ export type Database = {
           },
         ]
       }
-      certifications: {
-        Row: {
-          cert_name: string
-          cert_type: string | null
-          certificate_number: string | null
-          created_at: string
-          document_name: string | null
-          document_url: string | null
-          expiry_date: string | null
-          id: string
-          issue_date: string | null
-          issuing_body: string | null
-          notes: string | null
-          reminder_days: number
-          roaster_id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          cert_name: string
-          cert_type?: string | null
-          certificate_number?: string | null
-          created_at?: string
-          document_name?: string | null
-          document_url?: string | null
-          expiry_date?: string | null
-          id?: string
-          issue_date?: string | null
-          issuing_body?: string | null
-          notes?: string | null
-          reminder_days?: number
-          roaster_id: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          cert_name?: string
-          cert_type?: string | null
-          certificate_number?: string | null
-          created_at?: string
-          document_name?: string | null
-          document_url?: string | null
-          expiry_date?: string | null
-          id?: string
-          issue_date?: string | null
-          issuing_body?: string | null
-          notes?: string | null
-          reminder_days?: number
-          roaster_id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "certifications_roaster_id_fkey"
-            columns: ["roaster_id"]
-            isOneToOne: false
-            referencedRelation: "partner_roasters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "certifications_roaster_id_fkey"
-            columns: ["roaster_id"]
-            isOneToOne: false
-            referencedRelation: "roasters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       chatbot_conversations: {
         Row: {
           created_at: string
@@ -5103,6 +5034,7 @@ export type Database = {
           is_purchasable: boolean | null
           is_retail: boolean
           is_wholesale: boolean
+          margin_multiplier_override: number | null
           meta_description: string | null
           minimum_wholesale_quantity: number | null
           name: string
@@ -5144,6 +5076,7 @@ export type Database = {
           is_purchasable?: boolean | null
           is_retail?: boolean
           is_wholesale?: boolean
+          margin_multiplier_override?: number | null
           meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name: string
@@ -5185,6 +5118,7 @@ export type Database = {
           is_purchasable?: boolean | null
           is_retail?: boolean
           is_wholesale?: boolean
+          margin_multiplier_override?: number | null
           meta_description?: string | null
           minimum_wholesale_quantity?: number | null
           name?: string
@@ -6248,6 +6182,10 @@ export type Database = {
           label_fulfilment: string
           last_login_at: string | null
           late_payment_terms: string | null
+          margin_markup_multiplier: number
+          margin_retail_rounding: number
+          margin_wholesale_discount_pct: number
+          margin_wholesale_rounding: number
           marketing_billing_cycle: string | null
           marketing_discount_percent: number
           marketing_tier: string
@@ -6377,6 +6315,10 @@ export type Database = {
           label_fulfilment?: string
           last_login_at?: string | null
           late_payment_terms?: string | null
+          margin_markup_multiplier?: number
+          margin_retail_rounding?: number
+          margin_wholesale_discount_pct?: number
+          margin_wholesale_rounding?: number
           marketing_billing_cycle?: string | null
           marketing_discount_percent?: number
           marketing_tier?: string
@@ -6506,6 +6448,10 @@ export type Database = {
           label_fulfilment?: string
           last_login_at?: string | null
           late_payment_terms?: string | null
+          margin_markup_multiplier?: number
+          margin_retail_rounding?: number
+          margin_wholesale_discount_pct?: number
+          margin_wholesale_rounding?: number
           marketing_billing_cycle?: string | null
           marketing_discount_percent?: number
           marketing_tier?: string

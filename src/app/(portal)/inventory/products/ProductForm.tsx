@@ -20,6 +20,15 @@ import {
 import Link from "next/link";
 import { RETAIL_ENABLED } from "@/lib/feature-flags";
 import { AiGenerateButton } from "@/components/AiGenerateButton";
+import {
+  computeRoastedCostPerKg,
+  computeBlendedCostPerKg,
+  computeVariantCost,
+  computeMarginSuggestion,
+  formatCurrency,
+  type MarginSettings,
+  type BlendComponentInput,
+} from "@/lib/margin-calculator";
 import { compressImage } from "@/lib/compress-image";
 import {
   DndContext,
@@ -83,6 +92,7 @@ interface Product {
   roasted_stock_id: string | null;
   green_bean_id: string | null;
   is_blend?: boolean;
+  margin_multiplier_override?: number | null;
 }
 
 interface RoastedStockOption {
@@ -92,6 +102,8 @@ interface RoastedStockOption {
   current_stock_kg: number;
   low_stock_threshold_kg: number | null;
   is_active: boolean;
+  weight_loss_percentage?: number | null;
+  green_beans?: { cost_per_kg: number | null } | null;
 }
 
 interface GreenBeanOption {
@@ -318,6 +330,13 @@ export function ProductForm({ product }: { product?: Product }) {
   // Legacy price (kept in state but hidden from form)
   const [price] = useState(product?.price?.toString() || "");
 
+  // Margin calculator
+  const [marginSettings, setMarginSettings] = useState<MarginSettings | null>(null);
+  const [marginCurrency, setMarginCurrency] = useState("GBP");
+  const [multiplierOverride, setMultiplierOverride] = useState(
+    product?.margin_multiplier_override?.toString() || ""
+  );
+
   // Per-channel option types & variant cells
   const [retailOptionTypes, setRetailOptionTypes] = useState<OptionType[]>([]);
   const [retailVariantCells, setRetailVariantCells] = useState<OtherVariantCell[]>([]);
@@ -387,6 +406,25 @@ export function ProductForm({ product }: { product?: Product }) {
         .then((data) => {
           const beans = (data.greenBeans || []).filter((b: GreenBeanOption) => b.is_active);
           setGreenBeans(beans);
+        })
+        .catch(() => {});
+    }
+  }, [category]);
+
+  // Fetch margin settings for suggested prices
+  useEffect(() => {
+    if (category === "coffee") {
+      fetch("/api/settings/margin")
+        .then((res) => res.json())
+        .then((data) => {
+          setMarginSettings({
+            markup_multiplier: data.margin_markup_multiplier ?? 3.5,
+            wholesale_discount_pct: data.margin_wholesale_discount_pct ?? 35,
+            retail_rounding: data.margin_retail_rounding ?? 0.05,
+            wholesale_rounding: data.margin_wholesale_rounding ?? 0.05,
+            default_weight_loss_pct: data.default_weight_loss_pct ?? 14,
+          });
+          setMarginCurrency(data.invoice_currency || "GBP");
         })
         .catch(() => {});
     }
@@ -789,6 +827,60 @@ export function ProductForm({ product }: { product?: Product }) {
     setter((prev) => prev.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
   }
 
+  // ─── Margin Suggestion Helpers ───
+
+  // Compute roasted cost per kg for current product (single origin or blend)
+  const roastedCostPerKg = useMemo(() => {
+    if (!marginSettings || category !== "coffee") return null;
+
+    if (isBlend) {
+      const components: BlendComponentInput[] = blendComponents
+        .filter((c) => c.roasted_stock_id)
+        .map((c) => {
+          const stock = roastedStocks.find((s) => s.id === c.roasted_stock_id);
+          return {
+            green_cost_per_kg: stock?.green_beans?.cost_per_kg ?? null,
+            weight_loss_pct: stock?.weight_loss_percentage ?? null,
+            percentage: parseFloat(c.percentage) || 0,
+          };
+        });
+      return computeBlendedCostPerKg(components, marginSettings.default_weight_loss_pct);
+    }
+
+    if (!roastedStockId) return null;
+    const stock = roastedStocks.find((s) => s.id === roastedStockId);
+    if (!stock?.green_beans?.cost_per_kg) return null;
+    const loss = stock.weight_loss_percentage ?? marginSettings.default_weight_loss_pct;
+    return computeRoastedCostPerKg(stock.green_beans.cost_per_kg, loss);
+  }, [marginSettings, category, isBlend, blendComponents, roastedStockId, roastedStocks]);
+
+  // Get weight in grams for a variant cell by parsing the label or finding the weight option value
+  function getVariantWeightGrams(cell: OtherVariantCell, channel: "retail" | "wholesale"): number | null {
+    const types = channel === "retail" ? retailOptionTypes : wholesaleOptionTypes;
+    const weightType = types.find((ot) => ot.isWeight);
+    if (!weightType) return null;
+
+    // Find which weight value this cell uses by checking optionValueIds
+    for (const val of weightType.values) {
+      const valId = val.id || val.value;
+      if (cell.optionValueIds.includes(valId)) {
+        return val.weightGrams ?? null;
+      }
+    }
+    return null;
+  }
+
+  // Compute suggestion for a specific variant cell
+  function getVariantSuggestion(cell: OtherVariantCell, channel: "retail" | "wholesale") {
+    if (!marginSettings || !roastedCostPerKg) return null;
+    const weightGrams = getVariantWeightGrams(cell, channel);
+    if (!weightGrams) return null;
+
+    const variantCost = computeVariantCost({ weight_grams: weightGrams, roasted_cost_per_kg: roastedCostPerKg });
+    const override = multiplierOverride ? parseFloat(multiplierOverride) : null;
+    return computeMarginSuggestion(variantCost, marginSettings, override);
+  }
+
   // ─── Option Builder Renderer (per-channel) ───
   function renderOptionBuilder(channel: "retail" | "wholesale") {
     const { optionTypes } = getOptionState(channel);
@@ -939,6 +1031,24 @@ export function ProductForm({ product }: { product?: Product }) {
                       placeholder="0.00"
                       className="w-20 px-2 py-1 border border-slate-300 rounded text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     />
+                    {(() => {
+                      const suggestion = getVariantSuggestion(cell, channel);
+                      if (!suggestion) return null;
+                      const suggestedPrice = channel === "retail" ? suggestion.suggested_retail : suggestion.suggested_wholesale;
+                      const currentPrice = parseFloat(cell[priceField as keyof OtherVariantCell] as string);
+                      const isMatch = !isNaN(currentPrice) && Math.abs(currentPrice - suggestedPrice) < 0.01;
+                      if (isMatch) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => updateVariantCell(channel, idx, { [priceField]: suggestedPrice.toFixed(2) })}
+                          className="block text-xs text-brand-600 hover:text-brand-700 mt-0.5 whitespace-nowrap"
+                          title={`Cost: ${formatCurrency(suggestion.variant_cost, marginCurrency)}`}
+                        >
+                          {formatCurrency(suggestedPrice, marginCurrency)} <span className="underline">use</span>
+                        </button>
+                      );
+                    })()}
                   </td>
                   {showRrp && (
                     <td className="py-2.5 px-3">
@@ -1132,6 +1242,7 @@ export function ProductForm({ product }: { product?: Product }) {
       rrp: isWholesale && rrp ? parseFloat(rrp) : null,
       order_multiples: isWholesale && orderMultiples ? parseInt(orderMultiples) : null,
       subscription_frequency: isRetail && subscriptionFrequency !== "none" ? subscriptionFrequency : null,
+      margin_multiplier_override: multiplierOverride ? parseFloat(multiplierOverride) : null,
     };
 
     // Build variants from both channels
@@ -1682,6 +1793,33 @@ export function ProductForm({ product }: { product?: Product }) {
                           </div>
                         );
                       })()}
+                    </div>
+                  )}
+
+                  {/* Per-Product Multiplier Override — coffee only */}
+                  {category === "coffee" && marginSettings && (
+                    <div>
+                      <label className={labelClassName}>
+                        Markup Multiplier Override{" "}
+                        <span className="text-slate-400 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max="20"
+                        value={multiplierOverride}
+                        onChange={(e) => setMultiplierOverride(e.target.value)}
+                        placeholder={`Default: ${marginSettings.markup_multiplier}x`}
+                        className={inputClassName}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Leave blank to use the global default ({marginSettings.markup_multiplier}x).
+                        Set a custom multiplier for this product only.{" "}
+                        <Link href="/settings/margin" className="text-brand-600 hover:text-brand-700">
+                          Edit defaults
+                        </Link>
+                      </p>
                     </div>
                   )}
 

@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       variants, category, option_types,
       is_blend, blend_components,
       buyer_access, buyer_pricing,
+      margin_multiplier_override,
     } = body;
 
     if (!name) {
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
         roasted_stock_id: roasted_stock_id || null,
         green_bean_id: green_bean_id || null,
         is_blend: is_blend ?? false,
+        margin_multiplier_override: margin_multiplier_override != null ? parseFloat(margin_multiplier_override) : null,
       })
       .select()
       .single();

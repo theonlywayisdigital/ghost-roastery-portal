@@ -13,6 +13,7 @@ import {
   Globe,
   Link2,
   Mail,
+  Percent,
 } from "@/components/icons";
 import { ReopenSetupGuide } from "@/components/onboarding/ReopenSetupGuide";
 
@@ -49,6 +50,13 @@ const settingsItems = [
     label: "Shipping",
     description: "Shipping rates, zones, and dispatch times.",
     icon: Truck,
+    roasterOnly: true,
+  },
+  {
+    href: "/settings/margin",
+    label: "Margin Calculator",
+    description: "Default markup multiplier, wholesale discount, and rounding rules.",
+    icon: Percent,
     roasterOnly: true,
   },
   {

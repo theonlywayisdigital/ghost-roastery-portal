@@ -8,6 +8,7 @@ const tabs = [
   { label: "Green Stock", href: "/inventory/green" },
   { label: "Roast Profiles", href: "/inventory/roasted" },
   { label: "Products", href: "/inventory/products" },
+  { label: "Margin Calc", href: "/inventory/margin" },
   { label: "Cupping", href: "/inventory/cupping" },
   { label: "Roast Log", href: "/inventory/roast-log" },
   { label: "Import", href: "/inventory/import" },

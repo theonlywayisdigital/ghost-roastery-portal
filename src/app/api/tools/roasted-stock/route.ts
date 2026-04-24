@@ -10,7 +10,7 @@ export async function GET() {
   const supabase = createServerClient();
   const { data, error } = await supabase
     .from("roasted_stock")
-    .select("*, green_beans(name)")
+    .select("*, green_beans(name, cost_per_kg)")
     .eq("roaster_id", roaster.id)
     .order("created_at", { ascending: false });
 

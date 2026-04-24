@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMarketingContext } from "@/lib/marketing-context";
 import {
   FileText,
@@ -402,7 +403,13 @@ export function FormsPage() {
                             <FileText className="w-4 h-4" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-900">{form.name}</p>
+                            <Link
+                              href={`${pageBase}/forms/${form.id}/edit`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm font-medium text-slate-900 hover:text-brand-600 hover:underline"
+                            >
+                              {form.name}
+                            </Link>
                             {form.description && (
                               <p className="text-xs text-slate-500 truncate max-w-[200px]">{form.description}</p>
                             )}
@@ -420,7 +427,13 @@ export function FormsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-sm text-slate-600">{form.submission_count}</span>
+                        <Link
+                          href={`${pageBase}/forms/${form.id}/submissions`}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`text-sm ${form.submission_count > 0 ? "text-brand-600 font-medium hover:underline" : "text-slate-400 hover:text-slate-600"}`}
+                        >
+                          {form.submission_count}
+                        </Link>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <span className="text-xs text-slate-500">{formatDate(form.created_at)}</span>
@@ -459,7 +472,7 @@ export function FormsPage() {
                             className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            Submissions
+                            View submissions
                           </button>
                           <button
                             onClick={(e) => {

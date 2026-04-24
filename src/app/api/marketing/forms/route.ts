@@ -50,12 +50,12 @@ export async function POST(request: NextRequest) {
     if (owner.owner_type === "roaster" && owner.owner_id) {
       const { data: roasterData } = await supabase
         .from("roasters")
-        .select("storefront_accent_colour, storefront_logo_url")
+        .select("brand_accent_colour, brand_logo_url")
         .eq("id", owner.owner_id)
         .single();
       if (roasterData) {
-        accentColour = roasterData.storefront_accent_colour || "#2563eb";
-        logoUrl = roasterData.storefront_logo_url || null;
+        accentColour = roasterData.brand_accent_colour || "#2563eb";
+        logoUrl = roasterData.brand_logo_url || null;
       }
     }
 

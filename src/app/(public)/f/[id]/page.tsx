@@ -39,6 +39,20 @@ interface FormBranding {
   show_powered_by?: boolean;
 }
 
+interface RoasterBranding {
+  business_name: string;
+  brand_logo_url?: string | null;
+  brand_accent_colour?: string | null;
+  brand_primary_colour?: string | null;
+  brand_heading_font?: string | null;
+  brand_body_font?: string | null;
+  storefront_button_colour?: string | null;
+  storefront_button_text_colour?: string | null;
+  storefront_bg_colour?: string | null;
+  storefront_text_colour?: string | null;
+  storefront_button_style?: string | null;
+}
+
 interface FormData {
   id: string;
   name: string;
@@ -48,7 +62,7 @@ interface FormData {
   settings: FormSettings;
   branding: FormBranding;
   roaster_id: string;
-  roasters: { business_name: string } | null;
+  roasters: RoasterBranding | null;
 }
 
 interface SubmitResponse {
@@ -63,7 +77,7 @@ interface SubmitResponse {
 /*  Branding defaults                                                  */
 /* ------------------------------------------------------------------ */
 
-const DEFAULT_BRANDING: Required<FormBranding> = {
+const PLATFORM_DEFAULTS: Required<FormBranding> = {
   background_colour: "#ffffff",
   text_colour: "#1e293b",
   accent_colour: "#2563eb",
@@ -75,16 +89,25 @@ const DEFAULT_BRANDING: Required<FormBranding> = {
   show_powered_by: true,
 };
 
-function resolveBranding(b?: FormBranding): Required<FormBranding> {
+/**
+ * Resolve form branding with fallback chain:
+ * per-form override → roaster brand settings → platform defaults
+ */
+function resolveBranding(b?: FormBranding, roaster?: RoasterBranding | null): Required<FormBranding> {
+  const roasterAccent = roaster?.storefront_button_colour || roaster?.brand_accent_colour || null;
+  const roasterFont = roaster?.brand_heading_font
+    ? `${roaster.brand_heading_font}, system-ui, sans-serif`
+    : null;
+
   return {
-    background_colour: b?.background_colour || DEFAULT_BRANDING.background_colour,
-    text_colour: b?.text_colour || DEFAULT_BRANDING.text_colour,
-    accent_colour: b?.accent_colour || DEFAULT_BRANDING.accent_colour,
-    button_colour: b?.button_colour || DEFAULT_BRANDING.button_colour,
-    button_text_colour: b?.button_text_colour || DEFAULT_BRANDING.button_text_colour,
-    font_family: b?.font_family || DEFAULT_BRANDING.font_family,
-    border_radius: b?.border_radius ?? DEFAULT_BRANDING.border_radius,
-    logo_url: b?.logo_url || DEFAULT_BRANDING.logo_url,
+    background_colour: b?.background_colour || roaster?.storefront_bg_colour || PLATFORM_DEFAULTS.background_colour,
+    text_colour: b?.text_colour || roaster?.storefront_text_colour || PLATFORM_DEFAULTS.text_colour,
+    accent_colour: b?.accent_colour || roasterAccent || PLATFORM_DEFAULTS.accent_colour,
+    button_colour: b?.button_colour || roaster?.storefront_button_colour || roasterAccent || PLATFORM_DEFAULTS.button_colour,
+    button_text_colour: b?.button_text_colour || roaster?.storefront_button_text_colour || PLATFORM_DEFAULTS.button_text_colour,
+    font_family: b?.font_family || roasterFont || PLATFORM_DEFAULTS.font_family,
+    border_radius: b?.border_radius ?? PLATFORM_DEFAULTS.border_radius,
+    logo_url: b?.logo_url || roaster?.brand_logo_url || PLATFORM_DEFAULTS.logo_url,
     show_powered_by: b?.show_powered_by !== false,
   };
 }
@@ -168,7 +191,7 @@ function FormPageInner() {
   }, [isEmbed, sendResizeMessage]);
 
   /* ---- Helpers ---- */
-  const branding = resolveBranding(form?.branding);
+  const branding = resolveBranding(form?.branding, form?.roasters);
   const settings = form?.settings || {};
   const fields = (form?.fields || []).slice().sort((a, b) => a.order - b.order);
 

@@ -107,7 +107,7 @@ function resolveBranding(b?: FormBranding, roaster?: RoasterBranding | null): Re
     button_text_colour: b?.button_text_colour || roaster?.storefront_button_text_colour || PLATFORM_DEFAULTS.button_text_colour,
     font_family: b?.font_family || roasterFont || PLATFORM_DEFAULTS.font_family,
     border_radius: b?.border_radius ?? PLATFORM_DEFAULTS.border_radius,
-    logo_url: b?.logo_url || roaster?.brand_logo_url || PLATFORM_DEFAULTS.logo_url,
+    logo_url: b?.logo_url || PLATFORM_DEFAULTS.logo_url,
     show_powered_by: b?.show_powered_by !== false,
   };
 }
@@ -544,11 +544,9 @@ function FormPageInner() {
   /*  Render states                                                    */
   /* ================================================================ */
 
-  const pageBackground = isEmbed ? "transparent" : branding.background_colour;
-
   const wrapperStyle: React.CSSProperties = {
     minHeight: isEmbed ? undefined : "100vh",
-    backgroundColor: pageBackground,
+    backgroundColor: branding.background_colour,
     display: "flex",
     justifyContent: "center",
     alignItems: isEmbed ? "flex-start" : "center",
@@ -581,6 +579,9 @@ function FormPageInner() {
             animation: "gr-spin 0.7s linear infinite",
           }}
         />
+        {isEmbed && (
+          <style>{`html, body { background: ${branding.background_colour} !important; margin: 0; }`}</style>
+        )}
         <style>{`@keyframes gr-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -723,6 +724,9 @@ function FormPageInner() {
             </p>
           )}
         </div>
+        {isEmbed && (
+          <style>{`html, body { background: ${branding.background_colour} !important; margin: 0; }`}</style>
+        )}
       </div>
     );
   }
@@ -927,6 +931,11 @@ function FormPageInner() {
           </p>
         )}
       </div>
+
+      {/* Override root layout body background so branding colour shows through */}
+      {isEmbed && (
+        <style>{`html, body { background: ${branding.background_colour} !important; margin: 0; }`}</style>
+      )}
 
       {/* Responsive: collapse half-width fields on small screens */}
       <style>{`

@@ -2,7 +2,7 @@
 
 import { STAGE_COLOURS } from "@/lib/pipeline";
 
-type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "certificationStatus" | "roastLogStatus" | "stockAlert" | "leadStatus" | "standingOrder";
+type BadgeType = "order" | "payment" | "artwork" | "orderType" | "ticketStatus" | "ticketType" | "ticketPriority" | "payoutBatch" | "payoutItem" | "invoiceStatus" | "payoutStatus" | "labelPrint" | "roasterOrder" | "refundStatus" | "refundType" | "subscriptionTier" | "roastLogStatus" | "stockAlert" | "leadStatus" | "standingOrder";
 
 const colorMap: Record<string, Record<string, string>> = {
   order: {
@@ -135,13 +135,6 @@ const colorMap: Record<string, Record<string, string>> = {
     growth: "bg-purple-50 text-purple-700",
     pro: "bg-amber-50 text-amber-700",
     scale: "bg-green-50 text-green-700",
-  },
-  certificationStatus: {
-    active: "bg-green-50 text-green-700",
-    expiring_soon: "bg-orange-50 text-orange-700",
-    expired: "bg-red-50 text-red-700",
-    pending: "bg-yellow-50 text-yellow-700",
-    revoked: "bg-slate-100 text-slate-500",
   },
   roastLogStatus: {
     draft: "bg-slate-100 text-slate-600",
@@ -278,13 +271,6 @@ const labelMap: Record<string, Record<string, string>> = {
     growth: "Growth",
     pro: "Pro",
     scale: "Scale",
-  },
-  certificationStatus: {
-    active: "Active",
-    expiring_soon: "Expiring Soon",
-    expired: "Expired",
-    pending: "Pending",
-    revoked: "Revoked",
   },
   roastLogStatus: {
     draft: "Draft",

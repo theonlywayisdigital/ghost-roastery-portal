@@ -26,7 +26,7 @@ export function DashboardBatchesNeededWidget() {
 
   return (
     <Link
-      href="/tools/production"
+      href="/production"
       className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block h-full"
     >
       <div className="flex items-center gap-3 mb-4">

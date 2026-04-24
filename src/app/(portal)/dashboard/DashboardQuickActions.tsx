@@ -25,7 +25,7 @@ export function DashboardQuickActions() {
           <Plus className="w-4 h-4" />
           Create Order
         </Link>
-        <Link href="/products/new" className={btnClass}>
+        <Link href="/inventory/products/new" className={btnClass}>
           <Tag className="w-4 h-4" />
           Add Product
         </Link>

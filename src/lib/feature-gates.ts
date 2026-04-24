@@ -195,8 +195,6 @@ async function getCurrentCount(roasterId: string, limitKey: LimitKey, roasterDat
       return count || 0;
     }
 
-    case "certifications":
-      return getCount("certifications", "roaster_id", roasterId);
   }
 }
 
@@ -316,7 +314,7 @@ export async function getRoasterUsageSummary(roasterId: string): Promise<UsageSu
     "crmContacts", "teamMembers", "emailSendsPerMonth",
     "embeddedForms", "aiCreditsPerMonth",
     "greenBeans", "roastedStock", "roastLogsPerMonth",
-    "cuppingSessionsPerMonth", "certifications",
+    "cuppingSessionsPerMonth",
   ];
 
   const counts = await Promise.all(

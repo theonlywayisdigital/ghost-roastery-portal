@@ -1,0 +1,232 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Pencil, Plus, Minus, Package, Flame, Scale } from "@/components/icons";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { QuickReceiveModal } from "@/components/inventory/QuickReceiveModal";
+import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
+import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
+
+interface Movement {
+  id: string;
+  movement_type: string;
+  quantity_kg: number;
+  balance_after_kg: number;
+  unit_cost: number | null;
+  notes: string | null;
+  reference_type: string | null;
+  created_at: string;
+}
+
+interface GreenBean {
+  id: string;
+  name: string;
+  origin_country: string | null;
+  origin_region: string | null;
+  variety: string | null;
+  process: string | null;
+  lot_number: string | null;
+  supplier_id: string | null;
+  arrival_date: string | null;
+  cost_per_kg: number | null;
+  cupping_score: number | null;
+  tasting_notes: string | null;
+  altitude_masl: number | null;
+  harvest_year: string | null;
+  current_stock_kg: number;
+  low_stock_threshold_kg: number | null;
+  is_active: boolean;
+  notes: string | null;
+  suppliers: { id: string; name: string } | null;
+}
+
+const MOVEMENT_LABELS: Record<string, string> = {
+  purchase: "Purchase",
+  roast_deduction: "Roast Deduction",
+  adjustment: "Adjustment",
+  waste: "Waste",
+  return: "Return",
+};
+
+function getStockStatus(bean: GreenBean): "ok" | "low" | "out" {
+  if (Number(bean.current_stock_kg) <= 0) return "out";
+  if (bean.low_stock_threshold_kg && Number(bean.current_stock_kg) <= Number(bean.low_stock_threshold_kg)) return "low";
+  return "ok";
+}
+
+export function GreenBeanDetail({
+  bean,
+  movements: initialMovements,
+}: {
+  bean: GreenBean;
+  movements: Movement[];
+  suppliers: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [movements, setMovements] = useState(initialMovements);
+  const [currentStock, setCurrentStock] = useState(Number(bean.current_stock_kg));
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showRoastModal, setShowRoastModal] = useState(false);
+  const [showRebalanceModal, setShowRebalanceModal] = useState(false);
+
+  const stockStatus = getStockStatus({ ...bean, current_stock_kg: currentStock });
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/inventory/green" className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-900">{bean.name}</h1>
+          <p className="text-sm text-slate-500">
+            {[bean.origin_country, bean.origin_region].filter(Boolean).join(", ") || "No origin specified"}
+          </p>
+        </div>
+        <StatusBadge status={stockStatus} type="stockAlert" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left — Details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Bean Details Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Details</h2>
+              <Link href={`/inventory/green/${bean.id}/edit`} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                <Pencil className="w-4 h-4" />
+              </Link>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div><dt className="text-slate-500">Variety</dt><dd className="font-medium text-slate-900">{bean.variety || "—"}</dd></div>
+              <div><dt className="text-slate-500">Process</dt><dd className="font-medium text-slate-900">{bean.process || "—"}</dd></div>
+              <div><dt className="text-slate-500">Lot Number</dt><dd className="font-medium text-slate-900">{bean.lot_number || "—"}</dd></div>
+              <div><dt className="text-slate-500">Harvest Year</dt><dd className="font-medium text-slate-900">{bean.harvest_year || "—"}</dd></div>
+              <div><dt className="text-slate-500">Supplier</dt><dd className="font-medium text-slate-900">{bean.suppliers?.name || "—"}</dd></div>
+              <div><dt className="text-slate-500">Arrival Date</dt><dd className="font-medium text-slate-900">{bean.arrival_date || "—"}</dd></div>
+              <div><dt className="text-slate-500">Cost per kg</dt><dd className="font-medium text-slate-900">{bean.cost_per_kg ? `£${Number(bean.cost_per_kg).toFixed(2)}` : "—"}</dd></div>
+              <div><dt className="text-slate-500">Altitude</dt><dd className="font-medium text-slate-900">{bean.altitude_masl ? `${bean.altitude_masl} masl` : "—"}</dd></div>
+              <div><dt className="text-slate-500">Cupping Score</dt><dd className="font-medium text-slate-900">{bean.cupping_score ? `${Number(bean.cupping_score).toFixed(1)}` : "—"}</dd></div>
+              <div><dt className="text-slate-500">Tasting Notes</dt><dd className="font-medium text-slate-900">{bean.tasting_notes || "—"}</dd></div>
+            </dl>
+            {bean.notes && (
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <p className="text-sm text-slate-500">Notes</p>
+                <p className="text-sm text-slate-700 mt-1">{bean.notes}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Stock Movements */}
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-900">Stock Movements</h2>
+              <button onClick={() => setShowReceiveModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
+                <Package className="w-3.5 h-3.5" />
+                Receive Stock
+              </button>
+            </div>
+
+            {movements.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">No stock movements recorded yet.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {movements.map((m) => (
+                  <div key={m.id} className="flex items-center gap-4 py-3">
+                    <div className={`p-1.5 rounded-lg ${Number(m.quantity_kg) > 0 ? "bg-green-50" : "bg-red-50"}`}>
+                      {Number(m.quantity_kg) > 0 ? <Plus className="w-4 h-4 text-green-600" /> : <Minus className="w-4 h-4 text-red-600" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">{MOVEMENT_LABELS[m.movement_type] || m.movement_type}</p>
+                      {m.notes && <p className="text-xs text-slate-500 truncate">{m.notes}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-medium ${Number(m.quantity_kg) > 0 ? "text-green-700" : "text-red-700"}`}>
+                        {Number(m.quantity_kg) > 0 ? "+" : ""}{Number(m.quantity_kg).toFixed(3)} kg
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {new Date(m.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right — Stock Summary */}
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 className="text-sm font-medium text-slate-500 mb-2">Current Stock</h3>
+            <p className="text-3xl font-bold text-slate-900">{currentStock.toFixed(2)} <span className="text-lg font-normal text-slate-500">kg</span></p>
+            {bean.low_stock_threshold_kg && (
+              <p className="text-xs text-slate-500 mt-1">Low stock alert at {Number(bean.low_stock_threshold_kg).toFixed(2)} kg</p>
+            )}
+          </div>
+
+          {bean.cost_per_kg && (
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <h3 className="text-sm font-medium text-slate-500 mb-2">Stock Value</h3>
+              <p className="text-3xl font-bold text-slate-900">
+                £{(currentStock * Number(bean.cost_per_kg)).toFixed(2)}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">at £{Number(bean.cost_per_kg).toFixed(2)}/kg</p>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 className="text-sm font-medium text-slate-500 mb-3">Quick Actions</h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowReceiveModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+              >
+                <Package className="w-4 h-4" />
+                Receive Stock
+              </button>
+              <button
+                onClick={() => setShowRoastModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Flame className="w-4 h-4" />
+                Log a Roast
+              </button>
+              <button
+                onClick={() => setShowRebalanceModal(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <Scale className="w-4 h-4" />
+                Rebalance
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <QuickReceiveModal
+        open={showReceiveModal}
+        onClose={() => setShowReceiveModal(false)}
+        onSuccess={() => { router.refresh(); setShowReceiveModal(false); }}
+        preselectedBeanId={bean.id}
+      />
+      <QuickRoastModal
+        open={showRoastModal}
+        onClose={() => setShowRoastModal(false)}
+        onSuccess={() => { router.refresh(); setShowRoastModal(false); }}
+        preselectedBeanId={bean.id}
+      />
+      {showRebalanceModal && (
+        <QuickRebalanceModal
+          open={showRebalanceModal}
+          onClose={() => setShowRebalanceModal(false)}
+          onSuccess={() => { router.refresh(); setShowRebalanceModal(false); }}
+          item={{ type: "green", id: bean.id, name: bean.name, currentKg: currentStock }}
+        />
+      )}
+    </div>
+  );
+}

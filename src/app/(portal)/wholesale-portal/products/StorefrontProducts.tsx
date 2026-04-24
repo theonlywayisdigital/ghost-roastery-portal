@@ -211,7 +211,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
           {RETAIL_ENABLED ? "Add your first product to get your storefront live." : "Add your first product to get your wholesale portal live."}
         </p>
         <Link
-          href="/products/new"
+          href="/inventory/products/new"
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -228,7 +228,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
           {RETAIL_ENABLED ? "These products appear on your storefront." : "These products appear on your wholesale portal."}
         </p>
         <Link
-          href="/products/new"
+          href="/inventory/products/new"
           className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -250,7 +250,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                     className={`bg-white rounded-xl border border-slate-200 overflow-hidden ${isDraft ? "opacity-70" : ""}`}
                   >
                     {/* Product image + name — clickable link to edit */}
-                    <Link href={`/products/${product.id}`} className="block hover:opacity-90 transition-opacity">
+                    <Link href={`/inventory/products/${product.id}`} className="block hover:opacity-90 transition-opacity">
                       <div className="relative">
                         {getPrimaryImageUrl(product) ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -312,7 +312,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                               style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
                             >
                               {isDraft ? "Publish product first" : (
-                                <Link href={`/products/${product.id}`}>
+                                <Link href={`/inventory/products/${product.id}`}>
                                   No retail price — edit in Products
                                 </Link>
                               )}
@@ -347,7 +347,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                               style={{ color: "color-mix(in srgb, currentColor 55%, transparent)" }}
                             >
                               {isDraft ? "Publish product first" : (
-                                <Link href={`/products/${product.id}`}>
+                                <Link href={`/inventory/products/${product.id}`}>
                                   No wholesale price — edit in Products
                                 </Link>
                               )}
@@ -359,7 +359,7 @@ export function StorefrontProducts({ products: initialProducts }: { products: Pr
                       {/* Edit link */}
                       <div className="flex justify-end mt-2">
                         <Link
-                          href={`/products/${product.id}`}
+                          href={`/inventory/products/${product.id}`}
                           className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
                         >
                           <Pencil className="w-3 h-3" />

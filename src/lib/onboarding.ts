@@ -38,14 +38,14 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     key: "inventory",
     label: "Add Your Stock",
     description: "Add your roasted stock or green beans to track inventory.",
-    href: "/tools/inventory",
+    href: "/inventory",
     iconName: "Archive",
   },
   {
     key: "product",
     label: "Add Your First Product",
     description: "Create a product to start selling.",
-    href: "/products/new",
+    href: "/inventory/products/new",
     iconName: "Package",
   },
   {

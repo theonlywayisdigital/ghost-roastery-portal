@@ -306,7 +306,7 @@ export default async function DashboardPage() {
 
           {/* Row 2, Col 2 — Low Stock */}
           <Link
-            href="/products"
+            href="/inventory/products"
             className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors p-6 block"
           >
             <div className="flex items-center gap-3 mb-4">

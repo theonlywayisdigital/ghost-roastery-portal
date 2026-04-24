@@ -8,7 +8,6 @@ import {
   Package,
   ShoppingCart,
   Store,
-  Coffee,
   LogOut,
   Menu,
   X,
@@ -41,8 +40,7 @@ import {
   Link2,
   Eye,
   Flame,
-  TestTube,
-  ShieldCheck,
+  Truck,
   Handshake,
   Archive,
   Mail,
@@ -168,13 +166,15 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     label: "Sales Suite",
     icon: ShoppingCart,
     items: [
-      { label: "Products", href: "/products", icon: Package },
+      { label: "Inventory", href: "/inventory", icon: Package },
+      { label: "Production", href: "/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
+      { label: "Dispatch", href: "/dispatch", icon: Truck },
       { label: "Orders", href: "/orders", icon: ShoppingCart },
       { label: "Wholesale Portal", href: "/wholesale-portal", icon: Store },
       { label: "Contacts", href: "/contacts", icon: Contact },
       { label: "Invoices", href: "/invoices", icon: Receipt, requiredFeature: "invoices" },
     ],
-    activePrefixes: ["/products", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
+    activePrefixes: ["/inventory", "/production", "/dispatch", "/orders", "/wholesale-portal", "/contacts", "/businesses", "/invoices"],
   };
 
   const marketingSuiteConfig: SuiteConfig = {
@@ -206,21 +206,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
     activePrefixes: ["/website"],
   };
 
-  const roasterToolsSuiteConfig: SuiteConfig = {
-    key: "tools",
-    label: "Roaster Tools",
-    icon: Coffee,
-    items: [
-      { label: "Inventory", href: "/tools/inventory", icon: Package },
-      { label: "Production", href: "/tools/production", icon: CalendarDays, requiredFeature: "toolsProductionPlanner" },
-      { label: "Cupping", href: "/tools/cupping", icon: TestTube },
-      { label: "Calculators", href: "/tools/pricing", icon: PoundSterling },
-      { label: "Certifications", href: "/tools/certifications", icon: ShieldCheck },
-    ],
-    activePrefixes: ["/tools"],
-  };
-
-  const suiteConfigs = [roasterToolsSuiteConfig, salesSuiteConfig, marketingSuiteConfig, ...(RETAIL_ENABLED && user.websiteSubscriptionActive ? [websiteSuiteConfig] : [])];
+  const suiteConfigs = [salesSuiteConfig, marketingSuiteConfig, ...(RETAIL_ENABLED && user.websiteSubscriptionActive ? [websiteSuiteConfig] : [])];
 
   function isSuiteActive(suite: SuiteConfig): boolean {
     return suite.activePrefixes.some(

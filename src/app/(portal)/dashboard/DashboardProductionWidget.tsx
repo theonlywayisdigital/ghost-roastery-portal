@@ -106,7 +106,7 @@ export function DashboardProductionWidget() {
             <p className="text-2xl font-bold text-slate-900">{summary.totalBatchesNeeded}</p>
           </div>
         </div>
-        <Link href="/tools/production" className="text-sm text-brand-600 hover:underline">
+        <Link href="/production" className="text-sm text-brand-600 hover:underline">
           View all
         </Link>
       </div>
@@ -169,7 +169,7 @@ export function DashboardProductionWidget() {
 
       {/* Footer link */}
       <Link
-        href="/tools/production"
+        href="/production"
         className="text-sm text-brand-600 hover:underline flex items-center gap-1"
       >
         View Production Planner <ArrowRight className="w-3.5 h-3.5" />

@@ -474,7 +474,7 @@ export function StandingOrdersTab({ buyers }: StandingOrdersTabProps) {
             {committedStock.map((p) => (
               <a
                 key={p.id}
-                href="/tools/inventory"
+                href="/inventory"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-600 transition-colors"
               >
                 {p.name}

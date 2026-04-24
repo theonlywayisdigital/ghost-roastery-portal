@@ -24,8 +24,7 @@ export type ToolsLimitKey =
   | "greenBeans"
   | "roastedStock"
   | "roastLogsPerMonth"
-  | "cuppingSessionsPerMonth"
-  | "certifications";
+  | "cuppingSessionsPerMonth";
 
 export type LimitKey = SalesLimitKey | MarketingLimitKey | ToolsLimitKey;
 
@@ -100,7 +99,6 @@ const TOOLS_LIMITS: Record<ToolsLimitKey, Record<TierLevel, number>> = {
   roastedStock:            { growth: Infinity, pro: Infinity, scale: Infinity },
   roastLogsPerMonth:       { growth: Infinity, pro: Infinity, scale: Infinity },
   cuppingSessionsPerMonth: { growth: Infinity, pro: Infinity, scale: Infinity },
-  certifications:          { growth: Infinity, pro: Infinity, scale: Infinity },
 };
 
 // ─── Tools Suite Features (gated via Sales Suite tier) ───
@@ -180,7 +178,6 @@ export function getEffectiveLimits(salesTier: TierLevel, marketingTier: TierLeve
     roastedStock: TOOLS_LIMITS.roastedStock[salesTier],
     roastLogsPerMonth: TOOLS_LIMITS.roastLogsPerMonth[salesTier],
     cuppingSessionsPerMonth: TOOLS_LIMITS.cuppingSessionsPerMonth[salesTier],
-    certifications: TOOLS_LIMITS.certifications[salesTier],
   };
 }
 
@@ -325,7 +322,6 @@ export const LIMIT_LABELS: Record<LimitKey, string> = {
   roastedStock: "Roasted Stock",
   roastLogsPerMonth: "Roast Logs / Month",
   cuppingSessionsPerMonth: "Cupping Sessions / Month",
-  certifications: "Certifications",
 };
 
 // ─── Feature Labels (for UI display) ───
@@ -360,7 +356,6 @@ export const LIMIT_PRODUCT_MAP: Record<LimitKey, ProductType> = {
   roastedStock: "sales",
   roastLogsPerMonth: "sales",
   cuppingSessionsPerMonth: "sales",
-  certifications: "sales",
 };
 
 // ─── Get all limits for a specific product and tier ───

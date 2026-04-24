@@ -42,7 +42,8 @@ export type SalesFeatureKey =
 export type MarketingFeatureKey =
   | "contentCalendar"
   | "socialScheduling"
-  | "integrationsSocial";
+  | "integrationsSocial"
+  | "removeFormBranding";
 
 export type ToolsFeatureKey =
   | "toolsProductionPlanner"
@@ -114,6 +115,7 @@ const MARKETING_FEATURES: Record<MarketingFeatureKey, Record<TierLevel, boolean>
   contentCalendar:         { growth: true,  pro: true,  scale: true },
   socialScheduling:        { growth: true,  pro: true,  scale: true },
   integrationsSocial:      { growth: true,  pro: true,  scale: true },
+  removeFormBranding:      { growth: false, pro: true,  scale: true },
 };
 
 // ─── Platform Fee ───
@@ -199,6 +201,7 @@ export function getEffectiveFeatures(salesTier: TierLevel, marketingTier: TierLe
     contentCalendar: MARKETING_FEATURES.contentCalendar[marketingTier],
     socialScheduling: MARKETING_FEATURES.socialScheduling[marketingTier],
     integrationsSocial: MARKETING_FEATURES.integrationsSocial[marketingTier],
+    removeFormBranding: MARKETING_FEATURES.removeFormBranding[marketingTier],
     // Tools features (gated via sales tier)
     toolsProductionPlanner: TOOLS_FEATURES.toolsProductionPlanner[salesTier],
     toolsBreakeven: TOOLS_FEATURES.toolsBreakeven[salesTier],
@@ -339,6 +342,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   integrationsSocial: "Social Integrations",
   toolsProductionPlanner: "Production Planner",
   toolsBreakeven: "Break-even Calculator",
+  removeFormBranding: "Remove Form Branding",
 };
 
 // ─── Limit product mapping ───

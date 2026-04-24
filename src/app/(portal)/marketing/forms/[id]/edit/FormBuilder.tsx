@@ -68,7 +68,7 @@ const FIELD_TYPES = [
 
 type Tab = "fields" | "branding";
 
-export function FormBuilder({ formId }: { formId: string }) {
+export function FormBuilder({ formId, marketingTier = "growth" }: { formId: string; marketingTier?: string }) {
   const router = useRouter();
   const { apiBase, pageBase } = useMarketingContext();
   const [form, setForm] = useState<FormData | null>(null);
@@ -440,7 +440,7 @@ export function FormBuilder({ formId }: { formId: string }) {
                 <FormSettings settings={form.settings} onChange={updateSettings} />
               )
             ) : (
-              <BrandingPanel branding={form.branding} onChange={updateBranding} />
+              <BrandingPanel branding={form.branding} onChange={updateBranding} marketingTier={marketingTier} />
             )}
           </div>
         </div>
@@ -763,10 +763,13 @@ function FormSettings({
 function BrandingPanel({
   branding,
   onChange,
+  marketingTier = "growth",
 }: {
   branding: Record<string, unknown>;
   onChange: (changes: Record<string, unknown>) => void;
+  marketingTier?: string;
 }) {
+  const canRemoveBranding = marketingTier === "pro" || marketingTier === "scale";
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-slate-900">Branding</h3>
@@ -814,15 +817,23 @@ function BrandingPanel({
         />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-sm text-slate-700">Powered by badge</span>
-          <p className="text-xs text-slate-500">Cannot be removed on Growth tier</p>
+      {canRemoveBranding ? (
+        <Toggle
+          label="Powered by badge"
+          value={branding.show_powered_by !== false}
+          onChange={(v) => onChange({ show_powered_by: v })}
+        />
+      ) : (
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-sm text-slate-700">Powered by badge</span>
+            <p className="text-xs text-slate-500">Upgrade to Pro to remove</p>
+          </div>
+          <div className="w-10 h-6 rounded-full bg-brand-600 opacity-50 cursor-not-allowed">
+            <div className="w-5 h-5 bg-white rounded-full shadow-sm translate-x-[18px]" />
+          </div>
         </div>
-        <div className="w-10 h-6 rounded-full bg-brand-600 opacity-50 cursor-not-allowed">
-          <div className="w-5 h-5 bg-white rounded-full shadow-sm translate-x-[18px]" />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

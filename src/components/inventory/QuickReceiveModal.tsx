@@ -7,6 +7,7 @@ interface GreenBeanOption {
   id: string;
   name: string;
   current_stock_kg: number;
+  cost_per_kg: number | null;
 }
 
 interface QuickReceiveModalProps {
@@ -14,9 +15,11 @@ interface QuickReceiveModalProps {
   onClose: () => void;
   onSuccess: () => void;
   preselectedBeanId?: string;
+  /** Called when purchase unit_cost differs from bean's cost_per_kg */
+  onCostDifference?: (beanId: string, beanName: string, unitCost: number, currentCost: number | null) => void;
 }
 
-export function QuickReceiveModal({ open, onClose, onSuccess, preselectedBeanId }: QuickReceiveModalProps) {
+export function QuickReceiveModal({ open, onClose, onSuccess, preselectedBeanId, onCostDifference }: QuickReceiveModalProps) {
   const [beans, setBeans] = useState<GreenBeanOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"existing" | "new">("existing");
@@ -101,9 +104,23 @@ export function QuickReceiveModal({ open, onClose, onSuccess, preselectedBeanId 
 
     setSaving(false);
     setSuccess(true);
+
+    // Check if the purchase unit cost differs from the bean's stored cost
+    const unitCostNum = costPerKg ? parseFloat(costPerKg) : null;
+    const beanCost = selectedBean?.cost_per_kg ?? null;
+    const costsDiffer =
+      unitCostNum != null &&
+      unitCostNum > 0 &&
+      beanCost != null &&
+      beanCost > 0 &&
+      Math.abs(unitCostNum - beanCost) >= 0.01;
+
     setTimeout(() => {
       onSuccess();
       handleClose();
+      if (costsDiffer && onCostDifference && selectedBean) {
+        onCostDifference(selectedBean.id, selectedBean.name, unitCostNum!, beanCost);
+      }
     }, 800);
   }
 

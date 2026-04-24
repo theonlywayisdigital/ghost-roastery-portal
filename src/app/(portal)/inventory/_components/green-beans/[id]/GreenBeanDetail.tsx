@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { QuickReceiveModal } from "@/components/inventory/QuickReceiveModal";
 import { QuickRoastModal } from "@/components/inventory/QuickRoastModal";
 import { QuickRebalanceModal } from "@/components/inventory/QuickRebalanceModal";
+import { PriceReviewModal } from "@/components/inventory/PriceReviewModal";
 
 interface Movement {
   id: string;
@@ -70,6 +71,12 @@ export function GreenBeanDetail({
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showRoastModal, setShowRoastModal] = useState(false);
   const [showRebalanceModal, setShowRebalanceModal] = useState(false);
+  const [priceReview, setPriceReview] = useState<{
+    beanId: string;
+    beanName: string;
+    unitCost: number;
+    currentCost: number | null;
+  } | null>(null);
 
   const stockStatus = getStockStatus({ ...bean, current_stock_kg: currentStock });
 
@@ -212,6 +219,9 @@ export function GreenBeanDetail({
         onClose={() => setShowReceiveModal(false)}
         onSuccess={() => { router.refresh(); setShowReceiveModal(false); }}
         preselectedBeanId={bean.id}
+        onCostDifference={(beanId, beanName, unitCost, currentCost) => {
+          setPriceReview({ beanId, beanName, unitCost, currentCost });
+        }}
       />
       <QuickRoastModal
         open={showRoastModal}
@@ -225,6 +235,17 @@ export function GreenBeanDetail({
           onClose={() => setShowRebalanceModal(false)}
           onSuccess={() => { router.refresh(); setShowRebalanceModal(false); }}
           item={{ type: "green", id: bean.id, name: bean.name, currentKg: currentStock }}
+        />
+      )}
+
+      {priceReview && (
+        <PriceReviewModal
+          greenBeanId={priceReview.beanId}
+          greenBeanName={priceReview.beanName}
+          purchaseUnitCost={priceReview.unitCost}
+          previousCostPerKg={priceReview.currentCost}
+          onClose={() => setPriceReview(null)}
+          onApplied={() => router.refresh()}
         />
       )}
     </div>

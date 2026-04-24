@@ -44,6 +44,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
   const supabase = createServerClient();
+
+  // Fetch current cost_per_kg before update to detect changes
+  const { data: existing } = await supabase
+    .from("green_beans")
+    .select("cost_per_kg")
+    .eq("id", id)
+    .eq("roaster_id", roaster.id)
+    .single();
+
+  const previousCostPerKg = existing?.cost_per_kg ?? null;
+  const newCostPerKg = cost_per_kg ? parseFloat(cost_per_kg) : null;
+
   const { data, error } = await supabase
     .from("green_beans")
     .update({
@@ -70,7 +82,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .single();
 
   if (error) return NextResponse.json({ error: "Failed to update green bean" }, { status: 500 });
-  return NextResponse.json({ greenBean: data });
+
+  // Detect cost change
+  const costChanged =
+    previousCostPerKg !== null &&
+    newCostPerKg !== null &&
+    previousCostPerKg !== newCostPerKg;
+
+  return NextResponse.json({
+    greenBean: data,
+    costChanged,
+    previousCostPerKg: costChanged ? previousCostPerKg : undefined,
+  });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

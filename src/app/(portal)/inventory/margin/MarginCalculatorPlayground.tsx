@@ -9,6 +9,7 @@ import {
   formatCurrency,
   type MarginSettings,
 } from "@/lib/margin-calculator";
+import { PriceReviewModal } from "@/components/inventory/PriceReviewModal";
 
 interface GreenBeanRef {
   id: string;
@@ -24,21 +25,32 @@ interface RoastProfile {
   green_beans: GreenBeanRef | null;
 }
 
+interface GreenBeanOption {
+  id: string;
+  name: string;
+  cost_per_kg: number | null;
+}
+
 interface Props {
   profiles: RoastProfile[];
+  greenBeans: GreenBeanOption[];
   settings: MarginSettings;
   currency: string;
 }
 
 const COMMON_WEIGHTS = [250, 500, 1000];
 
-export function MarginCalculatorPlayground({ profiles, settings: initialSettings, currency }: Props) {
+export function MarginCalculatorPlayground({ profiles, greenBeans, settings: initialSettings, currency }: Props) {
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [weightGrams, setWeightGrams] = useState(250);
   const [customMultiplier, setCustomMultiplier] = useState("");
 
   // Allow live tuning of settings within the playground
   const [settings, setSettings] = useState(initialSettings);
+
+  // Bulk review
+  const [reviewBeanId, setReviewBeanId] = useState<string | null>(null);
+  const [selectedBulkBeanId, setSelectedBulkBeanId] = useState("");
 
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
 
@@ -255,6 +267,58 @@ export function MarginCalculatorPlayground({ profiles, settings: initialSettings
             </div>
           )}
         </>
+      )}
+
+      {/* ─── Bulk Price Review ─── */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-900">Bulk Price Review</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Review and update prices for all products linked to a green bean.
+          </p>
+        </div>
+        <div className="p-6">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Green Bean
+              </label>
+              <select
+                value={selectedBulkBeanId}
+                onChange={(e) => setSelectedBulkBeanId(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+              >
+                <option value="">Select a green bean...</option>
+                {greenBeans.map((b) => {
+                  const hasCost = b.cost_per_kg != null && b.cost_per_kg > 0;
+                  return (
+                    <option key={b.id} value={b.id} disabled={!hasCost}>
+                      {b.name}{hasCost ? ` (${fmt(b.cost_per_kg!)}/kg)` : " (no cost set)"}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                if (selectedBulkBeanId) setReviewBeanId(selectedBulkBeanId);
+              }}
+              disabled={!selectedBulkBeanId}
+              className="px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+            >
+              Review Prices
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {reviewBeanId && (
+        <PriceReviewModal
+          greenBeanId={reviewBeanId}
+          greenBeanName={greenBeans.find((b) => b.id === reviewBeanId)?.name}
+          currency={currency}
+          onClose={() => setReviewBeanId(null)}
+        />
       )}
     </div>
   );

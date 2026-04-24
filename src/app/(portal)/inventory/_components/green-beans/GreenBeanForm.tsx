@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, ChevronDown, ChevronUp } from "@/components/icons";
 import Link from "next/link";
+import { PriceReviewModal } from "@/components/inventory/PriceReviewModal";
 
 interface Supplier {
   id: string;
@@ -52,6 +53,9 @@ export function GreenBeanForm({
   const [form, setForm] = useState<GreenBeanData>(bean || EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewBeanId, setReviewBeanId] = useState<string | null>(null);
+  const [reviewPreviousCost, setReviewPreviousCost] = useState<number | null>(null);
+  const [reviewNewCost, setReviewNewCost] = useState<number | null>(null);
 
   // Auto-expand if editing and fields have data
   const hasDetailData = !!(bean?.origin_region || bean?.variety || bean?.process || bean?.lot_number ||
@@ -83,6 +87,17 @@ export function GreenBeanForm({
       const data = await res.json();
       setError(data.error || "Failed to save");
       setSaving(false);
+      return;
+    }
+
+    const data = await res.json();
+
+    // If cost changed, show price review modal instead of navigating
+    if (isEdit && data.costChanged && bean) {
+      setSaving(false);
+      setReviewBeanId(bean.id);
+      setReviewPreviousCost(data.previousCostPerKg ?? null);
+      setReviewNewCost(form.cost_per_kg ? parseFloat(form.cost_per_kg) : null);
       return;
     }
 
@@ -243,6 +258,23 @@ export function GreenBeanForm({
           <Link href="/inventory/green" className="px-4 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors">Cancel</Link>
         </div>
       </form>
+
+      {reviewBeanId && (
+        <PriceReviewModal
+          greenBeanId={reviewBeanId}
+          greenBeanName={form.name}
+          previousCostPerKg={reviewPreviousCost}
+          newCostPerKg={reviewNewCost}
+          onClose={() => {
+            setReviewBeanId(null);
+            router.push("/inventory/green");
+            router.refresh();
+          }}
+          onApplied={() => {
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -15,7 +15,6 @@ interface RoastedStockData {
   name: string;
   green_bean_id: string;
   current_stock_kg: string;
-  low_stock_threshold_kg: string;
   batch_size_kg: string;
   notes: string;
   is_active: boolean;
@@ -23,7 +22,7 @@ interface RoastedStockData {
 
 const EMPTY: RoastedStockData = {
   name: "", green_bean_id: "", current_stock_kg: "",
-  low_stock_threshold_kg: "", batch_size_kg: "", notes: "", is_active: true,
+  batch_size_kg: "", notes: "", is_active: true,
 };
 
 export function RoastedStockForm({
@@ -122,12 +121,6 @@ export function RoastedStockForm({
                 min="0" step="0.001" />
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Low Stock Alert (kg)</label>
-            <input type="number" value={form.low_stock_threshold_kg} onChange={(e) => update("low_stock_threshold_kg", e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-              min="0" step="0.001" placeholder="Leave blank to disable" />
-          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Batch Size (kg)</label>
             <input type="number" value={form.batch_size_kg} onChange={(e) => update("batch_size_kg", e.target.value)}

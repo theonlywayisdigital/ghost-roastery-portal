@@ -20,6 +20,8 @@ interface RoastedStock {
   low_stock_threshold_kg: number | null;
   is_active: boolean;
   green_beans: { name: string } | null;
+  products: { id: string; name: string }[] | null;
+  blend_components: { product_id: string; products: { id: string; name: string } | null }[] | null;
   updated_at: string;
   created_at: string;
 }
@@ -33,7 +35,6 @@ const filters: FilterConfig[] = [
     label: "Stock Level",
     type: "select",
     options: [
-      { value: "low", label: "Low Stock" },
       { value: "out", label: "Out of Stock" },
       { value: "ok", label: "In Stock" },
     ],
@@ -49,10 +50,22 @@ const filters: FilterConfig[] = [
   },
 ];
 
-function getStockStatus(item: RoastedStock): "ok" | "low" | "out" {
+function getStockStatus(item: RoastedStock): "ok" | "out" {
   if (item.current_stock_kg <= 0) return "out";
-  if (item.low_stock_threshold_kg && item.current_stock_kg <= item.low_stock_threshold_kg) return "low";
   return "ok";
+}
+
+function getLinkedProducts(item: RoastedStock): { id: string; name: string }[] {
+  const map = new Map<string, string>();
+  for (const p of item.products || []) {
+    map.set(p.id, p.name);
+  }
+  for (const bc of item.blend_components || []) {
+    if (bc.products) {
+      map.set(bc.products.id, bc.products.name);
+    }
+  }
+  return Array.from(map, ([id, name]) => ({ id, name }));
 }
 
 export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] }) {
@@ -146,12 +159,12 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
 
   function handleExportCsv() {
     const selectedStock = initial.filter((s) => selected.has(s.id));
-    const headers = ["Name", "Source Bean", "Stock (kg)", "Low Threshold (kg)", "Active"];
+    const headers = ["Name", "Source Bean", "Stock (kg)", "Linked Products", "Active"];
     const rows = selectedStock.map((s) => [
       s.name,
       s.green_beans?.name || "",
       Number(s.current_stock_kg).toFixed(2),
-      s.low_stock_threshold_kg ? Number(s.low_stock_threshold_kg).toFixed(2) : "",
+      getLinkedProducts(s).map((p) => p.name).join("; "),
       s.is_active ? "Yes" : "No",
     ]);
 
@@ -190,14 +203,35 @@ export function RoastedStockTable({ stock: initial }: { stock: RoastedStock[] })
       render: (row) => <span className="font-medium text-slate-900">{Number(row.current_stock_kg).toFixed(2)}</span>,
     },
     {
-      key: "low_stock_threshold_kg",
-      label: "Low Threshold",
+      key: "linked_products",
+      label: "Linked Products",
       hiddenOnMobile: true,
-      render: (row) => (
-        <span className="text-slate-600">
-          {row.low_stock_threshold_kg ? `${Number(row.low_stock_threshold_kg).toFixed(2)} kg` : "—"}
-        </span>
-      ),
+      render: (row) => {
+        const products = getLinkedProducts(row);
+        if (products.length === 0) return <span className="text-slate-400">—</span>;
+        const MAX = 2;
+        const visible = products.slice(0, MAX);
+        const remaining = products.length - MAX;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {visible.map((p) => (
+              <Link
+                key={p.id}
+                href={`/products/${p.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                {p.name}
+              </Link>
+            ))}
+            {remaining > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                +{remaining} more
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "stock_status",

@@ -11,7 +11,7 @@ export default async function InventoryGreenPage() {
   const supabase = createServerClient();
   const { data: beans } = await supabase
     .from("green_beans")
-    .select("*, suppliers(name)")
+    .select("*, suppliers(name), roasted_stock(id, name)")
     .eq("roaster_id", user.roaster.id)
     .order("created_at", { ascending: false });
 

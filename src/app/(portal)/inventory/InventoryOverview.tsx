@@ -320,21 +320,6 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
       lowStockItems.push({ type: "green", id: gb.id, name: gb.name, currentKg: kg, thresholdKg: null });
     }
   }
-  for (const rs of data.roastedStock) {
-    const kg = Number(rs.current_stock_kg);
-    const gb = rs.green_bean_id ? greenBeanMap[rs.green_bean_id] : null;
-    if (rs.low_stock_threshold_kg && kg <= Number(rs.low_stock_threshold_kg)) {
-      lowStockItems.push({
-        type: "roasted", id: rs.id, name: rs.name, currentKg: kg, thresholdKg: Number(rs.low_stock_threshold_kg),
-        greenBeanId: rs.green_bean_id || undefined, greenBeanName: gb?.name, greenBeanKg: gb ? Number(gb.current_stock_kg) : undefined,
-      });
-    } else if (kg <= 0) {
-      lowStockItems.push({
-        type: "roasted", id: rs.id, name: rs.name, currentKg: kg, thresholdKg: null,
-        greenBeanId: rs.green_bean_id || undefined, greenBeanName: gb?.name, greenBeanKg: gb ? Number(gb.current_stock_kg) : undefined,
-      });
-    }
-  }
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -545,14 +530,6 @@ export function InventoryOverview({ roasterId }: { roasterId: string }) {
                       className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-md hover:bg-green-200 transition-colors"
                     >
                       Receive
-                    </button>
-                  )}
-                  {item.type === "roasted" && (
-                    <button
-                      onClick={() => setRoastModal({ open: true, beanId: item.greenBeanId, stockId: item.id })}
-                      className="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-md hover:bg-amber-200 transition-colors"
-                    >
-                      Log Roast
                     </button>
                   )}
                   <button

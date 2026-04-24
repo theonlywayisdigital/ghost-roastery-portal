@@ -45,9 +45,8 @@ const MOVEMENT_LABELS: Record<string, string> = {
   waste: "Waste",
 };
 
-function getStockStatus(item: RoastedStock): "ok" | "low" | "out" {
+function getStockStatus(item: RoastedStock): "ok" | "out" {
   if (Number(item.current_stock_kg) <= 0) return "out";
-  if (item.low_stock_threshold_kg && Number(item.current_stock_kg) <= Number(item.low_stock_threshold_kg)) return "low";
   return "ok";
 }
 
@@ -116,7 +115,6 @@ export function RoastedStockDetail({
                 </dd>
               </div>
               <div><dt className="text-slate-500">Status</dt><dd className="font-medium text-slate-900">{stock.is_active ? "Active" : "Inactive"}</dd></div>
-              <div><dt className="text-slate-500">Low Stock Threshold</dt><dd className="font-medium text-slate-900">{stock.low_stock_threshold_kg ? `${Number(stock.low_stock_threshold_kg).toFixed(2)} kg` : "Not set"}</dd></div>
             </dl>
             {stock.notes && (
               <div className="mt-4 pt-4 border-t border-slate-100">
@@ -175,9 +173,6 @@ export function RoastedStockDetail({
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <h3 className="text-sm font-medium text-slate-500 mb-2">Current Stock</h3>
             <p className="text-3xl font-bold text-slate-900">{currentStock.toFixed(2)} <span className="text-lg font-normal text-slate-500">kg</span></p>
-            {stock.low_stock_threshold_kg && (
-              <p className="text-xs text-slate-500 mt-1">{`Low stock alert at ${Number(stock.low_stock_threshold_kg).toFixed(2)} kg`}</p>
-            )}
           </div>
 
           {hasLinkedGreenBean && stock.green_beans && (

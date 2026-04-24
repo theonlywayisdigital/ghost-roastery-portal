@@ -23,6 +23,7 @@ interface GreenBean {
   cost_per_kg: number | null;
   is_active: boolean;
   suppliers: { name: string } | null;
+  roasted_stock: { id: string; name: string }[] | null;
   created_at: string;
 }
 
@@ -78,9 +79,7 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
       result = result.filter(
         (b) =>
           b.name.toLowerCase().includes(q) ||
-          b.origin_country?.toLowerCase().includes(q) ||
-          b.variety?.toLowerCase().includes(q) ||
-          b.process?.toLowerCase().includes(q)
+          b.origin_country?.toLowerCase().includes(q)
       );
     }
 
@@ -150,15 +149,14 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
 
   function handleExportCsv() {
     const selectedBeans = initial.filter((b) => selected.has(b.id));
-    const headers = ["Name", "Origin", "Variety", "Process", "Supplier", "Stock (kg)", "Cost/kg", "Active"];
+    const headers = ["Name", "Origin", "Supplier", "Stock (kg)", "Cost/kg", "Linked Profiles", "Active"];
     const rows = selectedBeans.map((b) => [
       b.name,
       b.origin_country || "",
-      b.variety || "",
-      b.process || "",
       b.suppliers?.name || "",
       Number(b.current_stock_kg).toFixed(2),
       b.cost_per_kg ? Number(b.cost_per_kg).toFixed(2) : "",
+      (b.roasted_stock || []).map((rs) => rs.name).join("; "),
       b.is_active ? "Yes" : "No",
     ]);
 
@@ -185,16 +183,35 @@ export function GreenBeansTable({ beans: initial }: { beans: GreenBean[] }) {
       ),
     },
     {
-      key: "variety",
-      label: "Variety",
+      key: "roasted_stock",
+      label: "Linked Profiles",
       hiddenOnMobile: true,
-      render: (row) => <span className="text-slate-600">{row.variety || "—"}</span>,
-    },
-    {
-      key: "process",
-      label: "Process",
-      hiddenOnMobile: true,
-      render: (row) => <span className="text-slate-600">{row.process || "—"}</span>,
+      render: (row) => {
+        const profiles = row.roasted_stock || [];
+        if (profiles.length === 0) return <span className="text-slate-400">—</span>;
+        const MAX = 2;
+        const visible = profiles.slice(0, MAX);
+        const remaining = profiles.length - MAX;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {visible.map((rs) => (
+              <Link
+                key={rs.id}
+                href={`/inventory/roasted/${rs.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                {rs.name}
+              </Link>
+            ))}
+            {remaining > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                +{remaining} more
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "suppliers",

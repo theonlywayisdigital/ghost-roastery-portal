@@ -275,6 +275,9 @@ export function SubmissionsPage({ formId }: { formId: string }) {
   const embedCode = typeof window !== "undefined"
     ? `<div id="gr-form-${formId}"></div>\n<script src="${window.location.origin}/api/forms/embed?id=${formId}"></script>`
     : "";
+  const iframeCode = typeof window !== "undefined"
+    ? `<iframe\n  src="${window.location.origin}/f/${formId}?embed=1"\n  width="100%"\n  height="800"\n  frameborder="0"\n  style="border:none;overflow:hidden;background:transparent;">\n</iframe>`
+    : "";
 
   // ─── Loading state ──────────────────────────────────────────
 
@@ -737,13 +740,13 @@ export function SubmissionsPage({ formId }: { formId: string }) {
                 </div>
               </div>
 
-              {/* Embed code */}
+              {/* Script embed */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Embed Code
+                  Script Embed <span className="text-xs font-normal text-slate-400">(recommended)</span>
                 </label>
                 <p className="text-xs text-slate-500 mb-2">
-                  Paste this into your website to embed the form.
+                  Auto-resizing embed. Paste this into your website HTML.
                 </p>
                 <div className="relative">
                   <pre className="px-3.5 py-3 border border-slate-300 rounded-lg text-xs text-slate-600 bg-slate-50 overflow-x-auto whitespace-pre-wrap break-all font-mono">
@@ -754,6 +757,31 @@ export function SubmissionsPage({ formId }: { formId: string }) {
                     className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-600 hover:bg-slate-50 shadow-sm transition-colors"
                   >
                     {copiedField === "embed" ? (
+                      <><Check className="w-3 h-3 text-green-600" /> Copied</>
+                    ) : (
+                      <><Copy className="w-3 h-3" /> Copy</>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* iFrame fallback */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  iFrame Fallback
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Use this if your website blocks scripts (Squarespace, Wix, etc.).
+                </p>
+                <div className="relative">
+                  <pre className="px-3.5 py-3 border border-slate-300 rounded-lg text-xs text-slate-600 bg-slate-50 overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                    {iframeCode}
+                  </pre>
+                  <button
+                    onClick={() => handleCopy(iframeCode, "iframe")}
+                    className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-medium text-slate-600 hover:bg-slate-50 shadow-sm transition-colors"
+                  >
+                    {copiedField === "iframe" ? (
                       <><Check className="w-3 h-3 text-green-600" /> Copied</>
                     ) : (
                       <><Copy className="w-3 h-3" /> Copy</>

@@ -831,8 +831,9 @@ function BrandingPanel({
 function EmbedModal({ formId, portalUrl, onClose }: { formId: string; portalUrl: string; onClose: () => void }) {
   const [copied, setCopied] = useState<string | null>(null);
 
-  const embedCode = `<div id="gr-form-${formId}"></div>\n<script src="${portalUrl}/api/forms/embed?id=${formId}"></script>`;
   const hostedUrl = `${portalUrl}/f/${formId}`;
+  const embedCode = `<div id="gr-form-${formId}"></div>\n<script src="${portalUrl}/api/forms/embed?id=${formId}"></script>`;
+  const iframeCode = `<iframe\n  src="${portalUrl}/f/${formId}?embed=1"\n  width="100%"\n  height="800"\n  frameborder="0"\n  style="border:none;overflow:hidden;background:transparent;">\n</iframe>`;
 
   function copyToClipboard(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -870,10 +871,10 @@ function EmbedModal({ formId, portalUrl, onClose }: { formId: string; portalUrl:
             </div>
           </div>
 
-          {/* Embed code */}
+          {/* Script embed */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Embed Code</label>
-            <p className="text-xs text-slate-500 mb-2">Paste this into your website HTML to embed the form.</p>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Script Embed <span className="text-xs font-normal text-slate-400">(recommended)</span></label>
+            <p className="text-xs text-slate-500 mb-2">Auto-resizing embed. Paste this into your website HTML.</p>
             <div className="relative">
               <pre className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 overflow-x-auto whitespace-pre-wrap">
                 {embedCode}
@@ -883,6 +884,23 @@ function EmbedModal({ formId, portalUrl, onClose }: { formId: string; portalUrl:
                 className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50"
               >
                 {copied === "embed" ? "Copied!" : <><Copy className="w-3 h-3" />Copy</>}
+              </button>
+            </div>
+          </div>
+
+          {/* iFrame fallback */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">iFrame Fallback</label>
+            <p className="text-xs text-slate-500 mb-2">Use this if your website blocks scripts (Squarespace, Wix, etc.).</p>
+            <div className="relative">
+              <pre className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 overflow-x-auto whitespace-pre-wrap">
+                {iframeCode}
+              </pre>
+              <button
+                onClick={() => copyToClipboard(iframeCode, "iframe")}
+                className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 bg-white border border-slate-200 rounded text-xs hover:bg-slate-50"
+              >
+                {copied === "iframe" ? "Copied!" : <><Copy className="w-3 h-3" />Copy</>}
               </button>
             </div>
           </div>

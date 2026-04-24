@@ -3,6 +3,12 @@ import { createServerClient } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { findOrCreatePerson } from "@/lib/people";
 import { fireAutomationTrigger, updateContactActivity } from "@/lib/automation-triggers";
+import { Resend } from "resend";
+import { getVerifiedDomain } from "@/lib/email";
+import { wrapEmailWithBranding, EmailBranding } from "@/lib/email-template";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_DOMAIN = "roasteryplatform.com";
 
 export async function GET(request: NextRequest) {
   const token = new URL(request.url).searchParams.get("token");
@@ -16,7 +22,7 @@ export async function GET(request: NextRequest) {
   // Find submission by token
   const { data: submission } = await supabase
     .from("form_submissions")
-    .select("id, form_id, data, email_verified, forms(id, name, settings, roaster_id, roasters(id, user_id, business_name))")
+    .select("id, form_id, data, email_verified, consent_given, forms(id, name, form_type, settings, roaster_id, roasters(id, user_id, business_name))")
     .eq("verification_token", token)
     .single();
 
@@ -46,6 +52,11 @@ export async function GET(request: NextRequest) {
     const data = submission.data as Record<string, unknown>;
     const email = (data.email as string)?.toLowerCase();
 
+    // Verified double-opt-in: newsletter forms always get marketing_consent = true,
+    // other forms use the GDPR checkbox value from the original submission
+    const isNewsletter = (form.form_type as string) === "newsletter";
+    const marketingConsent = isNewsletter ? true : Boolean(submission.consent_given);
+
     let contactId: string | null = null;
 
     if (settings.auto_create_contact !== false && email && roaster) {
@@ -60,11 +71,16 @@ export async function GET(request: NextRequest) {
       if (existing) {
         contactId = existing.id;
         const types = (existing.types as string[]) || [];
-        const contactUpdates: Record<string, unknown> = { marketing_consent: true };
+        const contactUpdates: Record<string, unknown> = {};
+        if (marketingConsent) {
+          contactUpdates.marketing_consent = true;
+        }
         if (!types.includes("lead")) {
           contactUpdates.types = [...types, "lead"];
         }
-        await supabase.from("contacts").update(contactUpdates).eq("id", existing.id);
+        if (Object.keys(contactUpdates).length > 0) {
+          await supabase.from("contacts").update(contactUpdates).eq("id", existing.id);
+        }
         await supabase.from("form_submissions").update({ contact_id: existing.id }).eq("id", submission.id);
       } else {
         const defaultType = (settings.default_contact_type as string) || "lead";
@@ -86,7 +102,7 @@ export async function GET(request: NextRequest) {
             source: "form",
             people_id: peopleId,
             owner_id: roaster.id,
-            marketing_consent: true,
+            marketing_consent: marketingConsent,
           })
           .select("id")
           .single();
@@ -110,7 +126,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Notify roaster
+    // Notify roaster (in-app + email)
     if (roaster?.user_id) {
       await createNotification({
         userId: roaster.user_id,
@@ -119,6 +135,57 @@ export async function GET(request: NextRequest) {
         body: `${(data.email || "A subscriber") as string} confirmed their subscription via "${form.name}".`,
         link: `/marketing/forms/${form.id}/submissions`,
       });
+
+      // Send email notification if enabled (default: on)
+      if (settings.notification_email !== false && roaster.business_name) {
+        try {
+          const { data: roasterRow } = await supabase
+            .from("roasters")
+            .select("email, brand_logo_url, storefront_logo_size, storefront_button_colour, storefront_button_text_colour, storefront_button_style, brand_primary_colour, brand_accent_colour, brand_heading_font, brand_body_font, brand_tagline")
+            .eq("id", roaster.id)
+            .single();
+
+          if (roasterRow?.email) {
+            const branding: EmailBranding | undefined = roasterRow ? {
+              logoUrl: roasterRow.brand_logo_url,
+              logoSize: roasterRow.storefront_logo_size || "medium",
+              buttonColour: roasterRow.storefront_button_colour || undefined,
+              buttonTextColour: roasterRow.storefront_button_text_colour || undefined,
+              buttonStyle: (roasterRow.storefront_button_style as "sharp" | "rounded" | "pill") || "rounded",
+              primaryColour: roasterRow.brand_primary_colour || undefined,
+              accentColour: roasterRow.brand_accent_colour || undefined,
+              headingFont: roasterRow.brand_heading_font || undefined,
+              bodyFont: roasterRow.brand_body_font || undefined,
+              tagline: roasterRow.brand_tagline || undefined,
+            } : undefined;
+
+            const customDomain = await getVerifiedDomain(roaster.id);
+            const bodyHtml = `
+              <h1 style="color:#0f172a;font-size:20px;margin:0 0 16px;">Subscription Confirmed</h1>
+              <p style="color:#334155;font-size:15px;line-height:24px;margin:4px 0 16px;">
+                ${(data.email || "A subscriber") as string} confirmed their subscription via &ldquo;${form.name}&rdquo;.
+              </p>
+              <table style="width:100%;border-collapse:collapse;margin:0 0 16px;">
+                ${Object.entries(data).map(([key, val]) => `
+                  <tr>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;font-weight:600;color:#374151;width:140px;">${key}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;color:#475569;">${String(val)}</td>
+                  </tr>
+                `).join("")}
+              </table>
+            `;
+
+            await resend.emails.send({
+              from: `Roastery Platform <${customDomain?.senderPrefix || "noreply"}@${customDomain?.domain || FROM_DOMAIN}>`,
+              to: roasterRow.email,
+              subject: `Subscription confirmed: ${form.name}`,
+              html: wrapEmailWithBranding({ body: bodyHtml, businessName: roaster.business_name, branding }),
+            });
+          }
+        } catch (e) {
+          console.error("Failed to send verification notification email:", e);
+        }
+      }
     }
   }
 

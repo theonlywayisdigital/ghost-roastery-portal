@@ -50,6 +50,26 @@ export async function PUT(
       }
     }
 
+    // Server-side enforcement: non-newsletter forms cannot have double_opt_in
+    if (allowedFields.settings && typeof allowedFields.settings === "object") {
+      // Determine effective form_type: use the incoming value if changing, otherwise fetch current
+      let effectiveFormType = body.form_type as string | undefined;
+      if (!effectiveFormType) {
+        const { data: currentForm } = await supabase
+          .from("forms")
+          .select("form_type")
+          .eq("id", id)
+          .single();
+        effectiveFormType = currentForm?.form_type;
+      }
+
+      if (effectiveFormType !== "newsletter") {
+        const settings = allowedFields.settings as Record<string, unknown>;
+        settings.double_opt_in = false;
+        allowedFields.settings = settings;
+      }
+    }
+
     const { data: form, error } = await applyOwnerFilter(
       supabase.from("forms").update(allowedFields).eq("id", id),
       owner

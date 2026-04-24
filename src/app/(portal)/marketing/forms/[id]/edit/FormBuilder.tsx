@@ -437,7 +437,7 @@ export function FormBuilder({ formId, marketingTier = "growth" }: { formId: stri
                   onDeselect={() => setSelectedField(null)}
                 />
               ) : (
-                <FormSettings settings={form.settings} onChange={updateSettings} />
+                <FormSettings settings={form.settings} onChange={updateSettings} formType={form.form_type} />
               )
             ) : (
               <BrandingPanel branding={form.branding} onChange={updateBranding} marketingTier={marketingTier} />
@@ -663,10 +663,13 @@ function FieldProperties({
 function FormSettings({
   settings,
   onChange,
+  formType,
 }: {
   settings: Record<string, unknown>;
   onChange: (changes: Record<string, unknown>) => void;
+  formType: string;
 }) {
+  const isNewsletter = formType === "newsletter";
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-slate-900">Form Settings</h3>
@@ -699,22 +702,26 @@ function FormSettings({
         />
       </div>
 
-      <Toggle
-        label="Double opt-in"
-        description="Send verification email before creating contact"
-        value={Boolean(settings.double_opt_in)}
-        onChange={(v) => onChange({ double_opt_in: v })}
-      />
-
-      {Boolean(settings.double_opt_in) && (
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Verification Email Subject</label>
-          <input
-            value={(settings.double_opt_in_email_subject as string) || "Please confirm your subscription"}
-            onChange={(e) => onChange({ double_opt_in_email_subject: e.target.value })}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+      {isNewsletter && (
+        <>
+          <Toggle
+            label="Double opt-in"
+            description="Send verification email before creating contact"
+            value={Boolean(settings.double_opt_in)}
+            onChange={(v) => onChange({ double_opt_in: v })}
           />
-        </div>
+
+          {Boolean(settings.double_opt_in) && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Verification Email Subject</label>
+              <input
+                value={(settings.double_opt_in_email_subject as string) || "Please confirm your subscription"}
+                onChange={(e) => onChange({ double_opt_in_email_subject: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+          )}
+        </>
       )}
 
       <Toggle

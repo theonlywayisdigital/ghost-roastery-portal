@@ -103,8 +103,8 @@ export async function POST(
       }
     }
 
-    // Determine if double opt-in
-    const doubleOptIn = Boolean(settings.double_opt_in);
+    // Determine if double opt-in (only for newsletter forms)
+    const doubleOptIn = form.form_type === "newsletter" && Boolean(settings.double_opt_in);
     const verificationToken = doubleOptIn ? crypto.randomBytes(32).toString("hex") : null;
 
     // Save submission
@@ -185,8 +185,9 @@ export async function POST(
     }
 
     // No double opt-in — create contact immediately
-    if (settings.auto_create_contact && roaster) {
-      const contactId = await createOrUpdateContact(supabase, form, data, submission.id, roaster.id);
+    if (settings.auto_create_contact !== false && roaster) {
+      const consentGiven = Boolean(body.consent);
+      const contactId = await createOrUpdateContact(supabase, form, data, submission.id, roaster.id, consentGiven);
 
       // Fire automation triggers for form submission
       if (contactId && roaster) {
@@ -213,8 +214,8 @@ export async function POST(
         metadata: { form_id: id, submission_id: submission.id },
       });
 
-      // Send email notification if enabled
-      if (settings.notification_email && roaster.business_name) {
+      // Send email notification if enabled (default: on)
+      if (settings.notification_email !== false && roaster.business_name) {
         const roasterEmail = await getNotificationEmail(supabase, roaster.id);
         if (roasterEmail) {
           try {
@@ -263,11 +264,16 @@ async function createOrUpdateContact(
   form: Record<string, unknown>,
   data: Record<string, unknown>,
   submissionId: string,
-  roasterId: string
+  roasterId: string,
+  consentGiven: boolean
 ): Promise<string | null> {
   const settings = (form.settings || {}) as Record<string, unknown>;
   const email = (data.email as string)?.toLowerCase();
   if (!email) return null;
+
+  // Newsletter forms always grant marketing consent; other forms use the GDPR checkbox
+  const isNewsletter = (form.form_type as string) === "newsletter";
+  const marketingConsent = isNewsletter ? true : consentGiven;
 
   // Check if contact exists
   const { data: existing } = await supabase
@@ -278,16 +284,22 @@ async function createOrUpdateContact(
     .single();
 
   if (existing) {
-    // Update existing contact, add lead type if not present, re-opt in for marketing
+    // Update existing contact, add lead type if not present
     const types = (existing.types as string[]) || [];
-    const contactUpdates: Record<string, unknown> = { marketing_consent: true };
+    const contactUpdates: Record<string, unknown> = {};
+    // Only upgrade consent, never downgrade (if they previously consented, keep it)
+    if (marketingConsent) {
+      contactUpdates.marketing_consent = true;
+    }
     if (!types.includes("lead")) {
       contactUpdates.types = [...types, "lead"];
     }
-    await supabase
-      .from("contacts")
-      .update(contactUpdates)
-      .eq("id", existing.id);
+    if (Object.keys(contactUpdates).length > 0) {
+      await supabase
+        .from("contacts")
+        .update(contactUpdates)
+        .eq("id", existing.id);
+    }
 
     // Link submission
     await supabase
@@ -326,7 +338,7 @@ async function createOrUpdateContact(
         source: "form",
         people_id: peopleId,
         owner_id: roasterId,
-        marketing_consent: true,
+        marketing_consent: marketingConsent,
       })
       .select("id")
       .single();

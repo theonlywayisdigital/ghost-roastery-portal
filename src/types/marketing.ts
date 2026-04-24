@@ -150,7 +150,7 @@ export interface EmailTemplate {
 // ═══════════════════════════════════════════════════════════
 
 export type CampaignStatus = "draft" | "scheduled" | "sending" | "sent" | "failed";
-export type AudienceType = "all" | "customers" | "wholesale" | "suppliers" | "leads" | "custom";
+export type AudienceType = "all" | "customers" | "wholesale" | "suppliers" | "leads" | "form_submissions" | "custom";
 
 export interface Campaign {
   id: string;

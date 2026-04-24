@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase";
 import { sendCampaignBatch, checkEmailLimits, renderCampaignEmail } from "@/lib/marketing-email";
 import type { MarketingEmailBranding } from "@/lib/render-email-html";
 import { getVerifiedDomain } from "@/lib/email";
-import { splitName } from "@/lib/people";
+import { resolveCampaignRecipients } from "@/lib/campaign-recipients";
 
 export async function POST(
   request: NextRequest,
@@ -50,59 +50,7 @@ export async function POST(
     }
 
     // Build recipient list
-    const audienceType = campaign.audience_type as string;
-    let recipients: { id: string | null; email: string; first_name: string | null; last_name: string | null }[];
-
-    if (audienceType === "custom") {
-      // Use recipients from audience_filter
-      const filter = campaign.audience_filter as { emails?: { email: string; name?: string; contactId?: string }[] } | null;
-      const customEmails = filter?.emails || [];
-      if (customEmails.length === 0) {
-        return NextResponse.json({ error: "No recipients specified" }, { status: 400 });
-      }
-      recipients = customEmails.map((r) => {
-        const { firstName, lastName } = splitName(r.name);
-        return {
-          id: r.contactId || null,
-          email: r.email,
-          first_name: firstName || null,
-          last_name: lastName || null,
-        };
-      });
-    } else {
-      // Build recipient list from contacts
-      let contactQuery = applyOwnerFilter(
-        supabase
-          .from("contacts")
-          .select("id, email, first_name, last_name")
-          .eq("status", "active")
-          .not("email", "is", null)
-          .eq("unsubscribed", false)
-          .eq("marketing_consent", true),
-        owner
-      );
-
-      if (audienceType !== "all") {
-        const typeMap: Record<string, string> = {
-          customers: "retail",
-          wholesale: "wholesale",
-          suppliers: "supplier",
-          leads: "lead",
-        };
-        const contactType = typeMap[audienceType];
-        if (contactType) {
-          contactQuery = contactQuery.contains("types", [contactType]);
-        }
-      }
-
-      const { data: contacts } = await contactQuery;
-      recipients = (contacts || []).filter((c) => c.email).map((c) => ({
-        id: c.id,
-        email: c.email!,
-        first_name: c.first_name,
-        last_name: c.last_name,
-      }));
-    }
+    const recipients = await resolveCampaignRecipients(supabase, campaign, owner);
 
     if (recipients.length === 0) {
       return NextResponse.json({ error: "No eligible recipients found" }, { status: 400 });

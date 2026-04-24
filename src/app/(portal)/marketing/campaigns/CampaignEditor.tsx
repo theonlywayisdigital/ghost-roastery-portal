@@ -62,6 +62,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
   const [emailBgColor, setEmailBgColor] = useState("#f8fafc");
   const [audienceType, setAudienceType] = useState<AudienceType>("all");
   const [customRecipients, setCustomRecipients] = useState<{ email: string; name?: string; contactId?: string }[]>([]);
+  const [selectedFormIds, setSelectedFormIds] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState("");
 
   // Branding
@@ -100,6 +101,9 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
         setAudienceType(c.audience_type || "all");
         if (c.audience_filter?.emails) {
           setCustomRecipients(c.audience_filter.emails);
+        }
+        if (c.audience_filter?.form_ids) {
+          setSelectedFormIds(c.audience_filter.form_ids);
         }
         setSelectedTemplateId(c.template_id || null);
       } catch {
@@ -153,7 +157,11 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
           content,
           email_bg_color: emailBgColor,
           audience_type: audienceType,
-          audience_filter: audienceType === "custom" ? { emails: customRecipients } : {},
+          audience_filter: audienceType === "custom"
+            ? { emails: customRecipients }
+            : audienceType === "form_submissions"
+            ? { form_ids: selectedFormIds }
+            : {},
           template_id: selectedTemplateId,
         }),
       });
@@ -161,7 +169,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
       // Silently fail on auto-save
     }
     setSaving(false);
-  }, [campaign, campaignId, name, subject, previewText, fromName, replyTo, content, emailBgColor, audienceType, customRecipients, selectedTemplateId]);
+  }, [campaign, campaignId, name, subject, previewText, fromName, replyTo, content, emailBgColor, audienceType, customRecipients, selectedFormIds, selectedTemplateId]);
 
   useEffect(() => {
     if (!campaign) return;
@@ -452,6 +460,8 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
               setAudienceType={setAudienceType}
               customRecipients={customRecipients}
               setCustomRecipients={setCustomRecipients}
+              selectedFormIds={selectedFormIds}
+              setSelectedFormIds={setSelectedFormIds}
             />
           )}
 
@@ -464,6 +474,7 @@ export function CampaignEditor({ campaignId }: CampaignEditorProps) {
               replyTo={replyTo}
               audienceType={audienceType}
               customRecipients={customRecipients}
+              selectedFormIds={selectedFormIds}
               content={content}
               scheduledAt={scheduledAt}
               setScheduledAt={setScheduledAt}
@@ -605,6 +616,7 @@ const AUDIENCE_OPTIONS: { value: AudienceType; label: string; description: strin
   { value: "wholesale", label: "Wholesale Buyers", description: "Contacts tagged as wholesale." },
   { value: "suppliers", label: "Suppliers", description: "Contacts tagged as suppliers." },
   { value: "leads", label: "Leads", description: "Contacts tagged as leads." },
+  { value: "form_submissions", label: "Form Submitters", description: "Send to contacts who submitted one or more of your forms." },
   { value: "custom", label: "Specific Recipients", description: "Send to specific email addresses or selected contacts." },
 ];
 
@@ -615,11 +627,15 @@ function AudienceStep({
   setAudienceType,
   customRecipients,
   setCustomRecipients,
+  selectedFormIds,
+  setSelectedFormIds,
 }: {
   audienceType: AudienceType;
   setAudienceType: (v: AudienceType) => void;
   customRecipients: CustomRecipient[];
   setCustomRecipients: (v: CustomRecipient[]) => void;
+  selectedFormIds: string[];
+  setSelectedFormIds: (v: string[]) => void;
 }) {
   return (
     <div className="max-w-xl">
@@ -651,6 +667,15 @@ function AudienceStep({
           </label>
         ))}
       </div>
+
+      {audienceType === "form_submissions" && (
+        <div className="mt-4">
+          <FormSubmittersSelector
+            selectedFormIds={selectedFormIds}
+            setSelectedFormIds={setSelectedFormIds}
+          />
+        </div>
+      )}
 
       {audienceType === "custom" && (
         <div className="mt-4">
@@ -867,11 +892,182 @@ function SpecificRecipientsEditor({
   );
 }
 
+// ─── Form Submitters Selector ───
+
+interface FormOption {
+  id: string;
+  name: string;
+  status: string;
+  submission_count: number;
+}
+
+function FormSubmittersSelector({
+  selectedFormIds,
+  setSelectedFormIds,
+}: {
+  selectedFormIds: string[];
+  setSelectedFormIds: (v: string[]) => void;
+}) {
+  const { apiBase } = useMarketingContext();
+  const [forms, setForms] = useState<FormOption[]>([]);
+  const [loadingForms, setLoadingForms] = useState(true);
+  const [audienceCount, setAudienceCount] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+  const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load forms
+  useEffect(() => {
+    fetch(`${apiBase}/forms`)
+      .then((r) => (r.ok ? r.json() : { forms: [] }))
+      .then((data) => setForms(data.forms || []))
+      .catch(() => {})
+      .finally(() => setLoadingForms(false));
+  }, [apiBase]);
+
+  // Fetch audience count with debounce
+  useEffect(() => {
+    if (countTimer.current) clearTimeout(countTimer.current);
+
+    if (selectedFormIds.length === 0) {
+      setAudienceCount(0);
+      setCountLoading(false);
+      return;
+    }
+
+    setCountLoading(true);
+    countTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${apiBase}/campaigns/audience-count?audience_type=form_submissions&form_ids=${selectedFormIds.join(",")}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setAudienceCount(data.count);
+        }
+      } catch {
+        // Silently fail
+      }
+      setCountLoading(false);
+    }, 300);
+
+    return () => {
+      if (countTimer.current) clearTimeout(countTimer.current);
+    };
+  }, [selectedFormIds, apiBase]);
+
+  function toggleForm(formId: string) {
+    setSelectedFormIds(
+      selectedFormIds.includes(formId)
+        ? selectedFormIds.filter((id) => id !== formId)
+        : [...selectedFormIds, formId]
+    );
+  }
+
+  const totalSubmissions = forms
+    .filter((f) => selectedFormIds.includes(f.id))
+    .reduce((sum, f) => sum + f.submission_count, 0);
+
+  if (loadingForms) {
+    return (
+      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 flex items-center gap-2">
+        <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+        <span className="text-sm text-slate-500">Loading forms...</span>
+      </div>
+    );
+  }
+
+  if (forms.length === 0) {
+    return (
+      <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 text-center">
+        <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+        <p className="text-sm text-slate-600 font-medium">No forms yet</p>
+        <p className="text-xs text-slate-500 mt-1">
+          Create a form in Marketing &gt; Forms to use this audience.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+      {/* Select all / deselect all */}
+      {forms.length > 3 && (
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Select forms</span>
+          <button
+            onClick={() =>
+              setSelectedFormIds(
+                selectedFormIds.length === forms.length ? [] : forms.map((f) => f.id)
+              )
+            }
+            className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+          >
+            {selectedFormIds.length === forms.length ? "Deselect all" : "Select all"}
+          </button>
+        </div>
+      )}
+
+      {/* Form list */}
+      <div className="space-y-1">
+        {forms.map((form) => (
+          <label
+            key={form.id}
+            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+              selectedFormIds.includes(form.id) ? "bg-brand-50" : "hover:bg-white"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={selectedFormIds.includes(form.id)}
+              onChange={() => toggleForm(form.id)}
+              className="accent-brand-600 w-4 h-4"
+            />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-slate-900">{form.name}</span>
+              {(form.status === "draft" || form.status === "archived") && (
+                <span className={`ml-2 inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  form.status === "draft" ? "bg-slate-100 text-slate-500" : "bg-slate-100 text-slate-400"
+                }`}>
+                  {form.status}
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-slate-400 tabular-nums">
+              {form.submission_count} submission{form.submission_count !== 1 ? "s" : ""}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* Audience count */}
+      <div className="pt-2 border-t border-slate-200">
+        {countLoading ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
+            <span className="text-sm text-slate-500">Calculating recipients...</span>
+          </div>
+        ) : (
+          <div>
+            <p className={`text-sm font-medium ${audienceCount ? "text-slate-900" : "text-slate-400"}`}>
+              {audienceCount ?? 0} recipient{audienceCount !== 1 ? "s" : ""} will receive this campaign
+            </p>
+            {audienceCount !== null && audienceCount < totalSubmissions && audienceCount > 0 && (
+              <p className="text-xs text-slate-400 mt-1">
+                Only contacts with verified emails and marketing consent are included.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Step: Review & Send ───
 
 function ReviewStep({
   name, subject, previewText, fromName, replyTo, audienceType,
-  customRecipients, content, scheduledAt, setScheduledAt,
+  customRecipients, selectedFormIds, content, scheduledAt, setScheduledAt,
   onSendTest, sendingTest, onSend, sending,
   brandBusinessName, brandLogoUrl, brandLogoSize,
   brandPrimaryColour, brandAccentColour, brandBackgroundColour, brandButtonColour, brandButtonTextColour, brandButtonStyle,
@@ -879,6 +1075,7 @@ function ReviewStep({
   name: string; subject: string; previewText: string;
   fromName: string; replyTo: string; audienceType: AudienceType;
   customRecipients: CustomRecipient[];
+  selectedFormIds: string[];
   content: EmailBlock[]; scheduledAt: string; setScheduledAt: (v: string) => void;
   onSendTest: () => void; sendingTest: boolean;
   onSend: () => void; sending: boolean;
@@ -891,6 +1088,7 @@ function ReviewStep({
   if (!subject) issues.push("Subject line is required");
   if (content.length === 0) issues.push("Email has no content blocks");
   if (audienceType === "custom" && customRecipients.length === 0) issues.push("At least one recipient is required");
+  if (audienceType === "form_submissions" && selectedFormIds.length === 0) issues.push("At least one form must be selected");
 
   return (
     <div className="space-y-6">
@@ -903,7 +1101,13 @@ function ReviewStep({
             <SummaryItem label="Preview Text" value={previewText || "None"} />
             <SummaryItem label="From" value={fromName || "Default"} />
             <SummaryItem label="Reply-To" value={replyTo || "Default"} />
-            <SummaryItem label="Audience" value={audienceType === "custom" ? `${customRecipients.length} specific recipient${customRecipients.length !== 1 ? "s" : ""}` : audienceType === "all" ? "All Contacts" : audienceType} />
+            <SummaryItem label="Audience" value={
+              audienceType === "custom"
+                ? `${customRecipients.length} specific recipient${customRecipients.length !== 1 ? "s" : ""}`
+                : audienceType === "form_submissions"
+                ? `Form Submitters (${selectedFormIds.length} form${selectedFormIds.length !== 1 ? "s" : ""})`
+                : audienceType === "all" ? "All Contacts" : audienceType
+            } />
             <SummaryItem label="Content Blocks" value={`${content.length} blocks`} warn={content.length === 0} />
           </div>
 

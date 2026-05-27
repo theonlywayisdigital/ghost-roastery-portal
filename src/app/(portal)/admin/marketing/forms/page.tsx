@@ -1,5 +1,5 @@
-import { FormsPage } from "../../../marketing/forms/FormsPage";
+import { AdminFormsPage } from "./AdminFormsPage";
 
-export default function AdminFormsPage() {
-  return <FormsPage />;
+export default function AdminFormsPageRoute() {
+  return <AdminFormsPage />;
 }

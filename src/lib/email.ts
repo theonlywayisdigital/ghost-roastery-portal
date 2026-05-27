@@ -1039,3 +1039,121 @@ export async function sendInvoicePaymentConfirmationEmail(params: {
     ...(attachments?.length ? { attachments } : {}),
   });
 }
+
+// ─── Support Ticket Notifications ───
+
+export async function sendSupportTicketCreatedEmail(
+  email: string,
+  contactName: string,
+  ticketNumber: string,
+  subject: string,
+  ticketId: string
+) {
+  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">Support Ticket Received</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ticket #${ticketNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We&rsquo;ve received your support ticket and our team will get back to you as soon as possible. We usually respond within 72 hours.
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Ticket:</strong> #${ticketNumber}</p>
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Subject:</strong> ${subject}</p>
+    </div>
+
+    ${emailButton({ href: `${portalUrl}/support/tickets/${ticketId}`, label: "View Ticket" })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      You can check the status of your ticket at any time by clicking the button above.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `Support ticket received — #${ticketNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
+  });
+}
+
+export async function sendSupportTicketAdminNotificationEmail(params: {
+  to: string;
+  ticketNumber: string;
+  subject: string;
+  ticketId: string;
+  creatorName: string;
+  creatorEmail: string;
+  creatorType: string;
+}) {
+  const { to, ticketNumber, subject, ticketId, creatorName, creatorEmail, creatorType } = params;
+  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com";
+
+  const typeLabel = creatorType === "roaster" ? "Roaster" : "Customer";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New Support Ticket</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ticket #${ticketNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      A new support ticket has been submitted:
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Ticket:</strong> #${ticketNumber}</p>
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>Subject:</strong> ${subject}</p>
+      <p style="color:#334155;font-size:14px;margin:0 0 8px;"><strong>From:</strong> ${creatorName || "Unknown"} (${creatorEmail})</p>
+      <p style="color:#334155;font-size:14px;margin:0;"><strong>Type:</strong> ${typeLabel}</p>
+    </div>
+
+    ${emailButton({ href: `${portalUrl}/admin/support/tickets/${ticketId}`, label: "View Ticket" })}`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject: `New support ticket #${ticketNumber} — ${subject}`,
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
+  });
+}
+
+export async function sendSupportTicketReplyEmail(
+  email: string,
+  contactName: string,
+  ticketNumber: string,
+  ticketId: string,
+  replyPreview: string
+) {
+  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL || "https://app.roasteryplatform.com";
+
+  const body = `
+    <h1 style="color:#0f172a;font-size:24px;margin:0 0 8px;text-align:center;">New Reply on Your Ticket</h1>
+    <p style="color:#64748b;font-size:14px;margin:0 0 32px;text-align:center;">Ticket #${ticketNumber}</p>
+
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      Hi ${contactName},
+    </p>
+    <p style="color:#334155;font-size:16px;line-height:1.6;text-align:left;">
+      We&rsquo;ve replied to your support ticket <strong>#${ticketNumber}</strong>:
+    </p>
+
+    <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;text-align:left;">
+      <p style="color:#334155;font-size:14px;margin:0;line-height:1.6;">${replyPreview}</p>
+    </div>
+
+    ${emailButton({ href: `${portalUrl}/support/tickets/${ticketId}`, label: "View Full Reply" })}
+
+    <p style="color:#94a3b8;font-size:13px;margin-top:32px;text-align:center;">
+      Click the button above to view the full reply and respond.
+    </p>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: `New reply on ticket #${ticketNumber}`,
+    html: wrapEmailWithBranding({ body, businessName: "Roastery Platform" }),
+  });
+}

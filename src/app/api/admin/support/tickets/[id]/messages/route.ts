@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { sendSupportTicketReplyEmail } from "@/lib/email";
 
 export async function POST(
   request: NextRequest,
@@ -20,7 +21,7 @@ export async function POST(
     // Verify ticket exists
     const { data: ticket } = await supabase
       .from("support_tickets")
-      .select("id, status")
+      .select("id, status, created_by, ticket_number, subject, created_by_type")
       .eq("id", id)
       .single();
 
@@ -48,14 +49,8 @@ export async function POST(
 
     // If not internal note, update ticket status based on creator type
     if (!body.is_internal && ticket.status === "open") {
-      const { data: ticketFull } = await supabase
-        .from("support_tickets")
-        .select("created_by_type")
-        .eq("id", id)
-        .single();
-
       const newStatus =
-        ticketFull?.created_by_type === "roaster"
+        ticket.created_by_type === "roaster"
           ? "waiting_on_roaster"
           : "waiting_on_customer";
 
@@ -63,6 +58,28 @@ export async function POST(
         .from("support_tickets")
         .update({ status: newStatus })
         .eq("id", id);
+    }
+
+    // Send email notification for non-internal replies (fire-and-forget)
+    if (!body.is_internal) {
+      // Look up creator from the users table (reliably populated for all user types)
+      const { data: creator } = await supabase
+        .from("users")
+        .select("email, full_name")
+        .eq("id", ticket.created_by)
+        .single();
+
+      if (creator?.email) {
+        const contactName = creator.full_name || creator.email;
+        const replyPreview = (body.message as string).slice(0, 200) + ((body.message as string).length > 200 ? "…" : "");
+        sendSupportTicketReplyEmail(
+          creator.email,
+          contactName,
+          ticket.ticket_number,
+          ticket.id,
+          replyPreview
+        ).catch((err) => console.error("[reply-email] Failed to send ticket reply email:", err));
+      }
     }
 
     return NextResponse.json({ message });

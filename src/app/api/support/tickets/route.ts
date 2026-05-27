@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
+import { sendSupportTicketCreatedEmail, sendSupportTicketAdminNotificationEmail } from "@/lib/email";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -77,8 +78,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("Ticket create error:", error);
-      return NextResponse.json({ error: "Failed to create ticket" }, { status: 500 });
+      console.error("Ticket create error:", error.message, error.details, error.hint, { userId: user.id, roasterId: user.roaster?.id });
+      return NextResponse.json({ error: error.message || "Failed to create ticket" }, { status: 500 });
     }
 
     // Add initial message from description if provided
@@ -90,6 +91,35 @@ export async function POST(request: NextRequest) {
         message: body.description,
         attachments: body.attachments || [],
       });
+    }
+
+    // Send email notifications (fire-and-forget)
+    // Use user.email and user.fullName directly from auth session — always available
+    const creatorEmail = user.email;
+    const creatorName = user.fullName || user.email;
+
+    if (creatorEmail) {
+      sendSupportTicketCreatedEmail(
+        creatorEmail,
+        creatorName,
+        ticket.ticket_number,
+        ticket.subject,
+        ticket.id
+      ).catch((err) => console.error("[ticket-email] Failed to send ticket created email:", err));
+    }
+
+    // Admin notification email
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+    if (adminEmail) {
+      sendSupportTicketAdminNotificationEmail({
+        to: adminEmail,
+        ticketNumber: ticket.ticket_number,
+        subject: ticket.subject,
+        ticketId: ticket.id,
+        creatorName,
+        creatorEmail: creatorEmail || "Unknown",
+        creatorType: createdByType,
+      }).catch((err) => console.error("[ticket-email] Failed to send admin notification:", err));
     }
 
     return NextResponse.json({ ticket });

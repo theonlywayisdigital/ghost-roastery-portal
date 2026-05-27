@@ -55,6 +55,7 @@ interface Roaster {
 
 interface AdminContactsCRMProps {
   roasters: Roaster[];
+  hideHeader?: boolean;
 }
 
 type OwnerTab = "ghost_roastery" | "gr_wholesale" | "roaster";
@@ -85,7 +86,7 @@ const STATUS_COLORS: Record<string, string> = {
   archived: "bg-red-50 text-red-600",
 };
 
-export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
+export function AdminContactsCRM({ roasters, hideHeader }: AdminContactsCRMProps) {
   const router = useRouter();
   const [ownerTab, setOwnerTab] = useState<OwnerTab>("ghost_roastery");
   const [activeTab, setActiveTab] = useState<GRTabId>("all");
@@ -248,14 +249,35 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
-          <p className="text-slate-500 mt-1">
-            Manage Roastery Platform contacts and view roaster contacts across the platform.
-          </p>
+      {!hideHeader ? (
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
+            <p className="text-slate-500 mt-1">
+              Manage Roastery Platform contacts and view roaster contacts across the platform.
+            </p>
+          </div>
+          {isGhostRoastery && (
+            <button
+              onClick={() => {
+                const defaultTypes: string[] = [];
+                if (activeTab === "retail") defaultTypes.push("retail");
+                else if (activeTab === "leads") defaultTypes.push("lead");
+                else if (activeTab === "suppliers") defaultTypes.push("supplier");
+                else if (activeTab === "roasters") defaultTypes.push("roaster");
+                else if (activeTab === "partners") defaultTypes.push("partner");
+                setAddForm({ first_name: "", last_name: "", email: "", phone: "", business_name: "", types: defaultTypes });
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Contact
+            </button>
+          )}
         </div>
-        {isGhostRoastery && (
+      ) : isGhostRoastery ? (
+        <div className="mb-4 flex justify-end">
           <button
             onClick={() => {
               const defaultTypes: string[] = [];
@@ -272,8 +294,8 @@ export function AdminContactsCRM({ roasters }: AdminContactsCRMProps) {
             <Plus className="w-4 h-4" />
             Add Contact
           </button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Ownership Tabs */}
       <div className="flex gap-2 mb-4">

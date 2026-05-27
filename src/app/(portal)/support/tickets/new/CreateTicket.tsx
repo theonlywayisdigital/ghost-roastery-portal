@@ -63,25 +63,30 @@ export function CreateTicket({ isRoaster }: { isRoaster: boolean }) {
     if (!subject.trim()) return;
 
     setSubmitting(true);
-    const res = await fetch("/api/support/tickets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subject: subject.trim(),
-        type,
-        priority,
-        description: description.trim(),
-        order_id: orderId || null,
-        chatbot_conversation: chatConversation,
-      }),
-    });
+    try {
+      const res = await fetch("/api/support/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: subject.trim(),
+          type,
+          priority,
+          description: description.trim(),
+          order_id: orderId || null,
+          chatbot_conversation: chatConversation,
+        }),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/support/tickets/${data.ticket.id}`);
-    } else {
-      const data = await res.json();
-      alert(data.error || "Failed to create ticket");
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/support/tickets/${data.ticket.id}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || `Failed to create ticket (${res.status})`);
+        setSubmitting(false);
+      }
+    } catch (err) {
+      alert(`Failed to create ticket: ${err instanceof Error ? err.message : "Unknown error"}`);
       setSubmitting(false);
     }
   };

@@ -53,6 +53,7 @@ interface Roaster {
 
 interface AdminBusinessesCRMProps {
   roasters: Roaster[];
+  hideHeader?: boolean;
 }
 
 type OwnerTab = "ghost_roastery" | "gr_wholesale" | "roaster";
@@ -92,7 +93,7 @@ const INDUSTRY_COLORS: Record<string, string> = {
   other: "bg-slate-100 text-slate-600",
 };
 
-export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
+export function AdminBusinessesCRM({ roasters, hideHeader }: AdminBusinessesCRMProps) {
   const router = useRouter();
   const [ownerTab, setOwnerTab] = useState<OwnerTab>("ghost_roastery");
   const [activeTab, setActiveTab] = useState<TabId>("all");
@@ -246,14 +247,39 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Businesses</h1>
-          <p className="text-slate-500 mt-1">
-            Manage Roastery Platform businesses and view roaster businesses across the platform.
-          </p>
+      {!hideHeader ? (
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Businesses</h1>
+            <p className="text-slate-500 mt-1">
+              Manage Roastery Platform businesses and view roaster businesses across the platform.
+            </p>
+          </div>
+          {isGhostRoastery && (
+            <button
+              onClick={() => {
+                const defaultTypes: string[] = [];
+                if (activeTab === "retail") defaultTypes.push("retail");
+                else if (activeTab === "wholesale") defaultTypes.push("wholesale");
+                else if (activeTab === "suppliers") defaultTypes.push("supplier");
+                else if (activeTab === "leads") defaultTypes.push("lead");
+                setAddForm({
+                  name: "", email: "", phone: "", website: "", industry: "",
+                  types: defaultTypes,
+                  address_line_1: "", address_line_2: "", city: "", county: "", postcode: "",
+                  contact_first_name: "", contact_last_name: "", contact_email: "", contact_phone: "", contact_role: "",
+                });
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Business
+            </button>
+          )}
         </div>
-        {isGhostRoastery && (
+      ) : isGhostRoastery ? (
+        <div className="mb-4 flex justify-end">
           <button
             onClick={() => {
               const defaultTypes: string[] = [];
@@ -274,8 +300,8 @@ export function AdminBusinessesCRM({ roasters }: AdminBusinessesCRMProps) {
             <Plus className="w-4 h-4" />
             Add Business
           </button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Ownership Tabs */}
       <div className="flex gap-2 mb-4">

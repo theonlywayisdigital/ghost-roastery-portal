@@ -246,11 +246,7 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       items: [
         { label: "All Orders", href: "/admin/orders", icon: ShoppingCart },
         { label: "All Contacts", href: "/admin/contacts", icon: Contact },
-        { label: "All Businesses", href: "/admin/businesses", icon: Store },
         { label: "All Users", href: "/admin/users", icon: Users },
-        { label: "All Roasters", href: "/admin/roasters", icon: Building2 },
-        { label: "Products", href: "/admin/products", icon: Package },
-        { label: "Wholesale", href: "/admin/wholesale", icon: Store },
       ],
     });
     sections.push({
@@ -264,15 +260,6 @@ export function Sidebar({ user }: { user: SidebarUser }) {
       title: "Growth",
       items: [
         { label: "Marketing Suite", href: "/admin/marketing", icon: Megaphone },
-      ],
-    });
-    sections.push({
-      title: "System",
-      items: [
-        { label: "Pricing", href: "/admin/pricing", icon: PoundSterling },
-        { label: "Builder Config", href: "/admin/builder-config", icon: Package },
-        { label: "Branding", href: "/admin/settings/branding", icon: Palette },
-        { label: "Platform Settings", href: "/admin/settings", icon: Sliders },
       ],
     });
   }

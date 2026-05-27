@@ -36,6 +36,7 @@ interface Roaster {
 
 interface AdminRoastersCRMProps {
   countries: string[];
+  hideHeader?: boolean;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -49,7 +50,7 @@ const PARTNER_COLORS: Record<string, string> = {
   rejected: "bg-red-50 text-red-600",
 };
 
-export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
+export function AdminRoastersCRM({ countries, hideHeader }: AdminRoastersCRMProps) {
   const router = useRouter();
   const [roasters, setRoasters] = useState<Roaster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,14 +205,33 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Roasters</h1>
-          <p className="text-slate-500 mt-1">
-            Manage all partner roasters across the platform.
-          </p>
+      {!hideHeader ? (
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Roasters</h1>
+            <p className="text-slate-500 mt-1">
+              Manage all partner roasters across the platform.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExport}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Roaster
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
+      ) : (
+        <div className="mb-4 flex justify-end gap-2">
           <button
             onClick={handleExport}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -227,7 +247,7 @@ export function AdminRoastersCRM({ countries }: AdminRoastersCRMProps) {
             Add Roaster
           </button>
         </div>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">

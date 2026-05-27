@@ -33,6 +33,7 @@ interface Roaster {
 
 interface AdminUsersListProps {
   roasters: Roaster[];
+  hideHeader?: boolean;
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -56,7 +57,7 @@ const AUTH_STATUS_COLORS: Record<string, string> = {
   deactivated: "bg-slate-100 text-slate-500",
 };
 
-export function AdminUsersList({ roasters }: AdminUsersListProps) {
+export function AdminUsersList({ roasters, hideHeader }: AdminUsersListProps) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,21 +192,33 @@ export function AdminUsersList({ roasters }: AdminUsersListProps) {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Users</h1>
-          <p className="text-slate-500 mt-1">
-            Manage all platform users, roles, and access.
-          </p>
+      {!hideHeader ? (
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Users</h1>
+            <p className="text-slate-500 mt-1">
+              Manage all platform users, roles, and access.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Invite User
+          </button>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Invite User
-        </button>
-      </div>
+      ) : (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Invite User
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">

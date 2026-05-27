@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
-import { AdminContactsCRM } from "./AdminContactsCRM";
+import { AdminContactsTabs } from "./AdminContactsTabs";
 
 export default async function AdminContactsPage() {
   const user = await getCurrentUser();
@@ -9,7 +9,7 @@ export default async function AdminContactsPage() {
 
   const supabase = createServerClient();
 
-  // Load roasters list for the filter dropdown
+  // Load roasters list for the filter dropdown (used by both People and Businesses tabs)
   const { data: roasters } = await supabase
     .from("roasters")
     .select("id, business_name")
@@ -17,7 +17,7 @@ export default async function AdminContactsPage() {
     .order("business_name");
 
   return (
-    <AdminContactsCRM
+    <AdminContactsTabs
       roasters={(roasters || []).map((r) => ({ id: r.id, business_name: r.business_name }))}
     />
   );

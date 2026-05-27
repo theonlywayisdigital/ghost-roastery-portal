@@ -68,6 +68,11 @@ export async function getCurrentUser(): Promise<PortalUser | null> {
 
   const roles = (roleRows || []).map((r: { role_id: string }) => r.role_id);
 
+  // super_admin inherits all admin privileges
+  if (roles.includes("super_admin") && !roles.includes("admin")) {
+    roles.push("admin");
+  }
+
   // Check for admin impersonation
   let impersonatingRoasterId: string | null = null;
   if (roles.includes("admin")) {

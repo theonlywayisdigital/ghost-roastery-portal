@@ -13,7 +13,9 @@ export type NotificationType =
   | "review_received"
   | "social_post_published"
   | "social_post_failed"
-  | "social_connection_expired";
+  | "social_connection_expired"
+  | "support_ticket_created"
+  | "support_ticket_reply";
 
 export interface CreateNotificationParams {
   userId: string;

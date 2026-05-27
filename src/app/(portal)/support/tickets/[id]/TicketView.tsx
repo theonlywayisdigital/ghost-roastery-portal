@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -8,6 +8,8 @@ import {
   Loader2,
   Clock,
   User,
+  Upload,
+  X,
 } from "@/components/icons";
 import type { SupportTicket, TicketMessage } from "@/types/support";
 
@@ -50,6 +52,9 @@ export function TicketView({ ticketId }: { ticketId: string }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replyAttachments, setReplyAttachments] = useState<{ url: string; name: string; type: string; size: number }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTicket = useCallback(async () => {
     setLoading(true);
@@ -66,16 +71,39 @@ export function TicketView({ ticketId }: { ticketId: string }) {
     fetchTicket();
   }, [fetchTicket]);
 
+  const handleFileUpload = async (files: FileList) => {
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/support/upload", { method: "POST", body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          setReplyAttachments((prev) => [...prev, data]);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || "Failed to upload file");
+        }
+      } catch {
+        alert(`Failed to upload ${file.name}`);
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const sendReply = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() && replyAttachments.length === 0) return;
     setSending(true);
     const res = await fetch(`/api/support/tickets/${ticketId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: replyText.trim() }),
+      body: JSON.stringify({ message: replyText.trim(), attachments: replyAttachments }),
     });
     if (res.ok) {
       setReplyText("");
+      setReplyAttachments([]);
       fetchTicket();
     }
     setSending(false);
@@ -220,18 +248,61 @@ export function TicketView({ ticketId }: { ticketId: string }) {
                   }
                 }}
               />
-              <button
-                onClick={sendReply}
-                disabled={sending || !replyText.trim()}
-                className="self-end px-4 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </button>
+              <div className="flex flex-col gap-2 self-end">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="px-3 py-3 border border-slate-300 text-slate-500 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                  title="Attach files"
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={sendReply}
+                  disabled={sending || (!replyText.trim() && replyAttachments.length === 0)}
+                  className="px-4 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                >
+                  {sending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
+            {replyAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {replyAttachments.map((att, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                  >
+                    {att.type.startsWith("image/") ? (
+                      <img src={att.url} alt={att.name} className="w-8 h-8 object-cover rounded" />
+                    ) : (
+                      <span className="text-slate-500 text-xs">PDF</span>
+                    )}
+                    <span className="text-slate-700 truncate max-w-[140px]">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setReplyAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

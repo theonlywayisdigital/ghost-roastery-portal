@@ -15,6 +15,7 @@ import {
   Megaphone,
   Star,
   UserPlus,
+  MessageSquare,
 } from "@/components/icons";
 
 interface Notification {
@@ -39,6 +40,8 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   automation_triggered: Zap,
   campaign_sent: Mail,
   review_received: Star,
+  support_ticket_created: MessageSquare,
+  support_ticket_reply: MessageSquare,
 };
 
 const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
@@ -52,6 +55,8 @@ const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
   automation_triggered: { bg: "bg-orange-50", color: "text-orange-600" },
   campaign_sent: { bg: "bg-sky-50", color: "text-sky-600" },
   review_received: { bg: "bg-yellow-50", color: "text-yellow-600" },
+  support_ticket_created: { bg: "bg-teal-50", color: "text-teal-600" },
+  support_ticket_reply: { bg: "bg-teal-50", color: "text-teal-600" },
 };
 
 function relativeTime(dateStr: string): string {

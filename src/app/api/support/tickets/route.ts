@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendSupportTicketCreatedEmail, sendSupportTicketAdminNotificationEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -120,6 +121,23 @@ export async function POST(request: NextRequest) {
         creatorEmail: creatorEmail || "Unknown",
         creatorType: createdByType,
       }).catch((err) => console.error("[ticket-email] Failed to send admin notification:", err));
+    }
+
+    // Notify all admin users in-app
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role_id", "admin");
+
+    for (const admin of adminRoles || []) {
+      createNotification({
+        userId: admin.user_id,
+        type: "support_ticket_created",
+        title: "New support ticket",
+        body: `${creatorName} submitted ticket #${ticket.ticket_number}: ${ticket.subject}`,
+        link: `/admin/support/tickets/${ticket.id}`,
+        metadata: { ticket_id: ticket.id },
+      });
     }
 
     return NextResponse.json({ ticket });

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Send, Loader2, Bot, MessageSquare, X } from "@/components/icons";
+import { ArrowLeft, Send, Loader2, Bot, MessageSquare, X, Upload } from "@/components/icons";
 import type { TicketType, ChatMessage } from "@/types/support";
 import { SupportChatbot } from "../../chat/SupportChatbot";
 
@@ -40,6 +40,9 @@ export function CreateTicket({ isRoaster }: { isRoaster: boolean }) {
   const [submitting, setSubmitting] = useState(false);
   const [chatVisible, setChatVisible] = useState(showChat);
   const [chatConversation, setChatConversation] = useState<ChatMessage[] | null>(null);
+  const [attachments, setAttachments] = useState<{ url: string; name: string; type: string; size: number }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const typeOptions = isRoaster ? ROASTER_TYPES : CUSTOMER_TYPES;
 
@@ -58,6 +61,28 @@ export function CreateTicket({ isRoaster }: { isRoaster: boolean }) {
     fetchOrders();
   }, [fetchOrders]);
 
+  const handleFileUpload = async (files: FileList) => {
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/support/upload", { method: "POST", body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          setAttachments((prev) => [...prev, data]);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || "Failed to upload file");
+        }
+      } catch {
+        alert(`Failed to upload ${file.name}`);
+      }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim()) return;
@@ -74,6 +99,7 @@ export function CreateTicket({ isRoaster }: { isRoaster: boolean }) {
           description: description.trim(),
           order_id: orderId || null,
           chatbot_conversation: chatConversation,
+          attachments,
         }),
       });
 
@@ -248,6 +274,54 @@ export function CreateTicket({ isRoaster }: { isRoaster: boolean }) {
                 placeholder="Describe your issue in detail..."
                 className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
               />
+            </div>
+
+            {/* Attachments */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Attachments
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                multiple
+                className="hidden"
+                onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {uploading ? "Uploading..." : "Attach Files"}
+              </button>
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {attachments.map((att, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                    >
+                      {att.type.startsWith("image/") ? (
+                        <img src={att.url} alt={att.name} className="w-8 h-8 object-cover rounded" />
+                      ) : (
+                        <span className="text-slate-500 text-xs">PDF</span>
+                      )}
+                      <span className="text-slate-700 truncate max-w-[140px]">{att.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

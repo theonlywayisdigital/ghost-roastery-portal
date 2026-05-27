@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase";
 import { sendSupportTicketReplyEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   request: NextRequest,
@@ -80,6 +81,16 @@ export async function POST(
           replyPreview
         ).catch((err) => console.error("[reply-email] Failed to send ticket reply email:", err));
       }
+
+      // In-app notification for ticket creator
+      createNotification({
+        userId: ticket.created_by,
+        type: "support_ticket_reply",
+        title: "New reply on your ticket",
+        body: `Your ticket #${ticket.ticket_number} has a new reply.`,
+        link: `/support/tickets/${ticket.id}`,
+        metadata: { ticket_id: ticket.id },
+      });
     }
 
     return NextResponse.json({ message });
